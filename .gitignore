@@ -1,0 +1,17 @@
+*.o
+*.log
+*.swap
+*.idx
+
+*.status_log
+*.status_lock
+
+.cache
+
+build/
+src/image/
+src/base/*.fd
+
+.vscode/settings.json
+src/utils/compile_commands.json
+

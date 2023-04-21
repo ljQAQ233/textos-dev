@@ -1,0 +1,17 @@
+[Defines]
+    INF_VERSION = 0x00010006
+    BASE_NAME = SigmaBootPkg
+    FILE_GUID = fc54961b-f74c-4700-a8ca-204cea150681
+    MODULE_TYPE = UEFI_APPLICATION
+    VERSION_STRING = 20230422
+    ENTRY_POINT = UefiMain
+
+[Sources]
+    Main.c
+
+[Packages]
+    MdePkg/MdePkg.dec
+
+[LibraryClasses]
+    UefiLib
+    UefiApplicationEntryPoint
