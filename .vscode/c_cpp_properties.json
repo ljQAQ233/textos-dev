@@ -1,0 +1,15 @@
+{
+  "configurations": [
+    {
+      "name": "Linux",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/src/include",
+        "${workspaceFolder}/src/boot/Edk2/MdePkg/Include"
+      ],
+      "defines": [],
+      "compileCommands": "${workspaceFolder}/src/utils/compile_commands.json"
+    }
+  ],
+  "version": 4
+}
