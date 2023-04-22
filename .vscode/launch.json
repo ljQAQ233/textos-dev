@@ -1,0 +1,40 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "TextOS - Boot debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/Build/Boot/DEBUG_GCC5/X64/SigmaBootPkg.debug",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "targetArchitecture": "x64", // 照应 customLaunchSetupCommands 需求
+            "customLaunchSetupCommands": [
+                {
+                    "description": "Connect to qemu",
+                    "text": "-target-select remote :1234",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Load script for uefi debugging",
+                    "text": "source ${workspaceFolder}/Src/Utils/Udk/script/udk_gdb_script",
+                    "ignoreFailures": false
+                },
+                {
+                  "description": "Enable pretty-printing for gdb",
+                  "text": "-enable-pretty-printing",
+                  "ignoreFailures": true
+                },
+                {
+                  "description": "Set disassembly style for gdb",
+                  "text": "-gdb-set disassembly-flavor intel",
+                  "ignoreFailures": true
+                }
+            ],
+            "launchCompleteCommand": "exec-continue"
+        }
+    ]
+}

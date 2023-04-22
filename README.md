@@ -33,9 +33,23 @@
 # make
 
 - `make -C Src qemu` -> running on Qemu
+- `make -C Src qemubg` -> start uefi debugging
 - `make -C Src compile_commands.json` -> AutoGen CompileCommands
 
+---
+
+Qemu启动可选项:
+
+- QEMU_GPY
+   - false -> 不显示Qemu图形化窗口
+
 # 学习 / 开发此项目
+
+## 初始化
+
+```shell
+sudo cp Src/Utils/Udk/udkdebugger.conf /etc
+```
 
 ## compile_commands.json
 

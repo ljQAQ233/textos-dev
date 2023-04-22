@@ -5,6 +5,13 @@ export ARCH
 include Config/Main.mk
 include Config/Image.mk
 
+include Config/Udk.mk
+
+ifneq ($(findstring qemubg,${MAKECMDGOALS}),)
+  # Get the path of pipes that are used to debug uefi
+  PIPE := $(shell cat $(UDK_DBG_CFG) | grep -E "^[P ]ort" | awk '{print $$NF}')
+endif
+
 .PHONY: all
 all: _BootUpdate Image
 
@@ -54,6 +61,18 @@ _BootUpdate:
 .PHONY: qemu
 qemu: all
 	$(QEMU) $(QEMU_FLAGS_RUN)
+
+.PHONY: qemubg
+qemubg: export BOOT_DEBUG=true
+qemubg: all
+	@mkfifo $(PIPE).in $(PIPE).out
+	@echo "Created pipe : $(PIPE)"
+	@$(UDK_DBG_EXEC) 2>&1 &
+	@echo "Started UdkDebugger"
+	@$(UTILS)/gQemuModuleMonitor.sh > /dev/null 2>&1 & disown -h
+	@echo "Started QemuMonitor"
+	@echo "Running Qemu"
+	@$(QEMU) $(QEMU_FLAGS_BDBG)
 
 .PHONY: diskmu
 diskmu:

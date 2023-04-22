@@ -1,6 +1,8 @@
 SRC_DIR  := $(shell pwd)
 # Set Source Root
 
+DEBUG    := true
+
 OUTPUT   := ../Build
 OUTPUT   := $(abspath ${OUTPUT})
 # Get the RealPath

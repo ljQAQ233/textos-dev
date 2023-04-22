@@ -3,7 +3,11 @@ SHELL     := bash
 
 -include ../Config/Boot.mk
 
-TARGET := RELEASE
+ifeq (${BOOT_DEBUG},true)
+ TARGET := DEBUG
+else
+ TARGET := RELEASE
+endif
 
 .PHONY: BootLoader
 BootLoader: Build Update

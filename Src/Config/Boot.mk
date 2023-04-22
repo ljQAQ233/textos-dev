@@ -8,6 +8,16 @@ FLAGS     := $(_SKIP_AUTOGEN)
 # For EDK2 Build Toolchains
 CFLAGS    := $(addprefix -I,${INCLUDE})
 
+ifeq (${BOOT_DEBUG},true)
+  CFLAGS  += -D__SRC_LEVEL_DEBUG
+endif
+# For Gcc
+
+ifeq (${BOOT_DEBUG},true)
+  FLAGS += -DBOOT_DEBUG
+ # For Source Level Debug and others,also a Macro in .dsc file
+endif
+
 DSC := SigmaBootPkg/Boot.dsc
 # For EDK2 build command,means what to build
 _PLATFORM_NAME := $(shell bash ${UTILS}/BootGetPlatformName.sh ${DSC})
