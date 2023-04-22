@@ -28,11 +28,24 @@
 
 ---
 
-使用 Makefile 硬构强力驱动 /doge
+使用 Makefile 硬构强力驱动 /doge [[make]](#make)
 
+# make
+
+- `make -C Src qemu` -> running on Qemu
+- `make -C Src compile_commands.json` -> AutoGen CompileCommands
+
+# 学习 / 开发此项目
+
+## compile_commands.json
+
+```shell
+make -C Src compile_commands.json
 ```
-make -C Src qemu
-```
+
+将 `Src/Utils/compile_commands.json`添加到配置中.
+
+VSCode可以配置`includePath`
 
 # 参考软件版本
 
@@ -48,6 +61,11 @@ make -C Src qemu
 ## 文档
 
 - Docs
+
+- [Intel® 64 and IA-32 Architectures Software Developer’s Manual](./Docs/Intel.pdf)
+- [Unified Extensible Firmware Interface (UEFI) Specification Version 2.9 March 2021](./Docs/Docs/UEFI_Spec_2_9_2021_03_18.pdf)
+
+**注: Uefi文档与当前版本有出入**
 
 ## 网站
 
@@ -75,6 +93,6 @@ make -C Src qemu
 [doc|fix|update|bili] (details)
 ```
 
-# LINCENSE
+# LICENSE
 
 [MIT License] (LICENSE)
