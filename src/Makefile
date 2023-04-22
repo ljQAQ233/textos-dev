@@ -5,6 +5,8 @@ export ARCH
 include config/main.mk
 include config/image.mk
 
+include config/udk.mk
+
 all: _boot image
 
 include config/qemu.mk
@@ -14,6 +16,8 @@ boot:
 
 ovmf:
 	@make -C boot TARGET=RELEASE ovmf
+	@make -C boot TARGET=DEBUG FLAGS="-DDEBUG_ON_SERIAL_PORT=TRUE" ovmf
+	@make -C boot TARGET=NOOPT FLAGS="-DDEBUG_ON_SERIAL_PORT=TRUE -DSOURCE_DEBUG_ENABLE=TRUE" ovmf
 	@echo "OVMF is up-to-date\n"
 
 
@@ -48,6 +52,14 @@ _boot:
 qemu: all
 	$(QEMU) $(QEMU_FLAGS_RUN)
 
+qemubg: export BOOT_DEBUG:=true
+qemubg: export PIPE:=$(shell cat $(UDK_DBG_CFG) | grep -E "^[P ]ort" | awk '{print $$NF}')
+qemubg: all
+	mkfifo $(PIPE).in $(PIPE).out
+	$(UDK_DBG_EXEC) 2>&1 &
+	$(UTILS)/monitor_qemu.sh > /dev/null 2>&1 & disown -h
+	$(QEMU) $(QEMU_FLAGS_BDBG) -serial pipe:$(PIPE)
+
 diskmu:
 	@mkdir -p $(IMG_MDIR)
 	@if ! $(SUDO) mount $(IMG_OUTPUT) $(IMG_MDIR) > /dev/null 2>&1;then \
@@ -66,7 +78,7 @@ clean:
 
 
 .PHONY: all _boot boot image \
-		qemu \
+		qemu qemubg \
 		diskmu clean \
 		compile_commands.json 
 

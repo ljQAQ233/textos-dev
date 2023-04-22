@@ -20,3 +20,16 @@ QEMU_FLAGS := -hda $(IMG_OUTPUT) \
 QEMU_FLAGS_RUN  := $(QEMU_FLAGS) \
 			   -bios $(OVMF)
 
+QEMU_FLAGS_DBG  := $(QEMU_FLAGS) \
+#			   -d int,cpu_reset
+
+# No graphic for debugging
+ifeq (${QEMU_GPY},false)
+  ifneq (${BOOT_DEBUG},true)
+    QEMU_FLAGS_DBG += -nographic
+  endif
+endif
+
+QEMU_FLAGS_BDBG  := $(QEMU_FLAGS_DBG) \
+			   -bios $(OVMF_NOOPT)
+

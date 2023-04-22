@@ -3,7 +3,11 @@ SHELL     := bash
 
 include ../config/boot.mk
 
-TARGET ?= RELEASE
+ifeq (${BOOT_DEBUG},true)
+ TARGET := DEBUG
+else
+ TARGET := RELEASE
+endif
 
 prepare:
 	@cp -ra $(abspath SigmaBootPkg) Edk2/SigmaBootPkg
@@ -11,7 +15,7 @@ prepare:
 ovmf: export BOOT_OUTPUT:=$(BOOT_OUTPUT)/OVMF_$(ARCH)
 ovmf:
 	@mkdir -p Edk2/Conf
-	@echo -e "Update configures for compliler...\n"
+	@echo -e "Update configures for compliler...$(TARGET)\n"
 	@export WORKSPACE=$(abspath Edk2) && \
 		source Edk2/BaseTools/BuildEnv && \
 		if ! build --help > /dev/null;then \
