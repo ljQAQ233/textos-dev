@@ -18,26 +18,16 @@ fi
 ROOT_PATH=$(realpath ${WORK_PATH})
 LOCK_FILE=${WORK_PATH}/.Proj.status_lock
 OUTPUT_FILE=${WORK_PATH}/.Proj.status_log
+
+TMP_FILE=/tmp/.Proj.status_log.tmp
 # get some basic info before start main code
 
-export CurrentCode
-export HistoryCode
-
 function getCurrentProjectSha256 {
-    CurrentCode=$(LANG= git diff ${ROOT_PATH} | sha256sum | awk '{print $1}')
-}
-
-function getHistoryProjectSha256 {
-    if [[ -f ${OUTPUT_FILE} ]]; then
-        source ${OUTPUT_FILE}
-    else
-        return 1
-    fi
+    echo $(git ls-files --exclude-standard ${ROOT_PATH}) $(git ls-files --exclude-standard --others ${ROOT_PATH}) | xargs md5sum  >${TMP_FILE}
 }
 
 function updateHistoryProjectSha256 {
-    echo "#!/usr/bin/env bash" >${OUTPUT_FILE}
-    echo "export HistoryCode=${CurrentCode}" >>${OUTPUT_FILE}
+    cp ${TMP_FILE} ${OUTPUT_FILE}
 }
 
 function isLocked {
@@ -62,16 +52,15 @@ fi
 
 getCurrentProjectSha256
 
-if ! getHistoryProjectSha256; then
+if ! [[ -f ${OUTPUT_FILE} ]]; then
     updateHistoryProjectSha256
 fi
 
-setLock
-
-if [[ ${CurrentCode} == ${HistoryCode} ]]; then
+if diff ${OUTPUT_FILE} ${TMP_FILE}; then
     exit 0
 else
     updateHistoryProjectSha256
+    setLock
     exit 1
     # if they are not the same value,then update and exit 1,
     # that means some files in this directory may be modified.

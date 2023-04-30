@@ -18,7 +18,8 @@ ifeq (${BOOT_DEBUG},true)
  # For Source Level Debug and others,also a Macro in .dsc file
 endif
 
-DSC := SigmaBootPkg/Boot.dsc
+PROJ := SigmaBootPkg
+DSC  := $(PROJ)/Boot.dsc
 # For EDK2 build command,means what to build
 _PLATFORM_NAME := $(shell bash ${UTILS}/BootGetPlatformName.sh ${DSC})
 # Get PlatformName

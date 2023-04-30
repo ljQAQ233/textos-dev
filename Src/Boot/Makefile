@@ -31,11 +31,12 @@ Build:
 		-b $(TARGET) \
 		-DOUTPUT=$(BOOT_OUTPUT) \
 		-DCFLAGS="$(CFLAGS)" 2>&1
+	@$(UTILS)/CheckModifyUnlock.sh $(PROJ)
 	@echo
 
 .PHONY: Update
 Update:
-	@if find $(BOOT_OUTPUT) -iname $(_PLATFORM_NAME).efi 2>/dev/null | grep "$(TARGET)_$(TOOLCHAIN)" | grep "$(ARCH)" | awk 'NR==1{print $$0}' | xargs test -z;then \
+	@if find $(BOOT_OUTPUT) -iname $(_PLATFORM_NAME).efi 2>/dev/null | grep "$(TARGET)_$(TOOLCHAIN)" | grep "$(ARCH)" | awk 'NR==1{print $$0}' | xargs test -z || ! $(UTILS)/CheckModify.sh $(PROJ) >/dev/null 2>&1;then \
 		make -C .. Boot \
 	;fi
 	@$(SUDO) cp -rf "`find $(BOOT_OUTPUT) -iname $(_PLATFORM_NAME).efi | grep "$(TARGET)_$(TOOLCHAIN)" | grep "$(ARCH)" | awk 'NR==1{print $$0}'`" $(BOOT_EXEC)

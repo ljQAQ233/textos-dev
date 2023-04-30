@@ -18,8 +18,7 @@ all: _BootUpdate Image
 include Config/Qemu.mk
 
 .PHONY: Boot
-Boot:
-	@cp -ra SigmaBootPkg Boot/
+Boot: _BootPre
 	@echo -e "Start to Compile Boot Module...\n"
 	@make -C Boot
 	@echo -e "Boot Module was completed\n"
@@ -54,9 +53,12 @@ compile_commands.json: clean
 	@echo "compile_commands.json was up-to-date"
 
 .PHONY: _BootUpdate
-_BootUpdate:
-	@cp -ra SigmaBootPkg Boot/
+_BootUpdate: _BootPre
 	@make -C Boot Update
+
+.PHONY: _BootPre
+_BootPre:
+	@ln -snf $(abspath SigmaBootPkg) Boot/SigmaBootPkg
 
 .PHONY: qemu
 qemu: all
@@ -88,6 +90,7 @@ diskmu:
 .PHONY: clean
 clean:
 	find . -iname "*.status_log" | xargs rm -f
+	find . -iname "*.status_lock" | xargs rm -f
 	rm -rf Boot/Conf
 	rm -rf Boot/SigmaBootPkg
 	rm -rf $(OUTPUT)
