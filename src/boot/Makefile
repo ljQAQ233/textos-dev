@@ -10,7 +10,7 @@ else
 endif
 
 prepare:
-	@cp -ra $(abspath SigmaBootPkg) Edk2/SigmaBootPkg
+	@ln -snf $(abspath SigmaBootPkg) Edk2/SigmaBootPkg
 
 ovmf: export BOOT_OUTPUT:=$(BOOT_OUTPUT)/OVMF_$(ARCH)
 ovmf:
@@ -56,10 +56,15 @@ build: prepare
 		-b $(TARGET) \
 		-DOUTPUT=$(BOOT_OUTPUT) \
 		-DCFLAGS="$(CFLAGS)" 2>&1
+	@$(UTILS)/chkmodify_unlock.sh $(PROJ)
 	@echo
 
 update:
-	@if find $(BOOT_OUTPUT) -iname $(PLATFORM_NAME).efi 2>/dev/null | grep "$(TARGET)_$(TOOLCHAIN)" | grep "$(ARCH)" | awk 'NR==1{print $$0}' | xargs test -z;then \
+	@if find $(BOOT_OUTPUT) -iname $(PLATFORM_NAME).efi \
+	  | grep "$(TARGET)_$(TOOLCHAIN)" | grep "$(ARCH)"  \
+	  | awk 'NR==1{print $$0}' | xargs test -z; then    \
+		make -C .. boot \
+	;elif ! $(UTILS)/chkmodify.sh $(PROJ) >/dev/null 2>&1;then \
 		make -C .. boot \
 	;fi
 	@$(SUDO) cp -rf "`find $(BOOT_OUTPUT) -iname $(PLATFORM_NAME).efi | grep "$(TARGET)_$(TOOLCHAIN)" | grep "$(ARCH)" | awk 'NR==1{print $$0}'`" $(BOOT_EXEC)

@@ -18,26 +18,15 @@ fi
 ROOT_PATH=$(realpath ${WORK_PATH})
 LOCK_FILE=${WORK_PATH}/.proj.status_lock
 OUTPUT_FILE=${WORK_PATH}/.proj.status_log
+TMP_FILE=/tmp/.proj.status_log.tmp
 # get some basic info before start main code
 
-export curr
-export hist
-
 function get_current {
-    curr=$(LANG= git diff ${ROOT_PATH} | sha256sum | awk '{print $1}')
-}
-
-function get_history {
-    if [[ -f ${OUTPUT_FILE} ]]; then
-        source ${OUTPUT_FILE}
-    else
-        return 1
-    fi
+    echo $(git ls-files --exclude-standard ${ROOT_PATH}) $(git ls-files --exclude-standard --others ${ROOT_PATH}) | xargs md5sum  >${TMP_FILE}
 }
 
 function update_history {
-    echo "#!/usr/bin/env bash" >${OUTPUT_FILE}
-    echo "export hist=${curr}" >>${OUTPUT_FILE}
+    cp ${TMP_FILE} ${OUTPUT_FILE}
 }
 
 function locked {
@@ -62,16 +51,15 @@ fi
 
 get_current
 
-if ! get_history; then
+if ! [[ -f ${OUTPUT_FILE} ]]; then
     update_history
 fi
 
-lock
-
-if [[ ${curr} == ${hist} ]]; then
+if diff ${OUTPUT_FILE} ${TMP_FILE}; then
     exit 0
 else
     update_history
+    lock
     exit 1
     # if they are not the same value,then update and exit 1,
     # that means some files in this directory may be modified.
