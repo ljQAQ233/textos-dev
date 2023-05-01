@@ -17,14 +17,9 @@ EFI_STATUS InitializeFileServices ()
             ByProtocol,
             &gEfiSimpleFileSystemProtocolGuid,
             NULL,
-            &HandleCount,&HandleBuffer
-        );
-    if (EFI_ERROR(Status))
-    {
-        DEBUG ((DEBUG_ERROR ,"[FAIL] LocateHandleBuffer : gEfiSimpleFileSystemProtocolGuid - Status : %r\n",Status));
-        return Status;
-    }
-    DEBUG ((DEBUG_INFO ,"[ OK ] LocateHandleBuffer - Count : %llu\n",HandleCount));
+            &HandleCount, &HandleBuffer
+            );
+    ERR_RETS(Status);
 
     EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *FileSystem = NULL;
     Status = gBS->OpenProtocol (
@@ -34,25 +29,99 @@ EFI_STATUS InitializeFileServices ()
             gImageHandle,
             NULL,
             EFI_OPEN_PROTOCOL_GET_PROTOCOL
-        );
-    if (EFI_ERROR(Status))
-    {
-        DEBUG ((DEBUG_ERROR ,"[FAIL] OpenProtocol : File Protocol - Status : %r\n",Status));
-        return Status;
-    }
-    DEBUG ((DEBUG_INFO ,"[ OK ] Open FileProtocol\n"));
-    gBS->FreePool (HandleBuffer);
+            );
+    ERR_RETS(Status);
 
+    gBS->FreePool (HandleBuffer);
     Status = FileSystem->OpenVolume (
             FileSystem,
             &gFileProtocol
-        );
-    if (EFI_ERROR(Status))
-    {
-        DEBUG ((DEBUG_ERROR ,"[FAIL] Open volume - Status : %r\n",Status));
-        return Status;
-    }
-    DEBUG ((DEBUG_INFO ,"[ OK ] Opened volume successfully\n"));
+            );
+    ERR_RETS(Status);
 
     return Status;
 }
+
+EFI_STATUS FileOpen (
+        IN      CHAR16            *Path,
+        IN      UINT64            Mode,
+           OUT  EFI_FILE_PROTOCOL **File
+    )
+{
+    EFI_STATUS Status = gFileProtocol->Open (
+            gFileProtocol,
+            File,
+            Path,Mode,
+            0
+            );
+    ERR_RETS(Status);
+
+    return Status;
+}
+
+EFI_STATUS FileRead (
+        IN     EFI_FILE_PROTOCOL *File,
+           OUT VOID              *Data,
+        IN OUT UINTN             *Size
+        )
+{
+    EFI_STATUS Status = File->Read (
+            File,
+            Size,
+            Data
+            );
+    ERR_RETS(Status);
+
+    return Status;
+}
+
+EFI_STATUS FileWrite (
+        IN     EFI_FILE_PROTOCOL *File,
+        IN     VOID              *Buffer,
+        IN OUT UINTN             *Size
+        )
+{
+    EFI_STATUS Status = File->Write (
+            File,
+            Size,
+            Buffer
+            );
+    ERR_RETS(Status);
+
+    return Status;
+}
+
+EFI_STATUS FileFlush (EFI_FILE_PROTOCOL *File)
+{
+    EFI_STATUS Status = File->Flush (File);
+
+    ERR_RETS(Status);
+
+    return Status;
+}
+
+EFI_STATUS FileSetPosition (
+        IN EFI_FILE_PROTOCOL    *File,
+        IN UINT64               Position
+        )
+{
+    EFI_STATUS Status = File->SetPosition (File,Position);
+    
+    ERR_RETS(Status);
+
+    return Status;
+}
+
+UINT64 FileGetPosition (
+        IN EFI_FILE_PROTOCOL *File
+        )
+{
+    UINT64 Position = 0;
+
+    EFI_STATUS Status = File->GetPosition (File,&Position);
+    
+    ERR_RETS(Status);
+
+    return Position;
+}
+
