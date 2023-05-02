@@ -3,6 +3,8 @@
 
 #include <Protocol/SimpleFileSystem.h>
 
+#include <Guid/FileInfo.h>
+
 extern EFI_FILE_PROTOCOL *gFileProtocol;
 
 EFI_STATUS InitializeFileServices ();
@@ -23,6 +25,13 @@ FileRead (
   IN      EFI_FILE_PROTOCOL  *File,
      OUT  VOID               *Data,
   IN OUT  UINTN              *Size
+  );
+
+EFI_STATUS
+FileAutoRead (
+  IN     EFI_FILE_PROTOCOL *File,
+     OUT VOID              **Data,
+     OUT UINT64            *DataSize
   );
 
 EFI_STATUS
@@ -47,5 +56,19 @@ UINT64
 FileGetPosition (
   IN EFI_FILE_PROTOCOL *File
   );
+
+EFI_STATUS
+FileGetInfo (
+  IN     EFI_FILE_PROTOCOL *File,
+     OUT EFI_FILE_INFO     **Info
+  );
+
+EFI_STATUS FileSetInfo (
+  IN EFI_FILE_PROTOCOL *File,
+  IN UINTN             Size,
+  IN EFI_FILE_INFO     *Info
+  );
+
+VOID FileDestroyInfo (EFI_FILE_INFO **Info);
 
 #endif
