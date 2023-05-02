@@ -16,12 +16,12 @@ EFI_STATUS EFIAPI UefiMain (
     InitializeFileServices();
 
     EFI_FILE_PROTOCOL *File;
-    FileOpen (L"\\Read.txt", O_READ | O_WRITE | O_CREATE, &File);
+    FileOpen (L"\\Read.txt", O_READ | O_WRITE | O_CREATE | O_NAPPEND, &File);
 
-    EFI_FILE_INFO *Info = NULL;
-    FileGetInfo (File, &Info);
+    CHAR8 *Buffer = "Hello world!!!";
+    UINTN Size = AsciiStrLen (Buffer);
 
-    Print (L"Size of this file : %llu\n", Info->FileSize);
+    FileWrite (File, Buffer, &Size);
 
     VOID *Data;
     FileAutoRead (File, &Data, NULL);

@@ -13,6 +13,8 @@ EFI_STATUS InitializeFileServices ();
 #define O_WRITE  EFI_FILE_MODE_WRITE
 #define O_CREATE EFI_FILE_MODE_CREATE
 
+#define O_NAPPEND 0x4000000000000000ULL // 不追加,直接覆盖
+
 EFI_STATUS
 FileOpen (
   IN      CHAR16             *Path,
@@ -70,5 +72,9 @@ EFI_STATUS FileSetInfo (
   );
 
 VOID FileDestroyInfo (EFI_FILE_INFO **Info);
+
+EFI_STATUS FileRemove (EFI_FILE_PROTOCOL *File);
+
+EFI_STATUS FileClose (EFI_FILE_PROTOCOL *File);
 
 #endif
