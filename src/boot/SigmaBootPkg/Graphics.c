@@ -1,4 +1,5 @@
 #include <Uefi.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
 #include <Boot.h>
@@ -19,3 +20,56 @@ EFI_STATUS EFIAPI InitializeGraphicsServices ()
 
     return Status;
 }
+
+/* Set the similar resolution. */
+EFI_STATUS GraphicsResolutionSet (
+        IN INTN Hor,
+        IN INTN Ver
+        )
+{
+    EFI_STATUS Status = EFI_SUCCESS;
+
+    UINTN ModeSet = 0;
+    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *Info = NULL;
+
+    INTN HorSet = 0,
+         VerSet = 0;
+    INTN Prev = -1;
+
+    for (UINTN ModeIndex = 0,Size ; ModeIndex < gGraphicsOutputProtocol->Mode->MaxMode ; ModeIndex++)
+    {
+        Status = gGraphicsOutputProtocol->QueryMode (
+                gGraphicsOutputProtocol,
+                ModeIndex,
+                &Size,&Info
+            );
+        if (EFI_ERROR (Status))
+        {
+            DEBUG ((DEBUG_ERROR ,"[FAIL] Looked for Screen Mode - Status : %r\n", Status));
+            FreePool (Info);
+            return Status;
+        }
+
+        INT64 iHor = Info->HorizontalResolution,
+              iVer = Info->VerticalResolution;
+
+        /* Using "Manhattan Distance" */
+        INT64 Current = ABS(Hor - iHor) + ABS(Ver - iVer);
+        if (Current < Prev || Prev == -1)
+        {
+            Prev = Current;
+            ModeSet = ModeIndex;
+            HorSet  = iHor;
+            VerSet  = iVer;
+        }
+        FreePool (Info);
+    }
+    DEBUG ((DEBUG_INFO ,"[ OK ] Looked for Screen Mode - Mode : %llu\n", ModeSet));
+    
+    Status = gGraphicsOutputProtocol->SetMode (gGraphicsOutputProtocol, ModeSet);
+    ERR_RETS(Status);
+    DEBUG ((DEBUG_INFO ,"[ OK ] Set Screen Mode - Hor : %llu,Ver : %llu\n", HorSet, VerSet));
+
+    return Status;
+}
+

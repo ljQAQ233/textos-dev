@@ -15,16 +15,11 @@ EFI_STATUS EFIAPI UefiMain (
     InitializeGraphicsServices();
     InitializeFileServices();
 
-    EFI_FILE_PROTOCOL *File;
-    FileOpen (L"\\Read.txt", O_READ | O_WRITE | O_CREATE | O_NAPPEND, &File);
+    /* 1024 * 768 */
+    /* 1024 * 600 */
 
-    CHAR8 *Buffer = "Hello world!!!";
-    UINTN Size = AsciiStrLen (Buffer);
-
-    FileWrite (File, Buffer, &Size);
-
-    VOID *Data;
-    FileAutoRead (File, &Data, NULL);
+    GraphicsResolutionSet (1024,684);
+    GraphicsResolutionSet (1024,685);
 
     return EFI_SUCCESS;
 }
