@@ -8,6 +8,7 @@
 
 [Sources]
     Main.c
+    Graphics.c
 
 [Packages]
     MdePkg/MdePkg.dec
@@ -15,6 +16,9 @@
 [LibraryClasses]
     UefiLib
     UefiApplicationEntryPoint
+
+[Protocols]
+    gEfiGraphicsOutputProtocolGuid
 
 [Buildoptions]
     GCC:DEBUG_*_*_CC_FLAGS = -O0
