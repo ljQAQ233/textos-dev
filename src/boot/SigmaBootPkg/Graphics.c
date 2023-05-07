@@ -73,3 +73,17 @@ EFI_STATUS GraphicsResolutionSet (
     return Status;
 }
 
+EFI_STATUS GraphicsPutPixel (
+        IN UINTN                         X,
+        IN UINTN                         Y,
+        IN EFI_GRAPHICS_OUTPUT_BLT_PIXEL Color
+        )
+{
+    return gGraphicsOutputProtocol->Blt (
+            gGraphicsOutputProtocol,
+            &Color, EfiBltVideoFill,
+            0, 0, X, Y, 1, 1,
+            0
+            );
+}
+

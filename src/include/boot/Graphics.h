@@ -14,4 +14,11 @@ GraphicsResolutionSet (
   IN INTN Ver
   );
 
+EFI_STATUS
+GraphicsPutPixel (
+  IN UINTN                         X,
+  IN UINTN                         Y,
+  IN EFI_GRAPHICS_OUTPUT_BLT_PIXEL Color
+  );
+
 #endif
