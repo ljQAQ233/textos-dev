@@ -87,3 +87,32 @@ EFI_STATUS GraphicsPutPixel (
             );
 }
 
+EFI_STATUS GraphicsBmpDisplay (
+        IN CHAR16 *Path,
+        IN UINT64 X,
+        IN UINT64 Y
+        )
+{
+    EFI_STATUS Status = EFI_SUCCESS;
+
+    BMP_INFO Bmp;
+    ERR_RETS(BmpInfoLoad (Path,&Bmp));
+
+    Status = gGraphicsOutputProtocol->Blt (
+            gGraphicsOutputProtocol,
+            Bmp.Pixels,EfiBltBufferToVideo,
+            0,0,X,Y,Bmp.Hdr.Width,Bmp.Hdr.Height,
+            0
+            );
+    if (EFI_ERROR(Status))
+    {
+        DEBUG ((DEBUG_ERROR ,"[FAIL] Display the image using GOP failed - Status : %r\n",Status));
+        return Status;
+    }
+    DEBUG ((DEBUG_INFO ,"[DONE] Display the image using GOP - X : %llu,Y : %llu\n",X,Y));
+
+    BmpInfoDestroy (&Bmp);
+
+    return Status;
+}
+

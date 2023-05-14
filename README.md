@@ -28,6 +28,7 @@
    - include        头文件目录
       - boot        SigmaBootPkg的头文件
    - utils          工具
+   - resource       资源文件
 
 ---
 

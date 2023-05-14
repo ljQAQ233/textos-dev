@@ -3,6 +3,8 @@
 
 #include <Protocol/GraphicsOutput.h>
 
+#include <Bmp.h>
+
 extern EFI_GRAPHICS_OUTPUT_PROTOCOL *gGraphicsOutputProtocol;
 
 EFI_STATUS EFIAPI InitializeGraphicsServices();
@@ -19,6 +21,14 @@ GraphicsPutPixel (
   IN UINTN                         X,
   IN UINTN                         Y,
   IN EFI_GRAPHICS_OUTPUT_BLT_PIXEL Color
+  );
+
+/* Show a Bmp image from a file */
+EFI_STATUS
+GraphicsBmpDisplay (
+  IN CHAR16 *Path,
+  IN UINT64 X,
+  IN UINT64 Y
   );
 
 #endif

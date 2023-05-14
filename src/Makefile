@@ -40,6 +40,7 @@ image:
 	@echo "Copying files..."
 	@$(SUDO) mkdir -p $(IMG_MDIR)/EFI/Boot/
 	@$(SUDO) cp $(BOOT_EXEC) $(IMG_MDIR)/EFI/Boot/$(OUT_EFI)
+	@$(SUDO) cp -rf resource/* $(IMG_MDIR)/
 	
 	@echo "Image was done!"
 	@while $(SUDO) umount $(IMG_MDIR) 2>/dev/null; \
