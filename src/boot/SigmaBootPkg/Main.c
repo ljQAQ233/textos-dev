@@ -4,6 +4,7 @@
 
 #include <Boot.h>
 #include <Logo.h>
+#include <Config.h>
 #include <Graphics.h>
 #include <File.h>
 
@@ -17,7 +18,10 @@ EFI_STATUS EFIAPI UefiMain (
     InitializeGraphicsServices();
     InitializeFileServices();
 
-    LogoShow (LOGO_PATH);
+    InitializeConfig();
+
+    CHAR16 *LogoPath = ConfigGetStringChar16 ("logo", D_LOGO_PATH);
+    LogoShow (LogoPath);
 
     return EFI_SUCCESS;
 }

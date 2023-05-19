@@ -13,6 +13,8 @@
     Graphics.c
     Utils.c
     Logo.c
+    Ini.c
+    Config.c
 
 [Packages]
     MdePkg/MdePkg.dec
