@@ -90,7 +90,8 @@ EFI_STATUS GraphicsPutPixel (
 EFI_STATUS GraphicsBmpDisplay (
         IN CHAR16 *Path,
         IN UINT64 X,
-        IN UINT64 Y
+        IN UINT64 Y,
+        IN UINT64 Mode
         )
 {
     EFI_STATUS Status = EFI_SUCCESS;
@@ -98,6 +99,52 @@ EFI_STATUS GraphicsBmpDisplay (
     BMP_INFO Bmp;
     ERR_RETS(BmpInfoLoad (Path,&Bmp));
 
+    UINT64 Hor = gGraphicsOutputProtocol->Mode->Info->HorizontalResolution;
+    UINT64 Ver = gGraphicsOutputProtocol->Mode->Info->VerticalResolution;
+
+    if (Mode &~ 0b11111111)
+    {
+        DEBUG ((DEBUG_INFO ,"[FAIL] Invalid parameter! - Mode : %llx\n",Mode));
+        return EFI_INVALID_PARAMETER;
+    }
+
+    if (Mode & ModeNormal)
+    {
+        goto Show;
+    }
+    if (Mode & ModeCenter)
+    {
+        Mode |= ModeHorMiddle;
+        Mode |= ModeVerMiddle;
+    }
+
+    if (Mode & ModeHorMiddle)
+    {
+        X = (Hor - Bmp.Hdr.Width) / 2;
+    }
+    if (Mode & ModeVerMiddle)
+    {
+        Y = (Ver - Bmp.Hdr.Height) / 2;
+    }
+
+    if (Mode & ModeLeft)
+    {
+        X = 0;
+    }
+    else if (Mode & ModeRight)
+    {
+        X = Hor - Bmp.Hdr.Width;
+    }
+    if (Mode & ModeTop)
+    {
+        Y = 0;
+    }
+    else if (Mode & ModeBottom)
+    {
+        Y = Ver - Bmp.Hdr.Height;
+    }
+
+Show:
     Status = gGraphicsOutputProtocol->Blt (
             gGraphicsOutputProtocol,
             Bmp.Pixels,EfiBltBufferToVideo,

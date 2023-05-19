@@ -131,11 +131,11 @@ EFI_STATUS BmpInfoLoad (
     
     VOID *Raw;
     EFI_FILE_PROTOCOL *File;
-    ERR_RETS (FileOpen (Path,O_READ,&File));
+    ERR_RETS (FileOpen (Path, O_READ, &File));
 
     BMP_IMAGE_HEADER Hdr;
     UINTN ReadSize = sizeof(BMP_IMAGE_HEADER);
-    ERR_RETS (FileRead (File,&Hdr,&ReadSize));
+    ERR_RETS (FileRead (File, &Hdr, &ReadSize));
 
     /* Check the format is good and supported */
     Status = BmpCheckFormat (&Hdr);
@@ -144,7 +144,7 @@ EFI_STATUS BmpInfoLoad (
         DEBUG ((DEBUG_ERROR ,"[FAIL] Unsupported BMP format or bad BMP!\n"));
         return Status;
     }
-    DEBUG ((DEBUG_INFO ,"[DONE] Bmp is good!\n"));
+    DEBUG ((DEBUG_INFO ,"[ OK ] Bmp is good!\n"));
 
     DEBUG ((DEBUG_INFO ,"[INFO] Bmp format infomation\n"));
     DEBUG ((DEBUG_INFO ,"       Bits : %u\n",Hdr.ImageBits));
@@ -154,8 +154,8 @@ EFI_STATUS BmpInfoLoad (
     /* Get file raw */
     Raw = AllocatePages (EFI_SIZE_TO_PAGES(Hdr.Size));
     ReadSize = Hdr.Size;
-    ERR_RETS (FileSetPosition (File,0));
-    ERR_RETS (FileRead (File,Raw,&ReadSize));
+    ERR_RETS (FileSetPosition (File, 0));
+    ERR_RETS (FileRead (File, Raw, &ReadSize));
 
     UINTN Size = ABS(Hdr.Width) * ABS(Hdr.Height) 
                   * sizeof (EFI_GRAPHICS_OUTPUT_BLT_PIXEL);
@@ -173,7 +173,7 @@ EFI_STATUS BmpInfoLoad (
     Bmp->Pixels = Buffer;
 
     FreePages (Raw,EFI_SIZE_TO_PAGES(Hdr.Size));
-    DEBUG ((DEBUG_INFO ,"[DONE] Updated all infomation and freed the used\n"));
+    DEBUG ((DEBUG_INFO ,"[ OK ] Updated all infomation and freed the used\n"));
 
     return Status;
 }

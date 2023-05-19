@@ -12,6 +12,7 @@
     Bmp.c
     Graphics.c
     Utils.c
+    Logo.c
 
 [Packages]
     MdePkg/MdePkg.dec

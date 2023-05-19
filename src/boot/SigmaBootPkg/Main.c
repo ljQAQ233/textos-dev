@@ -3,6 +3,7 @@
 #include <Library/MemoryAllocationLib.h>
 
 #include <Boot.h>
+#include <Logo.h>
 #include <Graphics.h>
 #include <File.h>
 
@@ -16,14 +17,7 @@ EFI_STATUS EFIAPI UefiMain (
     InitializeGraphicsServices();
     InitializeFileServices();
 
-    GraphicsBmpDisplay (L"\\sigma1.bmp" , 0, 0);
-    SystemTable->ConOut->ClearScreen (SystemTable->ConOut);
-    GraphicsBmpDisplay (L"\\sigma4.bmp" , 0, 0);
-    SystemTable->ConOut->ClearScreen (SystemTable->ConOut);
-    GraphicsBmpDisplay (L"\\sigma8.bmp" , 0, 0);
-    SystemTable->ConOut->ClearScreen (SystemTable->ConOut);
-    GraphicsBmpDisplay (L"\\sigma24.bmp", 0, 0);
-    SystemTable->ConOut->ClearScreen (SystemTable->ConOut);
+    LogoShow (LOGO_PATH);
 
     return EFI_SUCCESS;
 }
