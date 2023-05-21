@@ -16,9 +16,9 @@ fi
 # check if the first parameter is valid
 
 ROOT_PATH=$(realpath ${WORK_PATH})
-LOCK_FILE=${WORK_PATH}/.proj.status_lock
-OUTPUT_FILE=${WORK_PATH}/.proj.status_log
-TMP_FILE=/tmp/.proj.status_log.tmp
+LOCK_FILE=${WORK_PATH}/.proj_${TARGET}.status_lock
+OUTPUT_FILE=${WORK_PATH}/.proj_${TARGET}.status_log
+TMP_FILE=/tmp/.proj_${TARGET}.status_log.tmp
 # get some basic info before start main code
 
 function get_current {
