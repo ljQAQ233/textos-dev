@@ -7,7 +7,7 @@ include config/image.mk
 
 include config/udk.mk
 
-all: _boot image
+all: _boot kernel image
 
 include config/qemu.mk
 
@@ -27,6 +27,9 @@ ovmf:
 	@make -C boot TARGET=DEBUG FLAGS="-DDEBUG_ON_SERIAL_PORT=TRUE" ovmf
 	@make -C boot TARGET=NOOPT FLAGS="-DDEBUG_ON_SERIAL_PORT=TRUE -DSOURCE_DEBUG_ENABLE=TRUE" ovmf
 	@echo "OVMF is up-to-date\n"
+
+kernel:
+	@nasm -f bin kernel.s -o ./resource/Kernel.bin # Make it easy to get it ran
 
 image:
 	@mkdir -p $(IMG_MDIR)
@@ -85,7 +88,7 @@ clean:
 	rm -rf $(OUTPUT)
 
 
-.PHONY: all _boot boot image \
+.PHONY: all _boot boot kernel image \
 		qemu qemubg \
 		diskmu clean \
 		compile_commands.json 

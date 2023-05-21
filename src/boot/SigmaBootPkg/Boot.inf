@@ -15,6 +15,7 @@
     Logo.c
     Ini.c
     Config.c
+    Kernel.c
 
 [Packages]
     MdePkg/MdePkg.dec
