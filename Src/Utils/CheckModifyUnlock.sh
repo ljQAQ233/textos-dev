@@ -8,8 +8,8 @@ fi
 # check if the first parameter is valid
 
 ROOT_PATH=$(realpath ${WORK_PATH})
-LOCK_FILE=${WORK_PATH}/.Proj.status_lock
-OUTPUT_FILE=${WORK_PATH}/.Proj.status_log
+LOCK_FILE=${WORK_PATH}/.Proj_${TARGET}.status_lock
+OUTPUT_FILE=${WORK_PATH}/.Proj_${TARGET}.status_log
 # get some basic info before start main code
 
 function isLocked {

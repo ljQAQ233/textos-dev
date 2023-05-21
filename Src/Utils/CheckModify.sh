@@ -16,17 +16,17 @@ fi
 # check if the first parameter is valid
 
 ROOT_PATH=$(realpath ${WORK_PATH})
-LOCK_FILE=${WORK_PATH}/.Proj.status_lock
-OUTPUT_FILE=${WORK_PATH}/.Proj.status_log
+LOCK_FILE=${WORK_PATH}/.Proj_${TARGET}.status_lock
+OUTPUT_FILE=${WORK_PATH}/.Proj_${TARGET}.status_log
 
 TMP_FILE=/tmp/.Proj.status_log.tmp
 # get some basic info before start main code
 
-function getCurrentProjectSha256 {
+function getCurrentProjectMd5 {
     echo $(git ls-files --exclude-standard ${ROOT_PATH}) $(git ls-files --exclude-standard --others ${ROOT_PATH}) | xargs md5sum  >${TMP_FILE}
 }
 
-function updateHistoryProjectSha256 {
+function updateHistoryProjectMd5 {
     cp ${TMP_FILE} ${OUTPUT_FILE}
 }
 
@@ -50,16 +50,16 @@ if isLocked; then
     # return and continue to compile modules till the compiling task is finished
 fi
 
-getCurrentProjectSha256
+getCurrentProjectMd5
 
 if ! [[ -f ${OUTPUT_FILE} ]]; then
-    updateHistoryProjectSha256
+    updateHistoryProjectMd5
 fi
 
 if diff ${OUTPUT_FILE} ${TMP_FILE}; then
     exit 0
 else
-    updateHistoryProjectSha256
+    updateHistoryProjectMd5
     setLock
     exit 1
     # if they are not the same value,then update and exit 1,

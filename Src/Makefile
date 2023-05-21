@@ -66,14 +66,12 @@ qemu: all
 	$(QEMU) $(QEMU_FLAGS_RUN)
 
 .PHONY: qemubg
-qemubg: export BOOT_DEBUG=true
 qemubg: all
 	@mkfifo $(PIPE).in $(PIPE).out
 	@echo "Created pipe : $(PIPE)"
 	@$(UDK_DBG_EXEC) 2>&1 &
 	@echo "Started UdkDebugger"
-	@$(UTILS)/gQemuModuleMonitor.sh > /dev/null 2>&1 & disown -h
-	@echo "Started QemuMonitor"
+	@$(UTILS)/MonitorQemu.sh > /dev/null 2>&1 & disown -h
 	@echo "Running Qemu"
 	@$(QEMU) $(QEMU_FLAGS_BDBG)
 
