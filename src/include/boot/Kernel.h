@@ -1,6 +1,8 @@
 #ifndef __KERNEL_H__
 #define __KERNEL_H__
 
+#include <Elf.h>
+
 EFI_STATUS
 KernelLoad (
   IN     CHAR16               *Path,

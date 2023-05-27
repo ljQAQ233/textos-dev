@@ -37,4 +37,6 @@
 #define D_VER 768
 #define D_LOGO_PATH "\\sigma.bmp"
 
+#define KERNEL_BASE 0x100000
+
 #endif

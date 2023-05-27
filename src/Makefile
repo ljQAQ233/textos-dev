@@ -29,7 +29,7 @@ ovmf:
 	@echo "OVMF is up-to-date\n"
 
 kernel:
-	@nasm -f bin kernel.s -o ./resource/Kernel.bin # Make it easy to get it ran
+	@gcc -static -nostdlib -nostdinc -ffreestanding -fno-stack-protector -z max-page-size=0x1000 -Wl,-Ttext-segment=0x100000 kernel.c -o resource/Kernel.elf # Make it easy to get it ran
 
 image:
 	@mkdir -p $(IMG_MDIR)

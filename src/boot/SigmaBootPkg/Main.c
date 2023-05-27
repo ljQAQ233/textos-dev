@@ -22,9 +22,9 @@ EFI_STATUS EFIAPI UefiMain (
     InitializeConfig();
 
     EFI_PHYSICAL_ADDRESS KernelEntry;
-    KernelLoad (L"\\Kernel.bin", &KernelEntry);
+    KernelLoad (L"\\Kernel.elf", &KernelEntry);
 
-    UINT32 Ret = ((UINT32 (*)(VOID))KernelEntry)(); // A ptr to entry and call it to get status it returned
+    UINT64 Ret = ((UINT64 (*)(VOID))KernelEntry)(); // A ptr to entry and call it to get status it returned
     DEBUG ((DEBUG_INFO ,"[INFO] Kernel returned : %llu\n", Ret));
 
     return EFI_SUCCESS;

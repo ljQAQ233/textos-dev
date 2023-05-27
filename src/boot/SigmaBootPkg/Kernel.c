@@ -1,4 +1,5 @@
 #include <Uefi.h>
+#include <Library/MemoryAllocationLib.h>
 
 #include <Boot.h>
 #include <File.h>
@@ -12,10 +13,12 @@ EFI_STATUS KernelLoad (
     EFI_FILE_PROTOCOL *File;
     ERR_RETS (FileOpen (Path, O_READ, &File));
 
-    VOID *Binary;
-    ERR_RETS (FileAutoRead (File, &Binary, NULL));
+    VOID *Buffer;
+    ERR_RETS (FileAutoRead (File, &Buffer, NULL));
 
-    *Addr = (EFI_PHYSICAL_ADDRESS)Binary;
+    ERR_RETS (ElfLoad (Buffer, Addr));
+
+    FreePool (Buffer);
 
     return EFI_SUCCESS;
 }
