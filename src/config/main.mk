@@ -15,6 +15,9 @@ else
   BOOT_EXEC := $(BOOT_OUTPUT)/BootIa32.efi
 endif
 
+KERNEL_OUTPUT := $(OUTPUT)/kernel
+KERNEL_EXEC   := $(KERNEL_OUTPUT)/kernel.elf
+
 SHELL  := bash
 
 BASE   := base
@@ -24,4 +27,4 @@ UTILS  := $(abspath ${UTILS})
 
 export SHELL
 export SRC_DIR BASE UTILS
-export BOOT_OUTPUT BOOT_EXEC
+export BOOT_OUTPUT BOOT_EXEC KERNEL_OUTPUT KERNEL_EXEC

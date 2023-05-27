@@ -9,7 +9,7 @@
 - [GitHub | ljQAQ233](https://github.com/ljQAQ233)
 - [Bilibili | maouai233](https://space.bilibili.com/503518259)
 
-在B站不定期更新,有错误请提交issue,谢谢!学生党,更新慢,请见谅.
+在B站不定期更新,有错误什么的请提交issue/PR,谢谢!学生党,更新慢,请见谅.
 
 # 目录结构
 
@@ -28,6 +28,7 @@
    - include        头文件目录
       - boot        SigmaBootPkg的头文件
    - utils          工具
+   - kernel         内核源代码
    - resource       资源文件
 
 ---

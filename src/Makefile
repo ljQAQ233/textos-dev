@@ -29,7 +29,7 @@ ovmf:
 	@echo "OVMF is up-to-date\n"
 
 kernel:
-	@gcc -static -nostdlib -nostdinc -ffreestanding -fno-stack-protector -z max-page-size=0x1000 -Wl,-Ttext-segment=0x100000 kernel.c -o resource/Kernel.elf # Make it easy to get it ran
+	@make -C kernel kernel
 
 image:
 	@mkdir -p $(IMG_MDIR)
@@ -44,6 +44,7 @@ image:
 	@$(SUDO) mkdir -p $(IMG_MDIR)/EFI/Boot/
 	@$(SUDO) cp $(BOOT_EXEC) $(IMG_MDIR)/EFI/Boot/$(OUT_EFI)
 	@$(SUDO) cp -rf resource/* $(IMG_MDIR)/
+	@$(SUDO) cp $(KERNEL_EXEC) $(IMG_MDIR)/
 	
 	@echo "Image was done!"
 	@while $(SUDO) umount $(IMG_MDIR) 2>/dev/null; \
@@ -83,6 +84,7 @@ diskmu:
 
 clean:
 	make -C boot clean
+	make -C kernel clean
 	find . -iname "*.status_log" | xargs rm -f
 	find . -iname "*.status_lock" | xargs rm -f
 	rm -rf $(OUTPUT)
