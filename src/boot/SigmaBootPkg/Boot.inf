@@ -17,6 +17,7 @@
     Config.c
     Elf.c
     Memory.c
+    Page.c
     Kernel.c
 
 [Packages]

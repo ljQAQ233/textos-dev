@@ -1,6 +1,8 @@
 #ifndef __MEMORY_H__
 #define __MEMORY_H__
 
+#include <Page.h>
+
 typedef struct {
     EFI_MEMORY_DESCRIPTOR *Maps;
     UINTN                 MapSiz;

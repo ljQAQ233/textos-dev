@@ -48,8 +48,13 @@ EFI_STATUS EFIAPI UefiMain (
 
     CHAR16 *KernelPath = ConfigGetStringChar16 ("kernel", D_KERNEL_PATH);
 
+    KERNEL_PAGE *KernelPages;
     EFI_PHYSICAL_ADDRESS KernelEntry;
-    KernelLoad (KernelPath, &KernelEntry);
+    KernelLoad (KernelPath, &KernelEntry, &KernelPages);
+
+    UINT64 PML4Addr;
+    InitializePageTab (KernelPages, &PML4Addr);
+    UpdateCr3 (PML4Addr,0);
 
     MAP_INFO Map;
     ExitBootServices (ImageHandle, &Map);

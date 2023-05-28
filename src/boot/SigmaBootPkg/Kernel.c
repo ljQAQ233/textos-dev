@@ -7,7 +7,8 @@
 
 EFI_STATUS KernelLoad (
         IN     CHAR16               *Path,
-           OUT EFI_PHYSICAL_ADDRESS *Addr
+           OUT EFI_PHYSICAL_ADDRESS *Addr,
+           OUT KERNEL_PAGE          **Pages
         )
 {
     EFI_FILE_PROTOCOL *File;
@@ -16,7 +17,7 @@ EFI_STATUS KernelLoad (
     VOID *Buffer;
     ERR_RETS (FileAutoRead (File, &Buffer, NULL));
 
-    ERR_RETS (ElfLoad (Buffer, Addr));
+    ERR_RETS (ElfLoad (Buffer, Addr, Pages));
 
     FreePool (Buffer);
 

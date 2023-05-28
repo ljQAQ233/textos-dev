@@ -188,10 +188,13 @@ typedef struct {
   typedef ELF_PHEADER_32 ELF_PHEADER;
 #endif
 
+#include <Page.h>
+
 EFI_STATUS
 ElfLoad (
-  VOID             *Buffer,
-  PHYSICAL_ADDRESS *Entry
+  IN     VOID             *Buffer,
+  IN     PHYSICAL_ADDRESS *Entry,
+     OUT KERNEL_PAGE      **Pages
   );
 
 #endif
