@@ -1,0 +1,107 @@
+diff --git a/Src/Boot/Edk2 b/Src/Boot/Edk2
+index ba8b4521..77bd9215 160000
+--- a/Src/Boot/Edk2
++++ b/Src/Boot/Edk2
+@@ -1 +1 @@
+-Subproject commit ba8b45215368b6d016f2106d782aa625b2ba1a9a
++Subproject commit 77bd9215323f81b8acf1bc2a08c3d5f6ac429fb9
+diff --git a/Src/Boot/SigmaBootPkg/Args.c b/Src/Boot/SigmaBootPkg/Args.c
+new file mode 100644
+index 00000000..a4ed8ff5
+--- /dev/null
++++ b/Src/Boot/SigmaBootPkg/Args.c
+@@ -0,0 +1,64 @@
++/* There are many args for kernel, and some of them are
++   allocated DYNAMICALLY, to make sure they are not be
++   covered, we should create a stack to storage them.
++   
++   That is Args Stack!!!                                 */
++
++#include <Uefi.h>
++#include <Library/MemoryAllocationLib.h>
++
++#include <Boot/Boot.h>
++#include <Boot/Args.h>
++
++VOID InitializeArgs (
++        IN OUT ARGS_STACK *Stack,
++        IN     UINT64     Siz
++        )
++{
++    ASSERT (Stack != NULL);
++
++    UINT64 PgNum = EFI_SIZE_TO_PAGES (Siz);
++
++    Stack->PgNum = PgNum;
++    Stack->Data = AllocatePages (PgNum);
++
++    ASSERT (Stack->Data != NULL);
++
++    Stack->Ptr = Stack->Data;
++}
++
++EFI_STATUS ArgsPush (
++        IN     ARGS_STACK *Stack,
++        IN OUT VOID       **Obj,
++        IN     UINT64     Siz
++        )
++{
++    ASSERT (*Obj != NULL && Siz != 0);
++    ASSERT (Stack != NULL && Stack->Data != NULL && Stack->PgNum != 0);
++
++    ASSERT ((UINT64)Stack->Data + EFI_PAGES_TO_SIZE(Stack->PgNum) - (UINT64)Stack->Ptr >= Siz);
++
++    DEBUG ((DEBUG_INFO, "[INFO] Push data to args stack - %p, %llu\n", *Obj, Siz));
++
++    EFI_STATUS Status = EFI_SUCCESS;
++
++    UINT8 *Ptr = *Obj;
++    UINT8 *WPtr = Stack->Ptr;
++
++    while (Siz-- && Ptr && WPtr)
++    {
++        *WPtr++ = *Ptr++;
++        if ((UINT64)Stack->Data + EFI_PAGES_TO_SIZE(Stack->PgNum) - (UINT64)Stack->Ptr == 0)
++        {
++            DEBUG ((DEBUG_INFO ,"[FAIL] Unable to push data - out of resources\n"));
++            Status = EFI_OUT_OF_RESOURCES;
++            break;
++        }
++    }
++
++    *Obj = Stack->Ptr;
++    Stack->Ptr = ALIGN_POINTER (WPtr, 8);
++
++    return Status;
++}
++
+diff --git a/Src/Include/Boot/Args.h b/Src/Include/Boot/Args.h
+new file mode 100644
+index 00000000..dd019835
+--- /dev/null
++++ b/Src/Include/Boot/Args.h
+@@ -0,0 +1,23 @@
++#ifndef __ARGS_H__
++#define __ARGS_H__
++
++typedef struct {
++    VOID   *Data;
++    UINT64 PgNum;
++    UINT8  *Ptr;
++} ARGS_STACK;
++
++VOID
++InitializeArgs (
++        IN OUT ARGS_STACK *Stack,
++        IN     UINT64     Siz
++        );
++
++EFI_STATUS
++ArgsPush (
++        IN     ARGS_STACK *Stack,
++        IN OUT VOID       **Obj,
++        IN     UINT64     Siz
++        );
++
++#endif
+\ No newline at end of file

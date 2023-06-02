@@ -11,6 +11,10 @@
 #include <Memory.h>
 #include <Kernel.h>
 
+typedef struct {
+    UINT64 Magic;
+} BOOT_CONFIG;
+
 /* From tanyugang's Code,and I modified it,very thanks! */
 
 EFI_STATUS ExitBootServices (
@@ -46,6 +50,8 @@ EFI_STATUS EFIAPI UefiMain (
 
     InitializeConfig();
 
+    BOOT_CONFIG *Config = AllocateZeroPool (sizeof (BOOT_CONFIG));
+
     CHAR16 *KernelPath = ConfigGetStringChar16 ("kernel", D_KERNEL_PATH);
 
     KERNEL_PAGE *KernelPages;
@@ -59,7 +65,9 @@ EFI_STATUS EFIAPI UefiMain (
     MAP_INFO Map;
     ExitBootServices (ImageHandle, &Map);
 
-    UINT64 Ret = ((UINT64 (*)(VOID))KernelEntry)(); // A ptr to entry and call it to get status it returned
+    Config->Magic = SIGNATURE_64('T', 'E', 'X', 'T', 'O', 'S', 'B', 'T');
+
+    UINT64 Ret = ((UINT64 (*)(BOOT_CONFIG *))KernelEntry)(Config); // A ptr to entry and call it to get status it returned
     IGNORE (Ret);
 
     return EFI_SUCCESS;

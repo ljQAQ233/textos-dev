@@ -1,7 +1,9 @@
 #include <textos/textos.h>
 
-u64 kernel_init()
+#include <boot.h>
+
+u64 kernel_init (bconfig_t *config)
 {
-    return 233;
+    return config->magic;
 }
 
