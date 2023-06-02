@@ -2,8 +2,14 @@
 
 #include <boot.h>
 
-u64 kernel_init (bconfig_t *config)
+extern void kernel_main();
+
+extern void __video_pre (vconfig_t *v);
+
+void kernel_init (bconfig_t *config)
 {
-    return config->magic;
+    __video_pre (&config->video);
+
+    kernel_main();
 }
 

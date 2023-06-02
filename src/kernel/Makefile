@@ -3,7 +3,9 @@ OUTPUT := $(KERNEL_OUTPUT)
 
 export OUTPUT
 
-SRCS := init.c
+SRCS := init.c main.c
+
+include video/video.mk
 
 OBJS := $(SRCS:.c=.c.o)
 OBJS := $(OBJS:.s=.s.o)
