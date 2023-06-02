@@ -4,6 +4,7 @@ ARCH    ?= X64
 CC      := gcc
 LD      := ld
 NASM    := nasm
+OBJCOPY := objcopy
 
 # Include path
 INCLUDE := \
@@ -11,7 +12,7 @@ INCLUDE := \
   $(abspath arch/$(ARCH))
 
 CFLAGS := \
-  -static -nostdlib -nostdinc \
+  -static -nostdlib -nostdinc -g \
   -std=c11 -O0 -fshort-wchar -ffreestanding \
   -fno-builtin -fno-stack-check -fno-stack-protector \
   -include $(SRC_DIR)/include/textos/textos.h \
@@ -19,7 +20,7 @@ CFLAGS := \
 
 # Nasm flags
 NFLAGS := \
-  -f elf64
+  -f elf64 -g
 
 LDFLAGS := \
   -static -nostdlib \

@@ -64,6 +64,9 @@ _boot:
 qemu: all
 	$(QEMU) $(QEMU_FLAGS_RUN)
 
+qemug: all
+	$(QEMU) $(QEMU_FLAGS_KDBG)
+
 qemubg: export BSRC_DEBUG:=true
 qemubg: export PIPE:=$(shell cat $(UDK_DBG_CFG) | grep -E "^[P ]ort" | awk '{print $$NF}')
 qemubg: all
@@ -91,7 +94,7 @@ clean:
 
 
 .PHONY: all _boot boot kernel image \
-		qemu qemubg \
+		qemu qemug qemubg \
 		diskmu clean \
 		compile_commands.json 
 

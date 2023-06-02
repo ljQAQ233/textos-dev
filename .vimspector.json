@@ -1,5 +1,28 @@
 {
   "configurations": {
+    "TextOS - Kernel debug": {
+      "adapter": "vscode-cpptools",
+      "configuration": {
+        "request": "launch",
+        "type": "cppdbg",
+        "program": "${workspaceRoot}/build/kernel/kernel.elf.symbol",
+        "cwd": "${workspaceRoot}",
+        "MIMode": "gdb",
+        "miDebuggerServerAddress": "localhost:1234",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          },
+          {
+            "description": "Set disassembly style for gdb",
+            "text": "-gdb-set disassembly-flavor intel",
+            "ignoreFailures": true
+          }
+        ]
+      }
+    },
     "TextOS - Boot debug": {
       "adapter": {
         "extends": "vscode-cpptools",
