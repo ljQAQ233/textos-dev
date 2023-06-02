@@ -16,6 +16,7 @@
     Ini.c
     Config.c
     Elf.c
+    Memory.c
     Kernel.c
 
 [Packages]
