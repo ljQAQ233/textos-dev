@@ -9,6 +9,9 @@
 #define MIN(A,B) \
     (A < B) ? A : B
 
+#define ABS(Num) \
+    (Num > 0) ? (Num) : (-Num)
+
 #define STATIC_ASSERT(Expr, String) \
         _Static_assert(Expr, String)
 

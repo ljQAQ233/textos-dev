@@ -4,7 +4,8 @@ OUTPUT := $(KERNEL_OUTPUT)
 export OUTPUT
 
 SRCS := init.c main.c \
-		console.c
+		console.c \
+		printk.c
 
 include video/video.mk
 

@@ -1,6 +1,7 @@
 #include <textos/textos.h>
 #include <textos/video.h>
 #include <textos/console.h>
+#include <textos/printk.h>
 
 extern void console_init ();
 
@@ -8,8 +9,5 @@ void kernel_main ()
 {
     console_init();
     
-    console_write ("Hello world!\n");
-    console_write ("Hello world!\rM");
-    console_write ("Hello world!\b?");
-    console_write ("Hello world!\f?");
+    printk ("test format : %llx\n",-2333ULL);
 }
