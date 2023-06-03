@@ -66,6 +66,30 @@
         ],
         "launchCompleteCommand": "exec-continue"
       }
+    },
+    "Test - Common debug": {
+      "adapter": "vscode-cpptools",
+      "configuration": {
+        "request": "launch",
+        "type": "cppdbg",
+        "program": "${workspaceFolder}/${relativeFileDirname}/${fileBasenameNoExtension}",
+        "stopAtEntry": false,
+        "cwd": "${workspaceFolder}",
+        "MIMode": "gdb",
+        "miDebuggerPath": "/usr/bin/gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          },
+          {
+            "description": "Set disassembly style for gdb",
+            "text": "-gdb-set disassembly-flavor intel",
+            "ignoreFailures": true
+          }
+        ]
+      }
     }
   }
 }
