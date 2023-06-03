@@ -3,7 +3,8 @@ OUTPUT := $(KERNEL_OUTPUT)
 
 export OUTPUT
 
-SRCS := init.c main.c
+SRCS := init.c main.c \
+		console.c
 
 include video/video.mk
 

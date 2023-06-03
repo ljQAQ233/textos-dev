@@ -49,6 +49,12 @@ void screen_clear ()
         *p++ = 0;
 }
 
+void screen_info (u32 *i_hor, u32 *i_ver)
+{
+    *i_hor = hor;
+    *i_ver = ver;
+}
+
 #include <boot.h>
 
 void __video_pre (vconfig_t *v)

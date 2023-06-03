@@ -23,5 +23,7 @@ void block_put (u32 x, u32 y, u32 xe, u32 ye, u32 color);
 
 void screen_clear ();
 
+void screen_info (u32 *i_hor, u32 *i_ver);
+
 #endif
 
