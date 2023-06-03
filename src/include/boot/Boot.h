@@ -40,6 +40,7 @@
 #define D_VER 768
 
 #define D_LOGO_PATH "\\sigma.bmp"
+#define D_FONT_PATH "\\ASC16"
 #define D_KERNEL_PATH "\\kernel.elf"
 
 #define KERNEL_BASE 0x100000

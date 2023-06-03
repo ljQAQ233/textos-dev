@@ -9,6 +9,9 @@
 #define MIN(A,B) \
     (A < B) ? A : B
 
+#define STATIC_ASSERT(Expr, String) \
+        _Static_assert(Expr, String)
+
 /* The Bool Type Value */
 #define true     (1 == 1)
 #define false    (1 == 0)

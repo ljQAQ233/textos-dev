@@ -7,6 +7,7 @@
 #include <Logo.h>
 #include <Config.h>
 #include <Graphics.h>
+#include <Font.h>
 #include <File.h>
 #include <Memory.h>
 #include <Kernel.h>
@@ -66,6 +67,9 @@ EFI_STATUS EFIAPI UefiMain (
     EFI_PHYSICAL_ADDRESS KernelEntry;
 
     KernelLoad (KernelPath, &KernelEntry, &KernelPages);
+    CHAR16 *FontPath = ConfigGetStringChar16 ("Font", D_FONT_PATH);
+    FONT_CONFIG *Font = AllocateZeroPool (sizeof (FONT_CONFIG));
+    FontLoad (FontPath,Font);
 
     UINT64 PML4Addr;
     InitializePageTab (KernelPages, &PML4Addr);

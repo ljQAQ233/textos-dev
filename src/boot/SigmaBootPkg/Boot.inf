@@ -10,6 +10,7 @@
     Main.c
     File.c
     Bmp.c
+    Font.c
     Graphics.c
     Utils.c
     Logo.c
