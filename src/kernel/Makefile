@@ -7,6 +7,7 @@ SRCS := init.c main.c \
 		console.c \
 		printk.c
 
+include klib/klib.mk
 include video/video.mk
 
 OBJS := $(SRCS:.c=.c.o)

@@ -1,4 +1,4 @@
 #pragma once
 
-int printk (char *Format, ...);
+int printk (char *format, ...);
 

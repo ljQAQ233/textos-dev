@@ -1,0 +1,3 @@
+
+SRCS += klib/vsprintf.c
+
