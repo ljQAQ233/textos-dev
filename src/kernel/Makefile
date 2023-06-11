@@ -1,7 +1,9 @@
 SHELL  := bash
 OUTPUT := $(KERNEL_OUTPUT)
 
-export OUTPUT
+ARCH_DIR = arch/$(ARCH)
+
+export OUTPUT ARCH_DIR
 
 SRCS := init.c main.c \
 		debug.c assert.c \
@@ -10,6 +12,8 @@ SRCS := init.c main.c \
 
 include klib/klib.mk
 include video/video.mk
+
+include $(ARCH_DIR)/arch.mk
 
 OBJS := $(SRCS:.c=.c.o)
 OBJS := $(OBJS:.s=.s.o)

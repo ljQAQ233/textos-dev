@@ -1,13 +1,15 @@
 #include <textos/textos.h>
 #include <textos/video.h>
 #include <textos/console.h>
-#include <textos/assert.h>
 
-extern void console_init ();
+extern void console_init();
+extern void gdt_init();
 
 void kernel_main ()
 {
     console_init();
 
-    ASSERTK(1 != 1);
+    gdt_init();
+
+    while (true);
 }
