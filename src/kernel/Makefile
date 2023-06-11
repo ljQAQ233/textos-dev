@@ -4,7 +4,7 @@ OUTPUT := $(KERNEL_OUTPUT)
 export OUTPUT
 
 SRCS := init.c main.c \
-		debug.c \
+		debug.c assert.c \
 		console.c \
 		printk.c
 
