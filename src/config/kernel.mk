@@ -18,6 +18,8 @@ CFLAGS := \
   -include $(SRC_DIR)/include/textos/textos.h \
   $(addprefix -I,${INCLUDE})
 
+CFLAGS   += -D__TEXTOS_DEBUG
+
 # Nasm flags
 NFLAGS := \
   -f elf64 -g

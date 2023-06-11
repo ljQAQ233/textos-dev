@@ -7,7 +7,9 @@
         "${workspaceFolder}/src/include",
         "${workspaceFolder}/src/boot/Edk2/MdePkg/Include"
       ],
-      "defines": [],
+      "defines": [
+        "__TEXTOS_DEBUG"
+      ],
       "compileCommands": "${workspaceFolder}/src/utils/compile_commands.json"
     }
   ],
