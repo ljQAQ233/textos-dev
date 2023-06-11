@@ -9,6 +9,7 @@ OBJCOPY := objcopy
 # Include path
 INCLUDE := \
   $(SRC_DIR)/include \
+  $(SRC_DIR)/include/textos/klib \
   $(abspath arch/$(ARCH))
 
 CFLAGS := \

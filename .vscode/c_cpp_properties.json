@@ -5,6 +5,7 @@
       "includePath": [
         "${workspaceFolder}/**",
         "${workspaceFolder}/src/include",
+        "${workspaceFolder}/src/include/textos/klib",
         "${workspaceFolder}/src/boot/Edk2/MdePkg/Include"
       ],
       "defines": [
