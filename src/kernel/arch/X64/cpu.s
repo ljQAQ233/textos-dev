@@ -12,6 +12,18 @@ load_gdt:
     lgdt [rdi]
     ret
 
+; void read_idt (void *idtr);
+global read_idt
+read_idt:
+    sidt [rdi]
+    ret
+
+; void load_idt (void *idtr);
+global load_idt
+load_idt:
+    lidt [rdi]
+    ret
+
 ; void reload_segs ();
 global reload_segs
 reload_segs:

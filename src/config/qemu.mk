@@ -36,6 +36,6 @@ QEMU_FLAGS_BDBG  := $(QEMU_FLAGS_DBG) \
 QEMU_FLAGS_KDBG  := $(QEMU_FLAGS_DBG) \
 			   -bios $(OVMF) \
 			   -s -S \
-			   -serial stdio
+			   -d int,cpu_reset
 
 # Qemu Args for Debugging
