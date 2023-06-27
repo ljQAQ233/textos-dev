@@ -12,6 +12,7 @@ SRCS := init.c main.c \
 
 include klib/klib.mk
 include video/video.mk
+include dev/dev.mk
 
 include $(ARCH_DIR)/arch.mk
 

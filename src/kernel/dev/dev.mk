@@ -1,0 +1,3 @@
+
+SRCS += dev/serial.c
+

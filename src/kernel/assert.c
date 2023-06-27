@@ -1,4 +1,4 @@
-#include <textos/printk.h>
+#include <textos/debug.h>
 
 void assertk(
         const char *file,
@@ -8,7 +8,7 @@ void assertk(
         )
 {
     if (!state) {
-        printk ("[%s:%d] Assert failed!!! -> %s\n", file, line, expr);
+        debugk(K_SYNC, file, line, "[%s:%d] Assert failed!!! -> %s\n", expr);
     } else {
         return;
     }

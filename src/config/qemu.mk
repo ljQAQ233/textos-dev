@@ -13,7 +13,8 @@ MEM = 64M
 QEMU_FLAGS := -hda $(IMG_OUTPUT) \
 			   -net none \
 			   -m $(MEM) \
-			   -no-reboot
+			   -no-reboot \
+			   -debugcon file:$(OUTPUT)/qemu.log
 
 # Qemu Common Args
 
@@ -36,6 +37,6 @@ QEMU_FLAGS_BDBG  := $(QEMU_FLAGS_DBG) \
 QEMU_FLAGS_KDBG  := $(QEMU_FLAGS_DBG) \
 			   -bios $(OVMF) \
 			   -s -S \
-			   -d int,cpu_reset
+			   -serial stdio
 
 # Qemu Args for Debugging

@@ -1,4 +1,5 @@
 #include <textos/args.h>
+#include <textos/debug.h>
 #include <textos/console.h>
 #include <textos/klib/vsprintf.h>
 
