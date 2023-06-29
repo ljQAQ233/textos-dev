@@ -104,7 +104,7 @@ __INTR_HANDLER (intr_common)
     printk ("  err=%016llx rip=%016llx rfl=%08llx\n", frame->rip, frame->rflags, errcode);
     printk ("<-\n");
     
-    while (true) ;
+    while (true) halt();
 }
 
 extern u8 intr_entries; // a start point of the whole table

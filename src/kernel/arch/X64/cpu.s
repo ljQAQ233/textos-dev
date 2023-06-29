@@ -1,5 +1,11 @@
 [bits 64]
 
+; void halt ();
+global halt
+halt:
+    hlt
+    ret
+
 ; void read_gdt (void *gdtr);
 global read_gdt
 read_gdt:

@@ -16,6 +16,9 @@ typedef struct {
   u64 ss;
 } intr_frame_t;
 
+
+void halt ();
+
 void read_get (void *gdtr);
 
 void load_gdt (void *gdtr);

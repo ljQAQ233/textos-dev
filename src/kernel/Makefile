@@ -6,7 +6,7 @@ ARCH_DIR = arch/$(ARCH)
 export OUTPUT ARCH_DIR
 
 SRCS := init.c main.c \
-		debug.c assert.c \
+		debug.c assert.c panic.c \
 		console.c \
 		printk.c
 
