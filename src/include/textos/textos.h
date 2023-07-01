@@ -6,4 +6,6 @@
 #include <textos/type.h>
 #include <textos/base.h>
 
+#define KERN_HEAPV 0xFFFFFF0000000000ULL
+
 #endif

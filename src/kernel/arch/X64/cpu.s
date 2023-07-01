@@ -52,3 +52,15 @@ reload_segs:
   .ret: ; iretq jump here
     ret ; recovery rip
 
+; u64 read_cr3 ();
+global read_cr3
+read_cr3:
+    mov rax, cr3
+    ret
+
+; void write_cr3 ();
+global write_cr3
+write_cr3:
+    mov cr3, rdi
+    ret
+

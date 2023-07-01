@@ -29,5 +29,9 @@ void read_idt (void *Idtr);
 
 void load_idt (void *Idtr);
 
+u64 read_cr3 ();
+
+u64 write_cr3 ();
+
 #endif
 
