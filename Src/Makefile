@@ -10,6 +10,7 @@ include Config/Udk.mk
 ifneq ($(findstring qemubg,${MAKECMDGOALS}),)
   # Get the path of pipes that are used to debug uefi
   PIPE := $(shell cat $(UDK_DBG_CFG) | grep -E "^[P ]ort" | awk '{print $$NF}')
+  export BOOT_DEBUG:=true
 endif
 
 .PHONY: all
