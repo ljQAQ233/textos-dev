@@ -2,6 +2,7 @@
 
 extern void pmm_init ();
 extern void vmap_init ();
+extern void vmap_initvm ();
 extern void heap_init ();
 
 void mm_init ()
@@ -10,6 +11,8 @@ void mm_init ()
     vmap_init();
 
     heap_init();
+
+    vmap_initvm();
 }
 
 #include <boot.h>

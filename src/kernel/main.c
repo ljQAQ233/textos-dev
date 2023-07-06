@@ -20,17 +20,8 @@ void kernel_main ()
     idt_init();
 
     mm_init();
-
-    char *ptr[5];
-    ptr[0] = malloc(2);
-    ptr[1] = malloc(74);
-    ptr[2] = malloc(25);
-    ptr[3] = malloc(2333333);
-
-    free(ptr[0]);
-    free(ptr[1]);
-    free(ptr[2]);
-    free(ptr[3]);
+    
+    printk ("test graphic module\n");
 
     while (true);
 }

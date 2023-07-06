@@ -64,3 +64,19 @@ write_cr3:
     mov cr3, rdi
     ret
 
+; void __kstack_init ();
+global __kstack_init
+__kstack_init:
+    pop  rbx
+    lea  rax, [rel __kstack_top]
+    mov  rbp, rax
+    mov  rsp, rax
+    push rbx
+    ret
+
+section .data
+
+global __kstack:
+    times 0x1000 dq 1
+    __kstack_top:
+

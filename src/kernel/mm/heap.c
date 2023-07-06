@@ -47,11 +47,11 @@ void heap_init()
     PUT (hp + 2, SET(8, true));
     PUT (hp + 3, SET(0, true)); // 设置结尾块 has only header
 
-    vmap_map((u64)hp, KERN_HEAPV, HEAP_ORIG, PE_RW | PE_P, MAP_4K); // 映射至内核堆处
+    vmap_map ((u64)hp, __kern_heap_base, HEAP_ORIG, PE_RW | PE_P, MAP_4K); // 映射至内核堆处
 
-    _heap.root = (block_t *)KERN_HEAPV + 3;
+    _heap.root = (block_t *)__kern_heap_base + 3;
     _heap.brk = (block_t *)_heap.root;
-    _heap.max = (void *)KERN_HEAPV + HEAP_ORIG * PAGE_SIZ;
+    _heap.max = (void *)__kern_heap_base + HEAP_ORIG * PAGE_SIZ;
 }
 
 void *sbrk(int64 siz)

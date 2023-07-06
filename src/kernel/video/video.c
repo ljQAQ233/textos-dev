@@ -66,3 +66,13 @@ void __video_pre (vconfig_t *v)
     fb_siz = v->fb_siz;
 }
 
+#include <textos/mm.h>
+
+void __video_tovmm ()
+{
+    size_t pages = DIV_ROUND_UP(fb_siz, PAGE_SIZ);
+    vmap_map ((u64)fb, __kern_fb_base, pages, PE_RW | PE_P | PTE_G, MAP_4K);
+
+    fb = (void *)__kern_fb_base;
+}
+
