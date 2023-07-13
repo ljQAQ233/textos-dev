@@ -8,6 +8,9 @@ extern void console_init();
 extern void gdt_init();
 extern void idt_init();
 extern void serial_init();
+extern void mm_init();
+
+#include <textos/mm.h>
 
 void kernel_main ()
 {
@@ -17,7 +20,14 @@ void kernel_main ()
     gdt_init();
     idt_init();
 
-    PANIC("Panic test\n");
+    mm_init();
+
+    void *page;
+
+    page = pmm_allocpages(1);
+    pmm_freepages(page, 1);
+    page = pmm_allocpages(5);
+    pmm_freepages(page, 6);
 
     while (true);
 }

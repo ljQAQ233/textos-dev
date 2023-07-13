@@ -20,8 +20,14 @@ typedef struct {
 } GRAPHICS_CONFIG;
 
 typedef struct {
+  VOID   *Map;
+  VOID   *KernalPages;
+} MEMORY_CONFIG;
+
+typedef struct {
   UINT64          Magic;
   GRAPHICS_CONFIG Graphics;
+  MEMORY_CONFIG   Memory;
 } BOOT_CONFIG;
 
 /* From tanyugang's Code,and I modified it,very thanks! */
@@ -71,12 +77,13 @@ EFI_STATUS EFIAPI UefiMain (
     FONT_CONFIG *Font = AllocateZeroPool (sizeof (FONT_CONFIG));
     FontLoad (FontPath,Font);
 
+    MAP_INFO *Map = AllocateZeroPool (sizeof (MAP_INFO));
+
     UINT64 PML4Addr;
     InitializePageTab (KernelPages, &PML4Addr);
     UpdateCr3 (PML4Addr,0);
 
-    MAP_INFO Map;
-    ExitBootServices (ImageHandle, &Map);
+    ExitBootServices (ImageHandle, Map);
 
     Config->Magic = SIGNATURE_64('T', 'E', 'X', 'T', 'O', 'S', 'B', 'T');
     Config->Graphics.FrameBuffer     = gGraphicsOutputProtocol->Mode->FrameBufferBase;
@@ -84,8 +91,10 @@ EFI_STATUS EFIAPI UefiMain (
     Config->Graphics.Hor             = gGraphicsOutputProtocol->Mode->Info->HorizontalResolution;
     Config->Graphics.Ver             = gGraphicsOutputProtocol->Mode->Info->VerticalResolution;
 
-    UINT64 Ret = ((UINT64 (*)(BOOT_CONFIG *))KernelEntry)(Config); // A ptr to entry and call it to get status it returned
-    IGNORE (Ret);
+    Config->Memory.Map = Map;
+    Config->Memory.KernalPages = KernelPages;
+
+    ((VOID (*)(BOOT_CONFIG *))KernelEntry)(Config);
 
     return EFI_SUCCESS;
 }

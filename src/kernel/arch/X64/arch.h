@@ -41,6 +41,8 @@ typedef unsigned short      char16;
 
 typedef unsigned char       bool;
 
+typedef u64                 addr_t;
+
 typedef u64                 size_t;
 
 #endif

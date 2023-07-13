@@ -11,6 +11,7 @@ SRCS := init.c main.c \
 		printk.c
 
 include klib/klib.mk
+include mm/mm.mk
 include video/video.mk
 include dev/dev.mk
 
