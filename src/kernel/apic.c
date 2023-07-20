@@ -128,6 +128,8 @@ u32 ioapic_read(int x)
     return *(volatile u32 *)IOWIN;
 }
 
+extern u8 __gsiget (u8 src);
+
 void ioapic_rteset(u8 irq, u64 rte)
 {
     int reg = irq * 2 + IOREDTBL;

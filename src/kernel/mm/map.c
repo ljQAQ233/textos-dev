@@ -132,6 +132,7 @@ void vmap_init ()
 }
 
 extern void __pmm_tovmm();
+extern void __apic_tovmm();
 extern void __video_tovmm();
 
 void vmap_initvm ()
@@ -140,6 +141,7 @@ void vmap_initvm ()
 
     // As callback functions
     __pmm_tovmm();
+    __apic_tovmm();
     __video_tovmm();
     
     for (int i = 0; i < 256 ;i++)

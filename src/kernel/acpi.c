@@ -144,6 +144,14 @@ typedef struct _packed {
 extern void *lapic;
 extern void *ioapic;
 
+static u8 _gsi[24];
+
+/* Src 到 Gsi 的过程类似于一个重定向的过程 */
+u8 __gsiget (u8 src)
+{
+    return _gsi[src] != 0xFF ? _gsi[src] : src;
+}
+
 void madt_parser ()
 {
     madt_t *madt = _entryget (APIC_SIG);
@@ -152,6 +160,8 @@ void madt_parser ()
     
     int64 len = madt->hdr.len - sizeof(madt_t);
     madt_ics_t *ics = OFFSET (madt, sizeof(madt_t));
+    
+    memset (_gsi, 0xFF, 24);
 
     while (len > 0) {
         switch (ics->type)

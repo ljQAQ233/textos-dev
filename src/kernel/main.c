@@ -10,8 +10,9 @@ extern void serial_init();
 extern void mm_init();
 extern void acpi_init();
 extern void apic_init();
+extern void keyboard_init();
 
-#include <textos/mm.h>
+#include <irq.h>
 
 void kernel_main ()
 {
@@ -25,6 +26,10 @@ void kernel_main ()
     apic_init();
 
     mm_init();
+
+    keyboard_init();
+
+    intr_sti();
 
     while (true);
 }

@@ -7,11 +7,10 @@
 #define IRQ_KEYBOARD 1
 #define INT_KEYBOARD 0x21
 
-#define intr_get ()
+bool intr_get ();
 
-void intr_sti ();
-
-void intr_cli ();
+#define intr_sti() __asm__ volatile ("sti");
+#define intr_cli() __asm__ volatile ("cli");
 
 /* 接下来是 APIC 的舞台! */
 void lapic_sendeoi ();
