@@ -16,6 +16,7 @@ typedef struct {
   u64 ss;
 } intr_frame_t;
 
+void cpuid (int leaf, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
 
 void halt ();
 
@@ -32,6 +33,12 @@ void load_idt (void *Idtr);
 u64 read_cr3 ();
 
 u64 write_cr3 ();
+
+#define IA32_APIC_BASE 0x1B
+
+u64 read_msr (u32 idx);
+
+void write_msr (u32 idx, u64 value);
 
 #endif
 

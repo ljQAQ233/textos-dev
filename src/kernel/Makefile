@@ -7,6 +7,7 @@ export OUTPUT ARCH_DIR
 
 SRCS := init.c main.c \
 		debug.c assert.c panic.c \
+		acpi.c apic.c \
 		console.c \
 		printk.c
 

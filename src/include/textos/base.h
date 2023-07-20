@@ -21,9 +21,17 @@
 #define DIV_ROUND_DOWN(Num, Divisor) \
     ((Num) / (Divisor))
 
+#define SIGN_16(A, B) \
+    ((A) | (B << 8))
+
+#define SIGN_32(A, B, C, D) \
+    (SIGN_16 (A, B) | (SIGN_16 (C, D) << 16))
+
+#define SIGN_64(A, B, C, D, E, F, G, H) \
+    (SIGN_32 (A, B, C, D) | ((u64)SIGN_32 (E, F, G, H) << 32))
+
 #define STATIC_ASSERT(Expr, String) \
         _Static_assert(Expr, String)
-
 
 /* The Bool Type Value */
 #define true     (1 == 1)

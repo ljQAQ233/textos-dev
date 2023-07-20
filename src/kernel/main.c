@@ -8,6 +8,8 @@ extern void gdt_init();
 extern void idt_init();
 extern void serial_init();
 extern void mm_init();
+extern void acpi_init();
+extern void apic_init();
 
 #include <textos/mm.h>
 
@@ -19,9 +21,10 @@ void kernel_main ()
     gdt_init();
     idt_init();
 
+    acpi_init();
+    apic_init();
+
     mm_init();
-    
-    printk ("test graphic module\n");
 
     while (true);
 }

@@ -9,6 +9,7 @@ extern void __kstack_init ();
 
 extern void __video_pre (vconfig_t *v);
 extern void __mm_pre (mconfig_t *m);
+extern void __acpi_pre (void *acpi);
 
 static bconfig_t bconfig;
 
@@ -29,6 +30,7 @@ void kernel_init (bconfig_t *config)
 
     __video_pre (&bconfig.video);
     __mm_pre (&bconfig.memory);
+    __acpi_pre (bconfig.acpi);
 
     kernel_main();
 }

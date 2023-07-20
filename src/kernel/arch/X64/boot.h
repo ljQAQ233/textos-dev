@@ -33,6 +33,7 @@ typedef struct {
     u64       magic;
     vconfig_t video;
     mconfig_t memory;
+    void      *acpi;
 } bconfig_t;
 
 bconfig_t *bconfig_get ();

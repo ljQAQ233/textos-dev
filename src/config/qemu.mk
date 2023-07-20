@@ -12,6 +12,7 @@ MEM = 64M
 
 QEMU_FLAGS := -hda $(IMG_OUTPUT) \
 			   -net none \
+			   -cpu qemu64,+x2apic \
 			   -m $(MEM) \
 			   -no-reboot \
 			   -debugcon file:$(OUTPUT)/qemu.log

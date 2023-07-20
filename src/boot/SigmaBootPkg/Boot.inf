@@ -30,6 +30,7 @@
 
 [Guids]
     gEfiFileInfoGuid
+    gEfiAcpi20TableGuid
 
 [Protocols]
     gEfiGraphicsOutputProtocolGuid

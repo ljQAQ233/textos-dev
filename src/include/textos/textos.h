@@ -15,4 +15,7 @@
 #define __kern_phy_offet 0xffff830000000000ULL
 #define __kern_phy_mapsz 0x0000010000000000ULL
 
+#define __lapic_va  0xffffff0000008000ull
+#define __ioapic_va 0xffffff0000000000ull
+
 #endif
