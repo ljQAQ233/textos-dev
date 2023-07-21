@@ -24,7 +24,18 @@
     MemoryAllocationLib          | MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
     UefiBootServicesTableLib     | MdePkg/Library/UefiBootServicesTableLib/UefiBootServicesTableLib.inf
     UefiRuntimeServicesTableLib  | MdePkg/Library/UefiRuntimeServicesTableLib/UefiRuntimeServicesTableLib.inf
-    DebugLib                     | MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
+    !if $(BOOT_DEBUG)
+     DebugLib                    | MdePkg/Library/UefiDebugLibConOut/UefiDebugLibConOut.inf
+     DebugPrintErrorLevelLib     | MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf
+    !else
+     DebugLib                    | MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
+    !endif
+
+[PcdsFixedAtBuild]
+    !if $(BOOT_DEBUG)
+     gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask       |0x13
+     gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel    |0x80000040
+    !endif
 
 [Components]
     SigmaBootPkg/Boot.inf

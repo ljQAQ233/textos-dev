@@ -14,6 +14,16 @@
 - gdb
 - udkdebugger
 
+---
+
+> From the video of `[bili] 003 基础调试宏`
+
+udkdebugger 会读取 pipe (我们的 qemu 将串口输出到 `/tmp/serial`), 并把串口输出信息重定向到 tcp:20715 端口,于是我们可以看到串口输出:
+
+```shell
+telnet localhost 20715
+```
+
 # 准备
 
 ## 中断gdb
