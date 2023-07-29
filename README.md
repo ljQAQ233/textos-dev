@@ -1,5 +1,13 @@
 # TextOS
 
+## About branch
+
+这是一个早期实现分支,由于一些问题,切换为新的主分支.
+
+Roots "灵感" 来源于 《Rusty Lake : Roots》
+
+## About Project
+
 这是一个 Uefi 引导的操作系统项目.
 
 - Boot : SigmaBoot
