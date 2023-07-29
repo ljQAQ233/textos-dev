@@ -16,14 +16,12 @@ else
 endif
 
 SHELL  := bash
-SUDO   := echo q | sudo -S
-# including password !!!
 
 BASE   := base
 UTILS  := utils
 BASE   := $(abspath ${BASE})
 UTILS  := $(abspath ${UTILS})
 
-export SHELL SUDO
+export SHELL
 export SRC_DIR BASE UTILS
 export BOOT_OUTPUT BOOT_EXEC

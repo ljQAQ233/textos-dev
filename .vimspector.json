@@ -8,6 +8,7 @@
       "configuration": {
         "request": "launch",
         "program": "${workspaceRoot}/build/boot/DEBUG_GCC5/X64/SigmaBootPkg.debug",
+        "stopAtEntry": false,
         "cwd": "${workspaceRoot}",
         "MIMode": "gdb",
         "miDebuggerPath": "/usr/bin/gdb",
@@ -17,7 +18,12 @@
           {
             "description": "Connect to qemu",
             "text": "-target-select remote :1234",
-            "ignoreFailures": true
+            "ignoreFailures": false
+          },
+          {
+            "description": "Load environment for python",
+            "text": "python import sys ; sys.path.append('/opt/intel/udkdebugger/script')",
+            "ignoreFailures": false
           },
           {
             "description": "Load script for uefi debugging",

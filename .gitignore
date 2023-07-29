@@ -13,5 +13,6 @@ src/image/
 src/base/*.fd
 
 .vscode/settings.json
+src/config/private.mk
 src/utils/compile_commands.json
 

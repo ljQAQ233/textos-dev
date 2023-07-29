@@ -11,6 +11,14 @@ all: _boot image
 
 include config/qemu.mk
 
+-include config/private.mk
+
+ifeq (${PASSWORD},)
+  $(error "Password is not set, please use 'echo PASSWORD:=(your-password) > src/config/private.mk' to set it!")
+endif
+
+export SUDO := echo $(PASSWORD) | sudo -S 
+
 boot:
 	@make -C boot build
 
@@ -19,7 +27,6 @@ ovmf:
 	@make -C boot TARGET=DEBUG FLAGS="-DDEBUG_ON_SERIAL_PORT=TRUE" ovmf
 	@make -C boot TARGET=NOOPT FLAGS="-DDEBUG_ON_SERIAL_PORT=TRUE -DSOURCE_DEBUG_ENABLE=TRUE" ovmf
 	@echo "OVMF is up-to-date\n"
-
 
 image:
 	@mkdir -p $(IMG_MDIR)
