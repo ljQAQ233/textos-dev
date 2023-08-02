@@ -4,6 +4,9 @@
 #define INT_APIC_ERR 129 // error handler
 #define INT_APIC_SPS 130 // spurious handler
 
+#define IRQ_TIMER 0
+#define INT_TIMER 0x20
+
 #define IRQ_KEYBOARD 1
 #define INT_KEYBOARD 0x21
 

@@ -2,6 +2,7 @@
 #include <cpu.h>
 #include <irq.h>
 #include <intr.h>
+#include <textos/printk.h>
 #include <textos/dev/8259.h>
 
 #include <textos/debug.h>
@@ -40,6 +41,12 @@ void *ioapic = NULL;
 #define S_TPR(tc, tsc)         ((u32)tc << 4 | (u32)tsc)
 #define S_SVR(stat, vector)    ((((u32)stat & 1) << 8) | ((u32)vector & 0xff))
 
+#define S_TM(mode, vector) ((((u32)mode & 0b11) << 17 | (u8)vector))
+
+#define TM_ONESHOT  0b00 // One-Shot Mode
+#define TM_PERIODIC 0b01 // Periodic Mode 周期模式
+#define TM_TSCDLN   0b10 // TSC-Deadline Mode
+
 void __apic_tovmm ()
 {
     // lapic mapping is unused
@@ -48,6 +55,18 @@ void __apic_tovmm ()
 
     lapic = (void *)__lapic_va;
     ioapic = (void *)__ioapic_va;
+
+}
+u64 volatile slice = 0;
+
+__INTR_HANDLER(timer_handler)
+{
+    lapic_sendeoi();
+
+    slice++;
+
+    if (slice % 100 == 0)
+        printk ("One second!!!\n");
 }
 
 void lapic_errhandler () { PANIC ("apic handler is not supported!!!"); }
@@ -76,6 +95,8 @@ void x2apic_enable()
     write_msr(IA32_APIC_BASE, msr | (1 << 10));
 }
 
+#include <textos/dev/pit.h>
+
 /* Apic 不可以启动再禁用后再启动, 除非重启机器 */
 void apic_init ()
 {
@@ -100,7 +121,17 @@ void apic_init ()
     lapic_set(MSR_ESR, 0);
 
     lapic_set(MSR_TPR, S_TPR(0, 0));
-    lapic_set(MSR_SVR, S_SVR(true, INT_APIC_SPS));  // 软启用 Apic / APIC Software Enable
+    lapic_set(MSR_SVR, S_SVR(true, INT_APIC_SPS));     // 软启用 Apic / APIC Software Enable
+    
+    lapic_set(MSR_TM, S_TM(TM_ONESHOT, 0) | LVT_MASK); // 屏蔽 Apic Timer 的本地中断
+    lapic_set(MSR_TDCR, 0b0000);                       // 设置 除数 (因子) 为 2
+    lapic_set(MSR_TICR, 0xFFFFFFFF);                   // 设置 初始计数到最大 (-1)
+
+    pit_sleepms (10);
+
+    lapic_set(MSR_TICR, 0xFFFFFFFF - lapic_get(MSR_TCCR)); // 计算 10ms 的 ticks
+    lapic_set(MSR_TM, S_TM(TM_PERIODIC, INT_TIMER));       // 步入正轨, 每 10ms 产生一次时钟中断
+    intr_register (INT_TIMER, timer_handler);              // 注册中断函数
     DEBUGK(K_INIT, "apic initialized\n");
 }
 
@@ -132,6 +163,8 @@ extern u8 __gsiget (u8 src);
 
 void ioapic_rteset(u8 irq, u64 rte)
 {
+    irq = __gsiget(irq);
+
     int reg = irq * 2 + IOREDTBL;
     ioapic_write(reg, rte & 0xffffffff);
     ioapic_write(reg + 1, rte >> 32);
