@@ -50,11 +50,16 @@ static int console_putc (char c)
     return c;
 }
 
+#include <irq.h>
+
 size_t console_write (char *s)
 {
     char *p;
-    for (p = s ; p && *p ; p++)
-        console_putc (*p);
+
+    UNINTR_AREA({
+        for (p = s ; p && *p ; p++)
+            console_putc (*p);
+    });
 
     return (size_t)(p - s);
 }

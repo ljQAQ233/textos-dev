@@ -8,6 +8,7 @@ typedef struct {
   u64 rdx, rcx, rbx, rax;
 
   u64 errcode;
+  u64 vector;
 
   u64 rip;
   u64 cs;

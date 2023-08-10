@@ -25,6 +25,8 @@ intr_handler%1:
 
 %endmacro
 
+global intr_exit
+
 intr_caller:
     push  rax ; 保存寄存器 & 为后做铺垫
     push  rbx
@@ -50,6 +52,7 @@ intr_caller:
     lea  rax, [rax + rdi * 8]
     call [rax]
 
+intr_exit:
     pop  r15 ; 恢复寄存器
     pop  r14
     pop  r13

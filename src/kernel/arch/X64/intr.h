@@ -17,4 +17,7 @@ void intr_register (u8 vector, ihandler_t handler);
 
 extern __INTR_HANDLER (intr_common);
 
+// interrupt exit
+extern void intr_exit ();
+
 #endif

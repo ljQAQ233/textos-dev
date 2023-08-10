@@ -12,6 +12,8 @@ extern void acpi_init();
 extern void apic_init();
 extern void keyboard_init();
 
+extern void task_init();
+
 #include <irq.h>
 
 void kernel_main ()
@@ -27,7 +29,9 @@ void kernel_main ()
 
     mm_init();
 
-    keyboard_init();
+    // keyboard_init();
+
+    task_init();
 
     intr_sti();
 

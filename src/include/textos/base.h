@@ -1,6 +1,7 @@
 #ifndef __BASE_H__
 #define __BASE_H__
 
+#define _ofp      __attribute__((optimize("omit-frame-pointer")))
 #define _packed   __attribute__((packed))
 
 /* Tools like MAX and MIN */

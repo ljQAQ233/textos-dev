@@ -15,6 +15,23 @@ bool intr_get ();
 #define intr_sti() __asm__ volatile ("sti");
 #define intr_cli() __asm__ volatile ("cli");
 
+#define UNINTR_AREA_START()                  \
+        {                                    \
+            bool __intr_stat__ = intr_get(); \
+            intr_cli();                      \
+
+#define UNINTR_AREA_END()                    \
+        if (__intr_stat__)                   \
+            intr_sti();                      \
+        }                                    \
+
+#define UNINTR_AREA(opts)                            \
+        do {                                         \
+            UNINTR_AREA_START();                     \
+            opts;                                    \
+            UNINTR_AREA_END();                       \
+        } while (false);                             \
+
 /* 接下来是 APIC 的舞台! */
 void lapic_sendeoi ();
 

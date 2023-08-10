@@ -101,11 +101,11 @@ write_msr:
 ; void __kstack_init ();
 global __kstack_init
 __kstack_init:
-    pop  rbx
-    lea  rax, [rel __kstack_top]
-    mov  rbp, rax
-    mov  rsp, rax
-    push rbx
+    pop  rcx
+    lea  rdx, [rel __kstack_top]
+    mov  rbp, rdx
+    mov  rsp, rdx
+    push rcx
     ret
 
 section .data

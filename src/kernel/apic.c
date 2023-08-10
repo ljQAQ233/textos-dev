@@ -57,16 +57,14 @@ void __apic_tovmm ()
     ioapic = (void *)__ioapic_va;
 
 }
-u64 volatile slice = 0;
+
+extern void task_schedule();
 
 __INTR_HANDLER(timer_handler)
 {
     lapic_sendeoi();
 
-    slice++;
-
-    if (slice % 100 == 0)
-        printk ("One second!!!\n");
+    task_schedule();
 }
 
 void lapic_errhandler () { PANIC ("apic handler is not supported!!!"); }

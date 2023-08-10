@@ -9,7 +9,8 @@ SRCS := init.c main.c \
 		debug.c assert.c panic.c \
 		acpi.c apic.c \
 		console.c \
-		printk.c
+		printk.c \
+		task.c task.s
 
 include klib/klib.mk
 include mm/mm.mk
