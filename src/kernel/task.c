@@ -1,6 +1,7 @@
 #include <cpu.h>
 #include <textos/task.h>
 #include <textos/mm/vmm.h>
+#include <textos/assert.h>
 
 #include <string.h>
 
@@ -8,6 +9,9 @@
 
 #define TASK_PAGE (1)
 #define TASK_SIZ  (PAGE_SIZ * TASK_PAGE)
+
+/* Each task has this def tick -> 1 */
+#define TASK_TICKS 1
 
 task_t *table[TASK_MAX];
 
@@ -60,6 +64,9 @@ task_t *task_create (void *main)
 
     tsk->frame = frame;
     tsk->stat  = TASK_PRE;
+    
+    tsk->tick = TASK_TICKS;
+    tsk->curr = TASK_TICKS;
 
     return tsk;
 }
@@ -96,17 +103,31 @@ task_t *task_current ()
 
 extern void __task_switch (task_frame_t *next, task_frame_t **curr);
 
+static void update_sleep ();
+
 void task_schedule ()
 {
-    task_t *curr = task_current(); /* Get curr first becase _getnext() will change `_curr` */
+    task_t *curr, *next;
+    
+    curr = task_current(); /* Get curr first becase _getnext() will change `_curr` */
     if (!curr)
         return;
 
-    task_t *next = _getnext();
-    if (!next)
+    update_sleep();
+    
+    if (curr->stat != TASK_RUN)   // If it is not running now, then sched
+        goto Sched;               // Because a running task may have some time ticks
+    if (curr->curr-- == 0)        // Update time ticks, if it is zero after this time, set it to origin ticks
+        curr->curr = curr->tick;  // Recovery -> gain ticks again
+    else
+        return;                   // It hasn't ran out of all ticks yet, make it run again
+
+Sched:
+    if (!(next = _getnext()))
         return;
 
-    curr->stat = TASK_PRE;
+    if (curr->stat == TASK_RUN)   // The current task may be a sleeping task
+        curr->stat = TASK_PRE;    // Only the running task which will be switched out
     next->stat = TASK_RUN;
 
     __task_switch (next->frame, &curr->frame);
@@ -114,6 +135,45 @@ void task_schedule ()
 
 void task_yield ()
 {
+    task_schedule();
+}
+
+struct list _sleeping;
+
+static void sleep_insert (task_t *task)
+{
+    list_insert (&_sleeping, &task->sleeping);
+}
+
+static void update_sleep ()
+{
+    if (list_empty (&_sleeping)) // 没有任务在睡觉呢...
+        return;
+
+    list_t *ptr;
+    LIST_FOREACH(ptr, &_sleeping)
+    {
+        task_t *task = CR(ptr, task_t, sleeping);
+        if (task->pid == _curr)
+            continue;
+        if (--task->sleep == 0) {   // 坑死老子啦！2的64次方的大整数是什么 o.o
+            task->stat = TASK_PRE;
+            list_remove (ptr);
+        }
+    }
+}
+
+void task_sleep (u64 ticks)
+{
+    ASSERTK (ticks != 0); // 专门防止 24h 工作制
+
+    task_t *curr = task_current();
+    ASSERTK (curr != NULL);
+
+    curr->stat = TASK_SLP;
+    curr->sleep = ticks;
+
+    sleep_insert(curr);
     task_schedule();
 }
 
@@ -143,6 +203,8 @@ void task_init ()
     {
         table[i] = TASK_FREE;
     }
+
+    list_init (&_sleeping);
 
     _task_kern();
 
