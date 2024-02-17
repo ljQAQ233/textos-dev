@@ -3,7 +3,7 @@ SHELL     := bash
 
 include ../config/boot.mk
 
-ifeq (${BOOT_DEBUG},true)
+ifeq (${BSRC_DEBUG},true)
  TARGET := DEBUG
 else
  TARGET := RELEASE

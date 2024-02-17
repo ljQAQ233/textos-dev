@@ -24,7 +24,7 @@
     MemoryAllocationLib          | MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
     UefiBootServicesTableLib     | MdePkg/Library/UefiBootServicesTableLib/UefiBootServicesTableLib.inf
     UefiRuntimeServicesTableLib  | MdePkg/Library/UefiRuntimeServicesTableLib/UefiRuntimeServicesTableLib.inf
-    !if $(BOOT_DEBUG)
+    !if $(DBG_PRINT)
      DebugLib                    | MdePkg/Library/UefiDebugLibConOut/UefiDebugLibConOut.inf
      DebugPrintErrorLevelLib     | MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf
     !else
@@ -32,7 +32,7 @@
     !endif
 
 [PcdsFixedAtBuild]
-    !if $(BOOT_DEBUG)
+    !if $(DBG_PRINT)
      gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask       |0x13
      gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel    |0x80000040
     !endif

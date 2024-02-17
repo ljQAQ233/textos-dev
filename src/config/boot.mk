@@ -8,13 +8,13 @@ FLAGS     := $(_SKIP_AUTGEN)
 CFLAGS    := $(addprefix -I,${INCLUDE})
 
 # For Gcc
-ifeq (${BOOT_DEBUG},true)
+ifeq (${BSRC_DEBUG},true)
   CFLAGS  += -D__SRC_LEVEL_DEBUG
 endif
 
 # For Source Level Debug and others,also a Macro in .dsc file
-ifeq (${BOOT_DEBUG},true)
-  FLAGS += -DBOOT_DEBUG
+ifeq (${BSRC_DEBUG},true)
+  FLAGS += -DDBG_PRINT
 endif
 
 PROJ := SigmaBootPkg

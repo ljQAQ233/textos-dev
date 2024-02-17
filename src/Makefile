@@ -59,7 +59,7 @@ _boot:
 qemu: all
 	$(QEMU) $(QEMU_FLAGS_RUN)
 
-qemubg: export BOOT_DEBUG:=true
+qemubg: export BSRC_DEBUG:=true
 qemubg: export PIPE:=$(shell cat $(UDK_DBG_CFG) | grep -E "^[P ]ort" | awk '{print $$NF}')
 qemubg: all
 	mkfifo $(PIPE).in $(PIPE).out
