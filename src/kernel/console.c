@@ -2,6 +2,8 @@
 #include <textos/console.h>
 #include <textos/video.h>
 
+#include <textos/dev.h>
+
 console_t con;
 
 void console_clear ()
@@ -52,17 +54,26 @@ static int console_putc (char c)
 
 #include <irq.h>
 
-size_t console_write (char *s)
+size_t console_write (dev_t *dev, char *s, size_t len)
 {
     char *p;
 
     UNINTR_AREA({
-        for (p = s ; p && *p ; p++)
+        for (p = s ; p && *p && len ; p++, len--)
             console_putc (*p);
     });
 
     return (size_t)(p - s);
 }
+
+static dev_pri_t console = {
+    .dev = &(dev_t) {
+        .name = "kernel console",
+        .write = (void *)console_write,
+        .type = DEV_CHAR,
+        .subtype = DEV_KNCON,
+    }
+};
 
 void console_init ()
 {
@@ -79,5 +90,7 @@ void console_init ()
 
     con.bg = 0x00000000;
     con.fg = 0x00ffffff;
+    
+    __dev_register (&console);
 }
 

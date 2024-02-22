@@ -1,4 +1,4 @@
-#include <textos/dev/serial.h>
+#include <textos/dev.h>
 
 #include <io.h>
 
@@ -23,7 +23,7 @@ static inline char serial_getc ()
     return inb (COM1 + R_DATA);
 }
 
-size_t serial_read (char *str, size_t siz)
+size_t serial_read (dev_t *dev, char *str, size_t siz)
 {
     for (size_t i = 0 ; i < siz ; i++)
         *str++ = serial_getc (); 
@@ -38,7 +38,7 @@ static inline void serial_putc (char Char)
     outb (COM1 + R_DATA, Char);
 }
 
-size_t serial_write (char *str, size_t siz)
+size_t serial_write (dev_t *dev, char *str, size_t siz)
 {
     char *p = str;
     while (siz-- && p && *p)
@@ -46,6 +46,16 @@ size_t serial_write (char *str, size_t siz)
 
     return (size_t)(p - str);
 }
+
+static dev_pri_t serial = {
+    .dev = &(dev_t) {
+        .name = "serial port",
+        .read = (void *)serial_read,
+        .write = (void *)serial_write,
+        .type = DEV_CHAR,
+        .subtype = DEV_SERIAL,
+    }
+};
 
 void serial_init ()
 {
@@ -65,5 +75,7 @@ void serial_init ()
     }
 
     outb (COM1 + R_MCR, 0b100);        // 恢复 -> Out 1
+    
+    __dev_register (&serial);
 }
 

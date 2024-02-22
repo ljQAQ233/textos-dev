@@ -1,9 +1,8 @@
+#include <textos/dev.h>
 #include <textos/args.h>
-#include <textos/debug.h>
-#include <textos/console.h>
 #include <textos/klib/vsprintf.h>
 
-size_t printk(const char *format, ...)
+size_t printk (const char *format, ...)
 {
     char buf[256];
 
@@ -11,7 +10,10 @@ size_t printk(const char *format, ...)
     va_start(args, format);
 
     size_t i = vsprintf(buf, format, args);
-    console_write(buf);
+    dev_t *console = dev_lookup_type(DEV_CHAR, DEV_KNCON);
+    dev_t *serial  = dev_lookup_type(DEV_CHAR, DEV_SERIAL);
+    console->write(console, buf, -1);
+    serial->write(serial, buf, -1);
 
     va_end(args);
     return i;

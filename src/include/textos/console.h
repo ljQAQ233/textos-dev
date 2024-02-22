@@ -18,10 +18,6 @@ struct con
 
 typedef struct con console_t;
 
-extern console_t con;
-
 void console_clear ();
-
-size_t console_write (char *s);
 
 #endif

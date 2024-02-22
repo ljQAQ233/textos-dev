@@ -10,6 +10,7 @@ extern void serial_init();
 extern void mm_init();
 extern void acpi_init();
 extern void apic_init();
+extern void dev_init();
 extern void keyboard_init();
 
 extern void task_init();
@@ -29,6 +30,7 @@ void kernel_main ()
 
     mm_init();
 
+    dev_init();
     // keyboard_init();
 
     task_init();

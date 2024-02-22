@@ -57,6 +57,7 @@ __INTR_HANDLER(keyboard_handler)
     DEBUGK(K_KBD, "pressed : %u\n", chr);
 }
 
+#include <textos/dev.h>
 #include <textos/panic.h>
 
 void keyboard_init()
@@ -81,6 +82,14 @@ void keyboard_init()
     outb(R_CMD, CMD_PORT1_ON);
     outb(R_CMD, CMD_W_CTL);
     outb(R_DATA, CTL_INT1_ON);
+
+    dev_t *dev = dev_new();
+    dev->name = "ps/2 keyboard";
+    dev->read = NULL;
+    dev->write = NULL;
+    dev->type = DEV_CHAR;
+    dev->subtype = DEV_KBD;
+    dev_register (dev);
     DEBUGK(K_INIT, "kbd initialized!\n");
 }
 
