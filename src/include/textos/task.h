@@ -35,6 +35,7 @@ typedef struct _Task {
 #define TASK_PRE  1 // Prepared
 #define TASK_RUN  2 // Running
 #define TASK_SLP  3 // Sleep
+#define TASK_BLK  4 // Blocked
 
 void task_schedule ();
 
@@ -45,5 +46,9 @@ task_t *task_current ();
 task_t *task_create (void *main);
 
 void task_sleep (u64 ticks);
+
+void task_block ();
+
+void task_unblock (int pid);
 
 #endif

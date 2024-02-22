@@ -177,6 +177,20 @@ void task_sleep (u64 ticks)
     task_schedule();
 }
 
+void task_block ()
+{
+    task_t *curr = task_current();
+    curr->stat = TASK_BLK;
+    task_schedule();
+}
+
+void task_unblock (int pid)
+{
+    task_t *tsk = table[pid];
+    ASSERTK (tsk != NULL);
+    tsk->stat = TASK_PRE;
+}
+
 #include <textos/printk.h>
 
 #define N 5000
