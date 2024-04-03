@@ -9,6 +9,7 @@
 [Sources]
     Main.c
     Graphics.c
+    File.c
 
 [Packages]
     MdePkg/MdePkg.dec
@@ -19,6 +20,7 @@
 
 [Protocols]
     gEfiGraphicsOutputProtocolGuid
+    gEfiSimpleFileSystemProtocolGuid
 
 [Buildoptions]
     GCC:DEBUG_*_*_CC_FLAGS = -O0

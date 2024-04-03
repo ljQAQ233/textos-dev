@@ -2,6 +2,7 @@
 
 #include <Boot.h>
 #include <Graphics.h>
+#include <File.h>
 
 EFI_STATUS EFIAPI UefiMain (
         IN EFI_HANDLE        ImageHandle,
@@ -11,7 +12,7 @@ EFI_STATUS EFIAPI UefiMain (
     Breakpoint();
 
     InitializeGraphicsServices();
-
+    InitializeFileServices();
 
     return EFI_SUCCESS;
 }
