@@ -191,24 +191,32 @@ void task_unblock (int pid)
     tsk->stat = TASK_PRE;
 }
 
+#include <textos/dev.h>
 #include <textos/printk.h>
 
 #define N 5000
 
 static int a = 0;
 
+extern void ide_read (u32 lba, void *data, u8 cnt);
+
 void proc_a ()
 {
-    for (int i = 0 ; i < N ; i++)
-        printk ("PROC[#%d] a = %d\n", task_current()->pid, a++);
-    while (true) {}
+    u8 buf[512];
+    dev_t *ide = dev_lookup_type (DEV_BLK, DEV_IDE);
+    ide->bread (ide, 0, buf, 1);
+    for (int i = 0 ; i < 512 ; i++)
+        printk ("%02x", buf[i]);
+    printk ("\n");
+
+    while (true) { }
 }
 
 void proc_b ()
 {
     for (int i = 0 ; i < N ; i++)
         printk ("PROC[#%d] a = %d\n", task_current()->pid, a++);
-    while (true) {}
+    while (true) { }
 }
 
 void task_init ()
@@ -225,6 +233,6 @@ void task_init ()
     _curr = 0;
 
     task_create (proc_a);
-    task_create (proc_b);
+    // task_create (proc_b);
 }
 

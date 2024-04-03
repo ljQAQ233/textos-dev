@@ -10,6 +10,9 @@
 #define IRQ_KEYBOARD 1
 #define INT_KEYBOARD 0x21
 
+#define IRQ_MDISK 14
+#define INT_MDISK 0x22
+
 bool intr_get ();
 
 #define intr_sti() __asm__ volatile ("sti");
