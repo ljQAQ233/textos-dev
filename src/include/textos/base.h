@@ -31,6 +31,9 @@
 #define SIGN_64(A, B, C, D, E, F, G, H) \
     (SIGN_32 (A, B, C, D) | ((u64)SIGN_32 (E, F, G, H) << 32))
 
+#define CR(Record, Type, Member) \
+    ((Type *)((void *)(Record) - (void *)&((Type *)((void *)0))->Member))
+
 #define STATIC_ASSERT(Expr, String) \
         _Static_assert(Expr, String)
 
