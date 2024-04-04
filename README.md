@@ -62,6 +62,15 @@ make -C src compile_commands.json
 
 将 `src/utils/compile_commands.json`添加到配置中.
 
+如果你使用的是 VSCode , 将下述片段根据你的实际情况添加到 `.vscode/c_cpp_properties.json` 中
+
+```
+"compilerPath": "/usr/bin/gcc",
+"cStandard": "c11",
+"cppStandard": "c++14",
+"intelliSenseMode": "linux-gcc-x64",
+```
+
 VSCode可以配置`includePath`
 
 # 参考软件版本
