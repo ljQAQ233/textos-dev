@@ -13,6 +13,9 @@
 #define IRQ_MDISK 14
 #define INT_MDISK 0x22
 
+#define IRQ_SDISK 15
+#define INT_SDISK 0x23
+
 bool intr_get ();
 
 #define intr_sti() __asm__ volatile ("sti");
