@@ -36,7 +36,7 @@ image:
 	@if ! $(SUDO) mount $(IMG_OUTPUT) $(IMG_MDIR) > /dev/null 2>&1;then \
 		echo -e "Created an image : $(IMG_OUTPUT)" \
 		;dd if=/dev/zero of=$(IMG_OUTPUT) bs=1M count=$(IMG_SIZE) > /dev/null 2>&1 \
-		;mkfs.fat -F 16 $(IMG_OUTPUT) > /dev/null 2>&1 \
+		;mkfs.fat -F 32 --mbr=y $ $(IMG_OUTPUT) > /dev/null 2>&1 \
 		;$(SUDO) mount $(IMG_OUTPUT) $(IMG_MDIR) \
 	;fi
 	

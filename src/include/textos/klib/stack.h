@@ -43,8 +43,8 @@ typedef struct stacki
         (iter = ((stk)->top))
 
 #define stacki_next(iter) \
-        (iter = iter ? ((stacki_t *)iter)->next)
+        (iter = iter ? ((stacki_t *)iter)->next : NULL)
 
 #define stacki_data(iter) \
-        ((stacki_t *)iter->payload)
+        (((stacki_t *)iter)->payload)
 

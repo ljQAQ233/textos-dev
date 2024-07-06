@@ -16,6 +16,7 @@ include klib/klib.mk
 include mm/mm.mk
 include video/video.mk
 include dev/dev.mk
+include fs/fs.mk
 
 include $(ARCH_DIR)/arch.mk
 

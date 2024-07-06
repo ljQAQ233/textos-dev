@@ -8,6 +8,9 @@
         "${workspaceFolder}/src/include/textos/klib",
         "${workspaceFolder}/src/boot/Edk2/MdePkg/Include"
       ],
+      "compilerArgs": [
+        "-include src/include/textos/textos.h"
+      ],
       "defines": [
         "__TEXTOS_DEBUG"
       ],

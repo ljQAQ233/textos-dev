@@ -115,14 +115,14 @@ char *strnchr (const char *str, int c, size_t n)
     return NULL;
 }
 
-#include <TextOS/Memory/Malloc.h>
+#include <textos/mm.h>
 
 /* duplicate a string */
 char *strdup (const char *str)
 {
     size_t len = strlen(str);
 
-    char *p = MallocK(len + 1);
+    char *p = malloc(len + 1);
     if (p == NULL)
         return NULL;
 
@@ -135,7 +135,7 @@ char *strndup (const char *str, size_t n)
     size_t cpy = MIN (strlen(str) + 1, n);  // num of characters to copy
     size_t bfs = MAX (strlen(str) + 1, n);  // real buffer size
 
-    char *p = MallocK(bfs);
+    char *p = malloc(bfs);
     if (p == NULL)
         return NULL;
     

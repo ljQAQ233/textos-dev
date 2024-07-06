@@ -168,6 +168,14 @@ parse_args:
                 flgs |= SPECIAL;
                 break;
 
+            case 'q':
+                {
+                    char fill = (char)va_arg (args, int);
+                    for (int i = 0 ; i < width ; i++) *out++ = fill;
+                }
+                ptr++;
+                continue;
+
             case '1':
             case '2':
             case '3':
