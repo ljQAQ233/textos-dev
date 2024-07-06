@@ -58,11 +58,25 @@ char *strchr (const char *str, int c)
     return NULL;
 }
 
+char *strchrnul (const char *str, int c)
+{
+    while (str && *str) {
+        if (*str == (char)c)
+            return (char *)str;
+        str++;
+    }
+    if (c == '\0') {
+        return (char *)str;
+    }
+
+    return (char *)str;
+}
+
 /* Limited by `n`, is similar to `strcpy()` */
 char *strncpy (char *dest, const char *src, size_t n)
 {
     char *p = dest;
-    while (p && src && *src++ && n--)
+    while (p && src && *src && n--)
         *p++ = *src++;
     *p = '\0'; // put '\0'
 

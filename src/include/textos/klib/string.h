@@ -30,6 +30,8 @@ int strncmp (const char* str1, const char *str2, size_t n);
 */
 char *strchr (const char *str, int c);
 
+char *strchrnul (const char *str, int c);
+
 /*
   The `strnchr()` function returns a pointer to the first
   occurrence of the character `c` in the string `str`, count down from `n`
