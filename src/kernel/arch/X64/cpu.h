@@ -7,8 +7,8 @@ typedef struct {
   u64 rbp;
   u64 rdx, rcx, rbx, rax;
 
-  u64 errcode;
   u64 vector;
+  u64 errcode;
 
   u64 rip;
   u64 cs;
@@ -27,9 +27,11 @@ void load_gdt (void *gdtr);
 
 void reload_segs (u64 ss, u64 cs);
 
-void read_idt (void *Idtr);
+void read_idt (void *idtr);
 
-void load_idt (void *Idtr);
+void load_idt (void *idtr);
+
+void load_tss (u16 idx);
 
 u64 read_cr3 ();
 

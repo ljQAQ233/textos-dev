@@ -6,4 +6,6 @@
 #define USER_CODE_SEG 3
 #define USER_DATA_SEG 4
 
+#define TSS_LOAD_SEG  5
+
 #endif

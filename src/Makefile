@@ -7,7 +7,7 @@ include config/image.mk
 
 include config/udk.mk
 
-all: _boot kernel image
+all: _boot kernel app image
 
 include config/qemu.mk
 
@@ -31,6 +31,9 @@ ovmf:
 kernel:
 	@make -C kernel kernel
 
+app:
+	@make -C app app
+
 image:
 	@mkdir -p $(IMG_MDIR)
 	@if ! $(SUDO) mount $(IMG_OUTPUT) $(IMG_MDIR) > /dev/null 2>&1;then \
@@ -45,6 +48,7 @@ image:
 	@$(SUDO) cp $(BOOT_EXEC) $(IMG_MDIR)/EFI/Boot/$(OUT_EFI)
 	@$(SUDO) cp -rf resource/* $(IMG_MDIR)/
 	@$(SUDO) cp $(KERNEL_EXEC) $(IMG_MDIR)/
+	@$(SUDO) cp $(APP_OUTPUT)/* $(IMG_MDIR)/
 	
 	@echo "Image was done!"
 	@while $(SUDO) umount $(IMG_MDIR) 2>/dev/null; \
@@ -93,7 +97,7 @@ clean:
 	rm -rf $(OUTPUT)
 
 
-.PHONY: all _boot boot kernel image \
+.PHONY: all _boot boot kernel app image \
 		qemu qemug qemubg \
 		diskmu clean \
 		compile_commands.json 

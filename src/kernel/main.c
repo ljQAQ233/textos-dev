@@ -42,12 +42,24 @@ void kernel_main ()
     clock_init();
 
     task_init();
-    // task_create(__init_proc);
+    task_create(__init_proc, TC_USER | TC_TSK1);
+
+    /*
+       就让当前的栈帧成为中断栈了!
+       从用户态来的中断将加载 tss 中的 rsp
+    */
+    __asm__ volatile (
+            "movq %%rsp, %%rdi\n"
+            "call __tss_set": : : "%rdi");
 
     intr_sti();
 
     while (true);
 }
+
+#include <gdt.h>
+#include <textos/user/exec.h>
+#include <textos/panic.h>
 
 extern void fs_init();
 
@@ -57,6 +69,22 @@ static void __init_proc()
     fs_init();
     UNINTR_AREA_END();
 
-    while (true)
-        task_yield();
+    exeinfo_t exe;
+    elf_load ("/init.elf", &exe);
+    
+    task_t *curr = task_current();
+    __asm__ volatile (
+            "push %0 \n" // ss
+            "push %1 \n" // rsp
+            "pushfq  \n" // rflags
+            "push %2 \n" // cs
+            "push %3 \n" // rip
+            : :
+            "i"((USER_DATA_SEG << 3) | 3), // ss
+            "m"(curr->init.rbp),           // rsp
+            "i"((USER_CODE_SEG << 3) | 3), // cs
+            "m"(exe.entry));               // rip
+    __asm__ volatile ("iretq");
+
+    PANIC("Init exiting...\n");
 }

@@ -49,24 +49,63 @@ static task_t *_task_create (int args)
 #include <gdt.h>
 #include <intr.h>
 
-task_t *task_create (void *main, int args)
+intr_frame_t *build_iframe (task_t *tsk, int args)
 {
-    task_t *tsk = _task_create(args);
-    memset (tsk, 0, sizeof(task_t));
-
     void *stack = (void *)tsk + TASK_SIZ;
     intr_frame_t *iframe = stack - sizeof(intr_frame_t);
+
+    // very good code, makes my test passed
+    iframe->rax = 0xaaaa;
+    iframe->rbx = 0xbbbb;
+    iframe->rcx = 0xcccc;
+    iframe->rdx = 0xdddd;
+    iframe->rdi = 0x1d1d;
+    iframe->rsi = 0x1e1e;
+    iframe->r8  = 0x8888;
+    iframe->r9  = 0x9999;
+    iframe->r10 = 0x1010;
+    iframe->r11 = 0x1111;
+    iframe->r12 = 0x1212;
+    iframe->r13 = 0x1313;
+    iframe->r14 = 0x1414;
+    iframe->r15 = 0x1515;
     
-    iframe->rip = (u64)main;
-    iframe->rflags = (1 << 9);
-    iframe->cs = KERN_CODE_SEG << 3;
     iframe->rbp = (u64)stack;
     iframe->rsp = (u64)stack;
 
+    iframe->rflags = (1 << 9);
+
+    if (args & (TC_KERN | TC_TSK1))
+        iframe->cs = KERN_CODE_SEG << 3;
+    else
+        iframe->cs = (USER_CODE_SEG << 3) | 3;
+
+    if (args & TC_NINT)
+        iframe->rflags &= ~(1 << 9);
+
+    return tsk->iframe = iframe;
+}
+
+task_frame_t *build_tframe (task_t *tsk, int args)
+{
+    void *stack = (void *)tsk + TASK_SIZ;
     task_frame_t *frame = stack - sizeof(intr_frame_t) - sizeof(task_frame_t);
+
     frame->rip = (u64)intr_exit;
 
-    tsk->frame = frame;
+    return tsk->frame = frame;
+}
+
+task_t *task_create (void *main, int args)
+{
+    task_t *tsk = _task_create(args);
+
+    build_iframe (tsk, args)->rip = (u64)main;
+    build_tframe (tsk, args);
+
+    tsk->init.main = main;
+    tsk->init.rbp = (void *)tsk->iframe->rbp;
+
     tsk->stat  = TASK_PRE;
     
     tsk->tick = TASK_TICKS;

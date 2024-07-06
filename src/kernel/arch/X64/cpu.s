@@ -45,6 +45,12 @@ load_idt:
     lidt [rdi]
     ret
 
+; void load_tss (u16 idx);
+global load_tss
+load_tss:
+    ltr di
+    ret
+
 ; void reload_segs ();
 global reload_segs
 reload_segs:

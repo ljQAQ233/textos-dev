@@ -25,6 +25,11 @@ typedef struct _Task {
     
     u64 sleep; // sleeping process has been spent currently
 
+    struct {
+        void *main;
+        void *rbp;
+    } init;
+
     task_frame_t *frame;
     intr_frame_t *iframe;
 
@@ -45,6 +50,8 @@ task_t *task_current ();
 
 #define TC_KERN (0 << 0) // ring 0 (kernel)
 #define TC_USER (1 << 0) // ring 3 (init / app)
+#define TC_TSK1 (1 << 1) // init proc
+#define TC_NINT (1 << 2) // mask interrupt :(
 
 task_t *task_create (void *main, int args);
 

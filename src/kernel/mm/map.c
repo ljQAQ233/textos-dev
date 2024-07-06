@@ -80,6 +80,9 @@ _map_walk (u64 phy, u64 vrt, u16 flgs, u64 *tab, int level, int mode)
         new = _vrt_entryget (vrt, level - 1);
         memset (new, 0, PAGE_SIZ);
     }
+    
+    if (flgs & PE_US)
+        tab[idx] |= PE_US;
 
     tab = (u64 *)_vrt_entryget (vrt, level - 1);
     _map_walk (phy, vrt, flgs, tab, --level, mode);

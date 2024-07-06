@@ -101,7 +101,7 @@ __INTR_HANDLER (intr_common)
     printk ("  rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx\n", frame->rsi, frame->rdi, frame->rbp, frame->rsp);
     printk ("  r8 =%016llx r9 =%016llx r10=%016llx r11=%016llx\n", frame->r8 , frame->r9 , frame->r10, frame->r11);
     printk ("  r12=%016llx r13=%016llx r14=%016llx r15=%016llx\n", frame->r12, frame->r13, frame->r14, frame->r15);
-    printk ("  err=%016llx rip=%016llx rfl=%08llx\n", frame->rip, frame->rflags, errcode);
+    printk ("  err=%016llx rip=%016llx rfl=%08llx\n", errcode, frame->rip, frame->rflags);
     printk ("<-\n");
     
     while (true) halt();
