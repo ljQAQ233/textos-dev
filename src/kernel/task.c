@@ -27,7 +27,7 @@ static int _getfree ()
 }
 
 /* Register tasks into table */
-static task_t *_task_create ()
+static task_t *_task_create (int args)
 {
     int pid;
     task_t *tsk;
@@ -35,7 +35,10 @@ static task_t *_task_create ()
     if ((pid = _getfree()) < 0)
         return NULL;
 
-    tsk = vmm_allocpages (TASK_PAGE, PE_P | PE_RW);
+    u16 map_flgs = PE_P | PE_RW;
+    if (args & TC_USER)
+        map_flgs |= PE_US;
+    tsk = vmm_allocpages (TASK_PAGE, map_flgs);
     tsk->pid = pid;
 
     table[pid] = tsk;
@@ -46,9 +49,10 @@ static task_t *_task_create ()
 #include <gdt.h>
 #include <intr.h>
 
-task_t *task_create (void *main)
+task_t *task_create (void *main, int args)
 {
-    task_t *tsk = _task_create();
+    task_t *tsk = _task_create(args);
+    memset (tsk, 0, sizeof(task_t));
 
     void *stack = (void *)tsk + TASK_SIZ;
     intr_frame_t *iframe = stack - sizeof(intr_frame_t);
@@ -73,7 +77,7 @@ task_t *task_create (void *main)
 
 static void _task_kern ()
 {
-    task_create (NULL)->stat = TASK_RUN;
+    task_create (NULL, TC_KERN)->stat = TASK_RUN;
 }
 
 static int _curr;

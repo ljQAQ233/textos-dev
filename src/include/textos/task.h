@@ -43,7 +43,10 @@ void task_yield ();
 
 task_t *task_current ();
 
-task_t *task_create (void *main);
+#define TC_KERN (0 << 0) // ring 0 (kernel)
+#define TC_USER (1 << 0) // ring 3 (init / app)
+
+task_t *task_create (void *main, int args);
 
 void task_sleep (u64 ticks);
 
