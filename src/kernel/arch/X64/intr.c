@@ -131,3 +131,17 @@ void intr_register (u8 vector, ihandler_t handler)
 {
     intr_handlers[vector] = handler;
 }
+
+void intr_setiattr (u8 vector, bool user)
+{
+    u64 offset = (u64)&intr_entries + ENTRY_SIZ * vector;
+    u16 selector = (KERN_CODE_SEG << 3), dpl;
+    if (user) {
+        dpl = 3;
+    } else {
+        dpl = 0;
+    }
+
+    _idt_set_entry (vector, offset, selector, GATE_INT, dpl, true);
+}
+

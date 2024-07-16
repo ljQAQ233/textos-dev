@@ -17,6 +17,7 @@ extern void ide_init();
 extern void clock_init();
 
 extern void task_init();
+extern void syscall_init();
 
 static void __init_proc();
 
@@ -42,6 +43,7 @@ void kernel_main ()
     clock_init();
 
     task_init();
+    syscall_init();
     task_create(__init_proc, TC_USER | TC_TSK1);
 
     /*

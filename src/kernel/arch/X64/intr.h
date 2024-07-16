@@ -13,6 +13,8 @@ typedef void (*ihandler_t)(
 
 void intr_register (u8 vector, ihandler_t handler);
 
+void intr_setiattr (u8 vector, bool user);
+
 // the common handler
 
 extern __INTR_HANDLER (intr_common);
