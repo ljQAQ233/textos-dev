@@ -67,13 +67,11 @@ extern void fs_init();
 
 static void __init_proc()
 {
-    UNINTR_AREA_START();
     fs_init();
-    UNINTR_AREA_END();
-
-    exeinfo_t exe;
-    elf_load ("/init.elf", &exe);
     
+    exeinfo_t exe;
+    elf_load("/init.elf", &exe);
+
     task_t *curr = task_current();
     __asm__ volatile (
             "push %0 \n" // ss
