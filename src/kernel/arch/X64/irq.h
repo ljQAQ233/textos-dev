@@ -10,11 +10,11 @@
 #define IRQ_KEYBOARD 1
 #define INT_KEYBOARD 0x21
 
-#define IRQ_MDISK 14
-#define INT_MDISK 0x22
+#define IRQ_PRIDISK 14
+#define INT_PRIDISK 0x22
 
-#define IRQ_SDISK 15
-#define INT_SDISK 0x23
+#define IRQ_SECDISK 15
+#define INT_SECDISK 0x23
 
 #define INT_SYSCALL 0x80
 

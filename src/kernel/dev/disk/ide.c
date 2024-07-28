@@ -9,8 +9,8 @@
 
 #include <string.h>
 
-#define IDE_P_BASE 0x1F0 // Prime
-#define IDE_S_BASE 0x170 // Secondary
+#define BASE_PRI 0x1F0 // Prime
+#define BASE_SEC 0x170 // Secondary
 
 #define R_DATA (0) // 
 #define R_ERRF (1) // Error or features
@@ -24,11 +24,21 @@
 #define R_BCTL 0x206 // Offset of the block register
 
 typedef struct {
+    int     wait;  // waiting task's pid
+//  暂时没用:
+//  mutex_t lock;  // lock of this port(disk channel)
+} port_stat_t;
+
+static port_stat_t pstat[2]; // 2 channels
+
+typedef struct {
     char  serial_num[21];
     char  model_num[41];
 
     u16   port;
     u8    dev;
+
+    port_stat_t *pstat;
 } pri_t;
 
 static pri_t info;
@@ -43,8 +53,8 @@ static pri_t info;
 
 //
 
-#define DEV_PRI (0 << 4)
-#define DEV_SEC (1 << 4)
+#define DEV_MASTER (0 << 4)
+#define DEV_SLAVE  (1 << 4)
 
 #define DEV_CHS (0 << 6)
 #define DEV_LBA (1 << 6)
@@ -61,17 +71,19 @@ static pri_t info;
 
 /* TODO: Lock device */
 
-static int pid = -1;
-
 __INTR_HANDLER(ide_handler)
 {
     lapic_sendeoi();
 
-    if (pid < 0)
-        return;
+    int idx = (vector - INT_PRIDISK);
+    port_stat_t *stat = &pstat[idx];
 
-    DEBUGK(K_DEV, "Read opt has finished, waking proc... -> %d\n", pid);
-    task_unblock (pid);
+    if (stat->wait < 0)
+        return ;
+
+    DEBUGK(K_DEV, "Read opt has finished, waking proc... -> %d\n", stat->wait);
+    task_unblock (stat->wait);
+    stat->wait = -1;
 }
 
 static void read_sector (u16 port, u16 *data)
@@ -96,15 +108,17 @@ static void write_sector (u16 port, u16 *data)
 
 void ide_read (dev_t *dev, u32 lba, void *data, u8 cnt)
 {
+    UNINTR_AREA_START();
+
+    pri_t *pri = dev->pdata;
+    
     /*
        我们先 使用 28 位 PIO 模式练练手.
     */
     lba &= 0xFFFFFFF;
-
-    while (inb(R_SCMD) & STAT_BSY) ;
-
-    pri_t *pri = dev->pdata;
-
+    
+    while (inb(pri->port + R_SCMD) & STAT_BSY) ;
+    
     outb(pri->port + R_DEV,  SET_DEV(pri->dev) | DEV_LBA | (lba >> 24)); // 选择设备并发送 LBA 的高4位
     outb(pri->port + R_SECC, cnt);                             // 扇区数目
     outb(pri->port + R_LBAL, lba & 0xFF);                      // LBA 0_7
@@ -112,23 +126,24 @@ void ide_read (dev_t *dev, u32 lba, void *data, u8 cnt)
     outb(pri->port + R_LBAH, (lba >> 16) & 0xFF);              // LBA 16_23
     outb(pri->port + R_SCMD, CMD_READ);                        // 读取指令
 
-    pid = task_current()->pid;
+    pri->pstat->wait = task_current()->pid;
     task_block();
-
     for (int i = 0 ; i < cnt ; i++) {
         read_sector (pri->port, data);
         data += SECT_SIZ;
     }
+    
+    UNINTR_AREA_END();
 }
 
 void ide_write (dev_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
-    lba &= 0xFFFFFFF;
-    
     pri_t *pri = dev->pdata;
 
+    lba &= 0xFFFFFFF;
+    
     while (inb(R_SCMD + pri->port) & STAT_BSY) ;
 
     outb(pri->port + R_DEV,  SET_DEV(pri->dev) | DEV_LBA | (lba >> 24)); // 选择设备并发送 LBA 的高4位
@@ -142,7 +157,7 @@ void ide_write (dev_t *dev, u32 lba, void *data, u8 cnt)
         write_sector (pri->port, data);
         data += SECT_SIZ;
 
-        pid = task_current()->pid;
+        pri->pstat->wait = task_current()->pid;
         task_block();
     }
     
@@ -180,8 +195,8 @@ static bool ide_identify (pri_t **pri, int idx)
 
     u16 Buffer[256];
 
-    u8  dev  = idx < 2 ? DEV_PRI : DEV_SEC;
-    u16 port = idx & 1 ? IDE_S_BASE : IDE_P_BASE;
+    u16 port = idx > 1 ? BASE_SEC : BASE_PRI;
+    u8  dev = idx & 1 ? DEV_SLAVE : DEV_MASTER;
 
     outb(port + R_DEV , SET_DEV(dev));
     outb(port + R_SCMD, 0xEC);
@@ -212,53 +227,50 @@ static bool ide_identify (pri_t **pri, int idx)
     DEBUGK (K_DEV | K_SYNC, "disk port base : %#x\n", info.port);
     DEBUGK (K_DEV | K_SYNC, "disk dev : %d\n", info.dev);
 
+    info.pstat = &pstat[idx / 2];
+
     *pri = malloc(sizeof(pri_t));
     memcpy (*pri, &info, sizeof(pri_t));
 
     return true;
 }
 
+#define INIT(i)                                                      \
+    do {                                                             \
+        pri_t *pri;                                                  \
+        dev_t *dev;                                                  \
+        if (ide_identify(&pri, i)) {                                 \
+            dev = dev_new();                                         \
+            dev->name = pri->model_num;                              \
+            dev->type = DEV_BLK;                                     \
+            dev->subtype = DEV_IDE;                                  \
+            dev->bread = (void *)ide_read;                           \
+            dev->bwrite = (void *)ide_write;                         \
+            dev->pdata = pri;                                        \
+            dev_register(dev);                                       \
+        }                                                            \
+    } while (0);                                                     \
+
+#define INIT_PS(i)                                                   \
+    do {                                                             \
+        pstat[i].wait = -1;                                          \
+    /*  mutex_init(&pstat[i].lock); */                               \
+    } while (0);
+
 /* TODO : Detect all devices */
 void ide_init()
 {
     outb(0x3F6, 0);
 
-    dev_t *dev;
-    pri_t *pri;
+    INIT_PS(0); INIT_PS(1);
 
-    int i = 0;
-    for ( ; i < 2 ; i++) {
-        if (ide_identify(&pri, i)) {
-            dev = dev_new();
-            dev->name = pri->model_num;
-            dev->type = DEV_BLK;
-            dev->subtype = DEV_IDE;
-            dev->bread = (void *)ide_read; // 丝毫不费脑筋的,降低代码安全性的强制类型转换...
-            dev->bwrite = (void *)ide_write;
-            dev->pdata = pri;
-            dev_register (dev);
-        }
-    }
+    INIT(0); INIT(1);
+    intr_register (INT_PRIDISK, ide_handler);
+    ioapic_rteset (IRQ_PRIDISK, _IOAPIC_RTE(INT_PRIDISK));
 
-    intr_register (INT_MDISK, ide_handler);
-    ioapic_rteset (IRQ_MDISK, _IOAPIC_RTE(INT_MDISK));
-    
-    for ( ; i < 4 ; i++) {
-        if (ide_identify(&pri, i)) {
-            dev = dev_new();
-            dev->name = pri->model_num;
-            dev->type = DEV_BLK;
-            dev->subtype = DEV_IDE;
-            dev->bread = (void *)ide_read; // 丝毫不费脑筋的,降低代码安全性的强制类型转换...
-            dev->bwrite = (void *)ide_write;
-            dev->pdata = pri;
-            dev_register (dev);
-        }
-    }
-    
-    intr_register (INT_SDISK, ide_handler);
-    ioapic_rteset (IRQ_SDISK, _IOAPIC_RTE(INT_SDISK));
-
+    INIT(2); INIT(3);
+    intr_register (INT_SECDISK, ide_handler);
+    ioapic_rteset (IRQ_SECDISK, _IOAPIC_RTE(INT_SECDISK));
     DEBUGK(K_INIT | K_SYNC, "disk initialized!\n");
 }
 
