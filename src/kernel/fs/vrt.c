@@ -233,6 +233,8 @@ void __vfs_listnode (node_t *start)
 
 extern FS_INITIALIZER ( __fs_init_fat32);
 
+// clang-format off
+
 static regstr_t regstr[] = {
     [FS_FAT32] = {
         .name = "fat32",
@@ -245,6 +247,8 @@ static regstr_t regstr[] = {
         .init = NULL
     }
 };
+
+// clang-format on
 
 static void _init_partitions (dev_t *hd, mbr_t *rec)
 {
