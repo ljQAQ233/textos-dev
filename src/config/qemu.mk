@@ -23,7 +23,8 @@ QEMU_FLAGS := -hda $(IMG_OUTPUT) \
 			   -cpu qemu64,+x2apic \
 			   -m $(MEM) \
 			   -no-reboot \
-			   -debugcon $(QEMU_LOG)
+			   -debugcon $(QEMU_LOG) \
+			   -device isa-debug-exit
 
 # Qemu Common Args
 

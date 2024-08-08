@@ -134,6 +134,7 @@ void vmap_init ()
     DEBUGK(K_INIT, "kpgt - pml4 = %p\n", pml4);
 }
 
+extern void __uefi_tovmm();
 extern void __pmm_tovmm();
 extern void __apic_tovmm();
 extern void __video_tovmm();
@@ -143,6 +144,7 @@ void vmap_initvm ()
     vmap_map(0, __kern_phy_offet, __kern_phy_mapsz / _pagesiz(MAP_1G), PE_P | PE_RW, MAP_1G);
 
     // As callback functions
+    __uefi_tovmm();
     __pmm_tovmm();
     __apic_tovmm();
     __video_tovmm();

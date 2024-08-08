@@ -32,6 +32,7 @@ typedef struct {
   GRAPHICS_CONFIG Graphics;
   MEMORY_CONFIG   Memory;
   VOID            *AcpiTab;
+  VOID            *Runtime;
 } BOOT_CONFIG;
 
 /* From tanyugang's Code,and I modified it,very thanks! */
@@ -99,6 +100,8 @@ EFI_STATUS EFIAPI UefiMain (
 
     Config->Memory.Map = Map;
     Config->Memory.KernalPages = KernelPages;
+
+    Config->Runtime = SystemTable->RuntimeServices;
 
     ((VOID (*)(BOOT_CONFIG *))KernelEntry)(Config);
 

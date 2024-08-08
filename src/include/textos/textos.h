@@ -17,6 +17,9 @@
 
 #define __kern_vmm_pages 0xffffb00000000000ull
 
+#define __uefi_misc 0xffff8c0000000000ull // 64 MiB
+#define __uefi_max  0xffff8c0004000000ull
+
 #define __lapic_va  0xffffff0000008000ull
 #define __ioapic_va 0xffffff0000000000ull
 

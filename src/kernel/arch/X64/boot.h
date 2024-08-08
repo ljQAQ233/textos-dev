@@ -34,6 +34,7 @@ typedef struct {
     vconfig_t video;
     mconfig_t memory;
     void      *acpi;
+    void      *runtime;
 } bconfig_t;
 
 bconfig_t *bconfig_get ();

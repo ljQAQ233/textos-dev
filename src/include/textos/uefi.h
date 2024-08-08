@@ -3,6 +3,8 @@
 
 #include <uefi_types.h>
 #include <textos/uefi/mm.h>
+#include <textos/uefi/table.h>
+
 #include <textos/uefi/lib.h>
 
 #endif

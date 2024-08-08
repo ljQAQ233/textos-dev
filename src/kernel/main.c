@@ -4,6 +4,8 @@
 #include <textos/printk.h>
 #include <textos/task.h>
 
+#include <textos/pwm.h>
+
 extern void console_init();
 extern void gdt_init();
 extern void idt_init();
@@ -35,6 +37,8 @@ void kernel_main ()
     apic_init();
 
     mm_init();
+    
+    shutdown();
 
     dev_init();
     // keyboard_init();
