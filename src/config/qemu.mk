@@ -8,6 +8,14 @@ OVMF_DEBUG  = $(BASE)/OVMF_DEBUG_$(ARCH).fd
 OVMF_NOOPT  = $(BASE)/OVMF_NOOPT_$(ARCH).fd
 # the BIOS floppy for Qemu to Run
 
+ifdef QEMU_LOG
+  QEMU_SERIAL = file:$(OUTPUT)/qemu.srl
+else
+  QEMU_SERIAL = stdio
+endif
+
+QEMU_LOG ?= file:$(OUTPUT)/qemu.log
+
 MEM = 64M
 
 QEMU_FLAGS := -hda $(IMG_OUTPUT) \
@@ -15,7 +23,7 @@ QEMU_FLAGS := -hda $(IMG_OUTPUT) \
 			   -cpu qemu64,+x2apic \
 			   -m $(MEM) \
 			   -no-reboot \
-			   -debugcon file:$(OUTPUT)/qemu.log
+			   -debugcon $(QEMU_LOG)
 
 # Qemu Common Args
 
@@ -38,6 +46,6 @@ QEMU_FLAGS_BDBG  := $(QEMU_FLAGS_DBG) \
 QEMU_FLAGS_KDBG  := $(QEMU_FLAGS_DBG) \
 			   -bios $(OVMF) \
 			   -s -S \
-			   -serial stdio
+			   -serial $(QEMU_SERIAL)
 
 # Qemu Args for Debugging
