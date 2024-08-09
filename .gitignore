@@ -14,6 +14,8 @@
 build/
 src/image/
 src/base/*.fd
+src/base/*.code
+src/base/*.vars
 
 .vscode/settings.json
 src/config/private.mk

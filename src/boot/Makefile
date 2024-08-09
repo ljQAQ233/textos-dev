@@ -12,10 +12,10 @@ endif
 prepare:
 	@ln -snf $(abspath SigmaBootPkg) Edk2/SigmaBootPkg
 
-ovmf: export BOOT_OUTPUT:=$(BOOT_OUTPUT)/OVMF_$(ARCH)
+ovmf: BOOT_OUTPUT:=$(BOOT_OUTPUT)/OVMF_$(ARCH)
 ovmf:
 	@mkdir -p Edk2/Conf
-	@echo -e "Update configures for compliler...$(TARGET)\n"
+	@echo -e "Update configures for compliler...\n"
 	@export WORKSPACE=$(abspath Edk2) && \
 		source Edk2/BaseTools/BuildEnv && \
 		if ! build --help > /dev/null;then \
@@ -33,9 +33,12 @@ ovmf:
 		-b $(TARGET) \
 		-DOUTPUT=$(BOOT_OUTPUT) \
 		-DARCH=$(ARCH)
-	@cp -f `find $(BOOT_OUTPUT) -name "OVMF.fd" | grep "$(TARGET)_$(TOOLCHAIN)" | grep $(ARCH) | awk 'NR==1{print $$0}'` $(BASE)/OVMF_$(TARGET)_$(ARCH).fd
+	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF.fd $(BASE)/OVMF_$(TARGET)_$(ARCH).fd
+	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_CODE.fd $(BASE)/OVMF_$(TARGET)_$(ARCH).code
+	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_VARS.fd $(BASE)/OVMF_$(TARGET)_$(ARCH).vars
 	@echo
 
+build: BOOT_OUTPUT:=$(BOOT_OUTPUT)/SIGMA_$(ARCH)
 build: prepare
 	@mkdir -p Edk2/Conf
 	@echo -e "Update configures for compliler...\n"
@@ -59,15 +62,15 @@ build: prepare
 	@$(UTILS)/chkmodify_unlock.sh $(PROJ)
 	@echo
 
+update: BOOT_OUTPUT:=$(BOOT_OUTPUT)/SIGMA_$(ARCH)
+update: EXEC_OUTPUT:=$(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/$(ARCH)/$(PLATFORM_NAME)
 update:
-	@if find $(BOOT_OUTPUT) -iname $(PLATFORM_NAME).efi \
-	  | grep "$(TARGET)_$(TOOLCHAIN)" | grep "$(ARCH)"  \
-	  | awk 'NR==1{print $$0}' | xargs test -z; then    \
+	@if ! test -f $(EXEC_OUTPUT); then \
 		make -C .. boot \
 	;elif ! $(UTILS)/chkmodify.sh $(PROJ) >/dev/null 2>&1;then \
 		make -C .. boot \
 	;fi
-	@$(SUDO) cp -rf "`find $(BOOT_OUTPUT) -iname $(PLATFORM_NAME).efi | grep "$(TARGET)_$(TOOLCHAIN)" | grep "$(ARCH)" | awk 'NR==1{print $$0}'`" $(BOOT_EXEC)
+	cp -rf $(EXEC_OUTPUT).efi $(BOOT_EXEC)
 
 clean:
 	rm -rf Edk2/SigmaBootPkg

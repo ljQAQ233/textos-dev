@@ -30,7 +30,7 @@
       },
       "configuration": {
         "request": "launch",
-        "program": "${workspaceRoot}/build/boot/DEBUG_GCC5/X64/SigmaBootPkg.debug",
+        "program": "${workspaceRoot}/build/boot/SIGMA_X64/DEBUG_GCC5/X64/SigmaBootPkg.debug",
         "stopAtEntry": false,
         "cwd": "${workspaceRoot}",
         "MIMode": "gdb",

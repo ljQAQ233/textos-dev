@@ -29,7 +29,7 @@
             "name": "TextOS - Boot debug",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/boot/DEBUG_GCC5/X64/SigmaBootPkg.debug",
+            "program": "${workspaceFolder}/build/boot/SIGMA_X64/DEBUG_GCC5/X64/SigmaBootPkg.debug",
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "externalConsole": false,
