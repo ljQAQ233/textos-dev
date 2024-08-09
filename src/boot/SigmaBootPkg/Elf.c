@@ -44,6 +44,8 @@ EFI_STATUS ElfLoad (
            OUT KERNEL_PAGE      **Pages
         )
 {
+    EFI_STATUS Status = EFI_SUCCESS;
+
     DEBUG ((DEBUG_INFO ,"[INFO] Loading elf...\n"));
     ERR_RETS (ElfCheck (Buffer));
 
@@ -61,23 +63,34 @@ EFI_STATUS ElfLoad (
         ProgHdr = (VOID *)ProgHdr + Hdr->PhentSiz;
     }
     DEBUG ((DEBUG_INFO ,"[INFO] The num of segments will be loaded : %llu\n",LoadSegs));
-    *Pages = AllocateZeroPool ((LoadSegs + 1) * sizeof (KERNEL_PAGE)); // 最后一个是一个无效 KERNEL_PAGE ,用来标记数组结尾.
+
+    UINTN PageNum = EFI_SIZE_TO_PAGES((LoadSegs + 1) * sizeof(KERNEL_PAGE));
+    *Pages = AllocateReservedPages(PageNum);
+    if (*Pages == NULL) {
+        Status = EFI_OUT_OF_RESOURCES;
+        goto Fail;
+    }
+    gBS->SetMem (*Pages, EFI_PAGES_TO_SIZE(PageNum), 0);
     
     ProgHdr = Buffer + Hdr->PhOffset;
     KERNEL_PAGE *Page = *Pages;
-    for (UINTN i = 0;i < Hdr->PhNum;i++)
+
+    for (UINTN Idx = 0;Idx < Hdr->PhNum;Idx++,ProgHdr = (VOID *)ProgHdr + Hdr->PhentSiz)
     {
         if (ProgHdr->Type != PT_LOAD)
         {
-            DEBUG ((DEBUG_INFO ,"       %u -> Isn't PT_LOAD\n",i));
-            goto Continue;
+            DEBUG ((DEBUG_INFO ,"       %u -> Isn't PT_LOAD\n",Idx));
+            continue;
         }
-        DEBUG ((DEBUG_INFO ,"       %u -> VirtAddr : 0x%llx,PhyAddr : 0x%llx\n", i, ProgHdr->VirtualAddr, ProgHdr->PhysicalAddr));
+        DEBUG ((DEBUG_INFO ,"       %u -> VirtAddr : 0x%llx,PhyAddr : 0x%llx\n", Idx, ProgHdr->VirtualAddr, ProgHdr->PhysicalAddr));
         DEBUG ((DEBUG_INFO ,"               FileSiz  : %llu,MemSiz  : %llu\n", ProgHdr->FileSiz, ProgHdr->MemSiz));
         
         VOID *Src = Buffer + ProgHdr->Offset;
-        VOID *Dest = AllocatePages (EFI_SIZE_TO_PAGES(ALIGN_VALUE(ProgHdr->MemSiz, ProgHdr->Align)));
-
+        VOID *Dest = AllocateReservedPages(EFI_SIZE_TO_PAGES(ALIGN_VALUE(ProgHdr->MemSiz, ProgHdr->Align)));
+        if (Dest == NULL) {
+            Status = EFI_OUT_OF_RESOURCES;
+            goto Fail;
+        }
         gBS->SetMem (Dest, ProgHdr->MemSiz, 0); // Padding
         gBS->CopyMem (
                 Dest, Src,
@@ -100,11 +113,20 @@ EFI_STATUS ElfLoad (
         Page->VirtAddr = ProgHdr->VirtualAddr;
         Page->MemSiz   = ALIGN_VALUE(ProgHdr->MemSiz,ProgHdr->Align);
         Page++;
-
-Continue:
-        ProgHdr = (VOID *)ProgHdr + Hdr->PhentSiz;
     }
     *Entry = (PHYSICAL_ADDRESS)Hdr->Entry;
 
-    return EFI_SUCCESS;
+    RegisterMemory (PageNum, *Pages);
+
+    return Status;
+
+Fail:
+    if (*Pages != NULL)
+    {
+        for (KERNEL_PAGE *Ptr = *Pages ; Ptr->Valid ; Ptr++) {
+            ERR_RETS(gBS->FreePages (Ptr->PhyAddr, EFI_SIZE_TO_PAGES(Ptr->MemSiz)));
+        }
+    }
+
+    return Status;
 }

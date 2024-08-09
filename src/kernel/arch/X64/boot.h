@@ -9,6 +9,12 @@ typedef struct {
 } vconfig_t;
 
 typedef struct {
+  u8    va;
+  u64   cnt;
+  void  *ptr;
+} balloc_t;
+
+typedef struct {
   void  *maps;
   u64   mapsiz;
   u64   mapcount;
@@ -25,6 +31,7 @@ typedef struct {
 } kpgs_t;
 
 typedef struct {
+  balloc_t balloc[16];
   void   *map;  // mapinfo_t;
   void   *kpgs; // kpgs_t;
 } mconfig_t;

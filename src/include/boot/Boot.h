@@ -45,4 +45,9 @@
 
 #define KERNEL_BASE 0x100000
 
+VOID RegisterMemory (
+        UINT64 Count,
+        VOID   *Pointer
+        );
+
 #endif

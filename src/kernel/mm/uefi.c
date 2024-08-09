@@ -148,5 +148,8 @@ void __uefi_tovmm()
     
     void *newrt = malloc(sizeof(*rt));
     bconfig->runtime = memcpy(newrt, rt, sizeof(*rt));
+
+    for (balloc_t *p = bconfig->memory.balloc ; p->va ; p++)
+        pmm_freepages(p->ptr, p->cnt);
 }
 

@@ -200,7 +200,7 @@ void pmm_freepages(void *page, size_t num)
             n->pages += num;
             break;
         }
-        else if (ps < start && (!n->next || n->next->addr > start)) // Another case
+        else if (ps < start && (!n->next && n->next->addr > start)) // Another case
         {
             ASSERTK(end < n->next->addr);
 
@@ -304,8 +304,5 @@ void __pmm_pre (mconfig_t *m)
     alloc0 = (void *)alloc_early;
     delete = (void *)delete_early;
     delete0 = (void *)delete_early;
-
-    for (kpgs_t *p = m->kpgs ; p->va ; p++)
-        pmm_allochard (p->phy, (p->msiz + PAGE_SIZ - 1) / PAGE_SIZ);
 }
 
