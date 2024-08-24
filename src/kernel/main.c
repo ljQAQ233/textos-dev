@@ -21,12 +21,16 @@ void kernel_main ()
 
     mm_init();
 
-    vmap_map(0, 0xffff0000, 1, PE_P | PE_RW, MAP_4K);
-    vmap_map(0, 0xffff1000, 1, PE_P | PE_RW, MAP_4K);
-    int *p1 = (int *)0xffff0000, *p2 = (int *)0xffff1000;
-    *p1 = 0x2333;
-    if (*p1 == *p2)
-        printk("vmap_map test passed!\n");
+    char *ptr[5];
+    ptr[0] = malloc(2);
+    ptr[1] = malloc(74);
+    ptr[2] = malloc(25);
+    ptr[3] = malloc(2333333);
+
+    free(ptr[0]);
+    free(ptr[1]);
+    free(ptr[2]);
+    free(ptr[3]);
 
     while (true);
 }

@@ -3,5 +3,6 @@
 
 #include "mm/pmm.h"
 #include "mm/map.h"
+#include "mm/heap.h"
 
 #endif
