@@ -52,6 +52,20 @@ typedef struct _packed
 
 STATIC_ASSERT(sizeof(record_t) == 512, "wrong size");
 
+typedef struct _packed {
+    u32 lead_sig;
+    u8  rev1[480];
+    u32 struct_sig;
+    u32 free_cnt;
+    u32 free_next;
+    u8  rev2[12];
+    u32 trail_sig;
+} fat_info_t;
+
+#define INFO_LEAD_SIG   0x41615252
+#define INFO_STRUCT_SIG 0x61417272
+#define INFO_TRAIL_SIG  0xAA550000
+
 typedef struct _packed
 {
     u16 day   : 5;
@@ -119,10 +133,12 @@ typedef struct {
  
     u64 fat_sec;
     u64 first_data_sec;
+    u32 free_cnt;
+    u32 free_next;
     mbr_t *mbr;       // The master boot sector of this partition
     record_t *record; // The boot record of this Fat32 file system
     part_t *pentry;   // The partition entry in mbr
-} info_t;
+} sysinfo_t;
 
 static int fat32_open (node_t *parent, char *path, u64 args, node_t **result);
 static int fat32_close (node_t *this);
@@ -144,32 +160,49 @@ fs_opts_t __fat32_opts = {
 
 FS_INITIALIZER(__fs_init_fat32)
 {
-    record_t *rec = malloc(sizeof(record_t));
-    hd->bread (hd, pentry->relative, rec, 1);
+    record_t *record = malloc(sizeof(record_t));
+    hd->bread (hd, pentry->relative, record, 1);
 
-    if (rec->endsym != 0xAA55)
-        return NULL;
+    if (record->endsym != 0xAA55)
+        goto fail; // error
+    if (record->sec_siz != SECT_SIZ)
+        goto fail; // unsupported
+    
+    u32 free_cnt, free_next;
+    fat_info_t *fat_info = malloc(sizeof(fat_info_t));
+    hd->bread (hd, record->info, fat_info, 1);
+    if (fat_info->lead_sig == INFO_LEAD_SIG && fat_info->struct_sig == INFO_STRUCT_SIG && fat_info->trail_sig == INFO_TRAIL_SIG)
+    {
+        free_cnt = fat_info->free_cnt;
+        free_next = fat_info->free_next;
+    }
+    else
+    {
+        free_next = 0;
+    }
 
-    u64 fat_siz = rec->fat_siz16 == 0 ? rec->fat_siz32 : rec->fat_siz16;
-    u64 fat_tab_sec = pentry->relative + rec->sec_reversed;
+    u64 fat_siz = record->fat_siz16 == 0 ? record->fat_siz32 : record->fat_siz16;
+    u64 fat_tab_sec = pentry->relative + record->sec_reversed;
     u64 first_data_sec = fat_tab_sec
-                       + rec->fat_num * fat_siz
-                       + (rec->roots * 32 + (rec->sec_siz - 1)) / rec->sec_siz; // root_dir_sectors
-    u64 root_sec = (rec->root_clus - 2) * rec->sec_perclus + first_data_sec;
+                       + record->fat_num * fat_siz
+                       + (record->roots * 32 + (record->sec_siz - 1)) / record->sec_siz; // root_dir_sectors
+    u64 root_sec = (record->root_clus - 2) * record->sec_perclus + first_data_sec;
     DEBUGK(K_INIT,
            "fat32 -> tab : %#x (%u,%u) , first_data_sec : %#x , root_sec : %#x "
            "{%d}\n",
-           fat_tab_sec, rec->fat_num, fat_siz, first_data_sec, root_sec,
-           rec->sec_perclus);
+           fat_tab_sec, record->fat_num, fat_siz, first_data_sec, root_sec,
+           record->sec_perclus);
 
     /* 记录文件系统信息 */
-    info_t *sys = malloc(sizeof(info_t));
+    sysinfo_t *sys = malloc(sizeof(sysinfo_t));
     sys->dev = hd;
     sys->mbr = mbr;
-    sys->record = rec;
+    sys->record = record;
     sys->pentry = pentry;
     sys->fat_sec = fat_tab_sec;
     sys->first_data_sec = first_data_sec;
+    sys->free_cnt = free_cnt;
+    sys->free_next = free_next;
     
     /* 初始化此文件系统根节点 */
     node_t *ori = malloc(sizeof(node_t));
@@ -187,6 +220,10 @@ FS_INITIALIZER(__fs_init_fat32)
     ori->opts = &__fat32_opts;
 
     return ori;
+fail:
+    if (record)
+        free(record);
+    return NULL;
 }
 
 //
@@ -234,7 +271,7 @@ typedef struct
 /* 这里使用一种抽象是为了缩小代码体积, 以及简化一些重复操作 */
 typedef struct
 {
-    info_t *sys;      // 文件系统信息
+    sysinfo_t *sys;   // 文件系统信息
     struct {          // 存储着一些位置信息
         u32 clus;     // 本结构所代表的 entry 的簇号
                       // 如果是 dir_entry , 是索引此目录下文件的那几个簇的起始簇号
@@ -250,7 +287,7 @@ static inline lookup_t *_lkp_origin (node_t *n, lookup_t *lkp)
     if (!lkp)
         lkp = malloc(sizeof(lookup_t));
 
-    lkp->locator.clus = DUMP_IC(((info_t *)n->pdata.sys), n->pdata.addr);
+    lkp->locator.clus = DUMP_IC(((sysinfo_t *)n->pdata.sys), n->pdata.addr);
     stack_init (&lkp->ents);
     list_init  (&lkp->locator.list);
     lkp->node = n;
@@ -262,7 +299,7 @@ static inline lookup_t *_lkp_origin (node_t *n, lookup_t *lkp)
 #define LKP_ORI(n) \
         (_lkp_origin (n, NULL))
 
-static size_t _alloc_part (info_t *sys);
+static size_t _alloc_part (sysinfo_t *sys);
 static size_t _expand (node_t *this, size_t siz);
 static size_t _expand_part (node_t *this, size_t cnt, bool append);
 
@@ -297,7 +334,7 @@ static sentry_t *_entry_dup (sentry_t *ori)
     return memcpy (buf, ori, sizeof(sentry_t));
 }
 
-static u64 _addr_get (info_t *sys, sentry_t *sent)
+static u64 _addr_get (sysinfo_t *sys, sentry_t *sent)
 {
     u64 addr = sys->first_data_sec
              + sys->record->sec_perclus * ((sent->clus_low | (u32)sent->clus_high << 16) - 2);
@@ -560,7 +597,7 @@ make:
     
     free (name);
 
-    info_t *sys = target->pdata.sys;
+    sysinfo_t *sys = target->pdata.sys;
 
     sentry_t *sent = malloc (sizeof(sentry_t));
     memset (sent, 0, sizeof(sentry_t));
@@ -607,7 +644,7 @@ make:
     return stk;
 }
 
-static node_t *_analysis_entry (info_t *sys, stack_t *stk)
+static node_t *_analysis_entry (sysinfo_t *sys, stack_t *stk)
 {
     ASSERTK (!stack_empty (stk));
     stacki_t *iter = stacki(stk, iter);
@@ -658,7 +695,7 @@ static node_t *_analysis_entry (info_t *sys, stack_t *stk)
 /* 根据 stk 来申请, 结果保存到 lkp 的 list 中 */
 static void lookup_alloc (lookup_t *parent, lookup_t *lkp, stack_t *stk)
 {
-    info_t *sys = parent->sys;
+    sysinfo_t *sys = parent->sys;
 
     u32 *idxes = malloc (SECT_SIZ);
     u32 curr = parent->locator.clus;
@@ -737,7 +774,7 @@ static void _lookup_release (lookup_t *lkp)
         __vfs_release (lkp->node);
 }
 
-static lookup_t *lookup_entry (lookup_t *parent, char *Target, size_t Idx)
+static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
 {
     lookup_t *lkp = malloc (sizeof(lookup_t));
 
@@ -745,7 +782,7 @@ static lookup_t *lookup_entry (lookup_t *parent, char *Target, size_t Idx)
     stack_set  (&lkp->ents, _destory_handler, NULL);
     list_init  (&lkp->locator.list);
     
-    info_t *sys = parent->sys;
+    sysinfo_t *sys = parent->sys;
     u32 curr = parent->locator.clus;
     u32 *idxes = malloc (SECT_SIZ);
     sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
@@ -793,14 +830,14 @@ static lookup_t *lookup_entry (lookup_t *parent, char *Target, size_t Idx)
             stack_push (&lkp->ents, &ents[i]);
 
             lkp->node = _analysis_entry (sys, &lkp->ents);
-            if (Target == NULL) {
-                if (Idx-- == 0)
+            if (target == NULL) {
+                if (idx-- == 0)
                     goto brk;
                 goto lkp_rst;
             }
 
-            size_t cmpsiz = (size_t)(strchrnul (Target, '/') - Target);
-            if (strncmp (Target, lkp->node->name, cmpsiz) == 0)
+            size_t cmpsiz = (size_t)(strchrnul (target, '/') - target);
+            if (strncmp (target, lkp->node->name, cmpsiz) == 0)
                 goto brk;
 
         lkp_rst:
@@ -857,7 +894,7 @@ static lookup_t *lookup_entry (lookup_t *parent, char *Target, size_t Idx)
 
 static void _lookup_all (lookup_t *parent, stack_t *child)
 {
-    info_t *sys = parent->sys;
+    sysinfo_t *sys = parent->sys;
     u32 curr = parent->locator.clus;
     u32 *idxes = malloc(SECT_SIZ);
     sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
@@ -902,7 +939,7 @@ static void _lookup_all (lookup_t *parent, stack_t *child)
 /* Write a stack `Update` according to the list in `Origin` */
 static void lookup_save_common (lookup_t *ori, stack_t *update)
 {
-    info_t *sys = ori->sys;
+    sysinfo_t *sys = ori->sys;
 
     u32 prev = 0;
     list_t *head = &ori->locator.list;
@@ -931,7 +968,7 @@ static void lookup_save_common (lookup_t *ori, stack_t *update)
 
 static void lookup_save_child (lookup_t *ori, stack_t *child)
 {
-    info_t *sys = ori->sys;
+    sysinfo_t *sys = ori->sys;
     u32 curr = ori->locator.clus;
     u32 *idxes = malloc (SECT_SIZ);
     sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
@@ -978,7 +1015,7 @@ static void lookup_save_child (lookup_t *ori, stack_t *child)
 /* Erase ents which `Origin`'s list describes */
 static void lookup_save_erase (lookup_t *ori)
 {
-    info_t *sys = ori->sys;
+    sysinfo_t *sys = ori->sys;
 
     u32 prev = 0;
     list_t *head = &ori->locator.list;
@@ -1120,7 +1157,7 @@ _UTIL_PATH_DIR();
 */
 static node_t *fat32_pathwalk (node_t *start, char **path, node_t **last)
 {
-    info_t *sys = start->pdata.sys;
+    sysinfo_t *sys = start->pdata.sys;
     lookup_t *ori = LKP_ORI(start);
     lookup_t *lkp = ori;
 
@@ -1219,7 +1256,7 @@ static int fat32_close (node_t *this)
 
 static int _read_content (node_t *n, void *buf, size_t readsiz, size_t offset)
 {
-    info_t *sys = n->pdata.sys;
+    sysinfo_t *sys = n->pdata.sys;
 
     if (readsiz == 0)
         return 0;
@@ -1284,12 +1321,13 @@ static int fat32_read (node_t *this, void *buf, size_t siz, size_t offset)
     return _read_content (this, buf, siz, offset);
 }
 
-static size_t _alloc_part (info_t *sys)
+static size_t _alloc_part (sysinfo_t *sys)
 {
-    u32 *idxes = malloc (SECT_SIZ);
+    u32 *idxes = malloc(SECT_SIZ);
 
-    size_t res = 0 , curr = DUMP_IC(sys, sys->first_data_sec);
-    for ( ; ; ) {
+    size_t res = 0 , curr = DUMP_IC(sys, sys->free_next);
+    for ( ; ; )
+    {
         sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
 
         for (int i = curr % FAT_ALOC_NR ; i < FAT_ALOC_NR ; i++, curr++) {
@@ -1300,6 +1338,7 @@ static size_t _alloc_part (info_t *sys)
                     TAB_IS(sys, curr),
                     idxes, 1
                 );
+                sys->free_next = curr + 1;
                 res = curr;
                 goto fini;
             }
@@ -1314,7 +1353,7 @@ fini:
 /* 拓展 This 所指向的实体, 在原有的基础上拓宽/拓宽到 Cnt 个扇区 */
 static size_t _expand_part (node_t *n, size_t cnt, bool append)
 {
-    info_t *sys = n->pdata.sys;
+    sysinfo_t *sys = n->pdata.sys;
     u32 curr, end;
     u32 *idxes_cur, *idxes_end;
 
@@ -1404,7 +1443,7 @@ exit:
 /* NOTE : Do not opearte `This` in this function! */
 static size_t _expand (node_t *this, size_t siz)
 {
-    info_t *sys = this->pdata.sys;
+    sysinfo_t *sys = this->pdata.sys;
 
     if (ALIGN_UP(this->siz, SECT_SIZ) >= siz)
         return siz;
@@ -1424,7 +1463,7 @@ static int _write_content (node_t *n, void *buf, size_t writesiz, size_t offset)
     if (writesiz + offset >= n->siz)
         n->siz = _expand (n, writesiz + offset);
 
-    info_t *sys = n->pdata.sys;
+    sysinfo_t *sys = n->pdata.sys;
 
     u32 *idxes = malloc (SECT_SIZ);
     u32 curr = DUMP_IC(sys, n->pdata.addr);
@@ -1496,7 +1535,7 @@ static int fat32_write (node_t *this, void *buf, size_t siz, size_t offset)
 
     Cut 指定是否是截断操作
 */
-static void _release_data (info_t *sys, u32 start, bool cut)
+static void _release_data (sysinfo_t *sys, u32 start, bool cut)
 {
     u32 *idxes = malloc(SECT_SIZ);
     u32 curr = start;
@@ -1530,7 +1569,7 @@ static void _release_data (info_t *sys, u32 start, bool cut)
 
 static int fat32_remove (node_t *this)
 {
-    info_t *sys = this->pdata.sys;
+    sysinfo_t *sys = this->pdata.sys;
 
     lookup_t *par = LKP_ORI (this->parent);
     lookup_t *lkp = lookup_entry (par, this->name, 0);
@@ -1546,7 +1585,7 @@ static int fat32_truncate (node_t *this, size_t offset)
     if (offset > this->siz)
         this->siz = _expand (this, offset);
     else {
-        info_t *sys = this->pdata.sys;
+        sysinfo_t *sys = this->pdata.sys;
         /* 当 Offset == 0 时, 释放掉所有簇 */
         bool all = false;
         if (offset == 0) {

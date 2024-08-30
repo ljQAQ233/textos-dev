@@ -37,8 +37,6 @@ void kernel_main ()
     apic_init();
 
     mm_init();
-    
-    shutdown();
 
     dev_init();
     // keyboard_init();
