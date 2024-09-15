@@ -35,7 +35,7 @@ void load_tss (u16 idx);
 
 u64 read_cr3 ();
 
-u64 write_cr3 ();
+u64 write_cr3 (u64 cr3);
 
 #define IA32_APIC_BASE 0x1B
 

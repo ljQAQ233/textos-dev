@@ -79,7 +79,7 @@ read_cr3:
     mov rax, cr3
     ret
 
-; void write_cr3 ();
+; void write_cr3 (u64 cr3);
 global write_cr3
 write_cr3:
     mov cr3, rdi
