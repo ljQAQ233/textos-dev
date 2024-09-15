@@ -1,6 +1,7 @@
 #include <cpu.h>
 #include <textos/task.h>
 #include <textos/mm/vmm.h>
+#include <textos/mm/pvpage.h>
 #include <textos/assert.h>
 
 #include <string.h>
@@ -49,9 +50,8 @@ static task_t *_task_create (int args)
 #include <gdt.h>
 #include <intr.h>
 
-intr_frame_t *build_iframe (task_t *tsk, int args)
+intr_frame_t *build_iframe (task_t *tsk, void *stack,  int args)
 {
-    void *stack = (void *)tsk + TASK_SIZ;
     intr_frame_t *iframe = stack - sizeof(intr_frame_t);
 
     // very good code, makes my test passed
@@ -86,9 +86,8 @@ intr_frame_t *build_iframe (task_t *tsk, int args)
     return tsk->iframe = iframe;
 }
 
-task_frame_t *build_tframe (task_t *tsk, int args)
+task_frame_t *build_tframe (task_t *tsk, void *stack, int args)
 {
-    void *stack = (void *)tsk + TASK_SIZ;
     task_frame_t *frame = stack - sizeof(intr_frame_t) - sizeof(task_frame_t);
 
     frame->rip = (u64)intr_exit;
@@ -100,18 +99,74 @@ task_t *task_create (void *main, int args)
 {
     task_t *tsk = _task_create(args);
 
-    build_iframe (tsk, args)->rip = (u64)main;
-    build_tframe (tsk, args);
+    void *stack, *istack;
+    if (args & (TC_TSK1 | TC_USER))
+    {
+        vmm_phyauto(__user_stack_bot, __user_stack_pages, PE_P | PE_RW | PE_US);
+        stack = (void *)__user_stack_top;
+        istack = vmm_allocpages(1, PE_P | PE_RW);
+    } else {
+        stack = vmm_allocpages(1, PE_P | PE_RW); // TODO: replace it
+        istack = NULL;
+    }
+
+    build_iframe(tsk, stack, args)->rip = (u64)main;
+    build_tframe(tsk, stack, args);
 
     tsk->init.main = main;
     tsk->init.rbp = (void *)tsk->iframe->rbp;
+    tsk->init.args = args;
 
     tsk->stat  = TASK_PRE;
     
     tsk->tick = TASK_TICKS;
     tsk->curr = TASK_TICKS;
 
+    tsk->pgt = get_kppgt();
+    tsk->istk = (addr_t)istack;
+
     return tsk;
+}
+
+#include <textos/mm.h>
+#include <textos/mm/pvpage.h>
+
+static int fork_stack(task_t *prt, task_t *chd)
+{
+    void *istk = vmm_allocpages(istk_pages, PE_P | PE_RW);
+    build_tframe(chd, istk, 0); // 较正
+    build_iframe(chd, istk, 0);
+    memcpy(chd->frame, prt->frame, sizeof(task_frame_t));
+    memcpy(chd->iframe, prt->iframe, sizeof(intr_frame_t));
+    chd->istk = (addr_t)istk;
+    return 0;
+}
+
+static int fork_pgt(task_t *prt, task_t *chd)
+{
+    chd->pgt = copy_pgtd(prt->pgt);
+    return 0;
+}
+
+int task_fork()
+{
+    task_t *prt = task_current();
+    task_t *chd = _task_create(prt->init.args);
+
+    // page table
+    fork_pgt(prt, chd);
+
+    // context
+    fork_stack(prt, chd);
+    chd->frame->rip = (u64)intr_exit;
+    chd->iframe->rax = 0; // 子进程返回 0
+
+    chd->tick = prt->tick;
+    chd->curr = prt->curr;
+    chd->ppid = prt->pid;
+    chd->stat = TASK_PRE;
+
+    return chd->pid; // 父进程返回子进程号
 }
 
 static void _task_kern ()
@@ -144,6 +199,11 @@ task_t *task_current ()
     return table[_curr];
 }
 
+void __task_setif(void *iframe)
+{
+    task_current()->iframe = iframe;
+}
+
 extern void __task_switch (task_frame_t *next, task_frame_t **curr);
 
 static void update_sleep ();
@@ -173,6 +233,8 @@ Sched:
         curr->stat = TASK_PRE;    // Only the running task which will be switched out
     next->stat = TASK_RUN;
 
+    tss_set(next->istk);
+    write_cr3(next->pgt);
     __task_switch (next->frame, &curr->frame);
 }
 

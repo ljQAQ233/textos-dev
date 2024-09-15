@@ -19,6 +19,7 @@ typedef struct {
 
 typedef struct _Task {
     int pid;
+    int ppid;
     int stat;
     u64 tick;  // default ticks it has
     u64 curr;  // current ticks it has
@@ -26,9 +27,13 @@ typedef struct _Task {
     u64 sleep; // sleeping process has been spent currently
 
     struct {
+        int args;
         void *main;
         void *rbp;
     } init;
+
+    addr_t pgt;
+    addr_t istk; // tss
 
     task_frame_t *frame;
     intr_frame_t *iframe;
@@ -54,6 +59,8 @@ task_t *task_current ();
 #define TC_NINT (1 << 2) // mask interrupt :(
 
 task_t *task_create (void *main, int args);
+
+int task_fork();
 
 void task_sleep (u64 ticks);
 

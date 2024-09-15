@@ -3,6 +3,7 @@
 %define HANDLER_MAX 256
 %define ENTRY_SIZ   16
 
+extern __task_setif
 extern intr_handlers
 
 section .text
@@ -43,6 +44,9 @@ intr_caller:
     push  r13
     push  r14
     push  r15
+    
+    mov  rdi, rsp
+    call __task_setif
 
     mov  rdi, [rsp + 15 * 8] ; vector
     mov  rsi, [rsp + 16 * 8] ; errcode

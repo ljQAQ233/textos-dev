@@ -26,3 +26,10 @@ enum map_mode {
 void vmap_map (u64 phy, u64 vrt, size_t num, u16 flgs, int mode);
 
 void VMMap_Umap (u64 Vrt, size_t Num, int Mode);
+
+addr_t get_kpgt();
+
+addr_t get_kppgt();
+
+addr_t copy_pgtd(addr_t ppgt);
+

@@ -3,9 +3,11 @@
 #include <textos/syscall.h>
 
 extern void sys_test (int arg0, int arg1, int arg2, int arg3, int arg4, int arg5);
+extern int sys_fork ();
 
 static void *handler[] = {
     [SYSCALL_TEST] = sys_test,
+    [SYSCALL_FORK] = sys_fork,
 };
 
 #include <textos/panic.h>

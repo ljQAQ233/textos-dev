@@ -26,4 +26,10 @@
 #define __lapic_va  0xffffff0000008000ull
 #define __ioapic_va 0xffffff0000000000ull
 
+#define __user_stack_top    0x00007ffffffff000ull
+#define __user_stack_bot    0x00007fffffff0000ull
+#define __user_stack_pages  ((__user_stack_top - __user_stack_bot) / PAGE_SIZ)
+
+#define istk_pages 1
+
 #endif
