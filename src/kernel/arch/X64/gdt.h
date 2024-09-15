@@ -8,4 +8,6 @@
 
 #define TSS_LOAD_SEG  5
 
+void tss_set (u64 rsp);
+
 #endif

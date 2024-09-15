@@ -141,7 +141,7 @@ void gdt_init ()
     load_tss (TSS_LOAD_SEG << 3);
 }
 
-void __tss_set (u64 rsp)
+void tss_set (u64 rsp)
 {
     tss.rsp0 = rsp;
 }
