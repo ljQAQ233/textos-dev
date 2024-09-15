@@ -771,7 +771,7 @@ static void _lookup_release (lookup_t *lkp)
 
     /* TODO: 可行性检查 -> 是否需要释放 */
     if (lkp->node)
-        __vfs_release (lkp->node);
+        vfs_release (lkp->node);
 }
 
 static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
@@ -841,7 +841,7 @@ static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
                 goto brk;
 
         lkp_rst:
-            __vfs_release (lkp->node);
+            vfs_release (lkp->node);
             lkp->node = NULL;
             stack_clear (&lkp->ents);
             LOCATOR_CLR(&lkp->locator.list);
@@ -1251,7 +1251,7 @@ end:
 /* Close a node , and delete its sub-dir -> call the public handler */
 static int fat32_close (node_t *this)
 {
-    return __vfs_release (this);
+    return vfs_release (this);
 }
 
 static int _read_content (node_t *n, void *buf, size_t readsiz, size_t offset)
@@ -1624,8 +1624,8 @@ static int fat32_readdir (node_t *this)
         ASSERTK (lkp->node != NULL);
 
         node_t *chd = lkp->node;
-        if (__vfs_test (this, chd->name, NULL, NULL)) {
-            __vfs_release (chd);
+        if (vfs_test (this, chd->name, NULL, NULL)) {
+            vfs_release (chd);
         } else {
             /* 物理文件系统 "无关" 的基本信息 */
             chd->parent = this;

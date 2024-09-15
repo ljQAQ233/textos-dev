@@ -58,22 +58,22 @@ struct node {
     u64 flgs_open;
 };
 
-extern int __vfs_open (node_t *parent, node_t **node, const char *path, u64 args);
+extern int vfs_open (node_t *parent, node_t **node, const char *path, u64 args);
 
-extern int __vfs_read (node_t *this, void *buf, size_t siz, size_t offset);
+extern int vfs_read (node_t *this, void *buf, size_t siz, size_t offset);
 
-extern int __vfs_write (node_t *this, void *buf, size_t siz, size_t offset);
+extern int vfs_write (node_t *this, void *buf, size_t siz, size_t offset);
 
-extern int __vfs_close (node_t *this);
+extern int vfs_close (node_t *this);
 
-extern int __vfs_remove (node_t *this);
+extern int vfs_remove (node_t *this);
 
-extern int __vfs_truncate (node_t *this, size_t offset);
+extern int vfs_truncate (node_t *this, size_t offset);
 
-extern int __vfs_release (node_t *this);
+extern int vfs_release (node_t *this);
 
-extern int __vfs_readdir (node_t *this);
+extern int vfs_readdir (node_t *this);
 
-extern node_t *__vfs_test (node_t *start, char *path, node_t **last, char **lastpath);
+extern node_t *vfs_test (node_t *start, char *path, node_t **last, char **lastpath);
 
 #endif

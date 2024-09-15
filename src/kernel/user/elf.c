@@ -28,10 +28,10 @@ bool elf_check (Elf64_Ehdr *hdr)
 int elf_load (char *path, exeinfo_t *exe)
 {
     node_t *elf;
-    __vfs_open (NULL, &elf, path, O_READ);
+    vfs_open (NULL, &elf, path, O_READ);
 
     Elf64_Ehdr hdr;
-    __vfs_read (elf, &hdr, sizeof(hdr), 0);
+    vfs_read (elf, &hdr, sizeof(hdr), 0);
     if (!elf_check(&hdr))
         return -ENOEXEC;
 
@@ -39,7 +39,7 @@ int elf_load (char *path, exeinfo_t *exe)
 
     size_t phdr_siz = hdr.e_phnum * hdr.e_phentsize;
     Elf64_Phdr *phdrs = malloc(phdr_siz);
-    __vfs_read (elf, phdrs, phdr_siz, hdr.e_phoff);
+    vfs_read (elf, phdrs, phdr_siz, hdr.e_phoff);
 
     for (int i = 0 ; i < hdr.e_phnum ; i++)
     {
@@ -53,7 +53,7 @@ int elf_load (char *path, exeinfo_t *exe)
         vmm_phyauto (p->p_vaddr, map_num, map_attr);
         memset ((void *)p->p_vaddr, 0, map_siz);
         size_t read_siz = ALIGN_UP(p->p_filesz, p->p_align);
-        __vfs_read (elf, (void *)p->p_vaddr, read_siz, p->p_offset);
+        vfs_read (elf, (void *)p->p_vaddr, read_siz, p->p_offset);
         load++;
     }
 
