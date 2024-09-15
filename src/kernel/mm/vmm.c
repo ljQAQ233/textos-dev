@@ -10,7 +10,7 @@
 int vmm_canadjust (u64 *vrt)
 {
     if ((*vrt >> 47) & 1) {
-        if (*vrt >> 48 == 0xFFF)
+        if (*vrt >> 48 == 0xFFFF)
             return true;
 
         *vrt |= 0xffff8ull << 44;
@@ -22,7 +22,7 @@ int vmm_canadjust (u64 *vrt)
 
 void *vmm_phyauto (u64 vrt, size_t num, u16 flgs)
 {
-    ASSERTK (!(vrt & 0xFFF) && vrt != 0); // 确保它不是 NULL 并且是一页开始的地方
+    ASSERTK (!(vrt & PAGE_MASK) && vrt != 0); // 确保它不是 NULL 并且是一页开始的地方
 
     if (!vmm_canadjust (&vrt))
         DEBUGK (K_MM, "the addr is not a canonical addr, adjust it - %p\n",vrt);

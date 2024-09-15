@@ -54,7 +54,9 @@
 
 #define NULL     (VOID*)0
 
-#define PAGE_SIZ 0x1000
+#define PAGE_SHIFT 12
+#define PAGE_SIZ   (1 << PAGE_SHIFT)
+#define PAGE_MASK  (PAGE_SIZ - 1)
 
 #define  SIZE_4KB    0x00001000
 #define  SIZE_2MB    0x00200000
