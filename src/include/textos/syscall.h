@@ -4,7 +4,7 @@
 enum
 {
     SYSCALL_TEST = 0,
-    SYSCALL_MAX  = 1,
+    SYSCALL_MAX,
 } nr_syscall;
 
 #endif
