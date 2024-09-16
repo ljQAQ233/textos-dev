@@ -1,3 +1,5 @@
+// todo : optimize
+
 #include <textos/fs.h>
 #include <textos/fs/inter.h>
 #include <textos/mm.h>
@@ -887,6 +889,7 @@ static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
         lkp = NULL;
     } else {
         lkp->sys = parent->sys;
+        lkp->locator.clus = DUMP_IC(sys, lkp->node->pdata.addr);
         // Lookup->Locator.Cluster = DUMP_IC(sys, Lookup->Node->pdata.Addr);
     }
     return lkp;
@@ -1101,7 +1104,7 @@ static node_t *_create (node_t *parent, char *name, size_t siz, int attr, u64 ad
     child->pdata.systype = parent->pdata.systype;
     child->opts   = parent->opts;
 
-    child->name = name;
+    child->name = strdup(name);
     child->attr = attr;
     child->siz  = siz;
     child->pdata.addr = addr;
@@ -1325,7 +1328,7 @@ static size_t _alloc_part (sysinfo_t *sys)
 {
     u32 *idxes = malloc(SECT_SIZ);
 
-    size_t res = 0 , curr = DUMP_IC(sys, sys->free_next);
+    size_t res = 0 , curr = DUMP_IC(sys, sys->first_data_sec) + sys->free_next - 1;
     for ( ; ; )
     {
         sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
@@ -1546,7 +1549,11 @@ static void _release_data (sysinfo_t *sys, u32 start, bool cut)
     while (true)
     {
         if (idxes[curr % FAT_ALOC_NR] == FAT_EOF)
+        {
+            u32 iblk_curr = TAB_IS(sys, curr);
+            sys->dev->bwrite (sys->dev, iblk_curr, idxes, 1);
             break;
+        }
         
         if (!(ALIGN_DOWN(curr, FAT_ALOC_NR) <= idxes[curr % FAT_ALOC_NR]
               && idxes[curr % FAT_ALOC_NR] < ALIGN_DOWN(curr, FAT_ALOC_NR) + FAT_ALOC_NR))

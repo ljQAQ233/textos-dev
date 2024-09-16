@@ -196,16 +196,17 @@ int vfs_release (node_t *this)
     if (this->parent)
     {
         node_t *curr = this->parent->child;
-        node_t *prev = this->parent->child;
-
+        node_t *prev = NULL;
         while (curr != NULL) {
-            curr = curr->next;
             if (curr == this) {
-                prev->next = curr->next;
-                break;
+                if (prev == NULL)
+                    this->parent->child = curr->next;
+                else
+                    prev->next = curr->next;
             }
-            prev = prev->next;
-        } 
+            prev = curr;
+            curr = curr->next;
+        }
     }
 
     /* 释放信息 */
@@ -314,6 +315,12 @@ void fs_init ()
 
     printk ("file system initialized!\n");
     
+    node_t *file, *dir;
+    
+    char buf[1024] = "Hello world!";
+    vfs_open (NULL, &file, "/test.txt", O_READ | O_CREATE);
+    vfs_write (file, buf, 12, 0);
+    vfs_remove (file);
     vfs_readdir (NULL);
     __vfs_listnode (NULL);
 }
