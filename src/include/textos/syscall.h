@@ -3,8 +3,11 @@
 
 enum
 {
-    SYSCALL_TEST = 0,
-    SYSCALL_FORK = 1,
+    SYSCALL_READ,
+    SYSCALL_WRITE,
+    SYSCALL_CLOSE,
+    SYSCALL_FORK,
+    SYSCALL_TEST,
     SYSCALL_MAX,
 } nr_syscall;
 

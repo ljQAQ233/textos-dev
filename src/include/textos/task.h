@@ -15,7 +15,10 @@ typedef struct {
     u64  rip;
 } task_frame_t;
 
+#include <textos/file.h>
 #include <textos/klib/list.h>
+
+#define MAX_FILE 16
 
 typedef struct _Task {
     int pid;
@@ -25,6 +28,8 @@ typedef struct _Task {
     u64 curr;  // current ticks it has
     
     u64 sleep; // sleeping process has been spent currently
+
+    file_t files[MAX_FILE];
 
     struct {
         int args;

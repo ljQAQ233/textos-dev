@@ -10,7 +10,7 @@ SRCS := init.c main.c \
 		acpi.c apic.c dev.c \
 		console.c \
 		printk.c \
-		task.c task.s \
+		task.c task.s file.c \
 		pwm.c
 
 include klib/klib.mk

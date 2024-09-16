@@ -7,7 +7,7 @@ NASM    := nasm
 OBJCOPY := objcopy
 
 # Include path
-INCLUDE := $(SRC_DIR)/Include
+INCLUDE := $(SRC_DIR)/include
 
 CFLAGS  := -static
 CFLAGS  += -nostdlib

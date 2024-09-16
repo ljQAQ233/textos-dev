@@ -44,5 +44,6 @@ typedef unsigned char       bool;
 typedef u64                 addr_t;
 
 typedef u64                 size_t;
+typedef int64               ssize_t;
 
 #endif

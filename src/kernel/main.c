@@ -18,6 +18,7 @@ extern void keyboard_init();
 extern void ide_init();
 extern void clock_init();
 
+extern void fd_init();
 extern void task_init();
 extern void syscall_init();
 
@@ -44,6 +45,7 @@ void kernel_main ()
 
     clock_init();
 
+    fd_init();
     task_init();
     syscall_init();
     task_create(__init_proc, TC_USER | TC_TSK1);

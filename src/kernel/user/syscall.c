@@ -4,10 +4,16 @@
 
 extern void sys_test (int arg0, int arg1, int arg2, int arg3, int arg4, int arg5);
 extern int sys_fork ();
+extern ssize_t sys_write(int fd, void *buf, size_t cnt);
+extern ssize_t sys_read(int fd, void *buf, size_t cnt);
+extern int sys_close(int fd);
 
 static void *handler[] = {
-    [SYSCALL_TEST] = sys_test,
+    [SYSCALL_READ] = sys_read,
+    [SYSCALL_WRITE] = sys_write,
+    [SYSCALL_CLOSE] = sys_close,
     [SYSCALL_FORK] = sys_fork,
+    [SYSCALL_TEST] = sys_test,
 };
 
 #include <textos/panic.h>

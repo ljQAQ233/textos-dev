@@ -3,6 +3,7 @@
 #include <textos/printk.h>
 #include <textos/fs/inter.h>
 #include <textos/debug.h>
+#include <textos/panic.h>
 #include <textos/assert.h>
 
 #include <string.h>
@@ -74,6 +75,25 @@ fini:
         *path_last = path;
     
     return res;
+}
+
+#define INIT_OPT(x) (x = (void *)noopt_handler)
+
+void noopt_handler(node_t *node)
+{
+    PANIC("unsupported opt for this file (system) - %s!\n", node->name);
+}
+
+/* let `opts` in an initial state -> opt unsupported */
+void vfs_initops (fs_opts_t *opts)
+{
+    INIT_OPT(opts->open);
+    INIT_OPT(opts->close);
+    INIT_OPT(opts->remove);
+    INIT_OPT(opts->read);
+    INIT_OPT(opts->write);
+    INIT_OPT(opts->truncate);
+    INIT_OPT(opts->readdir);
 }
 
 /* return-value for interfaces */
@@ -279,6 +299,8 @@ static void _init_partitions (dev_t *hd, mbr_t *rec)
     __vfs_listnode (_fs_root);
 }
 
+// todo: fix fat32_truncate
+
 void fs_init ()
 {
     dev_t *hd = dev_lookup_type (DEV_BLK, DEV_IDE);
@@ -292,13 +314,6 @@ void fs_init ()
 
     printk ("file system initialized!\n");
     
-    node_t *file, *dir;
-    
-    char buf[1024] = "Hello world!";
-    vfs_open (NULL, &dir, "/TEST", O_READ | O_CREATE | O_DIR);
-    vfs_open (NULL, &file, "/TEST/test.txt", O_READ | O_CREATE);
-    vfs_write (file, buf, 12, 0);
-    vfs_truncate (file, 10000);
     vfs_readdir (NULL);
     __vfs_listnode (NULL);
 }

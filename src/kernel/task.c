@@ -125,6 +125,12 @@ task_t *task_create (void *main, int args)
     tsk->pgt = get_kppgt();
     tsk->istk = (addr_t)istack;
 
+    for (int i = 0 ; i < MAX_FILE ; i++)
+        tsk->files[i].occupied = 0;
+    tsk->files[STDIN_FILENO] = sysfile[STDIN_FILENO];
+    tsk->files[STDOUT_FILENO] = sysfile[STDOUT_FILENO];
+    tsk->files[STDERR_FILENO] = sysfile[STDERR_FILENO];
+
     return tsk;
 }
 

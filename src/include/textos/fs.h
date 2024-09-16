@@ -76,4 +76,6 @@ extern int vfs_readdir (node_t *this);
 
 extern node_t *vfs_test (node_t *start, char *path, node_t **last, char **lastpath);
 
+extern void vfs_initops (fs_opts_t *opts);
+
 #endif
