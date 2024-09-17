@@ -66,9 +66,16 @@ size_t console_write (dev_t *dev, char *s, size_t len)
     return (size_t)(p - s);
 }
 
+size_t console_read (dev_t *dev, char *buf, size_t len)
+{
+    dev_t *kbd = dev_lookup_type(DEV_CHAR, DEV_KBD);
+    return kbd->read(kbd, buf, len);
+}
+
 static dev_pri_t console = {
     .dev = &(dev_t) {
         .name = "kernel console",
+        .read = (void *)console_read,
         .write = (void *)console_write,
         .type = DEV_CHAR,
         .subtype = DEV_KNCON,

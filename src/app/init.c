@@ -26,5 +26,9 @@ void _start ()
 {
     syscall(SYSCALL_TEST);
     syscall(SYSCALL_WRITE, 1, "Hello syscall_write!\n", 22);
+
+    char buf[5] = "test\0";
+    syscall(SYSCALL_READ, 0, buf, 4);
+    syscall(SYSCALL_WRITE, 1, buf, 4);
     while (1);
 }

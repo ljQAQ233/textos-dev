@@ -55,7 +55,7 @@ ssize_t write(int fd, void *buf, size_t cnt)
 ssize_t read(int fd, void *buf, size_t cnt)
 {
     file_t *file = &task_current()->files[fd];
-    int res = file->node->opts->write(file->node, buf, cnt, file->offset);
+    int res = file->node->opts->read(file->node, buf, cnt, file->offset);
     if (res < 0)
         return -1;
     

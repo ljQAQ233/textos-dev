@@ -222,12 +222,13 @@ static char keyboard_getc()
     return *((char *)ring_pop(&ikey));
 }
 
-void keyboard_read(dev_t *dev, char *buf, size_t cnt)
+size_t keyboard_read(dev_t *dev, char *buf, size_t cnt)
 {
     for (int i = 0 ; i < cnt ; i++) {
         char c = keyboard_getc();
         buf[i] = c;
     }
+    return cnt;
 }
 
 void kayboard_light(bool x)

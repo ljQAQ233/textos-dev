@@ -40,7 +40,7 @@ void kernel_main ()
     mm_init();
 
     dev_init();
-    // keyboard_init();
+    keyboard_init();
     ide_init();
 
     clock_init();
@@ -67,12 +67,15 @@ void kernel_main ()
 #include <gdt.h>
 #include <textos/user/exec.h>
 #include <textos/panic.h>
+#include <textos/dev.h>
 
 extern void fs_init();
 
 static void __init_proc()
 {
     fs_init();
+
+    char buf[5] = "test";
     
     exeinfo_t exe;
     elf_load("/init.elf", &exe);
