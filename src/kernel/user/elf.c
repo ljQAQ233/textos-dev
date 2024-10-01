@@ -41,19 +41,37 @@ int elf_load (char *path, exeinfo_t *exe)
     Elf64_Phdr *phdrs = malloc(phdr_siz);
     vfs_read (elf, phdrs, phdr_siz, hdr.e_phoff);
 
+    bool overlay = false;
     for (int i = 0 ; i < hdr.e_phnum ; i++)
     {
         Elf64_Phdr *p = &phdrs[i];
         if (p->p_type != PT_LOAD)
             continue;
 
-        size_t map_siz = ALIGN_UP(p->p_memsz, p->p_align);
+        addr_t map_addr = ALIGN_DOWN(p->p_vaddr, p->p_align);
+        size_t map_siz = ALIGN_UP(p->p_vaddr + p->p_memsz - map_addr, p->p_align);
+        if (overlay)
+        {
+            map_addr += p->p_align;
+            map_siz  -= p->p_align;
+        }
+        
         size_t map_num = DIV_ROUND_UP(map_siz, PAGE_SIZ);
         u16    map_attr = PE_P | PE_RW | PE_US;
-        vmm_phyauto (p->p_vaddr, map_num, map_attr);
-        memset ((void *)p->p_vaddr, 0, map_siz);
-        size_t read_siz = ALIGN_UP(p->p_filesz, p->p_align);
-        vfs_read (elf, (void *)p->p_vaddr, read_siz, p->p_offset);
+
+        overlay = false;
+        if (i + 1 != hdr.e_phnum)
+        {
+            Elf64_Phdr *np = p + 1;
+            addr_t nvaddr = ALIGN_DOWN(np->p_vaddr, np->p_align);
+            if (map_addr + map_siz > nvaddr)
+            {
+                overlay = true;
+            }
+        }
+        vmm_phyauto (map_addr, map_num, map_attr);
+        memset ((void *)map_addr, 0, map_siz);
+        vfs_read (elf, (void *)p->p_vaddr, p->p_filesz, p->p_offset);
         load++;
     }
 
