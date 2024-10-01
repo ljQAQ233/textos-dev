@@ -154,6 +154,13 @@ static int fork_pgt(task_t *prt, task_t *chd)
     return 0;
 }
 
+static int fork_fd(task_t *prt, task_t *chd)
+{
+    for (int i = 0 ; i < MAX_FILE ; i++)
+        chd->files[i] = prt->files[i];
+    return 0;
+}
+
 int task_fork()
 {
     task_t *prt = task_current();
@@ -166,6 +173,9 @@ int task_fork()
     fork_stack(prt, chd);
     chd->frame->rip = (u64)intr_exit;
     chd->iframe->rax = 0; // 子进程返回 0
+
+    // files
+    fork_fd(prt, chd);
 
     chd->tick = prt->tick;
     chd->curr = prt->curr;

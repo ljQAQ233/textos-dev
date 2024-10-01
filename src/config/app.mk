@@ -7,16 +7,18 @@ NASM    := nasm
 OBJCOPY := objcopy
 
 # Include path
-INCLUDE := $(SRC_DIR)/include
+INCLUDE := \
+  $(SRC_DIR)/include \
+  $(SRC_DIR)/include/arch/$(ARCH)
 
-CFLAGS  := -static
-CFLAGS  += -nostdlib
-CFLAGS  += -nostdinc
-CFLAGS  += -fshort-wchar
-CFLAGS  += -fno-builtin
-CFLAGS  += -ffreestanding
-CFLAGS  += -fno-stack-protector
-CFLAGS  += $(addprefix -I,${INCLUDE})
-CFLAGS  += -g -O0
-CFLAGS  += -std=c11
+CFLAGS := \
+  -static -nostdlib -g \
+  -std=c11 -O0 -fshort-wchar -ffreestanding \
+  -fno-builtin -fno-stack-check -fno-stack-protector \
+  -include $(SRC_DIR)/include/app/app.h \
+  $(addprefix -I,${INCLUDE}) \
 
+LDFLAGS := \
+  -static -nostdlib \
+
+LIBC := $(APP_OUTPUT)/libc.o

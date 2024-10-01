@@ -9,18 +9,18 @@ extern ssize_t sys_read(int fd, void *buf, size_t cnt);
 extern int sys_close(int fd);
 
 static void *handler[] = {
-    [SYSCALL_READ] = sys_read,
-    [SYSCALL_WRITE] = sys_write,
-    [SYSCALL_CLOSE] = sys_close,
-    [SYSCALL_FORK] = sys_fork,
-    [SYSCALL_TEST] = sys_test,
+    [SYS_read] = sys_read,
+    [SYS_write] = sys_write,
+    [SYS_close] = sys_close,
+    [SYS_fork] = sys_fork,
+    [SYS_test] = sys_test,
 };
 
 #include <textos/panic.h>
 
 __INTR_HANDLER(syscall_handler)
 {
-    if (frame->rax >= SYSCALL_MAX)
+    if (frame->rax >= SYS_maxium)
         PANIC("syscall number was out of range!\n");
 
     __asm__ volatile (

@@ -40,7 +40,7 @@ image:
 	@sudo cp $(BOOT_EXEC) $(IMG_MDIR)/EFI/Boot/$(OUT_EFI)
 	@sudo cp -rf resource/* $(IMG_MDIR)/
 	@sudo cp $(KERNEL_EXEC) $(IMG_MDIR)/
-	@sudo cp $(APP_OUTPUT)/* $(IMG_MDIR)/
+	@sudo cp $(APP_OUTPUT)/*.elf $(IMG_MDIR)/
 	
 	@echo "Image was done!"
 	@while sudo umount $(IMG_MDIR) 2>/dev/null; \
