@@ -6,7 +6,9 @@
     _(write, 1),         \
     _(open, 2),          \
     _(close, 3),         \
+    _(getpid, 20),       \
     _(fork, 57),         \
+    _(getppid, 64),      \
     _(test, 510),        \
     _(maxium, 511),
 

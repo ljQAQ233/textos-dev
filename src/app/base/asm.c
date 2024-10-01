@@ -42,3 +42,13 @@ int close(int fd)
 {
     return syscall(SYS_close, fd);
 }
+
+int getpid()
+{
+    return syscall(SYS_getpid);
+}
+
+int getppid()
+{
+    return syscall(SYS_getppid);
+}

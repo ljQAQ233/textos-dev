@@ -8,12 +8,17 @@ extern ssize_t sys_write(int fd, void *buf, size_t cnt);
 extern ssize_t sys_read(int fd, void *buf, size_t cnt);
 extern int sys_close(int fd);
 
+extern int sys_getpid();
+extern int sys_getppid();
+
 static void *handler[] = {
     [SYS_read] = sys_read,
     [SYS_write] = sys_write,
     [SYS_close] = sys_close,
     [SYS_fork] = sys_fork,
     [SYS_test] = sys_test,
+    [SYS_getpid] = sys_getpid,
+    [SYS_getppid] = sys_getppid,
 };
 
 #include <textos/panic.h>
