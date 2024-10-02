@@ -4,6 +4,7 @@
 
 extern void sys_test (int arg0, int arg1, int arg2, int arg3, int arg4, int arg5);
 extern int sys_fork ();
+extern int sys_execve(char *path, char *const argv[], char *const envp[]);
 extern ssize_t sys_write(int fd, void *buf, size_t cnt);
 extern ssize_t sys_read(int fd, void *buf, size_t cnt);
 extern int sys_close(int fd);
@@ -15,6 +16,7 @@ static void *handler[] = {
     [SYS_read] = sys_read,
     [SYS_write] = sys_write,
     [SYS_close] = sys_close,
+    [SYS_execve] = sys_execve,
     [SYS_fork] = sys_fork,
     [SYS_test] = sys_test,
     [SYS_getpid] = sys_getpid,

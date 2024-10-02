@@ -8,7 +8,8 @@ EXEC := $(SRCS:.c=.elf)
 EXEC := $(addprefix ${APP_OUTPUT}/,${EXEC})
 
 LIBSRC := \
-  base/asm.c
+  base/asm.c \
+  base/crt0.c
 
 LIBOBJ := $(LIBSRC:.c=.o)
 LIBOBJ := $(addprefix ${APP_OUTPUT}/,${LIBOBJ})
@@ -30,7 +31,7 @@ $(LIBC): $(LIBOBJ)
 
 # Make rules and printing formats
 
-$(APP_OUTPUT)/%.elf: %.c
+$(APP_OUTPUT)/%.elf: %.c $(LIBC)
 	@mkdir -p $(@D)
 	@$(CC) $(CFLAGS) $< $(LIBC) -o $@
 	@echo -e "\033[032m   CC  \033[0m $<"

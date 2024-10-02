@@ -2,8 +2,6 @@
 #include <app/sys.h>
 #include <app/args.h>
 
-#define asm __asm__
-
 long syscall(int num, ...)
 {
     va_list ap;
@@ -26,6 +24,11 @@ long syscall(int num, ...)
 int fork()
 {
     return syscall(SYS_fork);
+}
+
+int execve(char *path, char *const argv[], char *const envp[])
+{
+    return syscall(SYS_execve, path, argv, envp);
 }
 
 ssize_t write(int fd, const void *buf, size_t cnt)

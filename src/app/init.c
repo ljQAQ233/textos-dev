@@ -3,14 +3,19 @@
 
 void _start()
 {
-    int pid = fork();
-    if (pid == 0)
-    {
-        while(1) write(1, "fork() -> child!\n", 17);
-    }
-    else
-    {
-        while(1) write(1, "fork() -> parent!\n", 18);
-    }
+    char *argv[] = {
+        "TECH",
+        "OTAKUS",
+        "SAVE",
+        "THE",
+        "WORLD",
+        NULL,
+    };
+    char *envp[] = {
+        "PWD=/",
+        NULL,
+    };
+    execve("/echo.elf", argv, envp);
+    write(1, "execve failed!\n", 17);
     while(1);
 }
