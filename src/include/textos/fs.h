@@ -37,20 +37,19 @@ struct node {
     u64 attr;
     u64 siz;     // Zero for dir
 
-    node_t *parent;
-    struct {
-        void *sys;
-        int   systype;
-
-        u64 addr;
-    } pdata;
-
     // unused
     node_t *root;
+
+    node_t *parent;
     node_t *child;
     node_t *next;
 
     // u64 References;
+
+    void *sys;
+    int systype;
+    addr_t idx;
+    void *pdata;
 
     /* Interfaces */
     fs_opts_t *opts;

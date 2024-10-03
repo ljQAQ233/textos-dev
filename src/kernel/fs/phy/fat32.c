@@ -213,9 +213,9 @@ FS_INITIALIZER(__fs_init_fat32)
     ori->root = ori;
     ori->child = NULL;
     ori->parent = ori;
-    ori->pdata.sys = sys;
-    ori->pdata.systype = FS_FAT32;
-    ori->pdata.addr = root_sec;
+    ori->sys = sys;
+    ori->systype = FS_FAT32;
+    ori->idx = root_sec;
     ori->siz = 0;
 
     /* FAT32 文件系统接口 */
@@ -289,11 +289,11 @@ static inline lookup_t *_lkp_origin (node_t *n, lookup_t *lkp)
     if (!lkp)
         lkp = malloc(sizeof(lookup_t));
 
-    lkp->locator.clus = DUMP_IC(((sysinfo_t *)n->pdata.sys), n->pdata.addr);
+    lkp->locator.clus = DUMP_IC(((sysinfo_t *)n->sys), n->idx);
     stack_init (&lkp->ents);
     list_init  (&lkp->locator.list);
     lkp->node = n;
-    lkp->sys = n->pdata.sys;
+    lkp->sys = n->sys;
 
     return lkp;
 }
@@ -599,16 +599,16 @@ make:
     
     free (name);
 
-    sysinfo_t *sys = target->pdata.sys;
+    sysinfo_t *sys = target->sys;
 
     sentry_t *sent = malloc (sizeof(sentry_t));
     memset (sent, 0, sizeof(sentry_t));
     memcpy (sent->name, _name, LEN_NAME);
     memcpy (sent->name + LEN_NAME, _ext, LEN_EXT);
     sent->filesz = target->siz;
-    if (target->pdata.addr) {
-        sent->clus_high = DUMP_IC(sys, target->pdata.addr) >> 16;
-        sent->clus_low  = DUMP_IC(sys, target->pdata.addr) & 0xFFFF;
+    if (target->idx) {
+        sent->clus_high = DUMP_IC(sys, target->idx) >> 16;
+        sent->clus_low  = DUMP_IC(sys, target->idx) & 0xFFFF;
     }
     sent->attr = (target->attr & NA_REG ? FA_ARCHIVE : FA_DIR);
     stack_push (stk, sent);
@@ -665,7 +665,7 @@ static node_t *_analysis_entry (sysinfo_t *sys, stack_t *stk)
         n->attr |= NA_REG;
 
     if (main->clus_low || main->clus_high)
-        n->pdata.addr = _addr_get (sys, main);
+        n->idx = _addr_get (sys, main);
 
     size_t cnt = stack_siz(stk) - 1;
     /* Only has a main entry (short entry) */
@@ -889,8 +889,8 @@ static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
         lkp = NULL;
     } else {
         lkp->sys = parent->sys;
-        lkp->locator.clus = DUMP_IC(sys, lkp->node->pdata.addr);
-        // Lookup->Locator.Cluster = DUMP_IC(sys, Lookup->Node->pdata.Addr);
+        lkp->locator.clus = DUMP_IC(sys, lkp->node->idx);
+        // Lookup->Locator.Cluster = DUMP_IC(sys, Lookup->Node->Addr);
     }
     return lkp;
 }
@@ -1100,14 +1100,14 @@ static node_t *_create (node_t *parent, char *name, size_t siz, int attr, u64 ad
     node_t *child = malloc (sizeof(node_t));
     memset (child, 0, sizeof(node_t));
 
-    child->pdata.sys     = parent->pdata.sys;
-    child->pdata.systype = parent->pdata.systype;
+    child->sys     = parent->sys;
+    child->systype = parent->systype;
     child->opts   = parent->opts;
 
     child->name = strdup(name);
     child->attr = attr;
     child->siz  = siz;
-    child->pdata.addr = addr;
+    child->idx = addr;
     
     /* update parent's & child's nodes */
     child->next = parent->child;
@@ -1116,9 +1116,9 @@ static node_t *_create (node_t *parent, char *name, size_t siz, int attr, u64 ad
 
     child->siz = 0;
     /* allocate an address when it's about to be written */
-    child->pdata.addr = 0;
+    child->idx = 0;
     if (child->attr & NA_DIR)
-        child->pdata.addr = _alloc_part (child->pdata.sys);
+        child->idx = _alloc_part (child->sys);
 
     /* Write our child node into disk (media) */
     lookup_t *par = LKP_ORI(parent);
@@ -1160,7 +1160,7 @@ _UTIL_PATH_DIR();
 */
 static node_t *fat32_pathwalk (node_t *start, char **path, node_t **last)
 {
-    sysinfo_t *sys = start->pdata.sys;
+    sysinfo_t *sys = start->sys;
     lookup_t *ori = LKP_ORI(start);
     lookup_t *lkp = ori;
 
@@ -1191,8 +1191,8 @@ static node_t *fat32_pathwalk (node_t *start, char **path, node_t **last)
     /* 物理文件系统 "无关" 的基本信息 */
     res->parent = start;
     res->opts = start->opts;
-    res->pdata.sys = start->pdata.sys;
-    res->pdata.systype = start->pdata.systype;
+    res->sys = start->sys;
+    res->systype = start->systype;
     /* 挂载到父节点 */
     res->next = start->child;
     start->child = res;
@@ -1259,7 +1259,7 @@ static int fat32_close (node_t *this)
 
 static int _read_content (node_t *n, void *buf, size_t readsiz, size_t offset)
 {
-    sysinfo_t *sys = n->pdata.sys;
+    sysinfo_t *sys = n->sys;
 
     if (readsiz == 0)
         return 0;
@@ -1267,7 +1267,7 @@ static int _read_content (node_t *n, void *buf, size_t readsiz, size_t offset)
         return EOF;
     
     u32 *idxes = malloc(sys->record->sec_siz);
-    u32  curr = DUMP_IC(sys, n->pdata.addr);
+    u32  curr = DUMP_IC(sys, n->idx);
     sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
 
     size_t offset_sect = offset / SECT_SIZ,
@@ -1356,20 +1356,20 @@ fini:
 /* 拓展 This 所指向的实体, 在原有的基础上拓宽/拓宽到 Cnt 个扇区 */
 static size_t _expand_part (node_t *n, size_t cnt, bool append)
 {
-    sysinfo_t *sys = n->pdata.sys;
+    sysinfo_t *sys = n->sys;
     u32 curr, end;
     u32 *idxes_cur, *idxes_end;
 
-    if (n->pdata.addr == 0) {
-        n->pdata.addr = _alloc_part (n->pdata.sys);
+    if (n->idx == 0) {
+        n->idx = _alloc_part (n->sys);
         if (--cnt == 0)
             goto exit;
     }
 
-    ASSERTK (n->pdata.addr >= sys->first_data_sec);
+    ASSERTK (n->idx >= sys->first_data_sec);
 
     // TODO: starts from head
-    curr = DUMP_IC(sys, n->pdata.addr);
+    curr = DUMP_IC(sys, n->idx);
     idxes_cur = malloc (SECT_SIZ);
 
     sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes_cur, 1);
@@ -1446,7 +1446,7 @@ exit:
 /* NOTE : Do not opearte `This` in this function! */
 static size_t _expand (node_t *this, size_t siz)
 {
-    sysinfo_t *sys = this->pdata.sys;
+    sysinfo_t *sys = this->sys;
 
     if (ALIGN_UP(this->siz, SECT_SIZ) >= siz)
         return siz;
@@ -1466,10 +1466,10 @@ static int _write_content (node_t *n, void *buf, size_t writesiz, size_t offset)
     if (writesiz + offset >= n->siz)
         n->siz = _expand (n, writesiz + offset);
 
-    sysinfo_t *sys = n->pdata.sys;
+    sysinfo_t *sys = n->sys;
 
     u32 *idxes = malloc (SECT_SIZ);
-    u32 curr = DUMP_IC(sys, n->pdata.addr);
+    u32 curr = DUMP_IC(sys, n->idx);
     sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
 
     size_t offset_sect = offset / SECT_SIZ,
@@ -1576,7 +1576,7 @@ static void _release_data (sysinfo_t *sys, u32 start, bool cut)
 
 static int fat32_remove (node_t *this)
 {
-    sysinfo_t *sys = this->pdata.sys;
+    sysinfo_t *sys = this->sys;
 
     lookup_t *par = LKP_ORI (this->parent);
     lookup_t *lkp = lookup_entry (par, this->name, 0);
@@ -1592,15 +1592,15 @@ static int fat32_truncate (node_t *this, size_t offset)
     if (offset > this->siz)
         this->siz = _expand (this, offset);
     else {
-        sysinfo_t *sys = this->pdata.sys;
+        sysinfo_t *sys = this->sys;
         /* 当 Offset == 0 时, 释放掉所有簇 */
         bool all = false;
         if (offset == 0) {
             all = true;
-            this->pdata.addr = 0;
+            this->idx = 0;
         }
         _release_data (
-            sys, DUMP_IC(sys, this->pdata.addr),
+            sys, DUMP_IC(sys, this->idx),
             all
         );
         this->siz = offset;
@@ -1637,8 +1637,8 @@ static int fat32_readdir (node_t *this)
             /* 物理文件系统 "无关" 的基本信息 */
             chd->parent = this;
             chd->opts = this->opts;
-            chd->pdata.sys = this->pdata.sys;
-            chd->pdata.systype = this->pdata.systype;
+            chd->sys = this->sys;
+            chd->systype = this->systype;
             /* 挂载到父节点 */
             chd->next = this->child;
             this->child = chd;
