@@ -29,4 +29,6 @@ enum nr_syscall
 
 #undef _SYSCALL
 
+extern void msyscall_exit();
+
 #endif

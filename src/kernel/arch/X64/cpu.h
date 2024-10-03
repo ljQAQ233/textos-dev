@@ -37,6 +37,15 @@ u64 read_cr3 ();
 
 u64 write_cr3 (u64 cr3);
 
+#define MSR_EFER   0xC0000080
+#define MSR_STAR   0xC0000081 // eip / seg
+#define MSR_LSTAR  0xC0000082 // rip - long mode
+#define MSR_CSTAR  0xC0000083 // rip - compact
+#define MSR_FMASK  0xC0000084
+
+#define MSR_FS_BASE 0xc0000100
+#define MSR_GS_BASE 0xc0000101
+
 #define IA32_APIC_BASE 0x1B
 
 u64 read_msr (u32 idx);

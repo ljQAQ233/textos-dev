@@ -161,17 +161,27 @@ static int fork_fd(task_t *prt, task_t *chd)
     return 0;
 }
 
+#include <irq.h>
+#include <textos/syscall.h>
+
 int task_fork()
 {
     task_t *prt = task_current();
     task_t *chd = _task_create(prt->init.args);
+    
+    // prevent task switching
+    // because currently we use iframe to save context for fork
+    UNINTR_AREA_START();
 
     // page table
     fork_pgt(prt, chd);
 
     // context
     fork_stack(prt, chd);
-    chd->frame->rip = (u64)intr_exit;
+    if (prt->iframe->vector == INT_MSYSCALL)
+        chd->frame->rip = (u64)msyscall_exit;
+    else
+        chd->frame->rip = (u64)intr_exit;
     chd->iframe->rax = 0; // 子进程返回 0
 
     // files
@@ -181,6 +191,8 @@ int task_fork()
     chd->curr = prt->curr;
     chd->ppid = prt->pid;
     chd->stat = TASK_PRE;
+
+    UNINTR_AREA_END();
 
     return chd->pid; // 父进程返回子进程号
 }
@@ -250,6 +262,7 @@ Sched:
     next->stat = TASK_RUN;
 
     tss_set(next->istk);
+    write_msr(MSR_GS_BASE, (addr_t)next);
     write_cr3(next->pgt);
     __task_switch (next->frame, &curr->frame);
 }

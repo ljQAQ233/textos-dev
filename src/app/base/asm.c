@@ -15,7 +15,7 @@ long syscall(int num, ...)
     register long a6 asm ("r9") = va_arg(ap, long);
     va_end(ap);
     asm volatile(
-        "int $0x80"
+        "syscall"
         : "+r"(a0) : "r"(a1), "r"(a2), "r"(a3), "r"(a4), "r"(a5), "r"(a6)
         : "memory");
     return a0;

@@ -88,10 +88,10 @@ static void __init_proc()
             "push %2 \n" // cs
             "push %3 \n" // rip
             : :
-            "i"((USER_DATA_SEG << 3) | 3), // ss
-            "m"(curr->init.rbp),           // rsp
+            "i"((USER_DATA_SEG << 3) | 3),   // ss
+            "m"(curr->init.rbp),             // rsp
             "i"((USER_CODE_SEG << 3) | 3), // cs
-            "m"(exe.entry));               // rip
+            "m"(exe.entry));                 // rip
     __asm__ volatile ("iretq");
 
     PANIC("Init exiting...\n");

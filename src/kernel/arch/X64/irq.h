@@ -16,7 +16,8 @@
 #define IRQ_SECDISK 15
 #define INT_SECDISK 0x23
 
-#define INT_SYSCALL 0x80
+#define INT_SYSCALL  0x80
+#define INT_MSYSCALL 0x81
 
 bool intr_get ();
 

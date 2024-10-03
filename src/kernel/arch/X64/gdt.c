@@ -130,6 +130,7 @@ void gdt_init ()
     _gdt_set_entry (KERN_DATA_SEG, 0, 0xFFFFF, KERN_DATA_A, DATA_F);
     _gdt_set_entry (USER_CODE_SEG, 0, 0xFFFFF, USER_CODE_A, CODE_F);
     _gdt_set_entry (USER_DATA_SEG, 0, 0xFFFFF, USER_DATA_A, DATA_F);
+    _gdt_set_entry (USER_CODE32_SEG, 0, 0xFFFFF, USER_DATA_A, CODE_F &~ F_L);
     _sys_set_entry (TSS_LOAD_SEG, (u64)&tss, sizeof(tss) - 1, A_AVA | A_P, 0);
 
     gdtr.base = (u64)&gdts;
