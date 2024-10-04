@@ -8,6 +8,7 @@ extern void sys_test (int arg0, int arg1, int arg2, int arg3, int arg4, int arg5
 extern int sys_fork ();
 extern int sys_execve(char *path, char *const argv[], char *const envp[]);
 extern ssize_t sys_write(int fd, void *buf, size_t cnt);
+extern int sys_open(char *path, int flgs);
 extern ssize_t sys_read(int fd, void *buf, size_t cnt);
 extern int sys_close(int fd);
 
@@ -17,6 +18,7 @@ extern int sys_getppid();
 void *sys_handlers[] = {
     [SYS_read] = sys_read,
     [SYS_write] = sys_write,
+    [SYS_open] = sys_open,
     [SYS_close] = sys_close,
     [SYS_execve] = sys_execve,
     [SYS_fork] = sys_fork,

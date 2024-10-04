@@ -2,11 +2,10 @@
 
 void main(int argc, char *argv[], char *envp[])
 {
-    fork();
-    write(1, "echo\n", 5);
-    for (int i = 0 ; i < argc ; i++) {
-        write(1, argv[i], -1); // -1 不是正规写法
-        write(1, "\n", -1);
-    }
+    char buf[128] = "hello world!\n";
+    int fd = open("/config2.ini", O_CREAT | O_RDWR);
+    if (write(fd, buf, 18) > 0)
+        write(1, "write successfully!\n", -1);
+    close(fd);
     while(1);
 }

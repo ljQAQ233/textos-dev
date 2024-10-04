@@ -1,5 +1,6 @@
 #include <textos/task.h>
 #include <textos/file.h>
+#include <textos/errno.h>
 
 #define NODE(x, label)        \
     [x] = {                   \
@@ -18,7 +19,8 @@ static node_t file[3] = {
     [x] = {                \
         .occupied = 1,     \
         .offset = 0,       \
-        .node = &file[x]   \
+        .node = &file[x],  \
+        .flgs = O_ACCMODE, \
     }                      \
 
 file_t sysfile[MAXDEF_FILENO] = {
@@ -27,23 +29,65 @@ file_t sysfile[MAXDEF_FILENO] = {
     FILE(STDERR_FILENO),
 };
 
-static file_t *get_free()
+static int get_free(int *fd, file_t **file)
 {
+    *fd = -1;
     file_t *p = task_current()->files;
     for (int i = 0 ; i < MAX_FILE ; i++, p++)
         if (!p->occupied)
         {
             p->occupied = true;
-            return p;
+            *fd = i;
+            *file = p;
+            break;
         }
 
-    return NULL;
+    return *fd;
+}
+
+// TODO: flgs
+static inline u64 parse_args(int *flgs)
+{
+    int x = *flgs, v = 0;
+    if (x & O_CREAT)
+        v |= O_CREATE;
+
+    return v;
+}
+
+int open(char *path, int flgs)
+{
+    int fd;
+    int errno = 0;
+    u64 opargs = parse_args(&flgs);
+    node_t *node;
+    file_t *file;
+    if ((errno = vfs_open(task_current()->pwd, &node, path, opargs)) < 0)
+        goto fail;
+
+    if (get_free(&fd, &file) < 0)
+    {
+        errno = -EMFILE;
+        goto fail;
+    }
+    file->node = node;
+    file->flgs = flgs;
+
+fail:
+    return fd;
 }
 
 // todo: max size limited
 ssize_t write(int fd, void *buf, size_t cnt)
 {
+    int errno = 0;
     file_t *file = &task_current()->files[fd];
+
+    int accm = file->flgs & O_ACCMODE;
+    if (accm == O_RDONLY) {
+        errno = -EBADF;
+        return -1;
+    }
     int res = file->node->opts->write(file->node, buf, cnt, file->offset);
     if (res < 0)
         return -1;
@@ -54,7 +98,15 @@ ssize_t write(int fd, void *buf, size_t cnt)
 
 ssize_t read(int fd, void *buf, size_t cnt)
 {
+    int errno = 0;
     file_t *file = &task_current()->files[fd];
+
+    int accm = file->flgs & O_ACCMODE;
+    if (accm != 0 && accm != O_ACCMODE) {
+        errno = -EBADF;
+        return -1;
+    }
+
     int res = file->node->opts->read(file->node, buf, cnt, file->offset);
     if (res < 0)
         return -1;

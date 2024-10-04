@@ -29,6 +29,7 @@ typedef struct _Task {
     
     u64 sleep; // sleeping process has been spent currently
 
+    node_t *pwd;
     file_t files[MAX_FILE];
 
     struct {

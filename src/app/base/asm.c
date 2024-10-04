@@ -36,6 +36,11 @@ ssize_t write(int fd, const void *buf, size_t cnt)
     return syscall(SYS_write, fd, buf, cnt);
 }
 
+int open(char *path, int flgs)
+{
+    return syscall(SYS_open, path, flgs);
+}
+
 ssize_t read(int fd, void *buf, size_t cnt)
 {
     return syscall(SYS_read, fd, buf, cnt);

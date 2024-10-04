@@ -4,18 +4,14 @@
 void _start()
 {
     char *argv[] = {
-        "TECH",
-        "OTAKUS",
-        "SAVE",
-        "THE",
-        "WORLD",
+        "/config.ini",
         NULL,
     };
     char *envp[] = {
         "PWD=/",
         NULL,
     };
-    execve("/echo.elf", argv, envp);
+    execve("/cat.elf", argv, envp);
     write(1, "execve failed!\n", 17);
     while(1);
 }

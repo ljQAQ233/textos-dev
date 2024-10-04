@@ -121,6 +121,8 @@ task_t *task_create (void *main, int args)
     
     tsk->tick = TASK_TICKS;
     tsk->curr = TASK_TICKS;
+    
+    tsk->pwd = NULL; // root
 
     tsk->pgt = get_kppgt();
     tsk->istk = (addr_t)istack;
@@ -190,6 +192,7 @@ int task_fork()
     chd->tick = prt->tick;
     chd->curr = prt->curr;
     chd->ppid = prt->pid;
+    chd->pwd = prt->pwd;
     chd->stat = TASK_PRE;
 
     UNINTR_AREA_END();
