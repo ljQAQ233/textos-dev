@@ -77,6 +77,11 @@ bool ring_empty (ring_t *r)
     return ring_fixi (r, &r->head) == ring_fixi (r, &r->tail);
 }
 
+bool ring_full (ring_t *r)
+{
+    return r->head + 1 == r->tail;
+}
+
 void ring_clear (ring_t *r)
 {
     memset (r->buf, 0, r->max);

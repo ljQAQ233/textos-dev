@@ -22,5 +22,7 @@ void ring_push (ring_t *r, void *elem);
 
 bool ring_empty (ring_t *r);
 
+bool ring_full (ring_t *r);
+
 void ring_clear (ring_t *r);
 
