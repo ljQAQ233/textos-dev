@@ -16,6 +16,7 @@ void dprintk(int lv, const char *format, ...);
 #define K_FS    (1 << 8)  // file system
 #define K_PIC   (1 << 9)  // pic / apic
 #define K_KBD   (1 << 10) // keyboard
+#define K_PCI   (1 << 11) // pci bus / dev
 
 #define K_ALL   ((unsigned)-1)
 

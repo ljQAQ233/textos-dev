@@ -4,7 +4,7 @@
 
 char buf[N];
 
-void main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     int fd, siz;
     fd = open(argv[1], O_RDONLY);
@@ -13,6 +13,8 @@ void main(int argc, char *argv[])
         write(1, buf, siz);
     }
     close(fd);
+    while(1);
+    return 0;
 }
 
 

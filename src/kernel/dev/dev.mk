@@ -10,3 +10,5 @@ SRCS += dev/clock.c
 
 SRCS += dev/disk/ide.c
 
+# pci devices
+SRCS += dev/pci.c
