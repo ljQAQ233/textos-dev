@@ -3,6 +3,21 @@
 
 #include <stdarg.h>
 
+extern int errno;
+
+// According to the SysV ABI :
+// Returning from the syscall, register %rax contains the result of the system-call. A
+// value in the range between -4095 and -1 indicates an error, it is -errno.
+static long syscall_ret(long ret)
+{
+    if ((unsigned long)ret > -4096UL)
+    {
+        errno = -ret;
+        return -1;
+    }
+    return ret;
+}
+
 long syscall(int num, ...)
 {
     va_list ap;
@@ -19,7 +34,7 @@ long syscall(int num, ...)
         "syscall"
         : "+r"(a0) : "r"(a1), "r"(a2), "r"(a3), "r"(a4), "r"(a5), "r"(a6)
         : "memory");
-    return a0;
+    return syscall_ret(a0);
 }
 
 int fork()

@@ -4,16 +4,15 @@
 #include <intr.h>
 #include <textos/syscall.h>
 
-extern void sys_test (int arg0, int arg1, int arg2, int arg3, int arg4, int arg5);
-extern int sys_fork ();
-extern int sys_execve(char *path, char *const argv[], char *const envp[]);
-extern ssize_t sys_write(int fd, void *buf, size_t cnt);
-extern int sys_open(char *path, int flgs);
-extern ssize_t sys_read(int fd, void *buf, size_t cnt);
-extern int sys_close(int fd);
-
-extern int sys_getpid();
-extern int sys_getppid();
+extern void sys_read();
+extern void sys_write();
+extern void sys_open();
+extern void sys_close();
+extern void sys_execve();
+extern void sys_fork();
+extern void sys_test();
+extern void sys_getpid();
+extern void sys_getppid();
 
 void *sys_handlers[] = {
     [SYS_read] = sys_read,
