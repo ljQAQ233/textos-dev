@@ -9,7 +9,12 @@ EXEC := $(addprefix ${APP_OUTPUT}/,${EXEC})
 
 LIBSRC := \
   base/asm.c \
-  base/crt0.c
+  base/crt0.c \
+  stdlib/io.c \
+  stdlib/string.c \
+  stdlib/printf.c \
+  stdlib/malloc.c \
+  stdlib/assert.c
 
 LIBOBJ := $(LIBSRC:.c=.o)
 LIBOBJ := $(addprefix ${APP_OUTPUT}/,${LIBOBJ})

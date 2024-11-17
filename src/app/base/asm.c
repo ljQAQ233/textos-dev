@@ -1,6 +1,7 @@
 #include <app/api.h>
 #include <app/sys.h>
-#include <app/args.h>
+
+#include <stdarg.h>
 
 long syscall(int num, ...)
 {
