@@ -314,14 +314,5 @@ void fs_init ()
     free(record);
 
     printk ("file system initialized!\n");
-    
-    node_t *file, *dir;
-    
-    char buf[1024] = "Hello world!";
-    vfs_open (NULL, &file, "/test.txt", O_READ | O_CREATE);
-    vfs_write (file, buf, 12, 0);
-    vfs_remove (file);
-    vfs_readdir (NULL);
-    __vfs_listnode (NULL);
 }
 

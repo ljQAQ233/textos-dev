@@ -10,10 +10,8 @@ enum {
 #define NA_REG  (1 << 1)
 
 enum {
-    O_READ   = 0x1,
-    O_WRITE  = 0x2,
-    O_CREATE = 0x04,
-    O_DIR    = 0x08,
+    VFS_CREATE = 0x01,
+    VFS_DIR    = 0x02,
 };
 
 struct node;
@@ -44,8 +42,6 @@ struct node {
     node_t *child;
     node_t *next;
 
-    // u64 References;
-
     void *sys;
     int systype;
     addr_t idx;
@@ -53,8 +49,6 @@ struct node {
 
     /* Interfaces */
     fs_opts_t *opts;
-
-    u64 flgs_open;
 };
 
 extern int vfs_open (node_t *parent, node_t **node, const char *path, u64 args);

@@ -1214,14 +1214,14 @@ static int fat32_open (node_t *parent, char *path, u64 args, node_t **result)
     opened = fat32_pathwalk (ori, &path, &last);
     if (opened)
     {
-        if (opened->attr & NA_REG && args & O_DIR)
+        if (opened->attr & NA_REG && args & VFS_DIR)
             ret = -ENOTDIR;
-        else if (opened->attr & NA_DIR && ~args & O_DIR)
+        else if (opened->attr & NA_DIR && ~args & VFS_DIR)
             ret = -EISDIR;
         goto end;
     }
 
-    if (args & O_CREATE)
+    if (args & VFS_CREATE)
     {
         /*
            按照习惯, 默认只能在一个已经存在的目录下创建新的节点,
@@ -1233,7 +1233,7 @@ static int fat32_open (node_t *parent, char *path, u64 args, node_t **result)
         }
 
         int attr = 0;
-        if (args & O_DIR)
+        if (args & VFS_DIR)
             attr |= NA_DIR;
         else
             attr |= NA_REG;

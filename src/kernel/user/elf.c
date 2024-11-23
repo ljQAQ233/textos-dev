@@ -28,7 +28,7 @@ bool elf_check (Elf64_Ehdr *hdr)
 int elf_load (char *path, exeinfo_t *exe)
 {
     node_t *elf;
-    vfs_open (NULL, &elf, path, O_READ);
+    vfs_open (NULL, &elf, path, 0);
 
     Elf64_Ehdr hdr;
     vfs_read (elf, &hdr, sizeof(hdr), 0);

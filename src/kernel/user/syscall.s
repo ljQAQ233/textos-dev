@@ -4,8 +4,8 @@ extern task_current
 
 section .text
 
-%define TASK_ISTK 0x250
-%define TASK_IF   0x260
+%define TASK_ISTK 0xd0
+%define TASK_IF   0xe0
 
 global msyscall_exit
 

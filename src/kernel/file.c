@@ -1,6 +1,7 @@
 #include <textos/task.h>
 #include <textos/file.h>
 #include <textos/errno.h>
+#include <textos/debug.h>
 
 #define NODE(x, label)        \
     [x] = {                   \
@@ -17,7 +18,6 @@ static node_t file[3] = {
 
 #define FILE(x)            \
     [x] = {                \
-        .occupied = 1,     \
         .offset = 0,       \
         .node = &file[x],  \
         .flgs = O_ACCMODE, \
@@ -29,16 +29,17 @@ file_t sysfile[MAXDEF_FILENO] = {
     FILE(STDERR_FILENO),
 };
 
+#include <textos/mm.h>
+
 static int get_free(int *fd, file_t **file)
 {
     *fd = -1;
-    file_t *p = task_current()->files;
-    for (int i = 0 ; i < MAX_FILE ; i++, p++)
-        if (!p->occupied)
+    file_t **ft = task_current()->files;
+    for (int i = 0 ; i < MAX_FILE ; i++)
+        if (!ft[i])
         {
-            p->occupied = true;
-            *fd = i;
-            *file = p;
+            if ((ft[i] = malloc(sizeof(file_t))))
+                *fd = i, *file = ft[i];
             break;
         }
 
@@ -46,30 +47,31 @@ static int get_free(int *fd, file_t **file)
 }
 
 // TODO: flgs
-static inline u64 parse_args(int *flgs)
+static inline u64 parse_args(int x)
 {
-    int x = *flgs, v = 0;
+    int v = 0;
     if (x & O_CREAT)
-        v |= O_CREATE;
+        v |= VFS_CREATE;
 
     return v;
 }
 
 int open(char *path, int flgs)
 {
-    int fd;
-    int errno = 0;
-    u64 opargs = parse_args(&flgs);
     node_t *node;
     file_t *file;
-    if ((errno = vfs_open(task_current()->pwd, &node, path, opargs)) < 0)
-        goto fail;
+    u64 opargs = parse_args(flgs);
+    
+    int ret;
+    if ((ret = vfs_open(task_current()->pwd, &node, path, opargs)) < 0)
+        return ret;
 
+    int fd;
     if (get_free(&fd, &file) < 0)
-    {
-        errno = -EMFILE;
-        goto fail;
-    }
+        return -EMFILE;
+
+    file->refer = 1;
+    file->offset = 0;
     file->node = node;
     file->flgs = flgs;
 
@@ -80,17 +82,17 @@ fail:
 // todo: max size limited
 ssize_t write(int fd, void *buf, size_t cnt)
 {
-    int errno = 0;
-    file_t *file = &task_current()->files[fd];
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
 
     int accm = file->flgs & O_ACCMODE;
-    if (accm == O_RDONLY) {
-        errno = -EBADF;
-        return -1;
-    }
-    int res = file->node->opts->write(file->node, buf, cnt, file->offset);
-    if (res < 0)
-        return -1;
+    if (accm == O_RDONLY)
+        return -EBADF;
+
+    int ret = file->node->opts->write(file->node, buf, cnt, file->offset);
+    if (ret < 0)
+        return ret;
     
     file->offset += cnt;
     return cnt;
@@ -98,17 +100,16 @@ ssize_t write(int fd, void *buf, size_t cnt)
 
 ssize_t read(int fd, void *buf, size_t cnt)
 {
-    int errno = 0;
-    file_t *file = &task_current()->files[fd];
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
 
     int accm = file->flgs & O_ACCMODE;
-    if (accm != 0 && accm != O_ACCMODE) {
-        errno = -EBADF;
-        return -1;
-    }
+    if (accm != 0 && accm != O_ACCMODE)
+        return -EBADF;
 
-    int res = file->node->opts->read(file->node, buf, cnt, file->offset);
-    if (res < 0)
+    int ret = file->node->opts->read(file->node, buf, cnt, file->offset);
+    if (ret < 0)
         return -1;
     
     file->offset += cnt;
@@ -117,12 +118,18 @@ ssize_t read(int fd, void *buf, size_t cnt)
 
 int close(int fd)
 {
-    file_t *file = &task_current()->files[fd];
-    int res = file->node->opts->close(file->node);
-    if (res < 0)
-        return -1;
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+
+    if (--file->refer > 0)
+        return 0;
+
+    int ret = file->node->opts->close(file->node);
     
-    return 0;
+    free(file);
+    task_current()->files[fd] = NULL;
+    return ret;
 }
 
 #include <textos/dev.h>
@@ -146,7 +153,7 @@ int kncon_exit(node_t *this)
     return 0;
 }
 
-void fd_init()
+void file_init()
 {
     for (int i = 0 ; i < MAXDEF_FILENO ; i++)
     {
@@ -157,4 +164,5 @@ void fd_init()
     file[STDOUT_FILENO].opts->write = kncon_write;
     file[STDERR_FILENO].opts->write = kncon_write;
     file[STDIN_FILENO].opts->read = kncon_read;
+    DEBUGK(K_INIT, "file initialized!\n");
 }

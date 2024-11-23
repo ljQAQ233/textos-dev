@@ -2,12 +2,13 @@
 #define __FILE_H__
 
 #include <textos/fs.h>
+#include <textos/klib/list.h>
 
 typedef struct {
-    bool occupied;
     size_t offset;
     node_t *node;
     int flgs;
+    int refer;
 } file_t;
 
 #define STDIN_FILENO  0
