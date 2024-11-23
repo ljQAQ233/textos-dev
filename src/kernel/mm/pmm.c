@@ -1,5 +1,4 @@
 #include <textos/mm.h>
-#include <textos/debug.h>
 #include <textos/assert.h>
 
 #include <string.h>

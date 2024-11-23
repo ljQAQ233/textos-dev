@@ -1,5 +1,4 @@
 #include <io.h>
-#include <textos/debug.h>
 #include <textos/args.h>
 #include <textos/printk.h>
 #include <textos/klib/vsprintf.h>

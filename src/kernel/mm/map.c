@@ -1,5 +1,4 @@
 #include <cpu.h>
-#include <textos/debug.h>
 #include <textos/assert.h>
 #include <textos/mm.h>
 #include <textos/mm/map.h>

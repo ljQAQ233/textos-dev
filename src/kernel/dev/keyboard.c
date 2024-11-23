@@ -42,7 +42,6 @@
 #define S_PERROR   (1 << 7)
 
 #include <io.h>
-#include <textos/debug.h>
 #include <textos/klib/ring.h>
 
 static ring_t ikey;

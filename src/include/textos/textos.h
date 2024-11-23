@@ -6,6 +6,8 @@
 #include <textos/type.h>
 #include <textos/base.h>
 
+#include <textos/debug.h>
+
 #define __kern_fb_base   0xffff8a0000000000ULL
 #define __kern_fb_maxsz  0x0000010000000000ULL
 

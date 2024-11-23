@@ -5,7 +5,6 @@
 #include <textos/printk.h>
 #include <textos/dev/8259.h>
 
-#include <textos/debug.h>
 #include <textos/panic.h>
 #include <textos/mm.h>
 

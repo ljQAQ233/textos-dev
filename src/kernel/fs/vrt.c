@@ -2,7 +2,6 @@
 #include <textos/fs.h>
 #include <textos/printk.h>
 #include <textos/fs/inter.h>
-#include <textos/debug.h>
 #include <textos/panic.h>
 #include <textos/assert.h>
 

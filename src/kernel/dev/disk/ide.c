@@ -2,7 +2,6 @@
 #include <irq.h>
 #include <intr.h>
 #include <textos/dev.h>
-#include <textos/debug.h>
 #include <textos/printk.h>
 
 #define SECT_SIZ 512

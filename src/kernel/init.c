@@ -1,5 +1,4 @@
 #include <textos/textos.h>
-#include <textos/debug.h>
 
 #include <boot.h>
 

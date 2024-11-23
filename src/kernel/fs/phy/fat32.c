@@ -7,7 +7,6 @@
 #include <textos/errno.h>
 #include <textos/klib/list.h>
 #include <textos/klib/stack.h>
-#include <textos/debug.h>
 #include <textos/panic.h>
 #include <textos/assert.h>
 

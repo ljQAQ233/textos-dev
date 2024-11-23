@@ -1,7 +1,6 @@
 #include <textos/task.h>
 #include <textos/file.h>
 #include <textos/errno.h>
-#include <textos/debug.h>
 
 #define NODE(x, label)        \
     [x] = {                   \

@@ -165,8 +165,6 @@ static inline u16 get_code(u8 bus, u8 slot, u8 func)
     return pci_read_word(bus, slot, func, 10);
 }
 
-#include <textos/debug.h>
-
 static void scan_dev(u8 bus, u8 dev)
 {
     u16 vendor;

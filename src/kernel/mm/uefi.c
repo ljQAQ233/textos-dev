@@ -102,7 +102,6 @@ const char *get_uefi_statstr(EFI_STATUS x)
 #include <boot.h>
 #include <string.h>
 #include <textos/mm.h>
-#include <textos/debug.h>
 #include <textos/panic.h>
 
 void __uefi_tovmm()
