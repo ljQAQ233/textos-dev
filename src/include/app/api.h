@@ -28,3 +28,7 @@ ssize_t read(int fd, void *buf, size_t cnt);
 
 int close(int fd);
 
+int dup(int fd);
+
+int dup2(int old, int new);
+

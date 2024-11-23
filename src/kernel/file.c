@@ -20,6 +20,7 @@ static node_t file[3] = {
         .offset = 0,       \
         .node = &file[x],  \
         .flgs = O_ACCMODE, \
+        .refer = 255,      \
     }                      \
 
 file_t sysfile[MAXDEF_FILENO] = {
@@ -30,19 +31,26 @@ file_t sysfile[MAXDEF_FILENO] = {
 
 #include <textos/mm.h>
 
-static int get_free(int *fd, file_t **file)
+static int get_fd()
 {
-    *fd = -1;
     file_t **ft = task_current()->files;
     for (int i = 0 ; i < MAX_FILE ; i++)
+    {
         if (!ft[i])
-        {
-            if ((ft[i] = malloc(sizeof(file_t))))
-                *fd = i, *file = ft[i];
-            break;
-        }
+            return i;
+    }
+    return -1;
+}
 
-    return *fd;
+static int get_free(int *new, file_t **file)
+{
+    file_t **ft = task_current()->files;
+    int fd = get_fd();
+    if (!(ft[fd] = malloc(sizeof(file_t))))
+        return -1;
+
+    *file = ft[fd];
+    return *new = fd;
 }
 
 // TODO: flgs
@@ -121,14 +129,44 @@ int close(int fd)
     if (!file)
         return -EBADF;
 
-    if (--file->refer > 0)
+    if (--file->refer > 0) {
+        task_current()->files[fd] = NULL;
         return 0;
+    }
 
     int ret = file->node->opts->close(file->node);
     
     free(file);
     task_current()->files[fd] = NULL;
     return ret;
+}
+
+int dup2(int old, int new)
+{
+    file_t **ft = task_current()->files;
+    file_t *file = ft[old];
+    if (!file)
+        return -EBADF;
+
+    if (old == new)
+        return -EINVAL;
+
+    // if newfd exists, close it first
+    if (ft[new])
+        close(new);
+
+    file->refer++;
+    ft[new] = file;
+    return new;
+}
+
+int dup(int fd)
+{
+    int new = get_fd();
+    if (new < 0)
+        return -EMFILE;
+
+    return dup2(fd, new);
 }
 
 #include <textos/dev.h>
@@ -163,5 +201,5 @@ void file_init()
     file[STDOUT_FILENO].opts->write = kncon_write;
     file[STDERR_FILENO].opts->write = kncon_write;
     file[STDIN_FILENO].opts->read = kncon_read;
-    DEBUGK(K_INIT, "file initialized!\n");
+    DEBUGK(K_INIT | K_SYNC, "file initialized!\n");
 }

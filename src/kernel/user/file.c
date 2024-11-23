@@ -19,3 +19,13 @@ int sys_close(int fd)
 {
     return close(fd);
 }
+
+int sys_dup(int fd)
+{
+    return dup(fd);
+}
+
+int sys_dup2(int old, int new)
+{
+    return dup2(old, new);
+}
