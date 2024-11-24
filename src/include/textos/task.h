@@ -45,6 +45,7 @@ typedef struct _Task {
     intr_frame_t *iframe;
 
     list_t sleeping;
+    list_t waiting;
 } task_t;
 
 #define TASK_DIE  0 // Dead

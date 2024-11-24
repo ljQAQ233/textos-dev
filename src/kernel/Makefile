@@ -11,7 +11,7 @@ SRCS := init.c main.c \
 		console.c \
 		printk.c \
 		task.c task.s file.c \
-		pwm.c
+		pwm.c lock.c
 
 include klib/klib.mk
 include mm/mm.mk
