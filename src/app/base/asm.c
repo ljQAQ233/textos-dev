@@ -77,6 +77,11 @@ int dup2(int old, int new)
     return syscall(SYS_dup2, old, new);
 }
 
+int pipe(int fds[2])
+{
+    return syscall(SYS_pipe, fds);
+}
+
 int getpid()
 {
     return syscall(SYS_getpid);

@@ -8,6 +8,7 @@
     _(close, 3),         \
     _(execve, 11),       \
     _(getpid, 20),       \
+    _(pipe, 22),         \
     _(dup, 32),          \
     _(dup2, 33),         \
     _(fork, 57),         \

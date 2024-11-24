@@ -301,6 +301,8 @@ static void _init_partitions (dev_t *hd, mbr_t *rec)
 
 // todo: fix fat32_truncate
 
+extern void __pipe_init();
+
 void fs_init ()
 {
     dev_t *hd = dev_lookup_type (DEV_BLK, DEV_IDE);
@@ -311,6 +313,9 @@ void fs_init ()
     _init_partitions (hd, record);
 
     free(record);
+
+    // abstract
+    __pipe_init();
 
     printk ("file system initialized!\n");
 }

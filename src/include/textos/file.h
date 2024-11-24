@@ -4,10 +4,14 @@
 #include <textos/fs.h>
 #include <textos/klib/list.h>
 
+#define S_PIPE_R 0x01  // rx
+#define S_PIPE_W 0x02  // tx
+
 typedef struct {
     size_t offset;
     node_t *node;
     int flgs;
+    int spec;
     int refer;
 } file_t;
 
@@ -40,5 +44,7 @@ int close(int fd);
 int dup(int fd);
 
 int dup2(int old, int new);
+
+int pipe(int fds[2]);
 
 #endif

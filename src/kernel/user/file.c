@@ -29,3 +29,8 @@ int sys_dup2(int old, int new)
 {
     return dup2(old, new);
 }
+
+int sys_pipe(int fds[2])
+{
+    return pipe(fds);
+}

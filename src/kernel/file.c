@@ -1,6 +1,8 @@
 #include <textos/task.h>
 #include <textos/file.h>
 #include <textos/errno.h>
+#include <textos/assert.h>
+#include <textos/fs/pipe.h>
 
 #define NODE(x, label)        \
     [x] = {                   \
@@ -167,6 +169,32 @@ int dup(int fd)
         return -EMFILE;
 
     return dup2(fd, new);
+}
+
+int pipe(int fds[2])
+{
+    int fd0, fd1;
+    file_t *f0, *f1;
+    ASSERTK(get_free(&fd0, &f0) >= 0);
+    ASSERTK(get_free(&fd1, &f1) >= 0);
+
+    node_t *n = malloc(sizeof(*n));
+    ASSERTK(n != NULL);
+
+    pipe_init(n);
+
+    f0->node = n;
+    f1->refer = 1;
+    f0->spec = S_PIPE_R;
+    f0->flgs = O_RDONLY;
+
+    f1->node = n;
+    f0->refer = 1;
+    f1->flgs = O_WRONLY;
+    f1->spec = S_PIPE_W;
+
+    fds[0] = fd0;
+    fds[1] = fd1;
 }
 
 #include <textos/dev.h>

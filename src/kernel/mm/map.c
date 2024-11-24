@@ -120,8 +120,6 @@ void vmap_map (u64 phy, u64 vrt, size_t num, u16 flgs, int mode)
         phy += pagesiz;
         vrt += pagesiz;
     }
-
-    __asm__ volatile ("invlpg (%0)" : : "r"(vrt) : "memory");
 }
 
 void vmap_init ()

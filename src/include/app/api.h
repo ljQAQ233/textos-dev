@@ -32,3 +32,4 @@ int dup(int fd);
 
 int dup2(int old, int new);
 
+int pipe(int fds[2]);
