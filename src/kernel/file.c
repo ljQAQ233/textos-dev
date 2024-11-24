@@ -112,7 +112,7 @@ ssize_t read(int fd, void *buf, size_t cnt)
         return -EBADF;
 
     int accm = file->flgs & O_ACCMODE;
-    if (accm != 0 && accm != O_ACCMODE)
+    if (accm == O_WRONLY)
         return -EBADF;
 
     int ret = file->node->opts->read(file->node, buf, cnt, file->offset);
