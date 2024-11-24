@@ -192,6 +192,9 @@ static addr_t _copy_pgtd(addr_t pg, int level)
         }
     }
 
+    if (level == L_PML4)
+        vnpg[R_IDX] = PE_S_ADDR(npg) | PE_RW | PE_P;
+
 done:
     break_pvpage(vpg);
     break_pvpage(vnpg);

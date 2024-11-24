@@ -195,6 +195,8 @@ int task_fork()
     chd->pwd = prt->pwd;
     chd->stat = TASK_PRE;
 
+    chd->init = prt->init;
+
     UNINTR_AREA_END();
 
     return chd->pid; // 父进程返回子进程号
