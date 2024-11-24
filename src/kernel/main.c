@@ -47,7 +47,6 @@ void kernel_main ()
 
     clock_init();
 
-    file_init();
     task_init();
     syscall_init();
     task_create(__init_proc, TC_USER | TC_TSK1);
