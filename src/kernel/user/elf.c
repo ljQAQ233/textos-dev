@@ -27,11 +27,14 @@ bool elf_check (Elf64_Ehdr *hdr)
 
 int elf_load (char *path, exeinfo_t *exe)
 {
+    int ret;
     node_t *elf;
-    vfs_open (NULL, &elf, path, 0);
+    if ((ret = vfs_open (NULL, &elf, path, 0)) < 0)
+        return ret;
 
     Elf64_Ehdr hdr;
-    vfs_read (elf, &hdr, sizeof(hdr), 0);
+    if ((ret = vfs_read (elf, &hdr, sizeof(hdr), 0)) < 0)
+        return ret;
     if (!elf_check(&hdr))
         return -ENOEXEC;
 
@@ -39,7 +42,8 @@ int elf_load (char *path, exeinfo_t *exe)
 
     size_t phdr_siz = hdr.e_phnum * hdr.e_phentsize;
     Elf64_Phdr *phdrs = malloc(phdr_siz);
-    vfs_read (elf, phdrs, phdr_siz, hdr.e_phoff);
+    if ((ret = vfs_read (elf, phdrs, phdr_siz, hdr.e_phoff)) < 0)
+        return ret;
 
     bool overlay = false;
     for (int i = 0 ; i < hdr.e_phnum ; i++)
