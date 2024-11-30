@@ -110,6 +110,8 @@ void free (void *addr)
     if (*hdr != *ftr)
         return;
 
+    ASSERTK(ALOC(*hdr));
+
     PUT(hdr, SET(SIZ(*hdr), false));
     PUT(ftr, SET(SIZ(*ftr), false));
 
@@ -130,11 +132,13 @@ static void _merge(block_t *hdr)
         PUT(hdr, SET(SIZ(*hdr) + SIZ(*next_hdr), false)); // Set hdr
         PUT(next_ftr, *hdr);                              // Set Ftr
     }
+
     if (!ALOC(*prev_ftr) && SIZ(*prev_ftr)) {
         block_t *prev_hdr = (void *)hdr - SIZ(*prev_ftr);
         ASSERTK(*prev_hdr == *prev_ftr);
         PUT(prev_hdr, SET(SIZ(*prev_hdr) + SIZ(*hdr), false));
-        PUT(ftr, *prev_hdr);
+        // 到这里, ftr 可能已经改变了. 所以不能直接写 ftr
+        PUT(OFFSET(prev_hdr, SIZ(*prev_hdr) - 4), *prev_hdr);
     }
 }
 
