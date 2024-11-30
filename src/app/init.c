@@ -8,6 +8,7 @@ char buf[64];
 void _start()
 {
     char *argv[] = {
+        "/cat.elf",
         "/config.ini",
         NULL,
     };

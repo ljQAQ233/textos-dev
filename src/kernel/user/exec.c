@@ -7,17 +7,16 @@
 #include <gdt.h>
 #include <string.h>
 
-char **duparg(char *pre, char *const arr[])
+char **duparg(char *const arr[])
 {
-    int n = 0, off = pre ? 1 : 0;
+    int n = 0;
     for ( ; arr[n] ; n++) ;
 
-    char **p = malloc(sizeof(void *) * (n+off+1));
+    char **p = malloc(sizeof(void *) * (n+1));
     for (int i = 0 ; i < n ; i++)
-        p[i+off] = strdup(arr[i]);
-    if (pre) p[0] = strdup(pre);
+        p[i] = strdup(arr[i]);
 
-    p[n+off] = NULL;
+    p[n] = NULL;
     return p;
 }
 
@@ -98,8 +97,8 @@ int sys_execve(char *path, char *const argv[], char *const envp[])
     int errno;
     exeinfo_t info;
 
-    char **argvk = duparg(path, argv),
-         **envpk = duparg(NULL, envp);
+    char **argvk = duparg(argv),
+         **envpk = duparg(envp);
 
     path = strdup(path);
     if ((errno = elf_load(path, &info)))
