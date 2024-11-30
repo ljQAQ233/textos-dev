@@ -43,6 +43,8 @@ typedef struct _Task {
 
     task_frame_t *frame;
     intr_frame_t *iframe;
+    int retval;
+    int waitpid;
 
     list_t sleeping;
     list_t waiting;
@@ -74,5 +76,9 @@ void task_sleep (u64 ticks);
 void task_block ();
 
 void task_unblock (int pid);
+
+void task_exit(int val);
+
+int task_wait(int pid, int *stat, int opt, void *rusage);
 
 #endif

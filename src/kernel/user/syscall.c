@@ -13,6 +13,8 @@ extern void sys_dup2();
 extern void sys_pipe();
 extern void sys_execve();
 extern void sys_fork();
+extern void sys_exit();
+extern void sys_wait4();
 extern void sys_test();
 extern void sys_getpid();
 extern void sys_getppid();
@@ -27,6 +29,8 @@ void *sys_handlers[] = {
     [SYS_pipe] = sys_pipe,
     [SYS_execve] = sys_execve,
     [SYS_fork] = sys_fork,
+    [SYS_exit] = sys_exit,
+    [SYS_wait4] = sys_wait4,
     [SYS_test] = sys_test,
     [SYS_getpid] = sys_getpid,
     [SYS_getppid] = sys_getppid,

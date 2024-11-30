@@ -47,6 +47,21 @@ int execve(char *path, char *const argv[], char *const envp[])
     return syscall(SYS_execve, path, argv, envp);
 }
 
+void _exit(int stat)
+{
+    syscall(SYS_exit, stat);
+}
+
+int wait4(int pid, int *stat, int opt, void *rusage)
+{
+    return syscall(SYS_wait4, pid, stat, opt, rusage);
+}
+
+int wait(int *stat)
+{
+    return wait4(-1, stat, 0, NULL);
+}
+
 ssize_t write(int fd, const void *buf, size_t cnt)
 {
     return syscall(SYS_write, fd, buf, cnt);

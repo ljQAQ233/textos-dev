@@ -6,6 +6,12 @@ int fork();
 
 int execve(char *path, char *const argv[], char *const envp[]);
 
+void _exit(int stat);
+
+int wait4(int pid, int *stat, int opt, void *rusage);
+
+int wait(int *stat);
+
 #define O_ACCMODE 0003 // 访问模式掩码
 #define O_RDONLY  00   // 只读
 #define O_WRONLY  01   // 只写

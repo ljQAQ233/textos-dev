@@ -1,3 +1,5 @@
+extern void _exit(int stat);
+
 __attribute__((weak))
 int main(int argc, const char *argv[], const char *envp[])
 {
@@ -14,9 +16,9 @@ void start0(long *args)
 
     __envp = envp;
 
-    main(argc, argv, envp);
+    _exit(main(argc, argv, envp));
 
-    while(1);
+    asm("ud2");
 }
 
 __attribute__((weak))

@@ -2,12 +2,12 @@
 #include <textos/task.h>
 #include <textos/mm/vmm.h>
 #include <textos/mm/pvpage.h>
+#include <textos/panic.h>
 #include <textos/assert.h>
 
 #include <string.h>
 
 #define TASK_MAX  16
-
 #define TASK_PAGE (1)
 #define TASK_SIZ  (PAGE_SIZ * TASK_PAGE)
 
@@ -200,6 +200,39 @@ int task_fork()
     UNINTR_AREA_END();
 
     return chd->pid; // 父进程返回子进程号
+}
+
+void task_exit(int val)
+{
+    task_t *tsk = task_current();
+    tsk->stat = TASK_DIE;
+    tsk->retval = val;
+
+    task_t *prt = table[tsk->ppid];
+    if (prt->stat == TASK_BLK && (prt->waitpid == tsk->pid || prt->waitpid == -1))
+    {
+        task_unblock(prt->pid);
+        prt->waitpid = tsk->pid;
+    }
+    DEBUGK(K_TASK, "exit %d\n", tsk->pid);
+
+    task_schedule();
+}
+
+int task_wait(int pid, int *stat, int opt, void *rusage)
+{
+    task_t *tsk = task_current();
+    if (pid >= -1) {
+        tsk->waitpid = pid;
+        task_block();
+    } else {
+        PANIC("unsupported pid - %d\n", pid);
+    }
+
+    int termd = tsk->waitpid;
+    tsk->waitpid = 0;
+
+    return termd;
 }
 
 static void _task_kern ()

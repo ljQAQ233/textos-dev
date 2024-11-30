@@ -13,7 +13,6 @@ int main(int argc, char *argv[])
         write(1, buf, siz);
     }
     close(fd);
-    while(1);
     return 0;
 }
 

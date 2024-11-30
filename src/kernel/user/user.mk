@@ -8,3 +8,5 @@ SRCS += user/pid.c
 SRCS += user/fork.c
 SRCS += user/file.c
 SRCS += user/exec.c
+SRCS += user/exit.c
+SRCS += user/wait.c

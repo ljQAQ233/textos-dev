@@ -1,6 +1,8 @@
 #include <app/sys.h>
 #include <app/api.h>
 
+#include <stdio.h>
+
 char buf[64];
 
 void _start()
@@ -14,16 +16,13 @@ void _start()
         NULL,
     };
 
-    int p[2];
-    pipe(p);
-
     int pid = fork();
     if (pid == 0) {
-        dup2(p[1], 1);
         execve("/cat.elf", argv, envp);
     } else {
-        int siz = read(p[0], buf, sizeof(buf));
-        write(1, buf, siz);
+        int stat;
+        int pchd = wait(&stat);
+        printf("chd %d exited : %d\n", pchd, stat);
         while(1);
     }
 
