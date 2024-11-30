@@ -8,8 +8,6 @@ char buf[64];
 void _start()
 {
     char *argv[] = {
-        "/cat.elf",
-        "/config.ini",
         NULL,
     };
     char *envp[] = {
@@ -17,6 +15,7 @@ void _start()
         NULL,
     };
 
+    /*
     int pid = fork();
     if (pid == 0) {
         execve("/cat.elf", argv, envp);
@@ -26,6 +25,8 @@ void _start()
         printf("chd %d exited : %d\n", pchd, stat);
         while(1);
     }
+    */
+    execve("/sh.elf", argv, envp);
 
     write(1, "execve failed!\n", 17);
     while(1);
