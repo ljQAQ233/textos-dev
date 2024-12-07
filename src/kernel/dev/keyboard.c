@@ -59,7 +59,7 @@ static void _ring_init()
 
 static char keycode[][2] = {
     { '\0'    , '\0'},  // (nul)
-    { '^'     , '^' },  // ESC
+    { '\e'    , '\e'},  // ESC
     { '1'     , '!' },
     { '2'     , '@' },
     { '3'     , '#' },
@@ -72,7 +72,7 @@ static char keycode[][2] = {
     { '0'     , ')' },
     { '-'     , '_' },
     { '='     , '+' },
-    { '\0'    , '\0'}, // BACKSPACE
+    { '\b'    , '\b'}, // BACKSPACE
     { '\t'    , '\t'},
     { 'q'     , 'Q' },
     { 'w'     , 'W' },

@@ -156,14 +156,33 @@ int getcmd(char *buf, int nbuf) {
     print("(sh-xv6) > ", NULL);
     for (int i = 0; i < nbuf; i++)
         buf[i] = '\0';
-
-    while (nbuf-- > 1) {
-        int nread = syscall(SYS_read, 0, buf, 1);
-        if (nread <= 0)
+    
+    char ch = 0;
+    char *p = buf;
+    while (nbuf > 1 && ch != '\n') {
+        int nread = syscall(SYS_read, 0, &ch, 1);
+        if (nread < 0)
             return -1;
-        if (*(buf++) == '\n')
-            break;
+        
+        if (ch == '\t')
+            ch = ' ';
+
+        if (ch == '\e') {
+            *p = '\0';
+            continue;
+        } else if (ch == '\b') {
+            if (buf < p)
+                *(p--) = '\0';
+            else
+                ch = 0;
+        } else {
+            *(p++) = ch;
+            nbuf--;
+        }
+        if (ch)
+            syscall(SYS_write, 1, &ch, 1);
     }
+
     return 0;
 }
 

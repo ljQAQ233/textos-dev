@@ -65,6 +65,12 @@ msyscall_exit:
     pop  rbx
     pop  rax
 
+    ; 涉及到 用户堆栈 的恢复, 如果发生 定时器中断
+    ; 则会直接使用 用户堆栈, 但是现在位于 ring0
+    ; 所以 并不会触发 栈切换, 索性就关掉好了
+    ; r11 寄存器的值在 sysret 时成为 rflags
+    cli
+
     add  rsp, 40
     pop  rbp      ; old rsp
     add  rsp, 8
