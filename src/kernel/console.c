@@ -14,6 +14,24 @@ void console_clear ()
     screen_clear();
 }
 
+void console_clrch (int xc, int yc)
+{
+    int x = xc * con.font->w,
+        y = yc * con.font->h;
+    int xe = x + con.font->w,
+        ye = y + con.font->h;
+    block_put(x, y, xe, ye, con.bg);
+}
+
+void console_clrln (int line)
+{
+    int x = 0,
+        y = line * con.font->h;
+    int xe = con.hor,
+        ye = y + con.font->h;
+    block_put(x, y, xe, ye, con.bg);
+}
+
 static int console_putc (char c)
 {
     switch (c)
@@ -27,9 +45,11 @@ static int console_putc (char c)
             return c;
         case '\r': // 将指针移动到 (0,CurY)
             con.cur_x = 0;
+            console_clrln(con.cur_y);
             return c;
         case '\b': // 将指针移动到 (CurX-1,CurY)
             con.cur_x = MAX (con.cur_x - 1, 0);
+            console_clrch(con.cur_x, con.cur_y);
             return c;
     }
 

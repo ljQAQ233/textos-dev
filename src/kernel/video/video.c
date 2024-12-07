@@ -4,15 +4,18 @@ static u32 hor, ver;
 static u32 *fb;
 static u64 fb_siz;
 
+#include <textos/assert.h>
+
 void pixel_put (
         u32 x,u32 y,
         u32 color
         )
 {
-    if (x > hor || y > hor) {
+    if (x >= hor || y >= ver) {
         return;
     }
 
+    ASSERTK(x + hor * y < fb_siz);
     u32 *pixel = fb + x + hor * y;
     *pixel = color;
 }
