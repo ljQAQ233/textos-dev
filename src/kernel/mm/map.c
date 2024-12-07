@@ -61,6 +61,12 @@ _vrt_entryget (u64 addr, int level)
     return NULL;
 }
 
+static inline void
+invlpg(addr_t vrt)
+{
+    __asm__ volatile ("invlpg (%0)" : : "r"(vrt) : "memory");
+}
+
 static void
 _map_walk (u64 phy, u64 vrt, u16 flgs, u64 *tab, int level, int mode)
 {
@@ -68,6 +74,7 @@ _map_walk (u64 phy, u64 vrt, u16 flgs, u64 *tab, int level, int mode)
 
     if (level == mode) {
         tab[idx] = PE_S_ADDR(phy) | PE_S_FLAGS(flgs);
+        invlpg(vrt);
         return;
     }
     else if (!(tab[idx] & PE_P))
@@ -76,7 +83,7 @@ _map_walk (u64 phy, u64 vrt, u16 flgs, u64 *tab, int level, int mode)
         ASSERTK (new != NULL);
 
         tab[idx] = PE_S_ADDR(new) | PE_RW | PE_P;
-        __asm__ volatile ("invlpg (%0)" : : "r"(tab) : "memory");
+        invlpg((addr_t)tab);
         new = _vrt_entryget (vrt, level - 1);
         memset (new, 0, PAGE_SIZ);
     }
@@ -186,7 +193,7 @@ static addr_t _copy_pgtd(addr_t pg, int level)
         if (vnpg[i])
         {
             addr_t paddr = _copy_pgtd(PE_V_ADDR(vnpg[i]), level - 1);
-            vnpg[i] = PE_V_FLAGS(vnpg[i]) | PE_V_ADDR(paddr);
+            vnpg[i] = PE_V_FLAGS(vnpg[i]) | PE_S_ADDR(paddr);
         }
     }
 
