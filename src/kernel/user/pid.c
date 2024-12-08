@@ -1,11 +1,12 @@
 #include <textos/task.h>
+#include <textos/syscall.h>
 
-int sys_getpid()
+RETVAL(int) sys_getpid()
 {
     return task_current()->pid;
 }
 
-int sys_getppid()
+RETVAL(int) sys_getppid()
 {
     return task_current()->ppid;
 }

@@ -1,6 +1,7 @@
 #include <textos/task.h>
+#include <textos/syscall.h>
 
-int sys_fork()
+RETVAL(int) sys_fork()
 {
     return task_fork();
 }

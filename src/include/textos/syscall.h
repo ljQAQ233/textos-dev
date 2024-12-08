@@ -34,6 +34,8 @@ enum nr_syscall
 
 #undef _SYSCALL
 
+#define RETVAL(x) long
+
 extern void msyscall_exit();
 
 #endif

@@ -42,8 +42,11 @@ void *sys_handlers[] = {
 
 __INTR_HANDLER(syscall_handler)
 {
-    if (frame->rax >= SYS_maxium)
+    int nr = frame->rax;
+    if (nr >= SYS_maxium)
         PANIC("syscall number was out of range!\n");
+    else
+        frame->rax = 0;
 
     __asm__ volatile (
             "movq %1, %%rdi\n" // arg0
@@ -54,10 +57,12 @@ __INTR_HANDLER(syscall_handler)
             "movq %6, %%r9 \n" // arg5
             "callq *%%rax\n"   // handler
             "movq %%rax, %0"
-            : "=a"(frame->rax)
-            : "m"(frame->rdi), "m"(frame->rsi), "m"(frame->rdx), "m"(frame->r10), "m"(frame->r8), "m"(frame->r9),
-              "a"(sys_handlers[frame->rax])               // 存放处理函数
-            : "%rdi", "%rsi", "%rdx", "r10", "r8", "r9"); // 如果不告诉 gcc 我们改变了哪些寄存器, 它就有可能用这些寄存器进行寻址...
+            :"=a"(frame->rax)
+            : "m"(frame->rdi), "m"(frame->rsi), "m"(frame->rdx),
+              "m"(frame->r10), "m"(frame->r8),  "m"(frame->r9),
+              "a"(sys_handlers[nr])    // 存放处理函数
+            : "%rdi", "%rsi", "%rdx",
+              "%r10", "%r8",  "%r9");   // 如果不告诉 gcc 我们改变了哪些寄存器, 它就有可能用这些寄存器进行寻址...
 }
 
 extern void msyscall_handler();

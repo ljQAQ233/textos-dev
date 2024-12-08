@@ -1,6 +1,7 @@
 
 #include <textos/mm.h>
 #include <textos/task.h>
+#include <textos/syscall.h>
 #include <textos/user/elf.h>
 #include <textos/user/exec.h>
 
@@ -92,7 +93,7 @@ void *build(void *bp, char *const argv[], char *const envp[])
     return bp;
 }
 
-int sys_execve(char *path, char *const argv[], char *const envp[])
+RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
 {
     int errno;
     exeinfo_t info;
