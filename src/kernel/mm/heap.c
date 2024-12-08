@@ -65,14 +65,13 @@ void *sbrk(int64 siz)
 
 void *malloc(size_t siz)
 {
-    u64 request = siz;
     if (siz == 0)
         return NULL;
-
-    block_t *curr = _heap.root;
-
     siz = _ALIGN(siz + sizeof(block_t) * 2, 8);
-    while (curr && (u64)curr < (u64)_heap.brk) {
+    
+    block_t *curr = _heap.root, *next;
+    for (;;)
+    {
         if (!ALOC(*curr)) {
             if (SIZ(*curr) > siz) {
                 PUT(OFFSET(curr, SIZ(*curr) - 4), SET(SIZ(*curr) - siz, false)); // Next free footer
@@ -90,13 +89,14 @@ void *malloc(size_t siz)
             }
         }
 
-        ASSERTK(*curr != 0);
-        curr = OFFSET(curr, SIZ(*curr));
+        next = OFFSET(curr, SIZ(*curr));
+        if (!((u64)next < (u64)_heap.brk))
+            _extend_heap(siz);
+        else
+            curr = next;
     }
 
-    _extend_heap(siz);
-    
-    return malloc(request);
+    return NULL;
 }
 
 void free (void *addr)
