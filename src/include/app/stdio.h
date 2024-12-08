@@ -13,4 +13,6 @@ int dprintf(int fd, char *format, ...);
 
 int vsprintf(char *buffer, const char *format, va_list args);
 
+void perror(const char *s);
+
 #endif

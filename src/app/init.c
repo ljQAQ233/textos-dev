@@ -15,6 +15,9 @@ void _start()
         NULL,
     };
 
+    int fd = open("/config", O_RDONLY);
+    perror(NULL);
+
     /*
     int pid = fork();
     if (pid == 0) {

@@ -194,4 +194,17 @@ void *memcpy (void *dest, const void *src, size_t n)
     return dest;
 }
 
+#include <assert.h>
+
+extern char *__get_errstr(int nr);
+
+/*
+    This string must not be modified by the application...
+*/
+char *strerror(int errnum)
+{
+    char *str = __get_errstr(errnum);
+    return str;
+}
+
 // TODO : Other functions in string.h

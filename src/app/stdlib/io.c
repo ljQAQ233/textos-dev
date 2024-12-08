@@ -1,5 +1,6 @@
 #include <app/api.h>
 #include <stdio.h>
+#include <errno.h>
 #include <string.h>
 
 // nobuffer
@@ -15,3 +16,11 @@ int puts(char *s)
     write(STDOUT_FILENO, s, len);
 }
 
+void perror(const char *s)
+{
+    char *err = strerror(errno);
+    char *spl = ": ";
+    if (!s)
+        spl = s = "";
+    dprintf(STDERR_FILENO, "%s%s%s\n", s, spl, err);
+}
