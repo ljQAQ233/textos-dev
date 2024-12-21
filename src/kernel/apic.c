@@ -59,9 +59,13 @@ void __apic_tovmm ()
 
 extern void task_schedule();
 
+
+size_t __ktick;
+
 __INTR_HANDLER(timer_handler)
 {
     lapic_sendeoi();
+    __ktick++;
 
     task_schedule();
 }

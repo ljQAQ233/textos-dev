@@ -9,7 +9,7 @@ SRCS := init.c main.c \
 		debug.c assert.c panic.c \
 		acpi.c apic.c dev.c \
 		console.c \
-		printk.c \
+		printk.c ktm.c \
 		task.c task.s file.c \
 		pwm.c lock.c
 
