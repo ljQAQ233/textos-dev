@@ -4,12 +4,15 @@
 global cpuid
 cpuid:
   push rbx ; 被调用方保存
-  
+
   mov rax, rdi          ; leaf
+  mov rdi, rdx
+  mov r9,  rcx
+
   cpuid
   mov dword [rsi], eax  ; eax
-  mov dword [rdx], ebx  ; ebx
-  mov dword [rcx], ecx  ; ecx
+  mov dword [rdi], ebx  ; ebx
+  mov dword [r9],  ecx  ; ecx
   mov dword [r8],  edx  ; edx
   
   pop  rbx
@@ -72,6 +75,18 @@ reload_segs:
   iretq
   .ret: ; iretq jump here
     ret ; recovery rip
+
+; u64 read_cr0 ();
+global read_cr0
+read_cr0:
+    mov rax, cr0
+    ret
+
+; void write_cr0 (u64 cr0);
+global write_cr0
+write_cr0:
+    mov cr0, rdi
+    ret
 
 ; u64 read_cr3 ();
 global read_cr3
