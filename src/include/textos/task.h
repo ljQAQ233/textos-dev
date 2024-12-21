@@ -48,6 +48,8 @@ typedef struct _Task {
 
     list_t sleeping;
     list_t waiting;
+
+    void *fpu;
 } task_t;
 
 #define TASK_DIE  0 // Dead

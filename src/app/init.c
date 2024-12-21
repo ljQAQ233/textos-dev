@@ -2,6 +2,7 @@
 #include <app/api.h>
 
 #include <stdio.h>
+#include <math.h>
 
 char buf[64];
 
@@ -17,6 +18,11 @@ void _start()
 
     int fd = open("/config", O_RDONLY);
     perror(NULL);
+
+    double x = cos(M_PI / 3);
+    x = x * 7;
+    x = x / 0;
+    x = x + 3;
 
     /*
     int pid = fork();

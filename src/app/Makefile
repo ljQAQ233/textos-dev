@@ -15,7 +15,8 @@ LIBSRC := \
   stdlib/string.c \
   stdlib/printf.c \
   stdlib/malloc.c \
-  stdlib/assert.c
+  stdlib/assert.c \
+  stdlib/math.c
 
 LIBOBJ := $(LIBSRC:.c=.o)
 LIBOBJ := $(addprefix ${APP_OUTPUT}/,${LIBOBJ})

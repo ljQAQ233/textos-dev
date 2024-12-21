@@ -33,6 +33,22 @@ void load_idt (void *idtr);
 
 void load_tss (u16 idx);
 
+#define CR0_PE  (1 << 0)
+#define CR0_MP  (1 << 1)
+#define CR0_EM  (1 << 2)
+#define CR0_TS  (1 << 3)
+#define CR0_ET  (1 << 4)
+#define CR0_NE  (1 << 5)
+#define CR0_WP  (1 << 16)
+#define CR0_AM  (1 << 18)
+#define CR0_NW  (1 << 29)
+#define CR0_CD  (1 << 30)
+#define CR0_PG  (1 << 31)
+
+u64 read_cr0 ();
+
+u64 write_cr0 (u64 cr0);
+
 u64 read_cr3 ();
 
 u64 write_cr3 (u64 cr3);

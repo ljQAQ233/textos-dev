@@ -1,6 +1,9 @@
 #ifndef __IRQ_H__
 #define __IRQ_H__
 
+#define INT_NM 0x07
+#define INT_MF 0x10
+
 #define INT_APIC_ERR 129 // error handler
 #define INT_APIC_SPS 130 // spurious handler
 

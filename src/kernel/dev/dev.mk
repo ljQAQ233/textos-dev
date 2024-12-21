@@ -10,5 +10,10 @@ SRCS += dev/clock.c
 
 SRCS += dev/disk/ide.c
 
+# fpu support
+
+SRCS += dev/fpu/fpu.c
+SRCS += dev/fpu/i387.s
+
 # pci devices
 SRCS += dev/pci.c

@@ -270,6 +270,8 @@ void __task_setif(void *iframe)
     task_current()->iframe = iframe;
 }
 
+extern void fpu_disable();
+
 extern void __task_switch (task_frame_t *next, task_frame_t **curr);
 
 static void update_sleep ();
@@ -299,6 +301,7 @@ Sched:
         curr->stat = TASK_PRE;    // Only the running task which will be switched out
     next->stat = TASK_RUN;
 
+    fpu_disable();
     tss_set(next->istk);
     write_msr(MSR_GS_BASE, (addr_t)next);
     write_cr3(next->pgt);
