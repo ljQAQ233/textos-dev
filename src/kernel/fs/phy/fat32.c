@@ -9,6 +9,7 @@
 #include <textos/klib/stack.h>
 #include <textos/panic.h>
 #include <textos/assert.h>
+#include <textos/dev/buffer.h>
 
 #define SECT_SIZ 512
 
@@ -342,57 +343,6 @@ static u64 _addr_get (sysinfo_t *sys, sentry_t *sent)
     return addr;
 }
 
-// static inline size_t _ValidChr (const char *Str)
-// {
-//     size_t i = 0;
-//     while (Str[i]) {
-//         if (Str[i] == ' ' || Str[i] == '/')
-//             break;
-//         i++;
-//     }
-
-//     return i;
-// }
-
-// static bool _Matchname (char *A, char *B)
-// {
-//     size_t LenA = _ValidChr(A),
-//            LenB = _ValidChr(B);
-//     if (LenA != LenB)
-//         return false;
-
-//     for (int i = 0; i < LenB; i++)
-//         if (A[i] != B[i])
-//             return false;
-
-//     return true;
-// }
-
-// /* 长目录项的 文件名 以及 拓展名 是合并存储的, 所以我们提供转换功能 , 此处还是使用宏来偷懒... */
-// #define _(m, c, fini, ptr)                                    \
-//     for (int i = 0; i < sizeof(m) / sizeof(*m); i++, (c)++) { \
-//         if (m[i] == 0xFFFF || *ptr == '/' || *ptr == 0)       \
-//             goto fini;                                        \
-//         if (m[i] != *ptr++)                                   \
-//             return false;                                     \
-//     }                                                         \
-
-// static inline bool _Matchnamel (EntryLong_t *Long, char **name, size_t *siz)
-// {
-//     char *ptr = *name;
-
-//     _(Long->name1, *siz, fini, ptr);
-//     _(Long->name2, *siz, fini, ptr);
-//     _(Long->name3, *siz, fini, ptr);
-
-// fini:
-//     *name = ptr;
-
-//     return (*ptr == 0 || *ptr == '/') ? true : false;
-// }
-
-// #undef _
-
 #define _(m, ptr)                                     \
     for (int i = 0; i < sizeof(m) / sizeof(*m); i++)  \
         if (m[i] == 0xFFFF)                           \
@@ -698,22 +648,23 @@ static void lookup_alloc (lookup_t *parent, lookup_t *lkp, stack_t *stk)
 {
     sysinfo_t *sys = parent->sys;
 
-    u32 *idxes = malloc (SECT_SIZ);
     u32 curr = parent->locator.clus;
     u32 prev = parent->locator.clus;
-    sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
-
     size_t start_idx = 0, curr_idx  = 0;
 
-    size_t Cnt = stack_siz (stk);
+    size_t cnt = stack_siz (stk);
     stack_init (&lkp->ents);
     list_init  (&lkp->locator.list);
     
     bool hit = false;
+    buffer_t *entsblk, *idxblk;
     while (true)
     {
-        sentry_t *ents = malloc(SECT_SIZ);
-        sys->dev->bread (sys->dev, DUMP_IS(sys, curr), ents, 1);
+        entsblk = bread(sys->dev, DUMP_IS(sys, curr));
+        idxblk = bread(sys->dev, TAB_IS(sys, curr));
+        sentry_t *ents =  entsblk->blk;
+        u32 *idxes = idxblk->blk;
+
 
         for (int i = 0 ; i < FAT_ENTRY_NR ; i++, curr_idx++)
         {
@@ -726,38 +677,21 @@ static void lookup_alloc (lookup_t *parent, lookup_t *lkp, stack_t *stk)
             }
 
             LOCATOR_ADD(&lkp->locator.list, curr, i);
-            if (curr_idx - start_idx + 1 == Cnt) {
+            if (curr_idx - start_idx + 1 == cnt) {
                 hit = true;
-                goto end;
+                break;
             }
         }
 
-        /* Reaches the end */
-        if (idxes[curr % FAT_ALOC_NR] == FAT_EOF)
-            goto end;
-        if (!(ALIGN_DOWN(curr, FAT_ALOC_NR) <= idxes[curr % FAT_ALOC_NR]
-              && idxes[curr % FAT_ALOC_NR] < ALIGN_DOWN(curr, FAT_ALOC_NR) + FAT_ALOC_NR))
-        {
-            u32 new = idxes[curr % FAT_ALOC_NR];
-            sys->dev->bread (
-                sys->dev,
-                TAB_IS(sys, idxes[curr]),
-                idxes, 1
-            );
-            prev = curr;
-            curr = new;
-        } else {
-            prev = curr;
-            curr = idxes[curr % FAT_ALOC_NR];
-        }
+        prev = curr;
+        curr = idxes[curr % FAT_ALOC_NR];
+        brelse(idxblk);
+        brelse(entsblk);
 
-        continue;
-
-    end:
-        free (ents);
-        break;
+        // reaches the end
+        if (curr == FAT_EOF)
+            break;
     }
-    free (idxes);
     
     if (!hit) {
         _expand_part (parent->node, 1, true);
@@ -785,13 +719,16 @@ static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
     
     sysinfo_t *sys = parent->sys;
     u32 curr = parent->locator.clus;
-    u32 *idxes = malloc (SECT_SIZ);
-    sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
 
+    bool find = false;
+
+    buffer_t *entsblk, *idxblk;
     while (true)
     {
-        sentry_t *ents = malloc (SECT_SIZ);
-        sys->dev->bread (sys->dev, DUMP_IS(sys, curr), ents, 1);
+        entsblk = bread(sys->dev, DUMP_IS(sys, curr));
+        idxblk = bread(sys->dev, TAB_IS(sys, curr));
+        sentry_t *ents = entsblk->blk;
+        u32 *idxes = idxblk->blk;
 
         for (int i = 0 ; i < SECT_SIZ / sizeof(sentry_t) ; i++)
         {
@@ -832,14 +769,18 @@ static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
 
             lkp->node = _analysis_entry (sys, &lkp->ents);
             if (target == NULL) {
-                if (idx-- == 0)
-                    goto brk;
+                if (idx-- == 0) {
+                    find = true;
+                    break;
+                }
                 goto lkp_rst;
             }
 
             size_t cmpsiz = (size_t)(strchrnul (target, '/') - target);
-            if (strncmp (target, lkp->node->name, cmpsiz) == 0)
-                goto brk;
+            if (strncmp (target, lkp->node->name, cmpsiz) == 0) {
+                find = true;
+                break;
+            }
 
         lkp_rst:
             vfs_release (lkp->node);
@@ -852,44 +793,21 @@ static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
             continue;
         }
 
-        /*
-           OK , all of the current ents have been handled,
-           if the next cluster index is in `idxes`, do nothing,
-           otherwise -> Read the sector which the index locates in
-        */
+        curr = idxes[curr % FAT_ALOC_NR];
+        brelse(idxblk);
+        brelse(entsblk);
 
-        /* Reaches the end */
-        if (idxes[curr % FAT_ALOC_NR] == FAT_EOF)
-            goto brk;
-        if (!(ALIGN_DOWN(curr, FAT_ALOC_NR) <= idxes[curr % FAT_ALOC_NR]
-              && idxes[curr % FAT_ALOC_NR] < ALIGN_DOWN(curr, FAT_ALOC_NR) + FAT_ALOC_NR))
-        {
-            u32 new = idxes[curr % FAT_ALOC_NR];
-            sys->dev->bread (
-                sys->dev,
-                TAB_IS(sys, idxes[curr]),
-                idxes, 1
-            );
-            curr = new;
-        } else {
-            curr = idxes[curr % FAT_ALOC_NR];
-        }
-
-        continue;
-    
-    brk:
-        free (ents);
-        break;
+        // reaches the end
+        if (curr == FAT_EOF || find)
+            break;
     }
 
-    free (idxes);
     if (!lkp->node) {
         free (lkp);
         lkp = NULL;
     } else {
         lkp->sys = parent->sys;
         lkp->locator.clus = DUMP_IC(sys, lkp->node->idx);
-        // Lookup->Locator.Cluster = DUMP_IC(sys, Lookup->Node->Addr);
     }
     return lkp;
 }
@@ -898,13 +816,14 @@ static void _lookup_all (lookup_t *parent, stack_t *child)
 {
     sysinfo_t *sys = parent->sys;
     u32 curr = parent->locator.clus;
-    u32 *idxes = malloc(SECT_SIZ);
-    sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
 
+    buffer_t *entsblk, *idxblk;
     while (true)
     {
-        sentry_t *ents = malloc (SECT_SIZ);
-        sys->dev->bread (sys->dev, DUMP_IS(sys, curr), ents, 1);
+        entsblk = bread(sys->dev, DUMP_IS(sys, curr));
+        idxblk = bread(sys->dev, TAB_IS(sys, curr));
+        sentry_t *ents = entsblk->blk;
+        u32 *idxes = idxblk->blk;
 
         for (int i = 0 ; i < SECT_SIZ / sizeof(sentry_t) ; i++)
         {
@@ -917,25 +836,12 @@ static void _lookup_all (lookup_t *parent, stack_t *child)
             continue;
         }
 
-        if (idxes[curr % FAT_ALOC_NR] == FAT_EOF)
-            goto brk;
-        if (!(ALIGN_DOWN(curr, FAT_ALOC_NR) <= idxes[curr % FAT_ALOC_NR]
-              && idxes[curr % FAT_ALOC_NR] < ALIGN_DOWN(curr, FAT_ALOC_NR) + FAT_ALOC_NR))
-        {
-            u32 new = idxes[curr % FAT_ALOC_NR];
-            sys->dev->bread (sys->dev, TAB_IS(sys, idxes[curr]), idxes, 1);
-            curr = new;
-        } else {
-            curr = idxes[curr % FAT_ALOC_NR];
-        }
-
-        continue;
-    brk:
-        free (ents);
-        break;
+        curr = idxes[curr % FAT_ALOC_NR];
+        brelse(idxblk);
+        brelse(entsblk);
+        if (curr == FAT_EOF)
+            break;
     }
-
-    free (idxes);
 }
 
 /* Write a stack `Update` according to the list in `Origin` */
@@ -943,42 +849,39 @@ static void lookup_save_common (lookup_t *ori, stack_t *update)
 {
     sysinfo_t *sys = ori->sys;
 
-    u32 prev = 0;
     list_t *head = &ori->locator.list;
 
     /* 逆向遍历, 顺应 stack */
     sentry_t *ents = malloc(SECT_SIZ);
+    buffer_t *entsblk;
     for (list_t *ptr = head->prev ; ptr != head ; ptr = ptr->prev) {
         locate_t *lct = CR (ptr, locate_t, list);
-        if (prev != lct->clus) {
-            /* 准备进入下一个扇区, 先保存 */
-            if (prev) {
-                sys->dev->bwrite (sys->dev, DUMP_IS(sys, prev), ents, 1);
-            }
-            prev = lct->clus;
-            sys->dev->bread (sys->dev, DUMP_IS(sys, prev), ents, 1);
-        }
+        entsblk = bread(sys->dev, DUMP_IS(sys, lct->clus));
 
         ASSERTK (lct->idx < 16);
         ASSERTK (stack_siz(update) != 0);
-        sentry_t *Member = stack_top(update);
-        memcpy (&ents[lct->idx], Member, sizeof(sentry_t));
+        sentry_t *member = stack_top(update);
+        sentry_t *ents = entsblk->blk;
+        memcpy (&ents[lct->idx], member, sizeof(sentry_t));
         stack_pop(update);
+
+        bdirty(entsblk, true);
+        brelse(entsblk);
     }
-    sys->dev->bwrite (sys->dev, DUMP_IS(sys, prev), ents, 1);
 }
 
 static void lookup_save_child (lookup_t *ori, stack_t *child)
 {
     sysinfo_t *sys = ori->sys;
     u32 curr = ori->locator.clus;
-    u32 *idxes = malloc (SECT_SIZ);
-    sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
 
+    buffer_t *entsblk, *idxblk;
     while (true)
     {
-        sentry_t *ents = malloc (SECT_SIZ);
-        sys->dev->bread (sys->dev, DUMP_IS(sys, curr), ents, 1);
+        idxblk = bread(sys->dev, TAB_IS(sys, curr));
+        entsblk = bread(sys->dev, DUMP_IS(sys, curr));
+        sentry_t *ents = idxblk->blk;
+        u32 *idxes = idxblk->blk;
 
         for (int i = 0 ; i < SECT_SIZ / sizeof(sentry_t) ; i++)
         {
@@ -990,28 +893,14 @@ static void lookup_save_child (lookup_t *ori, stack_t *child)
                 memset (&ents[i], 0, sizeof(sentry_t));
             }
         }
-        sys->dev->bwrite (sys->dev, DUMP_IS(sys, curr), ents, 1);
 
-        if (idxes[curr % FAT_ALOC_NR] == FAT_EOF)
-            goto brk;
-        if (!(ALIGN_DOWN(curr, FAT_ALOC_NR) <= idxes[curr % FAT_ALOC_NR]
-              && idxes[curr % FAT_ALOC_NR] < ALIGN_DOWN(curr, FAT_ALOC_NR) + FAT_ALOC_NR))
-        {
-            u32 new = idxes[curr % FAT_ALOC_NR];
-            sys->dev->bread (sys->dev, TAB_IS(sys, idxes[curr]), idxes, 1);
-            curr = new;
-        } else {
-            curr = idxes[curr % FAT_ALOC_NR];
-        }
-
-        continue;
-    
-    brk:
-        free (ents);
-        break;
+        curr = idxes[curr % FAT_ALOC_NR];
+        brelse(idxblk);
+        bdirty(entsblk, true);
+        brelse(entsblk);
+        if (curr == FAT_EOF)
+            break;
     }
-
-    free (idxes);
 }
 
 /* Erase ents which `Origin`'s list describes */
@@ -1026,20 +915,13 @@ static void lookup_save_erase (lookup_t *ori)
     sentry_t *ents = malloc (SECT_SIZ);
     for (list_t *ptr = head->prev ; ptr != head ; ptr = ptr->prev) {
         locate_t *lct = CR (ptr, locate_t, list);
-        if (prev != lct->clus) {
-            /* 准备进入下一个扇区, 先保存 */
-            if (!prev) {
-                prev = lct->clus;
-                sys->dev->bread (sys->dev, DUMP_IS(sys, prev), ents, 1);
-            }
-            
-            sys->dev->bwrite (sys->dev, DUMP_IS(sys, prev), ents, 1);
-        }
-
+        buffer_t *entsblk = bread(sys->dev, DUMP_IS(sys, lct->clus));
+        sentry_t *ents = entsblk->blk;
         ASSERTK (lct->idx < 16);
         ENTRY_ERASE(ents[lct->idx]);
+        bdirty(entsblk, true);
+        brelse(entsblk);
     }
-    sys->dev->bwrite (sys->dev, DUMP_IS(sys, prev), ents, 1);
 }
 
 /*
@@ -1265,10 +1147,7 @@ static int _read_content (node_t *n, void *buf, size_t readsiz, size_t offset)
     if (offset >= n->siz)
         return EOF;
     
-    u32 *idxes = malloc(sys->record->sec_siz);
-    u32  curr = DUMP_IC(sys, n->idx);
-    sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
-
+    u32 curr = DUMP_IC(sys, n->idx);
     size_t offset_sect = offset / SECT_SIZ,
            offset_byte = offset % SECT_SIZ;
     
@@ -1278,15 +1157,10 @@ static int _read_content (node_t *n, void *buf, size_t readsiz, size_t offset)
 
     for (int i = 0 ;  ; i++) {
         if (i >= offset_sect) {
-            void *tmp = malloc(sys->record->sec_siz);
-            sys->dev->bread (
-                sys->dev,
-                DUMP_IS(sys, curr),
-                tmp, 1
-            );
+            buffer_t *tmp = bread(sys->dev, DUMP_IS(sys, curr));
             size_t cpysiz = MIN(siz, offset_byte != 0 ? SECT_SIZ - offset_byte : MIN(siz, SECT_SIZ));
-            memcpy (buf, tmp + offset_byte, cpysiz);
-            free (tmp);
+            memcpy (buf, tmp->blk + offset_byte, cpysiz);
+            brelse(tmp);
 
             offset_byte = 0;
 
@@ -1297,21 +1171,14 @@ static int _read_content (node_t *n, void *buf, size_t readsiz, size_t offset)
             siz -= cpysiz;
         }
         
-        if (idxes[curr % FAT_ALOC_NR] == FAT_EOF)
-            goto end;
-        if (!(ALIGN_DOWN(curr, FAT_ALOC_NR) <= idxes[curr % FAT_ALOC_NR]
-              && idxes[curr % FAT_ALOC_NR] < ALIGN_DOWN(curr, FAT_ALOC_NR) + FAT_ALOC_NR))
-        {
-            u32 new = idxes[curr % FAT_ALOC_NR];
-            sys->dev->bread (
-                sys->dev,
-                TAB_IS(sys, idxes[curr % FAT_ALOC_NR]),
-                idxes, 1
-            );
-            curr = new;
-        } else {
-            curr = idxes[curr % FAT_ALOC_NR];
-        }
+        buffer_t *idxblk = bread(sys->dev, TAB_IS(sys, curr));
+        u32 *idxes = idxblk->blk;
+        curr = idxes[curr % FAT_ALOC_NR];
+        brelse(idxblk);
+
+        // reaches the end
+        if (curr == FAT_EOF)
+            break;
     }
 
 end:
@@ -1325,30 +1192,27 @@ static int fat32_read (node_t *this, void *buf, size_t siz, size_t offset)
 
 static size_t _alloc_part (sysinfo_t *sys)
 {
-    u32 *idxes = malloc(SECT_SIZ);
-
-    size_t res = 0 , curr = DUMP_IC(sys, sys->first_data_sec) + sys->free_next - 1;
+    buffer_t *idxblk;
+    size_t res = 0, curr = DUMP_IC(sys, sys->first_data_sec) + sys->free_next - 1;
     for ( ; ; )
     {
-        sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
+        idxblk = bread(sys->dev, TAB_IS(sys, curr));
+        u32 *idxes = idxblk->blk;
 
         for (int i = curr % FAT_ALOC_NR ; i < FAT_ALOC_NR ; i++, curr++) {
             if (idxes[i] == 0) {
                 idxes[i] = FAT_EOF;
-                sys->dev->bwrite (
-                    sys->dev,
-                    TAB_IS(sys, curr),
-                    idxes, 1
-                );
                 sys->free_next = curr + 1;
                 res = curr;
+                bdirty(idxblk, true);
+                brelse(idxblk);
                 goto fini;
             }
         }
+        brelse(idxblk);
     }
 
 fini:
-    free (idxes);
     return res == 0 ? 0 : DUMP_IS(sys, res);
 }
 
@@ -1357,6 +1221,8 @@ static size_t _expand_part (node_t *n, size_t cnt, bool append)
 {
     sysinfo_t *sys = n->sys;
     u32 curr, end;
+    
+    buffer_t *curblk;
     u32 *idxes_cur, *idxes_end;
 
     if (n->idx == 0) {
@@ -1369,26 +1235,21 @@ static size_t _expand_part (node_t *n, size_t cnt, bool append)
 
     // TODO: starts from head
     curr = DUMP_IC(sys, n->idx);
-    idxes_cur = malloc (SECT_SIZ);
 
-    sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes_cur, 1);
-
-    while (idxes_cur[curr % FAT_ALOC_NR] != FAT_EOF)
+    while (true)
     {
-        if (!(ALIGN_DOWN(curr, FAT_ALOC_NR) <= idxes_cur[curr % FAT_ALOC_NR]
-              && idxes_cur[curr % FAT_ALOC_NR] < ALIGN_DOWN(curr, FAT_ALOC_NR) + FAT_ALOC_NR))
-        {
-            u32 new = idxes_cur[curr % FAT_ALOC_NR];
-            sys->dev->bread (
-                sys->dev,
-                TAB_IS (sys, idxes_cur[curr % FAT_ALOC_NR]),
-                idxes_cur, 1
-            );
-            curr = new;
-        } else {
-            curr = idxes_cur[curr % FAT_ALOC_NR];
+        curblk = bread(sys->dev, TAB_IS(sys, curr));
+        idxes_cur = curblk->blk;
+
+        u32 next = idxes_cur[curr % FAT_ALOC_NR];
+        if (next == FAT_EOF) {
+            // brelse(curblk);
+            break;
         }
+        else
+            curr = next;
         
+        brelse(curblk);
         if (!append)
             if (--cnt == 0)
                 goto exit;
@@ -1398,25 +1259,26 @@ static size_t _expand_part (node_t *n, size_t cnt, bool append)
 
     for ( ; ; curr++)
     {
+        // next sector of FAT1
         if (curr % FAT_ALOC_NR == 0) {
-            if (idxes_cur == idxes_end)
-                idxes_cur = malloc (SECT_SIZ);
-            sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes_cur, 1);
+            bdirty(curblk, true);
+            brelse(curblk);
+            curblk = bread(sys->dev, TAB_IS(sys, curr));
+            idxes_cur = curblk->blk;
         }
 
-        /* Check if it is an available FAT1 entry */
+        // free data sector to use
         if (!idxes_cur[curr % FAT_ALOC_NR]) {
-            void *zero = malloc(SECT_SIZ);
-            memset (zero, 0, SECT_SIZ);
-            sys->dev->bwrite (sys->dev, DUMP_IS(sys, curr), zero, 1);
+            // zero the free sector
+            buffer_t *zero = bread(sys->dev, DUMP_IS(sys, curr));
+            memset(zero->blk, 0, SECT_SIZ);
+            bdirty(zero, true);
+            brelse(zero);
 
             idxes_end[end % FAT_ALOC_NR] = curr;
             if (idxes_end != idxes_cur) {
-                /* Save changes to disk */
-                sys->dev->bwrite (sys->dev, TAB_IS(sys, end), idxes_end, 1);
-
-                /* 这个空闲项已经作为一个节点链接到上一个索引, 也就是上一个结尾, 此时的结尾应该被更新 */
-                free (idxes_end);    // idxes_end != idxes_cur
+                // 这个空闲项已经作为一个节点链接到上一个索引,
+                // 也就是上一个结尾, 此时的结尾应该被更新
                 idxes_end = idxes_cur;
             }
             end = curr;
@@ -1427,17 +1289,11 @@ static size_t _expand_part (node_t *n, size_t cnt, bool append)
         if (cnt == 0) {
             idxes_end[end % FAT_ALOC_NR] = FAT_EOF;
             /* Save changes to disk */
-            sys->dev->bwrite (
-                sys->dev,
-                TAB_IS(sys, end),
-                idxes_end, 1
-            );
-            goto Complete;
+            brelse(curblk);
+            break;
         }
     }
 
-Complete:
-    free (idxes_cur);
 exit:
     return cnt;
 }
@@ -1467,9 +1323,7 @@ static int _write_content (node_t *n, void *buf, size_t writesiz, size_t offset)
 
     sysinfo_t *sys = n->sys;
 
-    u32 *idxes = malloc (SECT_SIZ);
     u32 curr = DUMP_IC(sys, n->idx);
-    sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
 
     size_t offset_sect = offset / SECT_SIZ,
            offset_byte = offset % SECT_SIZ;
@@ -1479,18 +1333,12 @@ static int _write_content (node_t *n, void *buf, size_t writesiz, size_t offset)
     for (size_t i = 0 ;  ; i++)
     {
         if (i >= offset_sect) {
-            void *ori = malloc (SECT_SIZ);
-            sys->dev->bread (sys->dev, DUMP_IS(sys, curr), ori, 1);
-
+            buffer_t *ori = bread(sys->dev, DUMP_IS(sys, curr));
             /* MIN 的意义在于 : Writesiz 可能比一个扇区的大小要小 */
             size_t cpysiz = MIN(siz, offset_byte != 0 ? SECT_SIZ - offset_byte : MIN(siz, SECT_SIZ));
-            memcpy (ori + offset_byte, buf, cpysiz);
-            sys->dev->bwrite (
-                sys->dev,
-                DUMP_IS(sys, curr),
-                ori, 1
-            );
-            free (ori);
+            memcpy (ori->blk + offset_byte, buf, cpysiz);
+            bdirty(ori, true);
+            brelse(ori);
 
             /* After using ByteOffset the first time, set it to zero */
             offset_byte = 0;
@@ -1501,27 +1349,20 @@ static int _write_content (node_t *n, void *buf, size_t writesiz, size_t offset)
                 goto end;
             siz -= cpysiz;
         }
-        /* Reaches the file's end */
-        if (idxes[curr % FAT_ALOC_NR] == FAT_EOF)
-            goto end;
-        if (!(ALIGN_DOWN(curr, FAT_ALOC_NR) <= idxes[curr % FAT_ALOC_NR]
-              && idxes[curr % FAT_ALOC_NR] < ALIGN_DOWN(curr, FAT_ALOC_NR) + FAT_ALOC_NR))
-        {
-            u32 new = idxes[curr % FAT_ALOC_NR];
-            sys->dev->bread (
-                sys->dev,
-                TAB_IS(sys, idxes[curr % FAT_ALOC_NR]),
-                idxes, 1
-            );
-            curr = new;
-        } else {
-            curr = idxes[curr % FAT_ALOC_NR];
-        }
+
+        buffer_t *idxblk = bread(sys->dev, TAB_IS(sys, curr));
+        u32 *idxes = idxblk->blk;
+        curr = idxes[curr % FAT_ALOC_NR];
+        bdirty(idxblk, true);
+        brelse(idxblk);
+
+        // reaches the end
+        if (curr == FAT_EOF)
+            break;
     }
 
 end:
     _com_sync (n, n);
-    free (idxes);
     return writesiz;
 }
 
@@ -1535,42 +1376,29 @@ static int fat32_write (node_t *this, void *buf, size_t siz, size_t offset)
 /*
     TODO : Test it
 
-    Cut 指定是否是截断操作
+    cut 指定是否是截断操作, cut == 0 仅当 start 为文件开头, 且释放所有数据块时
 */
 static void _release_data (sysinfo_t *sys, u32 start, bool cut)
 {
-    u32 *idxes = malloc(SECT_SIZ);
     u32 curr = start;
-    sys->dev->bread (sys->dev, TAB_IS(sys, curr), idxes, 1);
-
     u32 stat = cut ? FAT_EOF : 0;
     
     while (true)
     {
+        buffer_t *idxblk = bread(sys->dev, TAB_IS(sys, curr));
+        u32 *idxes = idxblk->blk;
         if (idxes[curr % FAT_ALOC_NR] == FAT_EOF)
         {
-            u32 iblk_curr = TAB_IS(sys, curr);
-            sys->dev->bwrite (sys->dev, iblk_curr, idxes, 1);
+            bdirty(idxblk, true);
+            brelse(idxblk);
             break;
         }
-        
-        if (!(ALIGN_DOWN(curr, FAT_ALOC_NR) <= idxes[curr % FAT_ALOC_NR]
-              && idxes[curr % FAT_ALOC_NR] < ALIGN_DOWN(curr, FAT_ALOC_NR) + FAT_ALOC_NR))
-        {
-            u32 next = IDX_ERASE(idxes[curr % FAT_ALOC_NR], stat);
-            u32 iblk_next = TAB_IS(sys, idxes[next % FAT_ALOC_NR]);
-            u32 iblk_curr = TAB_IS(sys, curr);
 
-            sys->dev->bwrite (sys->dev, iblk_curr, idxes, 1);
-            sys->dev->bread  (sys->dev, iblk_next, idxes, 1);
-            curr = next;
-        } else {
-            curr = IDX_ERASE(idxes[curr % FAT_ALOC_NR], stat);
-        }
+        curr = IDX_ERASE(idxes[curr % FAT_ALOC_NR], stat);
+        bdirty(idxblk, true);
+        brelse(idxblk);
         stat = 0;
     }
-
-    free(idxes);
 }
 
 static int fat32_remove (node_t *this)

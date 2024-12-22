@@ -8,6 +8,7 @@ SRCS += dev/clock.c
 
 # disk drivers
 
+SRCS += dev/disk/buffer.c
 SRCS += dev/disk/ide.c
 
 # fpu support

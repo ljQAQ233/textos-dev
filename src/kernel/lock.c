@@ -31,7 +31,7 @@ void sema_down(semaphore_t *s)
 {
     UNINTR_AREA_START();
 
-    if (s->val == 0) {
+    while (s->val == 0) {
         list_insert(&s->waiter, &task_current()->waiting);
         task_block();
     }

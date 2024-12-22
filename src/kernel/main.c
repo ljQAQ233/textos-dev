@@ -16,6 +16,7 @@ extern void apic_init();
 extern void dev_init();
 extern void keyboard_init();
 extern void ide_init();
+extern void buffer_init();
 extern void pci_init();
 extern void fpu_init();
 extern void clock_init();
@@ -44,6 +45,7 @@ void kernel_main ()
     dev_init();
     keyboard_init();
     ide_init();
+    buffer_init();
     pci_init();
     fpu_init();
 

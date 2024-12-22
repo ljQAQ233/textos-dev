@@ -128,6 +128,7 @@ fini:
 int vfs_open (node_t *parent, node_t **node, const char *path, u64 args)
 {
     ASSERTK (!parent || CKDIR(parent));
+    DEBUGK(K_FS, "try to open %s\n", path);
 
     int ret = _vfs_open (parent, node, (char *)path, args);
     if (ret < 0)
