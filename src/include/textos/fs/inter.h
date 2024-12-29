@@ -50,7 +50,18 @@ typedef struct _packed
             res = false;                    \
         }                                   \
         return res;                         \
-    }                                       \
+    }
+
+#define _UTIL_CMP()                                       \
+    static bool _cmp(char *A, char *B)                    \
+    {                                                     \
+        size_t lenA = MIN(strlen(A), strchr(A, '/') - A); \
+        size_t lenB = MIN(strlen(B), strchr(B, '/') - B); \
+        if (lenA != lenB) return false;                   \
+        for (size_t i = 0; i < lenB; i++)                 \
+            if (A[i] != B[i]) return false;               \
+        return true;                                      \
+    }
 
 #define CKDIR(n) ((n)->attr & NA_DIR)
 

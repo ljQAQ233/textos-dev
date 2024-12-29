@@ -12,6 +12,7 @@ enum {
 enum {
     VFS_CREATE = 0x01,
     VFS_DIR    = 0x02,
+    VFS_GAIN   = 0x04,
 };
 
 struct node;
@@ -26,7 +27,7 @@ typedef struct {
     int  (*write)(node_t *this, void *buf, size_t siz, size_t offset);
     int  (*truncate)(node_t *this, size_t offset);
     /* 文件夹操作 */
-    int  (*readdir)(node_t *this);
+    int  (*readdir)(node_t *this, node_t **res, size_t idx);
 } fs_opts_t;
 
 struct node {
@@ -65,7 +66,7 @@ extern int vfs_truncate (node_t *this, size_t offset);
 
 extern int vfs_release (node_t *this);
 
-extern int vfs_readdir (node_t *this);
+extern int vfs_readdir (node_t *this, node_t **res, size_t idx);
 
 extern node_t *vfs_test (node_t *start, char *path, node_t **last, char **lastpath);
 

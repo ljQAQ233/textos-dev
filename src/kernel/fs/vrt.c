@@ -76,6 +76,16 @@ fini:
     return res;
 }
 
+node_t *vfs_exist(node_t *dir, char *path)
+{
+    for (node_t *ptr = dir->child ; ptr ; ptr = ptr->next) {
+        if (_cmp(ptr->name, path))
+            return ptr;
+    }
+
+    return NULL;
+}
+
 #define INIT_OPT(x) (x = (void *)noopt_handler)
 
 void noopt_handler(node_t *node)
@@ -98,20 +108,23 @@ void vfs_initops (fs_opts_t *opts)
 /* return-value for interfaces */
 #include <textos/errno.h>
 
-static int _vfs_open (node_t *parent, node_t **node, char *path, u64 args)
+static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args)
 {
-    /* 为 Open 扫一些障碍! */
-    if (!parent) parent = _fs_root;
-    if (path[0] == '/') parent = _fs_root;
-    while (*path == '/') path++;
-
     int ret = 0;
     node_t *res;
-    node_t *start;
-    if ((res = vfs_test (parent, path, &start, &path)))
+
+    if (_cmp(path, ".")) {
+        res = dir;
+        goto fini;
+    } else if (_cmp(path, "..")) {
+        res = dir->parent;
+        goto fini;
+    }
+
+    if ((res = vfs_exist(dir, path)))
         goto fini;
 
-    ret = start->opts->open (start, path, args, &res);
+    ret = dir->opts->open (dir, path, args, &res);
     if (ret < 0) {
         res = NULL;
         goto fini;
@@ -125,12 +138,54 @@ fini:
     return ret;
 }
 
+static int _vfs_walk (node_t *start, node_t **node, char *path, u64 args)
+{
+    /* 为 Open 扫一些障碍! */
+    if (!start) start = _fs_root;
+    if (path[0] == '/') start = _fs_root;
+    while (*path == '/') path++;
+
+    node_t *cur = start;
+    for ( ; ; )
+    {
+        if (!path[0])
+            break;
+
+        char *nxt = _next(path);
+        node_t *chd;
+        int ret;
+        if (!nxt[0]) {
+            ret = _vfs_open(cur, &chd, path, args);
+        } else {
+            if (~cur->attr & NA_DIR)
+                return -ENOTDIR;
+            ret = _vfs_open(cur, &chd, path, VFS_GAIN);
+        }
+
+        if (ret < 0)
+            return ret;
+        
+        cur = chd;
+        path = nxt;
+    }
+
+    *node = cur;
+    return 0;
+}
+
 int vfs_open (node_t *parent, node_t **node, const char *path, u64 args)
 {
     ASSERTK (!parent || CKDIR(parent));
     DEBUGK(K_FS, "try to open %s\n", path);
 
-    int ret = _vfs_open (parent, node, (char *)path, args);
+    int ret = _vfs_walk (parent, node, (char *)path, args);
+    node_t *opened = *node;
+    if (opened && !(args & VFS_GAIN)) {
+        if (opened->attr & NA_REG && args & VFS_DIR)
+            ret = -ENOTDIR;
+        else if (opened->attr & NA_DIR && ~args & VFS_DIR)
+            ret = -EISDIR;
+    }
     if (ret < 0)
         DEBUGK(K_FS, "failed to open %s (%#x) - ret : %d\n", path, args, ret);
 
@@ -218,12 +273,12 @@ fini:
     return 0;
 }
 
-int vfs_readdir (node_t *this)
+int vfs_readdir (node_t *this, node_t **res, size_t idx)
 {
     ASSERTK (!this || CKDIR(this));
     if (!this) this = _fs_root;
 
-    int ret = this->opts->readdir (this);
+    int ret = this->opts->readdir (this, res, idx);
     if (ret < 0)
         DEBUGK(K_FS, "read directory failed - ret : %d\n", ret);
 

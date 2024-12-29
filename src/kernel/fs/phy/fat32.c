@@ -148,7 +148,7 @@ static int fat32_remove (node_t *this);
 static int fat32_read (node_t *this, void *buf, size_t siz, size_t offset);
 static int fat32_write (node_t *this, void *buf, size_t siz, size_t offset);
 static int fat32_truncate (node_t *this, size_t offset);
-static int fat32_readdir (node_t *this);
+static int fat32_readdir (node_t *this, node_t **res, size_t idx);
 
 fs_opts_t __fat32_opts = {
     .open = fat32_open,
@@ -709,6 +709,8 @@ static void _lookup_release (lookup_t *lkp)
         vfs_release (lkp->node);
 }
 
+_UTIL_CMP();
+
 static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
 {
     lookup_t *lkp = malloc (sizeof(lookup_t));
@@ -777,7 +779,7 @@ static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
             }
 
             size_t cmpsiz = (size_t)(strchrnul (target, '/') - target);
-            if (strncmp (target, lkp->node->name, cmpsiz) == 0) {
+            if (_cmp (target, lkp->node->name)) {
                 find = true;
                 break;
             }
@@ -976,7 +978,7 @@ static void _com_sync (node_t *before, node_t *after)
 static sentry_t dirhead_1 = { ".          ", FA_DIR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static sentry_t dirhead_2 = { "..         ", FA_DIR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-static node_t *_create (node_t *parent, char *name, size_t siz, int attr, u64 addr)
+static node_t *_create (node_t *parent, char *name, int attr)
 {
     node_t *child = malloc (sizeof(node_t));
     memset (child, 0, sizeof(node_t));
@@ -987,8 +989,6 @@ static node_t *_create (node_t *parent, char *name, size_t siz, int attr, u64 ad
 
     child->name = strdup(name);
     child->attr = attr;
-    child->siz  = siz;
-    child->idx = addr;
     
     /* update parent's & child's nodes */
     child->next = parent->child;
@@ -1039,42 +1039,25 @@ _UTIL_PATH_DIR();
     @param Path  搜索对象文件名指针
     @param Last  最后一个可以被索引的已加载的文件节点
 */
-static node_t *fat32_pathwalk (node_t *start, char **path, node_t **last)
+static node_t *_fat32_open (node_t *start, char *path)
 {
     sysinfo_t *sys = start->sys;
-    lookup_t *ori = LKP_ORI(start);
-    lookup_t *lkp = ori;
-
-    /* last 是最后可以被索引的已加载的文件节点 */
-    *last = start;
-
+    lookup_t *lkp = LKP_ORI(start);
     node_t *res = NULL;
-    for (;;)
-    {
-        char *nxt = _next(*path);
 
-        lkp = lookup_entry (lkp, *path, 0);
-        if (!lkp)
-            goto end;
+    lkp = lookup_entry(lkp, path, 0);
+    if (!lkp)
+        goto end;
+    res = lkp->node;
 
-        if (nxt[0] == 0) {
-            res = lkp->node;
-            break;
-        }
+    stack_fini(&lkp->ents);
+    free(lkp);
 
-        *path = nxt;
-        *last = lkp->node;
-
-        stack_fini (&lkp->ents);
-        free (lkp);
-    }
-
-    /* 物理文件系统 "无关" 的基本信息 */
     res->parent = start;
     res->opts = start->opts;
     res->sys = start->sys;
     res->systype = start->systype;
-    /* 挂载到父节点 */
+
     res->next = start->child;
     start->child = res;
 
@@ -1087,20 +1070,11 @@ end:
 static int fat32_open (node_t *parent, char *path, u64 args, node_t **result)
 {
     int ret = 0;
+    node_t *opened;
 
-    node_t *ori = parent;
-    /* Last 是最后可以被索引的已加载的 文件节点 */
-    node_t *last, *opened;
-    /* retval NULL stands for 'Not Exists' */
-    opened = fat32_pathwalk (ori, &path, &last);
+    opened = _fat32_open(parent, path);
     if (opened)
-    {
-        if (opened->attr & NA_REG && args & VFS_DIR)
-            ret = -ENOTDIR;
-        else if (opened->attr & NA_DIR && ~args & VFS_DIR)
-            ret = -EISDIR;
         goto end;
-    }
 
     if (args & VFS_CREATE)
     {
@@ -1118,7 +1092,7 @@ static int fat32_open (node_t *parent, char *path, u64 args, node_t **result)
             attr |= NA_DIR;
         else
             attr |= NA_REG;
-        opened = _create (last, path, 0, attr, 0);
+        opened = _create (parent, path, attr);
     }
     else
     {
@@ -1440,42 +1414,42 @@ static int fat32_truncate (node_t *this, size_t offset)
 /* TODO : ret-val */
 static int fat32_mkdir (node_t *parent, char *name)
 {
-   node_t *dir = _create (parent, name, 0, NA_DIR, 0);
+   node_t *dir = _create (parent, name, NA_DIR);
    if (!dir)
        return -1;
 
    return 0;
 }
 
-static int fat32_readdir (node_t *this)
+static int fat32_readdir (node_t *this, node_t **res, size_t idx)
 {
-    int cnt = 0;
-
-    lookup_t *lkp,
-             *par = LKP_ORI(this);
+    lookup_t *lkp, *par = LKP_ORI(this);
     /* 根据索引查找之后对其进行 vfs 层面的链接 */
-    while ((lkp = lookup_entry (par, NULL, cnt)) != NULL) {
-        ASSERTK (lkp->node != NULL);
 
-        node_t *chd = lkp->node;
-        if (vfs_test (this, chd->name, NULL, NULL)) {
-            vfs_release (chd);
-        } else {
-            /* 物理文件系统 "无关" 的基本信息 */
-            chd->parent = this;
-            chd->opts = this->opts;
-            chd->sys = this->sys;
-            chd->systype = this->systype;
-            /* 挂载到父节点 */
-            chd->next = this->child;
-            this->child = chd;
-        }
-        
-        cnt++;
-        stack_fini (&lkp->ents);
-        free (lkp);
+    *res = NULL;
+
+    lkp = lookup_entry(par, NULL, idx);
+    if (lkp == NULL)
+        return -1;
+
+    node_t *chd = lkp->node;
+    if (vfs_test(this, chd->name, NULL, NULL)) {
+        vfs_release(chd);
+    } else {
+        /* 物理文件系统 "无关" 的基本信息 */
+        chd->parent = this;
+        chd->opts = this->opts;
+        chd->sys = this->sys;
+        chd->systype = this->systype;
+        /* 挂载到父节点 */
+        chd->next = this->child;
+        this->child = chd;
     }
 
-    return cnt;
+    stack_fini(&lkp->ents);
+    free(lkp);
+
+    *res = chd;
+    return 0;
 }
 
