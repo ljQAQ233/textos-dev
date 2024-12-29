@@ -88,7 +88,7 @@ void *build(void *bp, char *const argv[], char *const envp[])
     copyarg(nargv, str_argv, argv, &len, &nargc);
 
     bp -= N * 1; // argc
-    (*(int *)bp) = nargc + 1;
+    (*(int *)bp) = nargc;
 
     return bp;
 }
