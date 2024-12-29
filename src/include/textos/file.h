@@ -15,6 +15,13 @@ typedef struct {
     int refer;
 } file_t;
 
+typedef struct dirent
+{
+    int idx;
+    size_t siz;
+    size_t len;
+    char name[];
+} dir_t;
 
 #define S_IFMT 0170000
 
@@ -59,8 +66,11 @@ int open(char *path, int flgs);
 #define O_EXCL   02000 // 互斥创建
 #define O_TRUNC  01000 // 截断
 #define O_APPEND 0010  // 末尾追加
+#define O_DIRECTORY 0200000
 
 ssize_t write(int fd, void *buf, size_t cnt);
+
+ssize_t readdir(int fd, void *buf, size_t mx);
 
 ssize_t read(int fd, void *buf, size_t cnt);
 

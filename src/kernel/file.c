@@ -34,6 +34,8 @@ static inline u64 parse_args(int x)
     int v = 0;
     if (x & O_CREAT)
         v |= VFS_CREATE;
+    if (x & O_DIRECTORY)
+        v |= VFS_DIR;
 
     return v;
 }
@@ -80,11 +82,50 @@ ssize_t write(int fd, void *buf, size_t cnt)
     return cnt;
 }
 
+#include <string.h>
+
+ssize_t readdir(int fd, void *buf, size_t mx)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+        
+    int accm = file->flgs & O_ACCMODE;
+    if (accm == O_WRONLY)
+        return -EBADF;
+
+    size_t cnt = 0;
+    while (true) {
+        node_t *chd;
+        if (file->node->opts->readdir(file->node, &chd, file->offset) < 0)
+            break;
+
+        size_t len = strlen(chd->name);
+        size_t siz = sizeof(dir_t) + len + 1;
+        if (cnt + siz > mx)
+            break;
+
+        dir_t *dir = buf;
+        dir->idx = file->offset;
+        dir->siz = siz;
+        dir->len = len;
+        strcpy(dir->name, chd->name);
+
+        cnt += siz;
+        buf += siz;
+        file->offset += 1;
+    }
+    return cnt;
+}
+
 ssize_t read(int fd, void *buf, size_t cnt)
 {
     file_t *file = task_current()->files[fd];
     if (!file)
         return -EBADF;
+
+    if (file->flgs & O_DIRECTORY)
+        return readdir(fd, buf, cnt);
 
     int accm = file->flgs & O_ACCMODE;
     if (accm == O_WRONLY)

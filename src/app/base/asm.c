@@ -77,6 +77,11 @@ ssize_t read(int fd, void *buf, size_t cnt)
     return syscall(SYS_read, fd, buf, cnt);
 }
 
+ssize_t readdir(int fd, void *buf, size_t mx)
+{
+    return syscall(SYS_readdir, fd, buf, mx);
+}
+
 int close(int fd)
 {
     return syscall(SYS_close, fd);

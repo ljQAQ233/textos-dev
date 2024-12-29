@@ -5,6 +5,7 @@
 #include <textos/syscall.h>
 
 extern void sys_read();
+extern void sys_readdir();
 extern void sys_write();
 extern void sys_open();
 extern void sys_close();
@@ -22,6 +23,7 @@ extern void sys_getppid();
 
 void *sys_handlers[] = {
     [SYS_read] = sys_read,
+    [SYS_readdir] = sys_readdir,
     [SYS_write] = sys_write,
     [SYS_open] = sys_open,
     [SYS_close] = sys_close,

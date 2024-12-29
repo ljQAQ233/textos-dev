@@ -11,6 +11,11 @@ RETVAL(ssize_t) sys_write(int fd, void *buf, size_t cnt)
     return write(fd, buf, cnt);
 }
 
+RETVAL(ssize_t) sys_readdir(int fd, void *buf, size_t mx)
+{
+    return readdir(fd, buf, mx);
+}
+
 RETVAL(ssize_t) sys_read(int fd, void *buf, size_t cnt)
 {
     return read(fd, buf, cnt);
