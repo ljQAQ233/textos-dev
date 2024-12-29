@@ -82,6 +82,11 @@ int close(int fd)
     return syscall(SYS_close, fd);
 }
 
+int stat(char *path, stat_t *sb)
+{
+    return syscall(SYS_stat, path, sb);
+}
+
 int dup(int fd)
 {
     return syscall(SYS_dup, fd);

@@ -6,6 +6,7 @@
     _(write, 1),         \
     _(open, 2),          \
     _(close, 3),         \
+    _(stat, 4),          \
     _(execve, 11),       \
     _(getpid, 20),       \
     _(pipe, 22),         \

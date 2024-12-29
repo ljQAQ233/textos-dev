@@ -21,6 +21,11 @@ RETVAL(int) sys_close(int fd)
     return close(fd);
 }
 
+RETVAL(int) sys_stat(char *path, stat_t *sb)
+{
+    return stat(path, sb);
+}
+
 RETVAL(int) sys_dup(int fd)
 {
     return dup(fd);

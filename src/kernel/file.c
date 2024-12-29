@@ -116,6 +116,24 @@ int close(int fd)
     return ret;
 }
 
+int stat(char *path, stat_t *sb)
+{
+    int ret;
+    node_t *node;
+    
+    ret = vfs_open(task_current()->pwd, &node, path, VFS_GAIN);
+    if (ret < 0)
+        return ret;
+
+    int mode = 0;
+    if (node->attr & NA_DIR)
+        mode |= S_IFDIR;
+
+    sb->siz = node->siz;
+    sb->mode = mode;
+    return 0;
+}
+
 int dup2(int old, int new)
 {
     file_t **ft = task_current()->files;
