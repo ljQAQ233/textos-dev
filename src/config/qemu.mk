@@ -14,7 +14,7 @@ QEMU_LOG ?= file:$(OUTPUT)/qemu.log
 MEM = 64M
 
 # Qemu Common Args
-QEMU_FLAGS := -hda $(IMG_OUTPUT) \
+QEMU_FLAGS := -hda $(IMG) \
 			   -net none \
 			   -cpu qemu64,+x2apic \
 			   -m $(MEM) \

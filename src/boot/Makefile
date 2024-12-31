@@ -65,7 +65,7 @@ build: prepare
 update: BOOT_OUTPUT:=$(BOOT_OUTPUT)/SIGMA_$(ARCH)
 update: EXEC_OUTPUT:=$(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/$(ARCH)/$(PLATFORM_NAME)
 update:
-	@if ! test -f $(EXEC_OUTPUT); then \
+	@if ! test -f $(EXEC_OUTPUT).efi ; then \
 		make -C .. boot \
 	;elif ! $(UTILS)/chkmodify.sh $(PROJ) >/dev/null 2>&1;then \
 		make -C .. boot \
