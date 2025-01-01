@@ -78,8 +78,8 @@ ssize_t write(int fd, void *buf, size_t cnt)
     if (ret < 0)
         return ret;
     
-    file->offset += cnt;
-    return cnt;
+    file->offset += ret;
+    return ret;
 }
 
 #include <string.h>
@@ -135,8 +135,8 @@ ssize_t read(int fd, void *buf, size_t cnt)
     if (ret < 0)
         return -1;
     
-    file->offset += cnt;
-    return cnt;
+    file->offset += ret;
+    return ret;
 }
 
 int close(int fd)
