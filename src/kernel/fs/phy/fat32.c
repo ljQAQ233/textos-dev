@@ -15,7 +15,9 @@
 
 #include <string.h>
 
-#define FAT_EOF 0x0FFFFFFF      // EOF in FAT1
+#define EOC 0x0FFFFFFF
+// end-of-cluster marker
+#define IS_EOC(val) (0x0FFFFFF8 <= val && val <= 0x0FFFFFFF) 
 
 /* Biso parameter block */
 typedef struct _packed
@@ -665,7 +667,6 @@ static void lookup_alloc (lookup_t *parent, lookup_t *lkp, stack_t *stk)
         sentry_t *ents =  entsblk->blk;
         u32 *idxes = idxblk->blk;
 
-
         for (int i = 0 ; i < FAT_ENTRY_NR ; i++, curr_idx++)
         {
             /* 希望它 free */
@@ -689,13 +690,13 @@ static void lookup_alloc (lookup_t *parent, lookup_t *lkp, stack_t *stk)
         brelse(entsblk);
 
         // reaches the end
-        if (curr == FAT_EOF)
+        if (IS_EOC(curr))
             break;
     }
     
     if (!hit) {
         _expand_part (parent->node, 1, true);
-        lookup_alloc (parent, lkp, &lkp->ents);
+        lookup_alloc (parent, lkp, stk);
     }
 }
 
@@ -800,7 +801,7 @@ static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
         brelse(entsblk);
 
         // reaches the end
-        if (curr == FAT_EOF || find)
+        if (IS_EOC(curr) || find)
             break;
     }
 
@@ -841,7 +842,7 @@ static void _lookup_all (lookup_t *parent, stack_t *child)
         curr = idxes[curr % FAT_ALOC_NR];
         brelse(idxblk);
         brelse(entsblk);
-        if (curr == FAT_EOF)
+        if (IS_EOC(curr))
             break;
     }
 }
@@ -882,7 +883,7 @@ static void lookup_save_child (lookup_t *ori, stack_t *child)
     {
         idxblk = bread(sys->dev, TAB_IS(sys, curr));
         entsblk = bread(sys->dev, DUMP_IS(sys, curr));
-        sentry_t *ents = idxblk->blk;
+        sentry_t *ents = entsblk->blk;
         u32 *idxes = idxblk->blk;
 
         for (int i = 0 ; i < SECT_SIZ / sizeof(sentry_t) ; i++)
@@ -900,7 +901,7 @@ static void lookup_save_child (lookup_t *ori, stack_t *child)
         brelse(idxblk);
         bdirty(entsblk, true);
         brelse(entsblk);
-        if (curr == FAT_EOF)
+        if (IS_EOC(curr))
             break;
     }
 }
@@ -1065,8 +1066,6 @@ end:
     return res;
 }
 
-
-/* 拿到的应该是干净的 路径 , 不以 '/' 开头 */
 static int fat32_open (node_t *parent, char *path, u64 args, node_t **result)
 {
     int ret = 0;
@@ -1151,7 +1150,7 @@ static int _read_content (node_t *n, void *buf, size_t readsiz, size_t offset)
         brelse(idxblk);
 
         // reaches the end
-        if (curr == FAT_EOF)
+        if (IS_EOC(curr))
             break;
     }
 
@@ -1175,7 +1174,7 @@ static size_t _alloc_part (sysinfo_t *sys)
 
         for (int i = curr % FAT_ALOC_NR ; i < FAT_ALOC_NR ; i++, curr++) {
             if (idxes[i] == 0) {
-                idxes[i] = FAT_EOF;
+                idxes[i] = EOC;
                 sys->free_next = curr + 1;
                 res = curr;
                 bdirty(idxblk, true);
@@ -1216,10 +1215,8 @@ static size_t _expand_part (node_t *n, size_t cnt, bool append)
         idxes_cur = curblk->blk;
 
         u32 next = idxes_cur[curr % FAT_ALOC_NR];
-        if (next == FAT_EOF) {
-            // brelse(curblk);
+        if (IS_EOC(next))
             break;
-        }
         else
             curr = next;
         
@@ -1261,7 +1258,7 @@ static size_t _expand_part (node_t *n, size_t cnt, bool append)
         }
 
         if (cnt == 0) {
-            idxes_end[end % FAT_ALOC_NR] = FAT_EOF;
+            idxes_end[end % FAT_ALOC_NR] = EOC;
             /* Save changes to disk */
             brelse(curblk);
             break;
@@ -1331,7 +1328,7 @@ static int _write_content (node_t *n, void *buf, size_t writesiz, size_t offset)
         brelse(idxblk);
 
         // reaches the end
-        if (curr == FAT_EOF)
+        if (IS_EOC(curr))
             break;
     }
 
@@ -1355,13 +1352,13 @@ static int fat32_write (node_t *this, void *buf, size_t siz, size_t offset)
 static void _release_data (sysinfo_t *sys, u32 start, bool cut)
 {
     u32 curr = start;
-    u32 stat = cut ? FAT_EOF : 0;
+    u32 stat = cut ? EOC : 0;
     
     while (true)
     {
         buffer_t *idxblk = bread(sys->dev, TAB_IS(sys, curr));
         u32 *idxes = idxblk->blk;
-        if (idxes[curr % FAT_ALOC_NR] == FAT_EOF)
+        if (IS_EOC(idxes[curr % FAT_ALOC_NR]))
         {
             bdirty(idxblk, true);
             brelse(idxblk);

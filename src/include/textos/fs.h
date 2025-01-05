@@ -8,12 +8,13 @@ enum {
 
 #define NA_DIR  (1 << 0)
 #define NA_REG  (1 << 1)
+#define NA_VRT  (1 << 2)
+#define NA_DEV  (1 << 3)
 
-enum {
-    VFS_CREATE = 0x01,
-    VFS_DIR    = 0x02,
-    VFS_GAIN   = 0x04,
-};
+#define VFS_CREATE  0x01
+#define VFS_DIR     0x02
+#define VFS_GAIN    0x04
+#define VFS_VRT     0x08
 
 struct node;
 typedef struct node node_t;
