@@ -36,6 +36,8 @@ typedef unsigned short      u16;
 typedef signed char         int8;
 typedef unsigned char       u8;
 
+typedef unsigned            uint;
+
 typedef char                char8;
 typedef unsigned short      char16;
 

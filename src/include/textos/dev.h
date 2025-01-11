@@ -25,8 +25,8 @@ struct dev {
     int    type;
     int    subtype;
 
-    int major;
-    int minor;
+    uint major;
+    uint minor;
     list_t subdev;
 
     union {
@@ -66,7 +66,7 @@ dev_t *dev_lookup_type (int subtype, int idx);
 
 dev_t *dev_lookup_name (const char *name);
 
-dev_t *dev_lookup_nr (int major, int minor);
+dev_t *dev_lookup_nr(uint major, uint minor);
 
 void dev_list ();
 

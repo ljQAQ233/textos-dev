@@ -39,6 +39,9 @@ static void initnod(dev_t *dev)
     sprintf(path, "/dev/%s", dev->name);
     vfs_mknod(path, dev);
 
+    if (dev->minor != 1)
+        return;
+
     list_t *i;
     LIST_FOREACH(i, &dev->subdev)
     {
@@ -69,9 +72,9 @@ void __dev_register(dev_pri_t *pri)
     list_insert_after(&root, &pri->list);
 }
 
-static int applyid(dev_t *prt)
+static uint applyid(dev_t *prt)
 {
-    static int total;
+    static uint total = 0;
     if (!prt)
         return total++;
     return CR(&prt->subdev.next, dev_t, subdev)->minor + 1;
@@ -88,7 +91,7 @@ void dev_register (dev_t *prt, dev_t *dev)
         return;
     }
 
-    int major = applyid(NULL);
+    uint major = applyid(NULL);
     dev->major = major;
     dev->minor = 0;
     list_init(&dev->subdev);
@@ -138,7 +141,7 @@ dev_t *dev_lookup_name(const char *name)
     return NULL;
 }
 
-dev_t *dev_lookup_nr(int major, int minor)
+dev_t *dev_lookup_nr(uint major, uint minor)
 {
     list_t *im, *i; // iterator
     dev_pri_t *pm;  // private
@@ -150,7 +153,7 @@ dev_t *dev_lookup_nr(int major, int minor)
         dm = pm->dev;
         if (dm->major != major)
             continue;
-        if (minor == 0)
+        if (minor == 1)
             return pm->dev;
         LIST_FOREACH(i, &pm->dev->subdev)
         {
