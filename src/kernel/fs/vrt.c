@@ -121,16 +121,17 @@ static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args)
         goto fini;
     }
 
-    if ((res = vfs_exist(dir, path)))
-        goto fini;
-
-    ret = dir->opts->open (dir, path, args, &res);
-    if (ret < 0) {
-        res = NULL;
-        goto fini;
+    res = vfs_exist(dir, path);
+    if (res == NULL) {
+        ret = dir->opts->open (dir, path, args, &res);
+        if (ret < 0) {
+            res = NULL;
+            goto fini;
+        }
     }
 
-    /* TODO: Permission checking */
+    if (res->attr & NA_MNT)
+        res = res->child;
 
 fini:
     *node = res;

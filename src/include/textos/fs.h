@@ -10,6 +10,7 @@ enum {
 #define NA_REG  (1 << 1)
 #define NA_VRT  (1 << 2)
 #define NA_DEV  (1 << 3)
+#define NA_MNT  (1 << 4)
 
 #define VFS_CREATE  0x01
 #define VFS_DIR     0x02
@@ -48,6 +49,7 @@ struct node {
     int systype;
     addr_t idx;
     void *pdata;
+    void *mount;
 
     /* Interfaces */
     fs_opts_t *opts;
@@ -76,5 +78,9 @@ extern int vfs_mknod (char *path, dev_t *dev);
 extern node_t *vfs_test (node_t *start, char *path, node_t **last, char **lastpath);
 
 extern void vfs_initops (fs_opts_t *opts);
+
+int vfs_mount(node_t *dir, node_t *root);
+
+int vfs_umount(node_t *dir);
 
 #endif
