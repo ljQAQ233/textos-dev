@@ -278,12 +278,12 @@ void keyboard_init ()
     outb(R_DATA, CTL_INT1_ON | CTL_TRSAN1);
 
     dev_t *dev = dev_new();
-    dev->name = "ps/2 keyboard";
+    dev->name = "keyboard";
     dev->read = (void *)keyboard_read;
     dev->write = NULL;
     dev->type = DEV_CHAR;
     dev->subtype = DEV_KBD;
-    dev_register (dev);
+    dev_register (NULL, dev);
     DEBUGK(K_INIT, "kbd initialized!\n");
 }
 

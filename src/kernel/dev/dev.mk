@@ -18,3 +18,6 @@ SRCS += dev/fpu/i387.s
 
 # pci devices
 SRCS += dev/pci.c
+
+# pseudo-dev
+SRCS += dev/mem.c

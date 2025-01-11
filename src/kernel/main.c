@@ -75,10 +75,12 @@ void kernel_main ()
 #include <textos/dev.h>
 
 extern void fs_init();
+extern void dev_initnod();
 
 static void __init_proc()
 {
     fs_init();
+    dev_initnod();
 
     char buf[5] = "test";
     

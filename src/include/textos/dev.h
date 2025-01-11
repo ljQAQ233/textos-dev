@@ -9,13 +9,12 @@ enum dev_type {
 };
 
 enum sub_type {
+    DEV_NULL = 1,
+    DEV_ZERO,
     DEV_KBD,    /* PS/2 Keyboard  */
     DEV_SERIAL, /* Serial port    */
     DEV_KNCON,  /* Kernel console */
-
-    /* The next devices are block devices */
-
-    DEV_IDE,
+    DEV_IDE,    /* Integrated Drive Electronics */
 };
 
 struct dev;
@@ -25,6 +24,10 @@ struct dev {
     char  *name;
     int    type;
     int    subtype;
+
+    int major;
+    int minor;
+    list_t subdev;
 
     union {
         struct {
@@ -57,13 +60,13 @@ dev_t *dev_new ();
 
 void __dev_register (dev_pri_t *pri);
 
-void dev_register (dev_t *dev);
+void dev_register (dev_t *prt, dev_t *dev);
 
 dev_t *dev_lookup_type (int subtype, int idx);
 
 dev_t *dev_lookup_name (const char *name);
 
-dev_t *dev_lookup_id (int id);
+dev_t *dev_lookup_nr (int major, int minor);
 
 void dev_list ();
 

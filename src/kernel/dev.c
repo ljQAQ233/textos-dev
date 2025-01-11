@@ -19,9 +19,43 @@ static void inv_handle()
 
 static list_t root = LIST_INIT(root);
 
+extern void __dev_initmem();
+
 void dev_init()
 {
+    __dev_initmem();
+
     dev_list();
+}
+
+#include <textos/fs.h>
+#include <textos/args.h>
+#include <textos/klib/vsprintf.h>
+
+// called recursively
+static void initnod(dev_t *dev)
+{
+    char path[128];
+    sprintf(path, "/dev/%s", dev->name);
+    vfs_mknod(path, dev);
+
+    list_t *i;
+    LIST_FOREACH(i, &dev->subdev)
+    {
+        initnod(CR(i, dev_t, subdev));
+    }
+}
+
+void dev_initnod()
+{
+    node_t *dir;
+    vfs_open(NULL, &dir, "/dev", VFS_CREATE | VFS_DIR);
+
+    list_t *i;
+    LIST_FOREACH(i, &root)
+    {
+        initnod(CR(i, dev_pri_t, list)->dev);
+    }
 }
 
 void __dev_register(dev_pri_t *pri)
@@ -30,12 +64,35 @@ void __dev_register(dev_pri_t *pri)
         pri->dev->read = (void *)inv_handle;
     if (pri->dev->write == NULL)
         pri->dev->write = (void *)inv_handle;
+    list_init(&pri->dev->subdev);
     
     list_insert_after(&root, &pri->list);
 }
 
-void dev_register(dev_t *dev)
+static int applyid(dev_t *prt)
 {
+    static int total;
+    if (!prt)
+        return total++;
+    return CR(&prt->subdev.next, dev_t, subdev)->minor + 1;
+}
+
+void dev_register (dev_t *prt, dev_t *dev)
+{
+    if (prt != NULL)
+    {
+        int minor = applyid(prt);
+        dev->major = prt->major;
+        dev->minor = prt->minor;
+        list_insert(&prt->subdev, &dev->subdev);
+        return;
+    }
+
+    int major = applyid(NULL);
+    dev->major = major;
+    dev->minor = 0;
+    list_init(&dev->subdev);
+
     dev_pri_t *pri = malloc(sizeof(dev_pri_t));
     pri->dev = dev;
 
@@ -81,9 +138,27 @@ dev_t *dev_lookup_name(const char *name)
     return NULL;
 }
 
-dev_t *dev_lookup_id(int Ident)
+dev_t *dev_lookup_nr(int major, int minor)
 {
-    PANIC("Look up by LKUP_ID has not been implented yet\n");
+    list_t *im, *i; // iterator
+    dev_pri_t *pm;  // private
+    dev_t *dm, *d;  // device
+
+    LIST_FOREACH(im, &root)
+    {
+        pm = CR(im, dev_pri_t, list);
+        dm = pm->dev;
+        if (dm->major != major)
+            continue;
+        if (minor == 0)
+            return pm->dev;
+        LIST_FOREACH(i, &pm->dev->subdev)
+        {
+            d = CR(i, dev_t, subdev);
+            if (d->minor == minor)
+                return d;
+        }
+    }
 
     return NULL;
 }

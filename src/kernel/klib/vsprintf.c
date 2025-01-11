@@ -293,3 +293,13 @@ parse_args:
     return (int)(out - buffer);
 }
 
+int sprintf(char *buffer, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    int i = vsprintf(buffer, format, args);
+
+    va_end(args);
+    return i;
+}

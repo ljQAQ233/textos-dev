@@ -234,19 +234,19 @@ static bool ide_identify (pri_t **pri, int idx)
     return true;
 }
 
-#define INIT(i)                                                      \
+#define INIT(_i, _name)                                              \
     do {                                                             \
         pri_t *pri;                                                  \
         dev_t *dev;                                                  \
-        if (ide_identify(&pri, i)) {                                 \
+        if (ide_identify(&pri, _i)) {                                \
             dev = dev_new();                                         \
-            dev->name = pri->model_num;                              \
+            dev->name = _name;                                       \
             dev->type = DEV_BLK;                                     \
             dev->subtype = DEV_IDE;                                  \
             dev->bread = (void *)ide_read;                           \
             dev->bwrite = (void *)ide_write;                         \
             dev->pdata = pri;                                        \
-            dev_register(dev);                                       \
+            dev_register(NULL, dev);                                 \
         }                                                            \
     } while (0);                                                     \
 
@@ -263,11 +263,11 @@ void ide_init()
 
     INIT_PS(0); INIT_PS(1);
 
-    INIT(0); INIT(1);
+    INIT(0, "hda"); INIT(1, "hdb");
     intr_register (INT_PRIDISK, ide_handler);
     ioapic_rteset (IRQ_PRIDISK, _IOAPIC_RTE(INT_PRIDISK));
 
-    INIT(2); INIT(3);
+    INIT(2, "hdc"); INIT(3, "hdd");
     intr_register (INT_SECDISK, ide_handler);
     ioapic_rteset (IRQ_SECDISK, _IOAPIC_RTE(INT_SECDISK));
     DEBUGK(K_INIT | K_SYNC, "disk initialized!\n");

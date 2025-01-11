@@ -49,7 +49,7 @@ size_t serial_write (dev_t *dev, char *str, size_t siz)
 
 static dev_pri_t serial = {
     .dev = &(dev_t) {
-        .name = "serial port",
+        .name = "serial",
         .read = (void *)serial_read,
         .write = (void *)serial_write,
         .type = DEV_CHAR,
