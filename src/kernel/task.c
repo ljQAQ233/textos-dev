@@ -378,7 +378,7 @@ extern void ide_read (u32 lba, void *data, u8 cnt);
 void proc_a ()
 {
     u8 buf[512];
-    dev_t *ide = dev_lookup_type (DEV_BLK, DEV_IDE);
+    dev_t *ide = dev_lookup_type (DEV_IDE, 0);
     ide->bread (ide, 0, buf, 1);
     for (int i = 0 ; i < 512 ; i++)
         printk ("%02x", buf[i]);

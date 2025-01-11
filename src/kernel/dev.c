@@ -54,16 +54,15 @@ dev_t *dev_new()
     return d;
 }
 
-dev_t *dev_lookup_type(int type, int subtype)
+dev_t *dev_lookup_type(int subtype, int idx)
 {
     list_t *i;
     LIST_FOREACH(i, &root)
     {
         dev_pri_t *pri = CR(i, dev_pri_t, list);
-        if (pri->dev->type != type)
-            continue;
         if (pri->dev->subtype == subtype)
-            return pri->dev;
+            if (idx-- == 0)
+                return pri->dev;
     }
 
     return NULL;

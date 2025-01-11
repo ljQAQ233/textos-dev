@@ -33,13 +33,13 @@ file_t sysfile[MAXDEF_FILENO] = {
 
 static int kncon_write(node_t *this, void *buf, size_t siz, size_t offset)
 {
-    dev_t *con = dev_lookup_type(DEV_CHAR, DEV_KNCON);
+    dev_t *con = dev_lookup_type(DEV_KNCON, 0);
     return con->write(con, buf, siz);
 }
 
 static int kncon_read(node_t *this, void *buf, size_t siz, size_t offset)
 {
-    dev_t *con = dev_lookup_type(DEV_CHAR, DEV_KNCON);
+    dev_t *con = dev_lookup_type(DEV_KNCON, 0);
     return con->read(con, buf, siz);
 }
 

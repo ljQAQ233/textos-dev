@@ -362,7 +362,7 @@ extern void __kconio_init();
 
 void fs_init ()
 {
-    dev_t *hd = dev_lookup_type (DEV_BLK, DEV_IDE);
+    dev_t *hd = dev_lookup_type (DEV_IDE, 0);
 
     mbr_t *record = malloc(sizeof(mbr_t));
     hd->bread (hd, 0, record, 1);

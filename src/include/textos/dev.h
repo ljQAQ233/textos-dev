@@ -59,7 +59,7 @@ void __dev_register (dev_pri_t *pri);
 
 void dev_register (dev_t *dev);
 
-dev_t *dev_lookup_type (int type, int subtype);
+dev_t *dev_lookup_type (int subtype, int idx);
 
 dev_t *dev_lookup_name (const char *name);
 
