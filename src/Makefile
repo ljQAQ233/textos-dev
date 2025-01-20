@@ -19,7 +19,11 @@ _boot:
 
 ovmf:
 	@make -C boot TARGET=RELEASE ovmf
+
+ovmf-debug:
 	@make -C boot TARGET=DEBUG FLAGS="-DDEBUG_ON_SERIAL_PORT=TRUE" ovmf
+
+ovmf-noopt:
 	@make -C boot TARGET=NOOPT FLAGS="-DDEBUG_ON_SERIAL_PORT=TRUE -DSOURCE_DEBUG_ENABLE=TRUE" ovmf
 
 kernel:
