@@ -39,6 +39,8 @@ msyscall_handler:
     push r13
     push r14
     push r15
+    
+    sti
 
     ; 也可以直接 call handler
     mov  qword [gs:TASK_IF], rsp

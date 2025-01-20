@@ -81,7 +81,7 @@ void syscall_init ()
 
     write_msr(MSR_STAR, SYS_STAR);
     write_msr(MSR_LSTAR, (u64)msyscall_handler);
-    write_msr(MSR_FMASK, 0);
+    write_msr(MSR_FMASK, (1 << 9)); // disable irq
     write_msr(MSR_EFER, EFER_SCE);
 }
 
