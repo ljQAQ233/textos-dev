@@ -76,3 +76,11 @@ int dup(int fd);
 int dup2(int old, int new);
 
 int pipe(int fds[2]);
+
+#define major(x) ((unsigned)((((x) >> 31 >> 1) & 0xfffff000) | (((x) >> 8) & 0xfff)))
+#define minor(x) ((unsigned)((((x) >> 12) & 0xffffff00) | ((x) & 0xff)))
+
+#define makedev(x, y) \
+    ((((x) & 0xfffff000ULL) << 32) | (((x) & 0xfffULL) << 8) | (((y) & 0xffffff00ULL) << 12) | (((y) & 0xffULL)))
+
+int mknod(char *path, int mode, long dev);

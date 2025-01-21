@@ -35,6 +35,8 @@ void _start()
         while(1);
     }
     */
+
+    mknod("/zero", 0, makedev(0, 0));
     execve("/sh.elf", argv, envp);
 
     write(1, "execve failed!\n", 17);

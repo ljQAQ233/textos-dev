@@ -228,3 +228,21 @@ int pipe(int fds[2])
     fds[0] = fd0;
     fds[1] = fd1;
 }
+
+static uint get_major(long x)
+{
+    return (uint)(((x >> 32) & 0xfffff000) | ((x >> 8) & 0xfff));
+}
+
+static uint get_minor(long x)
+{
+    return (uint)(((x >> 12) & 0xffffff00) | (x & 0xff));
+}
+
+int mknod(char *path, int mode, long dev)
+{
+    uint major = get_major(dev);
+    uint minor = get_minor(dev);
+    dev_t *d = dev_lookup_nr(major, minor);
+    return vfs_mknod(path, d);
+}

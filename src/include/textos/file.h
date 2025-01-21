@@ -84,4 +84,6 @@ int dup2(int old, int new);
 
 int pipe(int fds[2]);
 
+int mknod(char *path, int mode, long dev);
+
 #endif

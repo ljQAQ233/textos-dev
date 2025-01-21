@@ -107,6 +107,11 @@ int pipe(int fds[2])
     return syscall(SYS_pipe, fds);
 }
 
+int mknod(char *path, int mode, long dev)
+{
+    return syscall(SYS_mknod, path, mode, dev);
+}
+
 int getpid()
 {
     return syscall(SYS_getpid);

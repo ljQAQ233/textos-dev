@@ -45,3 +45,8 @@ RETVAL(int) sys_pipe(int fds[2])
 {
     return pipe(fds);
 }
+
+RETVAL(int) sys_mknod(char *path, int mode, long dev)
+{
+    return mknod(path, mode, dev);
+}
