@@ -11,6 +11,7 @@ enum dev_type {
 enum sub_type {
     DEV_NULL = 1,
     DEV_ZERO,
+    DEV_MEMORY,
     DEV_KBD,    /* PS/2 Keyboard  */
     DEV_SERIAL, /* Serial port    */
     DEV_KNCON,  /* Kernel console */

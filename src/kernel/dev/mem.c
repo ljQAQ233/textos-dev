@@ -36,6 +36,7 @@ static dev_t null = {
     .write = null_write,
     .type = DEV_CHAR,
     .subtype = DEV_NULL,
+    .minor = 3,
 };
 
 static dev_t zero = {
@@ -44,12 +45,20 @@ static dev_t zero = {
     .write = zero_write,
     .type = DEV_CHAR,
     .subtype = DEV_ZERO,
+    .minor = 5
+};
+
+static dev_t mem = {
+    .name = "mem",
+    .type = DEV_CHAR,
+    .subtype = DEV_MEMORY,
 };
 
 void __dev_initmem()
 {
     // todo : major nr
     // null / zero
-    dev_register(NULL, &null);
-    dev_register(NULL, &zero);
+    dev_register(NULL, &mem);
+    dev_register(&mem, &null);
+    dev_register(&mem, &zero);
 }

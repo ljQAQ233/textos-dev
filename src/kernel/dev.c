@@ -74,7 +74,7 @@ void __dev_register(dev_pri_t *pri)
 
 static uint applyid(dev_t *prt)
 {
-    static uint total = 0;
+    static uint total = 1;
     if (!prt)
         return total++;
     return CR(&prt->subdev.next, dev_t, subdev)->minor + 1;
@@ -84,16 +84,16 @@ void dev_register (dev_t *prt, dev_t *dev)
 {
     if (prt != NULL)
     {
-        int minor = applyid(prt);
         dev->major = prt->major;
-        dev->minor = prt->minor;
+        if (!dev->minor)
+            dev->minor = applyid(prt);
         list_insert(&prt->subdev, &dev->subdev);
         return;
     }
 
-    uint major = applyid(NULL);
-    dev->major = major;
-    dev->minor = 0;
+    if (!dev->major)
+        dev->major = applyid(NULL);
+    dev->minor = 1;
     list_init(&dev->subdev);
 
     dev_pri_t *pri = malloc(sizeof(dev_pri_t));

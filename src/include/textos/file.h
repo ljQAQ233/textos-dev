@@ -44,6 +44,7 @@ typedef struct dirent
 typedef struct stat
 {
     int mode;
+    long dev;
     size_t siz;
 } stat_t;
 

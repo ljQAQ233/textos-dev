@@ -28,6 +28,25 @@ static int get_free(int *new, file_t **file)
     return *new = fd;
 }
 
+// device number
+
+static uint get_major(long x)
+{
+    return (uint)(((x >> 32) & 0xfffff000) | ((x >> 8) & 0xfff));
+}
+
+static uint get_minor(long x)
+{
+    return (uint)(((x >> 12) & 0xffffff00) | (x & 0xff));
+}
+
+static long make_dev(uint x, uint y)
+{
+    return (long)
+       ((x & 0xfffff000ULL) << 32) | ((x & 0xfffULL) << 8) |
+       ((y & 0xffffff00ULL) << 12) | ((y & 0xffULL));
+}
+
 // TODO: flgs
 static inline u64 parse_args(int x)
 {
@@ -170,8 +189,16 @@ int stat(char *path, stat_t *sb)
     if (node->attr & NA_DIR)
         mode |= S_IFDIR;
 
+    dev_t *d;
+    if (node->attr & NA_DEV)
+        d = node->pdata;
+    else
+        d = *(dev_t **)node->sys;
+
     sb->siz = node->siz;
+    sb->dev = make_dev(d->major, d->minor);
     sb->mode = mode;
+
     return 0;
 }
 
@@ -227,16 +254,6 @@ int pipe(int fds[2])
 
     fds[0] = fd0;
     fds[1] = fd1;
-}
-
-static uint get_major(long x)
-{
-    return (uint)(((x >> 32) & 0xfffff000) | ((x >> 8) & 0xfff));
-}
-
-static uint get_minor(long x)
-{
-    return (uint)(((x >> 12) & 0xffffff00) | (x & 0xff));
 }
 
 int mknod(char *path, int mode, long dev)
