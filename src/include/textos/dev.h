@@ -16,6 +16,7 @@ enum sub_type {
     DEV_SERIAL, /* Serial port    */
     DEV_KNCON,  /* Kernel console */
     DEV_IDE,    /* Integrated Drive Electronics */
+    DEV_PART,
 };
 
 struct dev;
@@ -41,9 +42,13 @@ struct dev {
         };
     };
 
+    void (*mkname)(dev_t *dev, char res[32], int nr);
+
     /* TODO : device isolation 设备隔离 */
 
-    void *pdata; /* 在调用 操作函数 时传入, 以支持同种类型的多种设备 */
+    void *pdata;  // to support multiple devs
+    addr_t ptoff; // partition r/w start addr
+    addr_t ptend;
 };
 
 typedef struct {
@@ -70,5 +75,10 @@ dev_t *dev_lookup_name (const char *name);
 dev_t *dev_lookup_nr(uint major, uint minor);
 
 void dev_list ();
+
+dev_t *register_part(
+    dev_t *disk, int nr,
+    addr_t ptoff, size_t ptsiz
+    );
 
 #endif

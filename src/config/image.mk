@@ -35,8 +35,8 @@ $(IMG):
 	sfdisk $(IMG) < utils/disk.conf
 	
 	sudo losetup -P $(LOOP) $(IMG)
-	sudo mkfs.fat -F 32 $(LOOP)p1
-	sudo mkfs.fat -F 32 $(LOOP)p2
+	sudo mkfs.fat -F 32 -s 1 $(LOOP)p1
+	sudo mkfs.fat -F 32 -s 1 $(LOOP)p2
 	
 	sudo mount $(LOOP)p1 $(MNT1)
 	sudo mount $(LOOP)p2 $(MNT2)
@@ -46,6 +46,8 @@ $(IMG):
 	sudo cp -r resource/* $(MNT1)
 	sudo cp -r $(KERNEL_EXEC) $(MNT1)
 	sudo cp -r $(APP_OUTPUT)/*.elf $(MNT1)
+	sudo cp -r $(APP_OUTPUT)/*.elf $(MNT2)
+	sudo $(UTILS)/file_boom.sh $(MNT2)/test
 	
 	sudo umount $(MNT1)
 	sudo umount $(MNT2)

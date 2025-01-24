@@ -275,6 +275,7 @@ typedef struct
     node_t *node;
     stack_t ents; // entries
     list_t link;  // -> entlct_t.ents
+    void *cache; // TODO: context cache
 } lookup_t;
 
 static lookup_t *lkp_prt(lookup_t *lkp)
@@ -761,7 +762,6 @@ static void lookup_alloc(lookup_t *prt, lookup_t *lkp, stack_t *stk)
 {
     sys_t *f = prt->f;
     u32 curr = prt->clst;
-    u32 prev = prt->clst;
     size_t start_idx = 0, curr_idx  = 0;
     size_t cnt = stack_siz(stk);
     stack_init(&lkp->ents);
@@ -770,28 +770,29 @@ static void lookup_alloc(lookup_t *prt, lookup_t *lkp, stack_t *stk)
     bool hit = false;
     while (true)
     {
-        buffer_t *blk = bread(f->dev, clst2sec(f, curr));
-        sentry_t *ents = blk->blk;
+        unsigned sec0 = clst2sec(f, curr);
+        for (int isec = 0 ; isec < f->sec_perclst ; isec++) {
+            buffer_t *blk = bread(f->dev, sec0 + isec);
+            sentry_t *ents = blk->blk;
 
-        for (int i = 0 ; i < 16 ; i++, curr_idx++)
-        {
-            if (!is_unused(&ents[i])) {
-                prev = curr;
-                start_idx = curr_idx + 1;
-                lct_clr(&lkp->link);
-                continue;
-            }
+            for (int i = 0 ; i < 16 ; i++, curr_idx++)
+            {
+                if (!is_unused(&ents[i])) {
+                    start_idx = curr_idx + 1;
+                    lct_clr(&lkp->link);
+                    continue;
+                }
 
-            lct_add(&lkp->link, curr, i);
-            if (curr_idx - start_idx + 1 == cnt) {
-                hit = true;
-                break;
+                lct_add(&lkp->link, curr, i);
+                if (curr_idx - start_idx + 1 == cnt) {
+                    hit = true;
+                    break;
+                }
             }
+            brelse(blk);
         }
 
-        prev = curr;
         curr = get_next(f, curr);
-        brelse(blk);
 
         // reaches the end
         if (is_eoc(curr))
@@ -1047,19 +1048,24 @@ static int byte_rd(node_t *n, void *buf, size_t rdsiz, size_t off)
              skip_byte = off % 512;
     unsigned real = MIN(n->siz, off + rdsiz) - off;
     unsigned rem = real;
-    for (int s = 0 ; ; s++)
+    for (int s = 0 ; ; )
     {
-        if (s >= skip_sect) {
-            buffer_t *tmp = bread(f->dev, clst2sec(f, curr));
-            size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
-            memcpy(buf, tmp->blk + skip_byte, cpysiz);
-            brelse(tmp);
-            skip_byte = 0;
+        unsigned sec0 = clst2sec(f, curr);
+        for (int isec = 0 ; isec < f->sec_perclst ; isec++, s++)
+        {
+            if (s >= skip_sect)
+            {
+                buffer_t *tmp = bread(f->dev, sec0 + isec);
+                size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
+                memcpy(buf, tmp->blk + skip_byte, cpysiz);
+                brelse(tmp);
+                skip_byte = 0;
 
-            buf += cpysiz;
-            rem -= cpysiz;
-            if (rem == 0)
-                goto done;
+                buf += cpysiz;
+                rem -= cpysiz;
+                if (rem == 0)
+                    goto done;
+            }
         }
         
         curr = get_next(f, curr);
@@ -1079,21 +1085,25 @@ static int byte_wr(node_t *n, void *buf, size_t wrsiz, size_t off)
     unsigned skip_sect = off / 512,
              skip_byte = off % 512;
     unsigned rem = wrsiz;
-    for (size_t s = 0 ;  ; s++)
+    for (size_t s = 0 ;  ; )
     {
-        if (s >= skip_sect) {
-            buffer_t *ori = bread(f->dev, clst2sec(f, curr));
-            /* MIN 的意义在于 : wrsiz 可能比一个扇区的大小要小 */
-            size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
-            memcpy(ori->blk + skip_byte, buf, cpysiz);
-            bdirty(ori, true);
-            brelse(ori);
-            skip_byte = 0;
+        unsigned sec0 = clst2sec(f, curr);
+        for (int isec = 0 ; isec < f->sec_perclst ; isec++, s++)
+        {
+            if (s >= skip_sect)
+            {
+                buffer_t *ori = bread(f->dev, sec0 + isec);
+                size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
+                memcpy(ori->blk + skip_byte, buf, cpysiz);
+                bdirty(ori, true);
+                brelse(ori);
+                skip_byte = 0;
 
-            buf += cpysiz;
-            rem -= cpysiz;
-            if (rem == 0)
-                goto done;
+                buf += cpysiz;
+                rem -= cpysiz;
+                if (rem == 0)
+                    goto done;
+            }
         }
 
         curr = get_next(f, curr);

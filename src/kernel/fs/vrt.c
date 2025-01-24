@@ -338,32 +338,46 @@ struct pub {
     node_t *root;
 };
 
+#include <textos/args.h>
+#include <textos/klib/vsprintf.h>
+
+extern dev_t *register_part(dev_t *disk, int nr, addr_t ptoff, size_t ptsiz);
+
 static void _init_partitions (dev_t *hd, mbr_t *rec)
 {
     part_t *ptr = rec->ptab;
 
     printk ("Looking for file systems...\n");
 
-    for (int i = 0 ; i < 4 ; i++, ptr++) {
+    for (int i = 0, nr = 0 ; i < 4 ; i++, ptr++) {
         if (!ptr->sysid)
             continue;
 
         char *type = "none";
         node_t *root = NULL;
+        dev_t *devp;
         struct pub *pub;
 
         for (regstr_t *look = regstr; look->id != 0 ; look++) {
-            if (look->id == ptr->sysid)
-                if ((root = look->init (hd, rec, ptr)))
-                {
-                    type = look->name;
-                    pub = root->sys;
-                    pub->root = root;
-                    pub->dev = hd;
-                    pub->devp = NULL;
+            if (look->id != ptr->sysid)
+                continue;
+            root = look->init(hd, rec, ptr);
+            if (!root)
+                break;
+            type = look->name;
+            pub = root->sys;
+            pub->root = root;
+            pub->dev = hd;
+            pub->devp = devp;
 
-                    __vfs_rootset(root);
-                }
+            if (!__vfs_rootset(root))
+            {
+                char path[16];
+                sprintf(path, "/mnt%d", nr);
+                node_t *mnt;
+                vfs_open(NULL, &mnt, path, VFS_CREATE | VFS_DIR);
+                vfs_mount(mnt, root);
+            }
         }
 
         printk (" - partition %u -> %s\n", i, type);
