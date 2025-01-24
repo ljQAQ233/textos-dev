@@ -1,4 +1,6 @@
-// todo : optimize
+// WARN: cluster mechanism is not supported
+// only one sector per cluster is adaptable
+// refactor is necessary
 
 #include <textos/fs.h>
 #include <textos/fs/inter.h>
