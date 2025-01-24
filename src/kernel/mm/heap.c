@@ -99,6 +99,16 @@ void *malloc(size_t siz)
     return NULL;
 }
 
+#include <string.h>
+
+void *calloc(size_t siz)
+{
+    void *ptr = malloc(siz);
+    if (!ptr)
+        return ptr;
+    return memset(ptr, 0, siz);
+}
+
 void free (void *addr)
 {
     if (addr == NULL || (u64)addr > (u64)_heap.max)
