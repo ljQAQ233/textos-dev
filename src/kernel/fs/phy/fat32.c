@@ -15,7 +15,7 @@ typedef struct _packed
     u8 jmp_bin[3];  // 跳转指令
     char oem_id[8]; // OEM 标识字符
     u16 sec_siz;    // 一个扇区字节数
-    u8 sec_perclst; // 一个扇区簇数
+    u8 sec_perclst; // 一个簇扇区数
     u16 rev_num;    // 保留扇区数
     u8 fat_num;     // FAT(File Allocation Tables) 的数量
     u16 ent_num;    // 根目录中条目最大数, 数量自动调整的 fat32 不需要, 为 0
@@ -589,64 +589,69 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
     unsigned curr = prt->clst;
     while (true)
     {
-        buffer_t *blk = bread(f->dev, clst2sec(f, curr));
-        sentry_t *ents = blk->blk;
+        unsigned sec0 = clst2sec(f, curr);
+        for (int isec = 0 ; isec < f->sec_perclst ; isec++) {
+            buffer_t *blk = bread(f->dev, sec0 + isec);
+            sentry_t *ents = blk->blk;
 
-        for (int i = 0 ; i < 512 / sizeof(sentry_t) ; i++)
-        {
-            // name[0] == 0xe5 -> free entry
-            if (is_free(&ents[i]))
-                goto ent_nxt;
-            // name[0] == 0x00 -> end of dir
-            if (is_none(&ents[i])) {
-                wind = true;
-                break;
-            }
-
-            lct_add(&lkp->link, curr, i);
-            if (ents[i].attr & FA_LONG)
+            for (int i = 0 ; i < 16 ; i++)
             {
-                lentry_t *lent = (lentry_t *)&ents[i],
-                         *prev = (lentry_t *)stack_top(&lkp->ents);
-                stack_push(&lkp->ents, entry_dup(&ents[i]));
-                if (prev && lent->cksum_short != prev->cksum_short)
-                    DEBUGK(K_WARN, "cksum isn't unique\n");
+                // name[0] == 0xe5 -> free entry
+                if (is_free(&ents[i]))
+                    goto ent_nxt;
+                // name[0] == 0x00 -> end of dir
+                if (is_none(&ents[i])) {
+                    wind = true;
+                    goto lkp_end;
+                }
+
+                lct_add(&lkp->link, curr, i);
+                if (ents[i].attr & FA_LONG)
+                {
+                    lentry_t *lent = (lentry_t *)&ents[i],
+                             *prev = (lentry_t *)stack_top(&lkp->ents);
+                    stack_push(&lkp->ents, entry_dup(&ents[i]));
+                    if (prev && lent->cksum_short != prev->cksum_short)
+                        DEBUGK(K_WARN, "cksum isn't unique\n");
+                    goto ent_nxt;
+                }
+
+                if (!stack_empty(&lkp->ents))
+                {
+                    // the current one is short entry
+                    u8 cksum = get_cksum(ents[i].name);
+                    lentry_t *prev = stack_top(&lkp->ents);
+                    if (prev->cksum_short != cksum)
+                        DEBUGK(K_WARN, "cksum not matched with short ent\n");
+                }
+                
+                // store the short entry so that we can handle
+                // it and its attached ents at the same time
+                stack_push(&lkp->ents, &ents[i]);
+
+                // generate node
+                lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
+                size_t cmpsiz = (size_t)(strchrnul(name, '/') - name);
+                if (_cmp(name, lkp->node->name)) {
+                    wind = true;
+                    goto lkp_end;
+                }
+
+            lkp_rst:
+                vfs_release(lkp->node);
+                lkp->node = NULL;
+                stack_clear(&lkp->ents);
+                lct_clr(&lkp->link);
+
+            ent_nxt:
                 continue;
-            }
-
-            if (!stack_empty(&lkp->ents))
-            {
-                // the current one is short entry
-                u8 cksum = get_cksum(ents[i].name);
-                lentry_t *prev = stack_top(&lkp->ents);
-                if (prev->cksum_short != cksum)
-                    DEBUGK(K_WARN, "cksum not matched with short ent\n");
-            }
-            
-            // store the short entry so that we can handle
-            // it and its attached ents at the same time
-            stack_push(&lkp->ents, &ents[i]);
-
-            // generate node
-            lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
-            size_t cmpsiz = (size_t)(strchrnul(name, '/') - name);
-            if (_cmp(name, lkp->node->name)) {
-                wind = true;
+            lkp_end:
                 break;
             }
-
-        lkp_rst:
-            vfs_release(lkp->node);
-            lkp->node = NULL;
-            stack_clear(&lkp->ents);
-            lct_clr(&lkp->link);
-
-        ent_nxt:
-            continue;
+            brelse(blk);
         }
 
         curr = get_next(f, curr);
-        brelse(blk);
 
         // reaches the end
         if (is_eoc(curr) || wind)
@@ -671,72 +676,82 @@ static lookup_t *lookup_byctx(dirctx_t *ctx)
     list_init(&lkp->link);
 
     sys_t *f = ctx->sys;
+    bool wind = false;
     unsigned curr = sec2clst(f, ctx->bidx);
     unsigned eidx = ctx->eidx;
     while (true)
     {
-        buffer_t *buf = bread(f->dev, clst2sec(f, curr));
-        sentry_t *ents = buf->blk;
+        unsigned sec0 = clst2sec(f, curr);
+        for (int isec = 0 ; isec < f->sec_perclst ; isec++) {
+            buffer_t *buf = bread(f->dev, sec0 + isec);
+            sentry_t *ents = buf->blk;
 
-        for ( ; eidx < 512 / sizeof(sentry_t) ; eidx++)
-        {
-            if (is_free(&ents[eidx]))
-                continue;
-            if (is_none(&ents[eidx]))
-                break;
-
-            lct_add(&lkp->link, curr, eidx);
-            if (ents[eidx].attr & FA_LONG)
+            for ( ; eidx < 16 ; eidx++)
             {
-                lentry_t *lent = (lentry_t *)&ents[eidx],
-                         *prev = (lentry_t *)stack_top(&lkp->ents);
-                stack_push(&lkp->ents, entry_dup(&ents[eidx]));
-                if (prev && lent->cksum_short != prev->cksum_short)
-                    DEBUGK(K_WARN, "cksum isn't unique\n");
-                continue;
-            }
+                if (is_free(&ents[eidx]))
+                    continue;
+                if (is_none(&ents[eidx]))
+                    goto lkp_end;
 
-            if (!stack_empty(&lkp->ents))
-            {
-                // the current one is short entry
-                u8 cksum = get_cksum(ents[eidx].name);
-                lentry_t *prev = stack_top(&lkp->ents);
-                if (prev->cksum_short != cksum)
-                    DEBUGK(K_WARN, "cksum not matched with short ent\n");
-            }
+                lct_add(&lkp->link, curr, eidx);
+                if (ents[eidx].attr & FA_LONG)
+                {
+                    lentry_t *lent = (lentry_t *)&ents[eidx],
+                             *prev = (lentry_t *)stack_top(&lkp->ents);
+                    stack_push(&lkp->ents, entry_dup(&ents[eidx]));
+                    if (prev && lent->cksum_short != prev->cksum_short)
+                        DEBUGK(K_WARN, "cksum isn't unique\n");
+                    continue;
+                }
+
+                if (!stack_empty(&lkp->ents))
+                {
+                    // the current one is short entry
+                    u8 cksum = get_cksum(ents[eidx].name);
+                    lentry_t *prev = stack_top(&lkp->ents);
+                    if (prev->cksum_short != cksum)
+                        DEBUGK(K_WARN, "cksum not matched with short ent\n");
+                }
+                
+                // store the short entry so that we can handle
+                // it and its attached ents at the same time
+                stack_push(&lkp->ents, &ents[eidx]);
+
+                // generate node
+                lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
+                ctx->eidx = eidx+1;
+                ctx->bidx = sec0 + isec;
+                ctx->pos += 1;
             
-            // store the short entry so that we can handle
-            // it and its attached ents at the same time
-            stack_push(&lkp->ents, &ents[eidx]);
+            lkp_end:
+                wind = true;
+                break;
+            }
+            brelse(buf);
 
-            // generate node
-            lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
-            ctx->eidx = eidx+1;
-            ctx->bidx = clst2sec(f, curr);
-            ctx->pos += 1;
-            break;
+            if (wind)
+                goto done;
         }
-        brelse(buf);
-
-        if (lkp->node)
-            goto done;
 
         eidx = 0;
         curr = get_next(f, curr);
-        if (is_eoc(curr))
-            goto none;
+        if (is_eoc(curr)) {
+            ASSERTK(lkp->node == NULL);
+            goto done;
+        }
     }
 
 done:
-    ASSERTK(lkp->node != NULL);
-
     // remained info
-    lkp->f = ctx->sys;
-    return lkp;
+    if (!lkp->node) {
+        free(lkp);
+        lkp = NULL;
+        ctx->stat = ctx_end;
+    } else {
+        lkp->f = ctx->sys;
+    }
 
-none:
-    ctx->stat = ctx_end;
-    return NULL;
+    return lkp;
 }
 
 static size_t data_expand2(sys_t *f, unsigned *start, size_t cnt, bool append);
