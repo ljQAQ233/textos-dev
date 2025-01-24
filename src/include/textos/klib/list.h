@@ -31,3 +31,9 @@ bool list_empty (list_t *list);
          iter != (list) ;         \
          iter = iter->next        \
     )
+
+#define LIST_FOREACH_REV(iter, list)  \
+    for (iter = (list)->prev ;    \
+         iter != (list) ;         \
+         iter = iter->prev        \
+    )
