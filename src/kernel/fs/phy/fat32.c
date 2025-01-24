@@ -1,70 +1,61 @@
-// WARN: cluster mechanism is not supported
-// only one sector per cluster is adaptable
-// refactor is necessary
-
+#include <textos/mm.h>
 #include <textos/fs.h>
 #include <textos/fs/inter.h>
-#include <textos/mm.h>
-#include <textos/dev.h>
 #include <textos/errno.h>
-#include <textos/klib/list.h>
-#include <textos/klib/stack.h>
-#include <textos/panic.h>
-#include <textos/assert.h>
 #include <textos/dev/buffer.h>
-
-#define SECT_SIZ 512
 
 #include <string.h>
 
 #define EOC 0x0FFFFFFF
 // end-of-cluster marker
-#define IS_EOC(val) (0x0FFFFFF8 <= val && val <= 0x0FFFFFFF) 
+#define is_eoc(val) (0x0FFFFFF8 <= val && val <= 0x0FFFFFFF) 
 
-/* Biso parameter block */
 typedef struct _packed
 {
-    u8      jmpbin[3];        // Jump instruction
-    char    oem_id[8];        // OEM identifier
-    u16     sec_siz;          // The num of bytes per sector
-    u8      sec_perclus;      // The num of clusters per sector
-    u16     sec_reversed;     // The num of reserved sectors
-    u8      fat_num;          // The num of File Allocation Tables, often is 2
-    u16     roots;            // The num of ents in root, 0 for fat32!
-    u16     sec_num16;           
-    u8      desc_media;          
-    u16     fat_siz16;           
-    u16     sec_pertrack;        
-    u16     head_num;         // The num of heads
-    u32     sec_hidden;       // The num of the hidden sectors
-    u32     sec_num32;           
-    u32     fat_siz32;           
-    u16     extflags;         // Extended flags
-    u16     fat_ver;             
-    u32     root_clus;        // The start cluster of root
-    u16     info;             // The information of this file system
-    u16     mbr_backup;       // The backup sector of MBR
-    u8      reserved1[12];      
-    u8      driver_num;           
-    u8      reserved2;          
-    u8      extbootsig;         
-    u32     vol_id;              
-    char    vol_label[11];       
-    char    fat_type[8];         
-    u8      bin[356];         // Boot code
-    part_t  ptab[4];          // Partition table
-    u16     endsym;           // 0xAA55
+    u8 jmp_bin[3];  // 跳转指令
+    char oem_id[8]; // OEM 标识字符
+    u16 sec_siz;    // 一个扇区字节数
+    u8 sec_perclst; // 一个扇区簇数
+    u16 rev_num;    // 保留扇区数
+    u8 fat_num;     // FAT(File Allocation Tables) 的数量
+    u16 ent_num;    // 根目录中条目最大数, 数量自动调整的 fat32 不需要, 为 0
+    u16 sec_num16;  // 文件系统扇区总数
+    u8 media;       // 媒体描述符
+    u16 fat_siz16;  // FAT 的大小
+    u16 sec_pertrk; // 一个磁道扇区数
+    u16 head_num;   // 磁头数
+    u32 hid_num;    // 隐藏扇区数, 即分区起始 lba
+    u32 sec_num32;  // 文件系统扇区总数
+
+    /* fat32 extended boot record */
+
+    u32 fat_siz32;    // 一个 FAT 的大小
+    u16 extflags;     //
+    u16 fat_ver;      // 版本
+    u32 root_clst;    // 根目录起始位置
+    u16 info_sec;     // 存储文件系统信息的扇区 FSInfo
+    u16 bkup_sec;     // 主引导扇区备份
+    u8 rev1[12];      // 保留
+    u8 drvnr;         // 标识介质类型, BIOS int 0x13  返回, 现代没什么用
+    u8 rev2;          // 保留
+    u8 extbootsig;    // 0x29
+    u32 vol_id;       // 卷 id (序列号)
+    char vol_lab[11]; // 卷标
+    char type_str[8]; // "FAT32   "
+    u8 bin[420];      // 引导代码
+    u16 endsym;       // 0xAA55
 } record_t;
 
 STATIC_ASSERT(sizeof(record_t) == 512, "wrong size");
 
-typedef struct _packed {
+typedef struct _packed
+{
     u32 lead_sig;
-    u8  rev1[480];
+    u8 rev1[480];
     u32 struct_sig;
     u32 free_cnt;
     u32 free_next;
-    u8  rev2[12];
+    u8 rev2[12];
     u32 trail_sig;
 } fat_info_t;
 
@@ -89,20 +80,19 @@ typedef struct _packed
 STATIC_ASSERT(sizeof(fat_date_t) == 2, "wrong size");
 STATIC_ASSERT(sizeof(fat_time_t) == 2, "wrong size");
 
-typedef struct _packed
-{
-    char   name[11]; // Base(8) + Ext(3)
-    u8     attr;
-    u8     rev;
-    u8     create_ms;
-    u16    create_tm;
-    u16    create_date;
-    u16    access_date;
-    u16    clus_high;
-    u16    write_tm;
-    u16    write_date;
-    u16    clus_low;
-    u32    filesz;
+typedef struct _packed {
+    char name[11]; // base(8) + ext(3)
+    u8 attr;
+    u8 rev;
+    u8 create_ms;
+    u16 create_tm;
+    u16 create_date;
+    u16 access_date;
+    u16 clst_high;
+    u16 write_tm;
+    u16 write_date;
+    u16 clst_low;
+    u32 filesz;
 } sentry_t;
 
 #define LEN_NAME 8
@@ -110,13 +100,13 @@ typedef struct _packed
 
 typedef struct _packed
 {
-    u8  nr;
+    u8 nr;
     u16 name1[5];
-    u8  attr;
-    u8  type;    // Always zero
-    u8  cksum_short;
+    u8 attr;
+    u8 type;  // always zero
+    u8 cksum_short;
     u16 name2[6];
-    u16 clus;    // Always zero
+    u16 clst; // always zero
     u16 name3[2];
 } lentry_t;
 
@@ -134,218 +124,168 @@ STATIC_ASSERT(sizeof(lentry_t) == 32, "wrong size");
 #define FA_ARCHIVE 0x20
 #define FA_LONG    (FA_RO | FA_HIDDEN | FA_SYS | FA_VOLID)
 
-typedef struct {
-    dev_t *dev;
- 
-    u64 fat_sec;
-    u64 first_data_sec;
-    u32 free_cnt;
-    u32 free_next;
-    mbr_t *mbr;       // The master boot sector of this partition
-    record_t *record; // The boot record of this Fat32 file system
-    part_t *pentry;   // The partition entry in mbr
-} sysinfo_t;
-
-static int fat32_open (node_t *parent, char *path, u64 args, node_t **result);
-static int fat32_close (node_t *this);
-static int fat32_remove (node_t *this);
-static int fat32_read (node_t *this, void *buf, size_t siz, size_t offset);
-static int fat32_write (node_t *this, void *buf, size_t siz, size_t offset);
-static int fat32_truncate (node_t *this, size_t offset);
-static int fat32_readdir (node_t *this, node_t **res, size_t idx);
-
-fs_opts_t __fat32_opts = {
-    .open = fat32_open,
-    .close = fat32_close,
-    .remove = fat32_remove,
-    .read = fat32_read,
-    .write = fat32_write,
-    .truncate = fat32_truncate,
-    .readdir = fat32_readdir,
-};
-
-FS_INITIALIZER(__fs_init_fat32)
+typedef struct
 {
-    record_t *record = malloc(sizeof(record_t));
-    hd->bread (hd, pentry->relative, record, 1);
+    dev_t *dev;
+    dev_t *devp;
+    node_t *root;
 
-    if (record->endsym != 0xAA55)
-        goto fail; // error
-    if (record->sec_siz != SECT_SIZ)
-        goto fail; // unsupported
-    
-    u32 free_cnt, free_next;
-    fat_info_t *fat_info = malloc(sizeof(fat_info_t));
-    hd->bread (hd, record->info, fat_info, 1);
-    if (fat_info->lead_sig == INFO_LEAD_SIG && fat_info->struct_sig == INFO_STRUCT_SIG && fat_info->trail_sig == INFO_TRAIL_SIG)
-    {
-        free_cnt = fat_info->free_cnt;
-        free_next = fat_info->free_next;
-    }
-    else
-    {
-        free_next = 0;
-    }
+    unsigned sec_siz;
+    unsigned fat_siz;
+    unsigned fat_entsz;
+    unsigned fat_sec;
+    unsigned data_sec;
+    unsigned root_sec;
+    unsigned sec_perclst;
+} sys_t;
 
-    u64 fat_siz = record->fat_siz16 == 0 ? record->fat_siz32 : record->fat_siz16;
-    u64 fat_tab_sec = pentry->relative + record->sec_reversed;
-    u64 first_data_sec = fat_tab_sec
-                       + record->fat_num * fat_siz
-                       + (record->roots * 32 + (record->sec_siz - 1)) / record->sec_siz; // root_dir_sectors
-    u64 root_sec = (record->root_clus - 2) * record->sec_perclus + first_data_sec;
-    DEBUGK(K_INIT,
-           "fat32 -> tab : %#x (%u,%u) , first_data_sec : %#x , root_sec : %#x "
-           "{%d}\n",
-           fat_tab_sec, record->fat_num, fat_siz, first_data_sec, root_sec,
-           record->sec_perclus);
-
-    /* 记录文件系统信息 */
-    sysinfo_t *sys = malloc(sizeof(sysinfo_t));
-    sys->dev = hd;
-    sys->mbr = mbr;
-    sys->record = record;
-    sys->pentry = pentry;
-    sys->fat_sec = fat_tab_sec;
-    sys->first_data_sec = first_data_sec;
-    sys->free_cnt = free_cnt;
-    sys->free_next = free_next;
-    
-    /* 初始化此文件系统根节点 */
-    node_t *ori = malloc(sizeof(node_t));
-    ori->attr = NA_DIR;
-    ori->name = "/";
-    ori->root = ori;
-    ori->child = NULL;
-    ori->parent = ori;
-    ori->sys = sys;
-    ori->systype = FS_FAT32;
-    ori->idx = root_sec;
-    ori->siz = 0;
-
-    /* FAT32 文件系统接口 */
-    ori->opts = &__fat32_opts;
-
-    return ori;
-fail:
-    if (record)
-        free(record);
-    return NULL;
+static inline unsigned clst2sec(sys_t *f, unsigned clst)
+{
+    return (clst - 2) * f->sec_perclst + f->data_sec;
 }
 
-//
-// 好了, 下面是 entry 操作
-//
+static inline unsigned sec2clst(sys_t *f, unsigned sec)
+{
+    return (sec - f->data_sec) / f->sec_perclst + 2;
+}
 
-#define ALIGN_UP(target, base) ((base) * ((target + base - 1) / base))
-#define ALIGN_DOWN(target, base) ((base) * (target / base))
+static inline unsigned clst2fat(sys_t *f, unsigned clst)
+{
+    return f->fat_sec + (clst * 4) / 512;
+}
 
-#define DUMP_IC(sys, sec)    (((sec) - (sys)->first_data_sec) / (sys)->record->sec_perclus + 2)
-#define DUMP_IS(sys, clus)   (((clus) - 2) * (sys)->record->sec_perclus + (sys)->first_data_sec)
+static inline unsigned get_next(sys_t *f, unsigned clst)
+{
+    unsigned idx = clst2fat(f, clst);
+    buffer_t *blk = bread(f->dev, idx);
+    unsigned *tab = blk->blk;
+    unsigned next = tab[clst % 128];
+    brelse(blk);
+    return next;
+}
 
-/* 获取此 clus 处于 FAT1 中的地址 */
-#define TAB_IS(sys, clus) (sys->fat_sec + (clus * 4) / SECT_SIZ)
+static inline sentry_t *entry_dup(sentry_t *e)
+{
+    sentry_t *n = malloc(sizeof(*n));
+    return memcpy(n, e, sizeof(*n));
+}
 
-#define FAT_ALOC_NR  (SECT_SIZ / sizeof(u32))      // 一扇区 FAT 表的索引容量
-#define FAT_ENTRY_NR (SECT_SIZ / sizeof(sentry_t)) // 一扇区 Entry 容量
+static inline bool is_free(sentry_t *e)
+{
+    u8 c = e->name[0];
+    return c == 0xe5;
+}
+
+static inline bool is_none(sentry_t *e)
+{
+    u8 c = e->name[0];
+    return c == 0;
+}
+
+static inline bool is_unused(sentry_t *e)
+{
+    u8 c = e->name[0];
+    return c == 0xe5 || c == 0;
+}
+
+static inline void entry_erase(sentry_t *e)
+{
+    e->name[0] = 0xe5;
+}
+
+static inline u8 get_cksum(char *sent) 
+{ 
+    u8 sum = 0;
+    u8 *ptr = (u8 *)sent;
+    for (short len = 11 ; len != 0 ; len--) {
+        // the operation is an unsigned char rotate right
+        sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + *ptr++;
+    }
+    return sum; 
+}
+
+static inline unsigned align_up(unsigned x, unsigned y)
+{
+    return y * (((long)x + y - 1) / y);
+}
+
+static unsigned alloc_clst(sys_t *f)
+{
+    unsigned res = 0;
+    unsigned cur = sec2clst(f, f->data_sec);
+    for ( ; ; )
+    {
+        buffer_t *idxblk = bread(f->dev, clst2fat(f, cur));
+        unsigned *idxes = idxblk->blk;
+
+        for (int i = cur % 128 ; i < 128 ; i++, cur++)
+        {
+            if (idxes[i] == 0) {
+                idxes[i] = EOC;
+                res = cur;
+                bdirty(idxblk, true);
+                brelse(idxblk);
+                goto done;
+            }
+        }
+        brelse(idxblk);
+    }
+
+done:
+    return res;
+}
+
+// lookup op
+
+_UTIL_CMP();
+_UTIL_NEXT();
+
+#include <textos/klib/list.h>
+#include <textos/klib/stack.h>
 
 typedef struct
 {
-    u32 clus;
-    u64 idx;
-    list_t list;
-} locate_t;
+    unsigned clst;
+    unsigned idx;
+    list_t link;
+} entlct_t;
 
-/* ls : a ptr to a list head */
-#define LOCATOR_ADD(ls, c, i)                         \
+#define lct_add(list, c, i)                           \
         do {                                          \
-            locate_t *l = malloc(sizeof(locate_t));   \
-            l->clus = c;                              \
+            entlct_t *l = malloc(sizeof(*l));         \
+            l->clst = c;                              \
             l->idx = i;                               \
-            list_insert_after((ls), &l->list);        \
+            list_insert_after((list), &l->link);      \
         } while (false);
 
-#define LOCATOR_CLR(ls)                               \
-        do {                                          \
-            locate_t *l;                              \
-            while (!list_empty (ls)) {                \
-                l = CR((ls)->next, locate_t, list);   \
-                free (l);                             \
-                list_remove((ls)->next);              \
-            }                                         \
-        } while (false);                              \
+#define lct_clr(list)                                  \
+        do {                                           \
+            entlct_t *l;                               \
+            while (!list_empty(list)) {                \
+                l = CR((list)->next, entlct_t, link);  \
+                free(l);                               \
+                list_remove((list)->next);             \
+            }                                          \
+        } while (false);                               \
 
-/* 这里使用一种抽象是为了缩小代码体积, 以及简化一些重复操作 */
 typedef struct
 {
-    sysinfo_t *sys;   // 文件系统信息
-    struct {          // 存储着一些位置信息
-        u32 clus;     // 本结构所代表的 entry 的簇号
-                      // 如果是 dir_entry , 是索引此目录下文件的那几个簇的起始簇号
-                      // 如果是 archive_entry , 是此文件内容的起始簇簇号
-        list_t list;  // 描述各个 entry 位于哪个簇, 是第几个 entry
-    } locator;
-    stack_t ents;     // entry 栈
-    node_t *node;     // entry 被解析后生成的 vfs node
+    sys_t *f;
+    unsigned clst;
+    node_t *node;
+    stack_t ents; // entries
+    list_t link;  // -> entlct_t.ents
 } lookup_t;
 
-static inline lookup_t *_lkp_origin (node_t *n, lookup_t *lkp)
+static lookup_t *lkp_prt(lookup_t *lkp)
 {
-    if (!lkp)
-        lkp = malloc(sizeof(lookup_t));
-
-    lkp->locator.clus = DUMP_IC(((sysinfo_t *)n->sys), n->idx);
-    stack_init (&lkp->ents);
-    list_init  (&lkp->locator.list);
-    lkp->node = n;
-    lkp->sys = n->sys;
-
-    return lkp;
+    node_t *n = lkp->node;
+    if (lkp->f->root == n)
+        return lkp;
+    return n->parent->pdata;
 }
 
-#define LKP_ORI(n) \
-        (_lkp_origin (n, NULL))
-
-static size_t _alloc_part (sysinfo_t *sys);
-static size_t _expand (node_t *this, size_t siz);
-static size_t _expand_part (node_t *this, size_t cnt, bool append);
-
-/*
-    在一个父 entry 下查找子项, 并生成 Lkp, 包含信息 (行为) 如下:
-      - 一个栈
-        - 保存着 entry 信息, 包含长短目录项
-      - 一个 Locator 定位子
-        - 一个 描述当前 entry 所指向的 文件/目录 的簇号 (Cluster)
-        - 一个 描述 entry 在文件系统中的具体位置的链表  (List)
-      - vfs 抽象的子节点
-          - 只是在物理文件系统层面的初始化 -> 不会参与 节点 有关虚拟文件系统部分的初始化
-      - vfs 环境 (所处的文件系统信息) -> sys
-*/
-static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx);
-
-enum {
-    LKPS_NONE   = 0x00,
-    LKPS_UPDATE = 0x01,
-    LKPS_CREATE = 0x02,
-    LKPS_CHILD  = 0x04,
-    LKPS_ERASE  = 0x08
-};
-
-static void      lookup_save (lookup_t *lkp, stack_t *update, int opt);
-
-//
-
-static sentry_t *_entry_dup (sentry_t *ori)
-{
-    sentry_t *buf = malloc(sizeof(sentry_t));
-    return memcpy (buf, ori, sizeof(sentry_t));
-}
-
-static u64 _addr_get (sysinfo_t *sys, sentry_t *sent)
-{
-    u64 addr = sys->first_data_sec
-             + sys->record->sec_perclus * ((sent->clus_low | (u32)sent->clus_high << 16) - 2);
-    return addr;
-}
+#include <textos/assert.h>
 
 #define _(m, ptr)                                     \
     for (int i = 0; i < sizeof(m) / sizeof(*m); i++)  \
@@ -354,7 +294,7 @@ static u64 _addr_get (sysinfo_t *sys, sentry_t *sent)
         else                                          \
             *ptr++ = m[i];                            \
 
-static inline char *_parse_namel (lentry_t *lent, char **buf)
+static inline char *parse_namel(lentry_t *lent, char **buf)
 {
     char *ptr = *buf;
 
@@ -367,7 +307,7 @@ static inline char *_parse_namel (lentry_t *lent, char **buf)
 
 #undef _
 
-static inline char *_parse_name (sentry_t *sent, char *buf)
+static inline char *parse_name(sentry_t *sent, char *buf)
 {
     char *ptr = buf;
     char *name = sent->name;
@@ -385,15 +325,15 @@ static inline char *_parse_name (sentry_t *sent, char *buf)
     for (int i = 0 ; i < sizeof(m) / sizeof(*m) ; i++) \
             m[i] = *ptr++;                             \
 
-static inline char *_make_namel (lentry_t *lent, char **buf)
+static inline char *make_namel(lentry_t *lent, char **buf)
 {
     char *ptr = *buf;
 
-    u16 tmp[_LEN_LONGW];
-    for (int i = 0 ; i < _LEN_LONGW ; i++) {
+    u16 tmp[13];
+    for (int i = 0 ; i < 13 ; i++) {
         if (*ptr == 0) {
             tmp[i] = 0x0000;
-            for (i = i + 1 ; i < _LEN_LONGW ; i++ )
+            for (i = i + 1 ; i < 13 ; i++ )
                 tmp[i] = 0xFFFF;
             break;
         }
@@ -412,36 +352,65 @@ static inline char *_make_namel (lentry_t *lent, char **buf)
 
 #undef _
 
-#define ENTRY_VALID(entry) ((entry).name[0] != 0 && (u8)(entry).name[0] != 0xe5)
-#define ENTRY_ERASE(entry) ((entry).name[0] =  0)
-
-static void _destory_handler (void *payload)
+static node_t *analyse_entry(stack_t *stk, unsigned *clst)
 {
-    free (payload);
+    ASSERTK(!stack_empty(stk));
+    stacki_t *iter = stacki(stk, iter);
+    sentry_t *main = stacki_data(iter);
+                     stacki_next(iter);
+
+    node_t *n = calloc(sizeof(*n));
+    n->siz = main->filesz;
+    n->attr = 0;
+    if (main->attr & FA_DIR)
+        n->attr |= NA_DIR;
+    else if (main->attr & FA_ARCHIVE)
+        n->attr |= NA_REG;
+
+    size_t cnt = stack_siz(stk) - 1;
+    // only has a main entry (short entry)
+    if (cnt == 0)
+    {
+        char buf[8 + 3];
+        memset(buf, 0, sizeof(buf));
+        n->name = strdup(parse_name(main, buf));
+    }
+    else
+    {
+        n->name = malloc(13 * 2 * cnt);
+        
+        do {
+            char *ptr = n->name;
+            while (cnt--)
+            {
+                parse_namel(stacki_data(iter), &ptr);
+                            stacki_next(iter);
+            }
+        } while (false);
+    }
+    
+    // location info
+    if (main->clst_low || main->clst_high)
+        *clst = main->clst_low | (u32)main->clst_high << 16;
+    else
+        *clst = 0;
+
+    return n;
 }
 
-static inline u8 _cksum (char *sent) 
-{ 
-    u8 sum = 0;
-    u8 *ptr = (u8 *)sent;
-    
-    for (short len = 11 ; len != 0 ; len--) {
-        // NOTE: The operation is an unsigned char rotate right
-        sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + *ptr++;
-    }
-    return sum; 
-} 
+#define to_upper(c) ('a' <= c && c <= 'z' ? c - 32 : c)
+#define to_lower(c) ('A' <= c && c <= 'Z' ? c + 32 : c)
 
-#define ORDER_LAST 0x40
-
-/* 调用函数来完成也许是无必要的, 即使编译器会优化 */
-#define UPPER_CASE(c) ('a' <= c && c <= 'z' ? c - 32 : c)
-#define LOWER_CASE(c) ('A' <= c && c <= 'Z' ? c + 32 : c)
-
-static stack_t *_make_entry (node_t *target)
+/*
+ * 生成 目录项 的栈
+ * target 提供 name, time...
+ * lkp 提供条目的定位信息
+ */
+static stack_t *make_entry(node_t *target, lookup_t *lkp)
 {
-    stack_t *stk = stack_init (NULL);
-    ASSERTK (stk != NULL);
+    stack_t *stk = stack_init(NULL);
+    stack_set(stk, free, NULL);
+    ASSERTK(stk != NULL);
     
     bool longer = false;
 
@@ -456,19 +425,18 @@ static stack_t *_make_entry (node_t *target)
 
     /* TODO: replace it -> 使用总名称长度来判断是完全错误的, 应该分开! */
     int len = strlen(name);
-    if (len > LEN_EXT + LEN_NAME)
+    if (len > 3 + 8)
     {
         longer = true;
         goto make;
     }
 
-    /*
-       NOTE: All the characters which are not supported by short entry will be replaced by '_'
-    */
-    size_t NrDots = 0;
+    // all the characters which are not supported by
+    // short entry will be replaced by '_'
+    size_t dotnr = 0;
     for (int i = 0 ; i < len ; i++) {
         switch (name[i]) {
-            /* Unsupported chars */
+            /* unsupported chars */
             case '+': case ',': case ';':
             case '=': case '[': case ']':
                 name[i] = '_';
@@ -479,7 +447,7 @@ static stack_t *_make_entry (node_t *target)
                 goto make;
             
             case '.':
-                if (++NrDots > 1)
+                if (++dotnr > 1)
                     longer = true;
             break;
 
@@ -490,13 +458,14 @@ static stack_t *_make_entry (node_t *target)
     //
 
     int ext_start, name_start;
-    char _name[LEN_NAME],
-         _ext [LEN_EXT ];
+    char _name[8];
+    char _ext[3];
     int  _namei, _exti;
 make:
-    memset (_name, ' ', sizeof(_name));
-    memset (_ext , ' ', sizeof(_ext ));
-    /* 对于 `.XXXX` 的 情况, `.XXXX` 不算做拓展名 */
+    memset(_name, ' ', sizeof(_name));
+    memset(_ext , ' ', sizeof(_ext ));
+
+    // 对于 `.XXXX` 的 情况, `.XXXX` 不算做拓展名
     ext_start = 0;
     name_start = 0;
     for (int i = len - 1 ; i >= 0 ; i--) {
@@ -511,7 +480,7 @@ make:
         break;
     }
 
-    /* 开始填充 */
+    // 开始填充
     _exti = 0;
     _namei = 0;
     if (ext_start != 0) {
@@ -522,15 +491,15 @@ make:
                     continue;
 
                 default:
-                    append = UPPER_CASE(name[i]);
+                    append = to_upper(name[i]);
                 break;
             }
 
-            if (_exti < LEN_NAME)
+            if (_exti < 8)
                 _ext[_exti++] = append;
         }
     } else {
-        /* 不阻挡 name 的初始化 */
+        // 设置大一点, 满足 i < ext_start
         ext_start = 0xff;
     }
 
@@ -542,144 +511,263 @@ make:
                 continue;
 
             default:
-                append = UPPER_CASE(name[i]);
+                append = to_upper(name[i]);
             break;
         }
 
-        if (_namei < LEN_NAME)
+        if (_namei < 8)
             _name[_namei++] = append;
     }
-    
-    free (name);
+    free(name);
 
-    sysinfo_t *sys = target->sys;
-
-    sentry_t *sent = malloc (sizeof(sentry_t));
-    memset (sent, 0, sizeof(sentry_t));
-    memcpy (sent->name, _name, LEN_NAME);
-    memcpy (sent->name + LEN_NAME, _ext, LEN_EXT);
+    sys_t *f = target->sys;
+    sentry_t *sent = calloc(sizeof(sentry_t));
+    memcpy(sent->name, _name, 8);
+    memcpy(sent->name + 8, _ext, 3);
     sent->filesz = target->siz;
-    if (target->idx) {
-        sent->clus_high = DUMP_IC(sys, target->idx) >> 16;
-        sent->clus_low  = DUMP_IC(sys, target->idx) & 0xFFFF;
+    sent->attr = target->attr & NA_REG ? FA_ARCHIVE : FA_DIR;
+
+    if (lkp) {
+        unsigned clst = lkp->clst;
+        sent->clst_high = clst >> 16;
+        sent->clst_low  = clst & 0xFFFF;
     }
-    sent->attr = (target->attr & NA_REG ? FA_ARCHIVE : FA_DIR);
-    stack_push (stk, sent);
+    stack_push(stk, sent);
 
-    /* 接下来是长目录的主场 (有的话...) */
+    // 接下来是长目录的主场 (有的话...)
 
-    u8 cksum = _cksum (sent->name);
-    if (longer) {
-        int cnt = DIV_ROUND_UP(len, _LEN_LONGW);
-
+    u8 cksum = get_cksum(sent->name);
+    if (longer)
+    {
+        int cnt = DIV_ROUND_UP(len, 26);
         char *ptr = target->name;
         lentry_t *lent;
         for (int i = 0 ; i < cnt ; i++)
         {
-            lent = malloc (sizeof(lentry_t));
-            memset (lent, 0, sizeof(lentry_t));
-            memset (lent->name1, 0xFF, sizeof(lent->name1));
-            memset (lent->name2, 0xFF, sizeof(lent->name2));
-            memset (lent->name3, 0xFF, sizeof(lent->name3));
+            lent = calloc(sizeof(lentry_t));
+            memset(lent->name1, 0xFF, sizeof(lent->name1));
+            memset(lent->name2, 0xFF, sizeof(lent->name2));
+            memset(lent->name3, 0xFF, sizeof(lent->name3));
 
-            _make_namel (lent, &ptr);
+            make_namel(lent, &ptr);
 
             // TODO : Check sum
             lent->attr = FA_LONG;
             lent->nr = i + 1;
             lent->cksum_short = cksum;
             
-            stack_push (stk, lent);
+            stack_push(stk, lent);
         }
 
-        /* Set mask for the last entry */
-        lent->nr |= ORDER_LAST;
+        /* set mask to mark the last entry */
+        lent->nr |= 0x40;
     }
 
     return stk;
 }
 
-static node_t *_analysis_entry (sysinfo_t *sys, stack_t *stk)
+/*
+    在一个父 entry 下查找子项, 并生成 lkp, 包含信息 (行为) 如下:
+      - 一个栈
+        - 保存着 entry 信息, 包含长短目录项
+      - 一个 lct 定位子
+        - 一个 描述当前 entry 所指向的 文件/目录 的簇号 (clst)
+        - 一个 描述 entry 在文件系统中的具体位置的链表  (link)
+      - vfs 抽象的子节点
+          - 只是在物理文件系统层面的初始化 -> 不会参与 节点 有关虚拟文件系统部分的初始化
+      - vfs 环境 (所处的文件系统信息) -> f
+*/
+static lookup_t *lookup_entry(lookup_t *prt, char *name)
 {
-    ASSERTK (!stack_empty (stk));
-    stacki_t *iter = stacki(stk, iter);
+    lookup_t *lkp = malloc(sizeof(*lkp));
+    stack_init(&lkp->ents);
+    stack_set(&lkp->ents, free, NULL);
+    list_init(&lkp->link);
 
-    node_t *n = malloc (sizeof(node_t));
-    memset (n, 0, sizeof(node_t));
-
-    sentry_t *main = stacki_data(iter);
-                     stacki_next(iter);
-
-    n->siz = main->filesz;
-    n->attr = 0;
-    if (main->attr & FA_DIR)
-        n->attr |= NA_DIR;
-    else if (main->attr & FA_ARCHIVE)
-        n->attr |= NA_REG;
-
-    if (main->clus_low || main->clus_high)
-        n->idx = _addr_get (sys, main);
-
-    size_t cnt = stack_siz(stk) - 1;
-    /* Only has a main entry (short entry) */
-    if (cnt == 0)
-    {
-        /* Allocate memory for it in stack in order to improve the speed */
-        char buf[LEN_NAME + LEN_EXT];
-        memset (buf, 0, sizeof(buf));
-        /* Do parsing & copying... */
-        n->name = strdup(_parse_name (main, buf));
-    }
-    else
-    {
-        n->name = malloc(_LEN_LONGC * cnt);
-        
-        do {
-            char *ptr = n->name;
-            while (cnt--)
-            {
-                _parse_namel(stacki_data(iter), &ptr);
-                             stacki_next(iter);
-            }
-        } while (false);
-    }
-
-    return n;
-}
-
-/* 根据 stk 来申请, 结果保存到 lkp 的 list 中 */
-static void lookup_alloc (lookup_t *parent, lookup_t *lkp, stack_t *stk)
-{
-    sysinfo_t *sys = parent->sys;
-
-    u32 curr = parent->locator.clus;
-    u32 prev = parent->locator.clus;
-    size_t start_idx = 0, curr_idx  = 0;
-
-    size_t cnt = stack_siz (stk);
-    stack_init (&lkp->ents);
-    list_init  (&lkp->locator.list);
-    
-    bool hit = false;
-    buffer_t *entsblk, *idxblk;
+    sys_t *f = prt->f;
+    bool wind = false;
+    unsigned curr = prt->clst;
     while (true)
     {
-        entsblk = bread(sys->dev, DUMP_IS(sys, curr));
-        idxblk = bread(sys->dev, TAB_IS(sys, curr));
-        sentry_t *ents =  entsblk->blk;
-        u32 *idxes = idxblk->blk;
+        buffer_t *blk = bread(f->dev, clst2sec(f, curr));
+        sentry_t *ents = blk->blk;
 
-        for (int i = 0 ; i < FAT_ENTRY_NR ; i++, curr_idx++)
+        for (int i = 0 ; i < 512 / sizeof(sentry_t) ; i++)
         {
-            /* 希望它 free */
-            if (ENTRY_VALID(ents[i])) {
-                prev = curr;
-                start_idx = curr_idx + 1;
-                LOCATOR_CLR(&lkp->locator.list);
+            // name[0] == 0xe5 -> free entry
+            if (is_free(&ents[i]))
+                goto ent_nxt;
+            // name[0] == 0x00 -> end of dir
+            if (is_none(&ents[i])) {
+                wind = true;
+                break;
+            }
+
+            lct_add(&lkp->link, curr, i);
+            if (ents[i].attr & FA_LONG)
+            {
+                lentry_t *lent = (lentry_t *)&ents[i],
+                         *prev = (lentry_t *)stack_top(&lkp->ents);
+                stack_push(&lkp->ents, entry_dup(&ents[i]));
+                if (prev && lent->cksum_short != prev->cksum_short)
+                    DEBUGK(K_WARN, "cksum isn't unique\n");
                 continue;
             }
 
-            LOCATOR_ADD(&lkp->locator.list, curr, i);
+            if (!stack_empty(&lkp->ents))
+            {
+                // the current one is short entry
+                u8 cksum = get_cksum(ents[i].name);
+                lentry_t *prev = stack_top(&lkp->ents);
+                if (prev->cksum_short != cksum)
+                    DEBUGK(K_WARN, "cksum not matched with short ent\n");
+            }
+            
+            // store the short entry so that we can handle
+            // it and its attached ents at the same time
+            stack_push(&lkp->ents, &ents[i]);
+
+            // generate node
+            lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
+            size_t cmpsiz = (size_t)(strchrnul(name, '/') - name);
+            if (_cmp(name, lkp->node->name)) {
+                wind = true;
+                break;
+            }
+
+        lkp_rst:
+            vfs_release(lkp->node);
+            lkp->node = NULL;
+            stack_clear(&lkp->ents);
+            lct_clr(&lkp->link);
+
+        ent_nxt:
+            continue;
+        }
+
+        curr = get_next(f, curr);
+        brelse(blk);
+
+        // reaches the end
+        if (is_eoc(curr) || wind)
+            break;
+    }
+
+    if (!lkp->node) {
+        free(lkp);
+        lkp = NULL;
+    } else {
+        lkp->f = f;
+    }
+    return lkp;
+}
+
+static lookup_t *lookup_byctx(dirctx_t *ctx)
+{
+    lookup_t *lkp = malloc(sizeof(*lkp));
+    lkp->node = NULL;
+    stack_init(&lkp->ents);
+    stack_set(&lkp->ents, free, NULL);
+    list_init(&lkp->link);
+
+    sys_t *f = ctx->sys;
+    unsigned curr = sec2clst(f, ctx->bidx);
+    unsigned eidx = ctx->eidx;
+    while (true)
+    {
+        buffer_t *buf = bread(f->dev, clst2sec(f, curr));
+        sentry_t *ents = buf->blk;
+
+        for ( ; eidx < 512 / sizeof(sentry_t) ; eidx++)
+        {
+            if (is_free(&ents[eidx]))
+                continue;
+            if (is_none(&ents[eidx]))
+                break;
+
+            lct_add(&lkp->link, curr, eidx);
+            if (ents[eidx].attr & FA_LONG)
+            {
+                lentry_t *lent = (lentry_t *)&ents[eidx],
+                         *prev = (lentry_t *)stack_top(&lkp->ents);
+                stack_push(&lkp->ents, entry_dup(&ents[eidx]));
+                if (prev && lent->cksum_short != prev->cksum_short)
+                    DEBUGK(K_WARN, "cksum isn't unique\n");
+                continue;
+            }
+
+            if (!stack_empty(&lkp->ents))
+            {
+                // the current one is short entry
+                u8 cksum = get_cksum(ents[eidx].name);
+                lentry_t *prev = stack_top(&lkp->ents);
+                if (prev->cksum_short != cksum)
+                    DEBUGK(K_WARN, "cksum not matched with short ent\n");
+            }
+            
+            // store the short entry so that we can handle
+            // it and its attached ents at the same time
+            stack_push(&lkp->ents, &ents[eidx]);
+
+            // generate node
+            lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
+            ctx->eidx = eidx+1;
+            ctx->bidx = clst2sec(f, curr);
+            ctx->pos += 1;
+            break;
+        }
+        brelse(buf);
+
+        if (lkp->node)
+            goto done;
+
+        eidx = 0;
+        curr = get_next(f, curr);
+        if (is_eoc(curr))
+            goto none;
+    }
+
+done:
+    ASSERTK(lkp->node != NULL);
+
+    // remained info
+    lkp->f = ctx->sys;
+    return lkp;
+
+none:
+    ctx->stat = ctx_end;
+    return NULL;
+}
+
+static size_t data_expand2(sys_t *f, unsigned *start, size_t cnt, bool append);
+
+/* 根据 stk 来申请, 结果保存到 lkp 的 list 中 */
+static void lookup_alloc(lookup_t *prt, lookup_t *lkp, stack_t *stk)
+{
+    sys_t *f = prt->f;
+    u32 curr = prt->clst;
+    u32 prev = prt->clst;
+    size_t start_idx = 0, curr_idx  = 0;
+    size_t cnt = stack_siz(stk);
+    stack_init(&lkp->ents);
+    list_init(&lkp->link);
+
+    bool hit = false;
+    while (true)
+    {
+        buffer_t *blk = bread(f->dev, clst2sec(f, curr));
+        sentry_t *ents = blk->blk;
+
+        for (int i = 0 ; i < 16 ; i++, curr_idx++)
+        {
+            if (!is_unused(&ents[i])) {
+                prev = curr;
+                start_idx = curr_idx + 1;
+                lct_clr(&lkp->link);
+                continue;
+            }
+
+            lct_add(&lkp->link, curr, i);
             if (curr_idx - start_idx + 1 == cnt) {
                 hit = true;
                 break;
@@ -687,388 +775,393 @@ static void lookup_alloc (lookup_t *parent, lookup_t *lkp, stack_t *stk)
         }
 
         prev = curr;
-        curr = idxes[curr % FAT_ALOC_NR];
-        brelse(idxblk);
-        brelse(entsblk);
+        curr = get_next(f, curr);
+        brelse(blk);
 
         // reaches the end
-        if (IS_EOC(curr))
+        if (is_eoc(curr))
             break;
     }
     
     if (!hit) {
-        _expand_part (parent->node, 1, true);
-        lookup_alloc (parent, lkp, stk);
+        data_expand2(f, &prt->clst, 1, true);
+        lookup_alloc(prt, lkp, stk);
     }
 }
 
-static void _lookup_release (lookup_t *lkp)
+// write a stack `update` with the location descrbed by the list in `ori`
+static void lookup_save0(lookup_t *ori, stack_t *stk)
 {
-    if (!stack_empty (&lkp->ents))
-        stack_clear (&lkp->ents);
+    ASSERTK(&ori->ents != stk);
 
-    /* TODO: 可行性检查 -> 是否需要释放 */
-    if (lkp->node)
-        vfs_release (lkp->node);
-}
-
-_UTIL_CMP();
-
-static lookup_t *lookup_entry (lookup_t *parent, char *target, size_t idx)
-{
-    lookup_t *lkp = malloc (sizeof(lookup_t));
-
-    stack_init (&lkp->ents);
-    stack_set  (&lkp->ents, _destory_handler, NULL);
-    list_init  (&lkp->locator.list);
-    
-    sysinfo_t *sys = parent->sys;
-    u32 curr = parent->locator.clus;
-
-    bool find = false;
-
-    buffer_t *entsblk, *idxblk;
-    while (true)
-    {
-        entsblk = bread(sys->dev, DUMP_IS(sys, curr));
-        idxblk = bread(sys->dev, TAB_IS(sys, curr));
-        sentry_t *ents = entsblk->blk;
-        u32 *idxes = idxblk->blk;
-
-        for (int i = 0 ; i < SECT_SIZ / sizeof(sentry_t) ; i++)
-        {
-            /* 这个文件已经被删除了 (不存在) */
-            if (!ENTRY_VALID(ents[i]))
-                goto entry_next;
-
-            LOCATOR_ADD (&lkp->locator.list, curr, i);
-            if (ents[i].attr & FA_LONG)
-            {
-                lentry_t *lent, *prev;
-
-                lent = (void *)&ents[i];
-                if (~lent->nr & ORDER_LAST)
-                    goto entry_next;
-
-                prev = stack_top(&lkp->ents);
-                ASSERTK (prev ? lent->cksum_short == prev->cksum_short : true);
-                stack_push (&lkp->ents, _entry_dup (&ents[i]));
-
-                goto entry_next;
-            }
-
-            if (!stack_empty (&lkp->ents)) {
-                lentry_t *prev = stack_top (&lkp->ents);
-
-                u8 cksum = _cksum (ents[i].name);
-                if (prev->cksum_short != cksum) {
-                    /* Starts from the origin */
-                    stack_clear (&lkp->ents);
-                    goto entry_next;
-                }
-            }
-
-            /* store the short entry so that we can handle
-               it and its attached ents at the same time */
-            stack_push (&lkp->ents, &ents[i]);
-
-            lkp->node = _analysis_entry (sys, &lkp->ents);
-            if (target == NULL) {
-                if (idx-- == 0) {
-                    find = true;
-                    break;
-                }
-                goto lkp_rst;
-            }
-
-            size_t cmpsiz = (size_t)(strchrnul (target, '/') - target);
-            if (_cmp (target, lkp->node->name)) {
-                find = true;
-                break;
-            }
-
-        lkp_rst:
-            vfs_release (lkp->node);
-            lkp->node = NULL;
-            stack_clear (&lkp->ents);
-            LOCATOR_CLR(&lkp->locator.list);
-
-        /* Handle the next entry we have read before */
-        entry_next:
-            continue;
-        }
-
-        curr = idxes[curr % FAT_ALOC_NR];
-        brelse(idxblk);
-        brelse(entsblk);
-
-        // reaches the end
-        if (IS_EOC(curr) || find)
-            break;
-    }
-
-    if (!lkp->node) {
-        free (lkp);
-        lkp = NULL;
-    } else {
-        lkp->sys = parent->sys;
-        lkp->locator.clus = DUMP_IC(sys, lkp->node->idx);
-    }
-    return lkp;
-}
-
-static void _lookup_all (lookup_t *parent, stack_t *child)
-{
-    sysinfo_t *sys = parent->sys;
-    u32 curr = parent->locator.clus;
-
-    buffer_t *entsblk, *idxblk;
-    while (true)
-    {
-        entsblk = bread(sys->dev, DUMP_IS(sys, curr));
-        idxblk = bread(sys->dev, TAB_IS(sys, curr));
-        sentry_t *ents = entsblk->blk;
-        u32 *idxes = idxblk->blk;
-
-        for (int i = 0 ; i < SECT_SIZ / sizeof(sentry_t) ; i++)
-        {
-            /* 这个文件已经被删除了 (不存在) */
-            if (!ENTRY_VALID(ents[i]))
-                goto entry_next;
-            stack_push (child, _entry_dup(&ents[i]));
-
-        entry_next:
-            continue;
-        }
-
-        curr = idxes[curr % FAT_ALOC_NR];
-        brelse(idxblk);
-        brelse(entsblk);
-        if (IS_EOC(curr))
-            break;
-    }
-}
-
-/* Write a stack `Update` according to the list in `Origin` */
-static void lookup_save_common (lookup_t *ori, stack_t *update)
-{
-    sysinfo_t *sys = ori->sys;
-
-    list_t *head = &ori->locator.list;
+    sys_t *f = ori->f;
+    list_t *ptr;
+    list_t *head = &ori->link;
+    stacki_t *iter = stacki(stk, iter);
 
     /* 逆向遍历, 顺应 stack */
-    sentry_t *ents = malloc(SECT_SIZ);
-    buffer_t *entsblk;
-    for (list_t *ptr = head->prev ; ptr != head ; ptr = ptr->prev) {
-        locate_t *lct = CR (ptr, locate_t, list);
-        entsblk = bread(sys->dev, DUMP_IS(sys, lct->clus));
+    LIST_FOREACH_REV(ptr, head)
+    {
+        entlct_t *lct = CR(ptr, entlct_t, link);
+        buffer_t *blk = bread(f->dev, clst2sec(f, lct->clst));
+        sentry_t *ents = blk->blk;
 
-        ASSERTK (lct->idx < 16);
-        ASSERTK (stack_siz(update) != 0);
-        sentry_t *member = stack_top(update);
-        sentry_t *ents = entsblk->blk;
-        memcpy (&ents[lct->idx], member, sizeof(sentry_t));
-        stack_pop(update);
+        ASSERTK(lct->idx < 16);
+        void *entry =
+            stacki_data(iter);
+            stacki_next(iter);
+        memcpy(&ents[lct->idx], entry, sizeof(sentry_t));
 
-        bdirty(entsblk, true);
-        brelse(entsblk);
+        bdirty(blk, true);
+        brelse(blk);
     }
+
+    stack_fini(&ori->ents);
+    stack_move(stk, &ori->ents);
 }
 
-static void lookup_save_child (lookup_t *ori, stack_t *child)
+// 将 prt 目录下的项删除, 并替换为 chd 描述的
+static void lookup_save1(lookup_t *prt, stack_t *chd)
 {
-    sysinfo_t *sys = ori->sys;
-    u32 curr = ori->locator.clus;
-
-    buffer_t *entsblk, *idxblk;
+    sys_t *f = prt->f;
+    unsigned curr = prt->clst;
+    stacki_t *iter = stacki(chd, iter);
     while (true)
     {
-        idxblk = bread(sys->dev, TAB_IS(sys, curr));
-        entsblk = bread(sys->dev, DUMP_IS(sys, curr));
-        sentry_t *ents = entsblk->blk;
-        u32 *idxes = idxblk->blk;
+        buffer_t *blk = bread(f->dev, clst2sec(f, curr));
+        sentry_t *ents = blk->blk;
 
-        for (int i = 0 ; i < SECT_SIZ / sizeof(sentry_t) ; i++)
+        for (int i = 0 ; i < 16 ; i++)
         {
-            if (!stack_empty (child)) {
-                void *member = stack_top (child);
-                memcpy (&ents[i], member, sizeof(sentry_t));
-                stack_pop (child);
+            if (!stacki_none(iter)) {
+                void *entry =
+                    stacki_data(iter);
+                    stacki_next(iter);
+                memcpy(&ents[i], entry, sizeof(sentry_t));
             } else {
-                memset (&ents[i], 0, sizeof(sentry_t));
+                memset(&ents[i], 0, sizeof(sentry_t));
             }
         }
 
-        curr = idxes[curr % FAT_ALOC_NR];
-        brelse(idxblk);
-        bdirty(entsblk, true);
-        brelse(entsblk);
-        if (IS_EOC(curr))
+        curr = get_next(f, curr);
+        bdirty(blk, true);
+        brelse(blk);
+        if (is_eoc(curr))
             break;
     }
+    stack_fini(&prt->ents);
+    stack_move(chd, &prt->ents);
 }
 
-/* Erase ents which `Origin`'s list describes */
-static void lookup_save_erase (lookup_t *ori)
+/* erase ents which `ori`'s list describes */
+static void lookup_savex(lookup_t *ori)
 {
-    sysinfo_t *sys = ori->sys;
-
-    u32 prev = 0;
-    list_t *head = &ori->locator.list;
+    sys_t *f = ori->f;
+    list_t *ptr;
+    list_t *head = &ori->link;
 
     /* 逆向遍历, 顺应 stack */
-    sentry_t *ents = malloc (SECT_SIZ);
-    for (list_t *ptr = head->prev ; ptr != head ; ptr = ptr->prev) {
-        locate_t *lct = CR (ptr, locate_t, list);
-        buffer_t *entsblk = bread(sys->dev, DUMP_IS(sys, lct->clus));
-        sentry_t *ents = entsblk->blk;
-        ASSERTK (lct->idx < 16);
-        ENTRY_ERASE(ents[lct->idx]);
-        bdirty(entsblk, true);
-        brelse(entsblk);
+    LIST_FOREACH_REV(ptr, head)
+    {
+        entlct_t *lct = CR(ptr, entlct_t, link);
+        buffer_t *blk = bread(f->dev, clst2sec(f, lct->clst));
+        sentry_t *ents = blk->blk;
+
+        ASSERTK(lct->idx < 16);
+        entry_erase(&ents[lct->idx]);
+        
+        bdirty(blk, true);
+        brelse(blk);
     }
 }
 
-/*
-    当 Opt == LKPS_CHILD, stack 代表 Lkp目录 的子项组成的栈
-*/
-static void lookup_save (lookup_t *lkp, stack_t *stk, int opt)
+// 用栈更新目录项信息
+static void lookup_update(lookup_t *lkp, stack_t *stk)
 {
-    ASSERTK (opt != LKPS_NONE);
+    ASSERTK(&lkp->ents != stk);
 
-    if (opt == LKPS_ERASE)
-    {
-        ASSERTK (stk == NULL);
-        lookup_save_erase (lkp);
-    }
-    /* Write an entry created */
-    else if (opt == LKPS_CREATE)
-    {
-        ASSERTK (stack_siz (&lkp->ents) == 0);
-        lookup_save_common (lkp, stk);
-    }
-    else if (opt == LKPS_CHILD)
-    {
-        lookup_save_child (lkp, stk);
-    }
-    /* Overwrite the original */
-    else if (opt == LKPS_UPDATE)
-    {
-        if (stack_siz(&lkp->ents) == stack_siz(stk)) {
-            lookup_save_common (lkp, stk);
-        }
-        else { /* space will be taken up may be too small, in spite of the original */
-            lookup_save_erase (lkp);
-            ASSERTK (lkp->node->parent != NULL);
-            lookup_t *Prt = LKP_ORI(lkp->node->parent);
-            lookup_alloc (Prt, lkp, stk);
-            lookup_save  (lkp, stk, opt);
-        }
+    if (stack_siz(&lkp->ents) == stack_siz(stk)) {
+        lookup_save0(lkp, stk);
+    } else {
+        lookup_savex(lkp);
+        lookup_t *prt = lkp_prt(lkp);
+        lookup_alloc(prt, lkp, stk);
+        lookup_save0(lkp, stk);
     }
 }
 
-/* Common sync */
-static void _com_sync (node_t *before, node_t *after)
+static inline unsigned fat_erase(unsigned *tabent, unsigned stat)
 {
-    lookup_t *parent = LKP_ORI(before->parent);
-    lookup_t *origin = lookup_entry (parent, before->name, 0);
-    origin->sys = parent->sys;
+    unsigned tmp = *tabent;
+    *tabent = stat;
+    return tmp;
+}
 
-    stack_t *stk = _make_entry (after);
-    lookup_save (origin, stk, LKPS_UPDATE);
+// cut 指定是否是截断操作.
+// - true - 数据块
+// - false - 数据块一个不剩
+// cut == 0 仅当 start 为文件开头, 且释放所有数据块时
+static void data_relse(sys_t *sys, unsigned start, unsigned skip, bool cut)
+{
+    unsigned curr = start;
+    unsigned stat = cut ? 0 : EOC;
+    bool wind = false;
+    while (!wind)
+    {
+        buffer_t *idxblk = bread(sys->dev, clst2fat(sys, curr));
+        unsigned *idxes = idxblk->blk;
+
+        if (skip)
+            skip--;
+        else {
+            curr = fat_erase(&idxes[curr % 128], stat);
+            if (is_eoc(curr))
+                wind = true;
+        }
+
+        bdirty(idxblk, true);
+        brelse(idxblk);
+    }
+}
+
+// 拓展 this 所指向的实体, 在原有的基础上拓宽/拓宽到 cnt 个扇区
+static size_t data_expand2(sys_t *f, unsigned *start, size_t cnt, bool append)
+{
+    if (*start == 0) {
+        *start = alloc_clst(f);
+        if (--cnt == 0)
+            goto done;
+    }
+
+    ASSERTK(clst2sec(f, *start) >= f->data_sec);
+
+    buffer_t *curblk;
+    unsigned *icur, *iend;
+    unsigned curr = *start, end;
+    while (true)
+    {
+        curblk = bread(f->dev, clst2fat(f, curr));
+        icur = curblk->blk;
+
+        u32 next = icur[curr % 128];
+        if (is_eoc(next))
+            break;
+        else
+            curr = next;
+        
+        brelse(curblk);
+        if (!append)
+            if (--cnt == 0)
+                goto done;
+    }
+    end = curr;
+    iend = icur;
+
+    for ( ; ; curr++)
+    {
+        // next sector of FAT1
+        if (curr % 128 == 0) {
+            bdirty(curblk, true);
+            brelse(curblk);
+            curblk = bread(f->dev, clst2fat(f, curr));
+            icur = curblk->blk;
+        }
+
+        // free data sector to use
+        if (!icur[curr % 128]) {
+            // zero the free sector
+            buffer_t *zero = bread(f->dev, clst2sec(f, curr));
+            memset(zero->blk, 0, 512);
+            bdirty(zero, true);
+            brelse(zero);
+
+            iend[end % 128] = curr;
+            if (iend != icur) {
+                // 这个空闲项已经作为一个节点链接到上一个索引,
+                // 也就是上一个结尾, 此时的结尾应该被更新
+                iend = icur;
+            }
+            end = curr;
+            
+            cnt -= 1;
+        }
+
+        if (cnt == 0) {
+            iend[end % 128] = EOC;
+            brelse(curblk);
+            break;
+        }
+    }
+
+done:
+    return cnt;
+}
+
+static size_t node_expand(node_t *this, size_t siz)
+{
+    if (align_up(this->siz, 512) >= siz)
+        return siz;
+
+    sys_t *f = this->sys;
+    lookup_t *lkp = this->pdata;
+    size_t cnt = DIV_ROUND_UP(siz - align_up(this->siz, 512), 512);
+    size_t res = data_expand2(f, &lkp->clst, cnt, false) * 512;
+    ASSERTK(res == 0);
+
+    return siz;
+}
+
+static void node_update(node_t *this)
+{
+    lookup_t *lkp = this->pdata;
+    stack_t *stk = make_entry(this, lkp);
+    lookup_update(lkp, stk);
+}
+
+static int byte_rd(node_t *n, void *buf, size_t rdsiz, size_t off)
+{
+    sys_t *f = n->sys;
+    if (rdsiz == 0)
+        return 0;
+    if (off >= n->siz)
+        return EOF;
+
+    lookup_t *lkp = n->pdata;
+    unsigned curr = lkp->clst;
+    unsigned skip_sect = off / 512,
+             skip_byte = off % 512;
+    unsigned real = MIN(n->siz, off + rdsiz) - off;
+    unsigned rem = real;
+    for (int s = 0 ; ; s++)
+    {
+        if (s >= skip_sect) {
+            buffer_t *tmp = bread(f->dev, clst2sec(f, curr));
+            size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
+            memcpy(buf, tmp->blk + skip_byte, cpysiz);
+            brelse(tmp);
+            skip_byte = 0;
+
+            buf += cpysiz;
+            rem -= cpysiz;
+            if (rem == 0)
+                goto done;
+        }
+        
+        curr = get_next(f, curr);
+        if (is_eoc(curr))
+            break;
+    }
+
+done:
+    return real;
+}
+
+static int byte_wr(node_t *n, void *buf, size_t wrsiz, size_t off)
+{
+    sys_t *f = n->sys;
+    lookup_t *lkp = n->pdata;
+    unsigned curr = lkp->clst;
+    unsigned skip_sect = off / 512,
+             skip_byte = off % 512;
+    unsigned rem = wrsiz;
+    for (size_t s = 0 ;  ; s++)
+    {
+        if (s >= skip_sect) {
+            buffer_t *ori = bread(f->dev, clst2sec(f, curr));
+            /* MIN 的意义在于 : wrsiz 可能比一个扇区的大小要小 */
+            size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
+            memcpy(ori->blk + skip_byte, buf, cpysiz);
+            bdirty(ori, true);
+            brelse(ori);
+            skip_byte = 0;
+
+            buf += cpysiz;
+            rem -= cpysiz;
+            if (rem == 0)
+                goto done;
+        }
+
+        curr = get_next(f, curr);
+        if (is_eoc(curr))
+            break;
+    }
+
+done:
+    return wrsiz;
 }
 
 static sentry_t dirhead_1 = { ".          ", FA_DIR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static sentry_t dirhead_2 = { "..         ", FA_DIR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-static node_t *_create (node_t *parent, char *name, int attr)
+static void chd_insert(node_t *prt, node_t *chd)
 {
-    node_t *child = malloc (sizeof(node_t));
-    memset (child, 0, sizeof(node_t));
+    chd->next = prt->child;
+    prt->child = chd;
+    chd->parent = prt;
+}
 
-    child->sys     = parent->sys;
-    child->systype = parent->systype;
-    child->opts   = parent->opts;
+static node_t *create(node_t *prt, char *name, int attr)
+{
+    node_t *chd = calloc(sizeof(*chd));
+    lookup_t *lkp = malloc(sizeof(*lkp));
+    lookup_t *lkpp = prt->pdata;
 
-    child->name = strdup(name);
-    child->attr = attr;
-    
-    /* update parent's & child's nodes */
-    child->next = parent->child;
-    parent->child = child;
-    child->parent = parent;
+    chd->name = strdup(name);
+    chd->attr = attr;
+    chd->siz = 0;
+    chd->pdata = lkp;
 
-    child->siz = 0;
-    /* allocate an address when it's about to be written */
-    child->idx = 0;
-    if (child->attr & NA_DIR)
-        child->idx = _alloc_part (child->sys);
+    chd->sys = prt->sys;
+    chd->systype = prt->systype;
+    chd->opts = prt->opts;
+    chd_insert(prt, chd);
 
-    /* Write our child node into disk (media) */
-    lookup_t *par = LKP_ORI(parent);
-    lookup_t *lkp = LKP_ORI(child);
+    unsigned clst = 0;
+    if (chd->attr & NA_DIR)
+        clst = alloc_clst(chd->sys);
 
-    stack_t *stk = _make_entry(child);
-    lookup_alloc (par, lkp, stk);
-    lookup_save  (lkp, stk, LKPS_CREATE);
-    
-    /* 目录开头是需要一些预设的 entry 的, 比如 '.' '..' */
-    if (child->attr & NA_DIR) {
-        lookup_t *lkpchd = LKP_ORI(child);
-        stack_t *init = stack_init (NULL);
+    lkp->f = prt->sys;
+    lkp->clst = clst;
+    lkp->node = chd;
+    list_init(&lkp->link);
+    stack_init(&lkp->ents);
 
+    stack_t *stk = make_entry(chd, lkp);
+    lookup_alloc(lkpp, lkp, stk);
+    lookup_save0(lkp, stk);
+
+    // 目录开头需要一些预设 entry, 比如 `.` `..`
+    if (chd->attr & NA_DIR)
+    {
+        stack_t *init = stack_init(NULL);
         stack_push(init, &dirhead_2);
         stack_push(init, &dirhead_1);
-        lookup_save (lkpchd, init, LKPS_CHILD);
-            
-        stack_fini (init);
+        lookup_save1(lkp, init);
+        stack_fini(init);
     }
 
-    stack_fini (stk);
-    return child;
+    return chd;
 }
 
-//
-// 文件系统操作
-//
-
-_UTIL_NEXT();
-_UTIL_PATH_DIR();
-
-/*
-    路径游走 , 我第一次听到这个好听的名字是在 lunaixsky 的视频里面, 这里直接沿用了!
-
-    @param Start  父目录
-    @param Path  搜索对象文件名指针
-    @param Last  最后一个可以被索引的已加载的文件节点
-*/
-static node_t *_fat32_open (node_t *start, char *path)
+static node_t *_fat32_open(node_t *dir, char *path)
 {
-    sysinfo_t *sys = start->sys;
-    lookup_t *lkp = LKP_ORI(start);
-    node_t *res = NULL;
+    node_t *chd = NULL;
+    lookup_t *lkp;
+    if ((lkp = lookup_entry(dir->pdata, path)))
+    {
+        chd = lkp->node;
+        chd->pdata = lkp;
 
-    lkp = lookup_entry(lkp, path, 0);
-    if (!lkp)
-        goto end;
-    res = lkp->node;
+        chd->opts = dir->opts;
+        chd->sys = dir->sys;
+        chd->systype = dir->systype;
+        chd_insert(dir, chd);
+    }
 
-    stack_fini(&lkp->ents);
-    free(lkp);
-
-    res->parent = start;
-    res->opts = start->opts;
-    res->sys = start->sys;
-    res->systype = start->systype;
-
-    res->next = start->child;
-    start->child = res;
-
-end:
-    return res;
+    return chd;
 }
 
-static int fat32_open (node_t *parent, char *path, u64 args, node_t **result)
+static int fat32_open(node_t *parent, char *path, u64 args, node_t **result)
 {
     int ret = 0;
     node_t *opened;
@@ -1080,9 +1173,9 @@ static int fat32_open (node_t *parent, char *path, u64 args, node_t **result)
     if (args & VFS_CREATE)
     {
         /*
-           按照习惯, 默认只能在一个已经存在的目录下创建新的节点,
-           但是如果 Path 不到头, 就说明此文件的父目录也不存在, 所以直接返回 NULL
-        */
+         * 按照习惯, 默认只能在一个已经存在的目录下创建新的节点,
+         * 但是如果 Path 不到头, 就说明此文件的父目录也不存在, 所以直接返回 NULL
+         */
         if (*_next(path) != 0) {
             ret = -ENOENT;
             goto end;
@@ -1093,7 +1186,7 @@ static int fat32_open (node_t *parent, char *path, u64 args, node_t **result)
             attr |= NA_DIR;
         else
             attr |= NA_REG;
-        opened = _create (parent, path, attr);
+        opened = create(parent, path, attr);
     }
     else
     {
@@ -1107,348 +1200,175 @@ end:
     return ret;
 }
 
-/* Close a node , and delete its sub-dir -> call the public handler */
-static int fat32_close (node_t *this)
+static int fat32_close(node_t *this)
 {
-    return vfs_release (this);
+    lookup_t *lkp = this->pdata;
+    vfs_release(this);
+    lct_clr(&lkp->link);
+    free(lkp);
+    return 0;
 }
 
-static int _read_content (node_t *n, void *buf, size_t readsiz, size_t offset)
+static int fat32_remove(node_t *this)
 {
-    sysinfo_t *sys = n->sys;
+    lookup_t *prt = this->pdata;
+    lookup_t *lkp = lookup_entry(prt, this->name);
+    lookup_savex(lkp);
+    // 释放数据区
+    data_relse(this->sys, lkp->clst, 0, false);
+    return fat32_close(this);
+}
 
-    if (readsiz == 0)
+static int fat32_read(node_t *this, void *buf, size_t siz, size_t offset)
+{
+    return byte_rd(this, buf, siz, offset);
+}
+
+static int fat32_write(node_t *this, void *buf, size_t siz, size_t offset)
+{
+    bool chg = false;
+    if (siz + offset >= this->siz) {
+        this->siz = node_expand(this, siz + offset);
+        chg = true;
+    }
+
+    int ret = byte_wr(this, buf, siz, offset);
+    if (chg)
+        node_update(this);
+    return ret;
+}
+
+static int fat32_truncate(node_t *this, size_t len)
+{
+    if (len == this->siz)
         return 0;
-    if (offset >= n->siz)
-        return EOF;
-    
-    u32 curr = DUMP_IC(sys, n->idx);
-    size_t offset_sect = offset / SECT_SIZ,
-           offset_byte = offset % SECT_SIZ;
-    
-    size_t real = MIN(n->siz, offset + readsiz) - offset;
-    size_t cnt  = DIV_ROUND_UP(real, sys->record->sec_siz);
-    size_t siz  = real;
 
-    for (int i = 0 ;  ; i++) {
-        if (i >= offset_sect) {
-            buffer_t *tmp = bread(sys->dev, DUMP_IS(sys, curr));
-            size_t cpysiz = MIN(siz, offset_byte != 0 ? SECT_SIZ - offset_byte : MIN(siz, SECT_SIZ));
-            memcpy (buf, tmp->blk + offset_byte, cpysiz);
-            brelse(tmp);
-
-            offset_byte = 0;
-
-            buf += cpysiz;
-            cnt--;
-            if (cnt == 0)
-                goto end;
-            siz -= cpysiz;
-        }
-        
-        buffer_t *idxblk = bread(sys->dev, TAB_IS(sys, curr));
-        u32 *idxes = idxblk->blk;
-        curr = idxes[curr % FAT_ALOC_NR];
-        brelse(idxblk);
-
-        // reaches the end
-        if (IS_EOC(curr))
-            break;
-    }
-
-end:
-    return real;
-}
-
-static int fat32_read (node_t *this, void *buf, size_t siz, size_t offset)
-{
-    return _read_content (this, buf, siz, offset);
-}
-
-static size_t _alloc_part (sysinfo_t *sys)
-{
-    buffer_t *idxblk;
-    size_t res = 0, curr = DUMP_IC(sys, sys->first_data_sec) + sys->free_next - 1;
-    for ( ; ; )
-    {
-        idxblk = bread(sys->dev, TAB_IS(sys, curr));
-        u32 *idxes = idxblk->blk;
-
-        for (int i = curr % FAT_ALOC_NR ; i < FAT_ALOC_NR ; i++, curr++) {
-            if (idxes[i] == 0) {
-                idxes[i] = EOC;
-                sys->free_next = curr + 1;
-                res = curr;
-                bdirty(idxblk, true);
-                brelse(idxblk);
-                goto fini;
-            }
-        }
-        brelse(idxblk);
-    }
-
-fini:
-    return res == 0 ? 0 : DUMP_IS(sys, res);
-}
-
-/* 拓展 This 所指向的实体, 在原有的基础上拓宽/拓宽到 Cnt 个扇区 */
-static size_t _expand_part (node_t *n, size_t cnt, bool append)
-{
-    sysinfo_t *sys = n->sys;
-    u32 curr, end;
-    
-    buffer_t *curblk;
-    u32 *idxes_cur, *idxes_end;
-
-    if (n->idx == 0) {
-        n->idx = _alloc_part (n->sys);
-        if (--cnt == 0)
-            goto exit;
-    }
-
-    ASSERTK (n->idx >= sys->first_data_sec);
-
-    // TODO: starts from head
-    curr = DUMP_IC(sys, n->idx);
-
-    while (true)
-    {
-        curblk = bread(sys->dev, TAB_IS(sys, curr));
-        idxes_cur = curblk->blk;
-
-        u32 next = idxes_cur[curr % FAT_ALOC_NR];
-        if (IS_EOC(next))
-            break;
-        else
-            curr = next;
-        
-        brelse(curblk);
-        if (!append)
-            if (--cnt == 0)
-                goto exit;
-    }
-    end = curr;
-    idxes_end = idxes_cur;
-
-    for ( ; ; curr++)
-    {
-        // next sector of FAT1
-        if (curr % FAT_ALOC_NR == 0) {
-            bdirty(curblk, true);
-            brelse(curblk);
-            curblk = bread(sys->dev, TAB_IS(sys, curr));
-            idxes_cur = curblk->blk;
-        }
-
-        // free data sector to use
-        if (!idxes_cur[curr % FAT_ALOC_NR]) {
-            // zero the free sector
-            buffer_t *zero = bread(sys->dev, DUMP_IS(sys, curr));
-            memset(zero->blk, 0, SECT_SIZ);
-            bdirty(zero, true);
-            brelse(zero);
-
-            idxes_end[end % FAT_ALOC_NR] = curr;
-            if (idxes_end != idxes_cur) {
-                // 这个空闲项已经作为一个节点链接到上一个索引,
-                // 也就是上一个结尾, 此时的结尾应该被更新
-                idxes_end = idxes_cur;
-            }
-            end = curr;
-            
-            cnt -= 1;
-        }
-
-        if (cnt == 0) {
-            idxes_end[end % FAT_ALOC_NR] = EOC;
-            /* Save changes to disk */
-            brelse(curblk);
-            break;
-        }
-    }
-
-exit:
-    return cnt;
-}
-
-/* NOTE : Do not opearte `This` in this function! */
-static size_t _expand (node_t *this, size_t siz)
-{
-    sysinfo_t *sys = this->sys;
-
-    if (ALIGN_UP(this->siz, SECT_SIZ) >= siz)
-        return siz;
-
-    size_t cnt = DIV_ROUND_UP(siz - ALIGN_UP(this->siz, SECT_SIZ), SECT_SIZ);
-    size_t res = _expand_part (this, cnt, false) * SECT_SIZ;
-    ASSERTK (res == 0);
-
-    return siz;
-}
-
-/*
-   战术: 扩容为先
-*/
-static int _write_content (node_t *n, void *buf, size_t writesiz, size_t offset)
-{
-    if (writesiz + offset >= n->siz)
-        n->siz = _expand (n, writesiz + offset);
-
-    sysinfo_t *sys = n->sys;
-
-    u32 curr = DUMP_IC(sys, n->idx);
-
-    size_t offset_sect = offset / SECT_SIZ,
-           offset_byte = offset % SECT_SIZ;
-
-    size_t cnt = DIV_ROUND_UP(writesiz, SECT_SIZ);
-    size_t siz = writesiz;
-    for (size_t i = 0 ;  ; i++)
-    {
-        if (i >= offset_sect) {
-            buffer_t *ori = bread(sys->dev, DUMP_IS(sys, curr));
-            /* MIN 的意义在于 : Writesiz 可能比一个扇区的大小要小 */
-            size_t cpysiz = MIN(siz, offset_byte != 0 ? SECT_SIZ - offset_byte : MIN(siz, SECT_SIZ));
-            memcpy (ori->blk + offset_byte, buf, cpysiz);
-            bdirty(ori, true);
-            brelse(ori);
-
-            /* After using ByteOffset the first time, set it to zero */
-            offset_byte = 0;
-
-            buf += cpysiz;
-            cnt--;
-            if (cnt == 0)
-                goto end;
-            siz -= cpysiz;
-        }
-
-        buffer_t *idxblk = bread(sys->dev, TAB_IS(sys, curr));
-        u32 *idxes = idxblk->blk;
-        curr = idxes[curr % FAT_ALOC_NR];
-        bdirty(idxblk, true);
-        brelse(idxblk);
-
-        // reaches the end
-        if (IS_EOC(curr))
-            break;
-    }
-
-end:
-    _com_sync (n, n);
-    return writesiz;
-}
-
-static int fat32_write (node_t *this, void *buf, size_t siz, size_t offset)
-{
-    return _write_content (this, buf, siz, offset);
-}
-
-#define IDX_ERASE(idx, stat) ({ u32 old = (idx) ; (idx) = (stat) ; old; })
-
-/*
-    TODO : Test it
-
-    cut 指定是否是截断操作, cut == 0 仅当 start 为文件开头, 且释放所有数据块时
-*/
-static void _release_data (sysinfo_t *sys, u32 start, bool cut)
-{
-    u32 curr = start;
-    u32 stat = cut ? EOC : 0;
-    
-    while (true)
-    {
-        buffer_t *idxblk = bread(sys->dev, TAB_IS(sys, curr));
-        u32 *idxes = idxblk->blk;
-        if (IS_EOC(idxes[curr % FAT_ALOC_NR]))
-        {
-            bdirty(idxblk, true);
-            brelse(idxblk);
-            break;
-        }
-
-        curr = IDX_ERASE(idxes[curr % FAT_ALOC_NR], stat);
-        bdirty(idxblk, true);
-        brelse(idxblk);
-        stat = 0;
-    }
-}
-
-static int fat32_remove (node_t *this)
-{
-    sysinfo_t *sys = this->sys;
-
-    lookup_t *par = LKP_ORI (this->parent);
-    lookup_t *lkp = lookup_entry (par, this->name, 0);
-    lookup_save (lkp, NULL, LKPS_ERASE);
-
-    /* 释放数据区 */
-    _release_data (lkp->sys, lkp->locator.clus, false);
-    return fat32_close (this);
-}
-
-static int fat32_truncate (node_t *this, size_t offset)
-{
-    if (offset > this->siz)
-        this->siz = _expand (this, offset);
+    if (len > this->siz)
+        this->siz = node_expand(this, len);
     else {
-        sysinfo_t *sys = this->sys;
+        sys_t *f = this->sys;
         /* 当 Offset == 0 时, 释放掉所有簇 */
-        bool all = false;
-        if (offset == 0) {
-            all = true;
-            this->idx = 0;
-        }
-        _release_data (
-            sys, DUMP_IC(sys, this->idx),
-            all
-        );
-        this->siz = offset;
+        bool all = (bool)(len == 0);
+        lookup_t *lkp = this->pdata;
+        unsigned clst = lkp->clst;
+        unsigned skip = DIV_ROUND_UP(len, 512);
+        data_relse(f, clst, skip, all);
+        this->siz = len;
     }
-    _com_sync (this, this);
+    node_update(this);
 
     return 0;
 }
 
-/* TODO : ret-val */
-static int fat32_mkdir (node_t *parent, char *name)
+static inline void init_ctx(dirctx_t *ctx, node_t *dir)
 {
-   node_t *dir = _create (parent, name, NA_DIR);
-   if (!dir)
-       return -1;
-
-   return 0;
+    lookup_t *lkp = dir->pdata;
+    ctx->sys = dir->sys;
+    ctx->node = dir;
+    ctx->pos = 0;
+    ctx->bidx = clst2sec(dir->sys, lkp->clst);
+    ctx->eidx = 0;
+    ctx->stat = ctx_pre;
 }
 
-static int fat32_readdir (node_t *this, node_t **res, size_t idx)
+static int fat32_readdir(node_t *dir, node_t **res, dirctx_t *ctx)
 {
-    lookup_t *lkp, *par = LKP_ORI(this);
-    /* 根据索引查找之后对其进行 vfs 层面的链接 */
+    lookup_t *lkp, *prt = dir->pdata;
 
-    *res = NULL;
+    if (ctx->stat == ctx_inv)
+        init_ctx(ctx, dir);
+    if (ctx->stat == ctx_end)
+        return -1;
 
-    lkp = lookup_entry(par, NULL, idx);
+    lkp = lookup_byctx(ctx);
     if (lkp == NULL)
         return -1;
 
     node_t *chd = lkp->node;
-    if (vfs_test(this, chd->name, NULL, NULL)) {
+    if (vfs_test(dir, chd->name, NULL, NULL)) {
         vfs_release(chd);
     } else {
-        /* 物理文件系统 "无关" 的基本信息 */
-        chd->parent = this;
-        chd->opts = this->opts;
-        chd->sys = this->sys;
-        chd->systype = this->systype;
-        /* 挂载到父节点 */
-        chd->next = this->child;
-        this->child = chd;
-    }
+        chd = lkp->node;
+        chd->pdata = lkp;
 
-    stack_fini(&lkp->ents);
-    free(lkp);
+        chd->opts = dir->opts;
+        chd->sys = dir->sys;
+        chd->systype = dir->systype;
+        chd_insert(dir, chd);
+    }
 
     *res = chd;
     return 0;
 }
 
+fs_opts_t __fat32_opts;
+
+FS_INITIALIZER(__fs_init_fat32)
+{
+    buffer_t *recblk = bread(hd, pentry->relative);
+    record_t *rec = recblk->blk;
+
+    if (rec->endsym != 0xAA55)
+        goto fail;
+
+    if (rec->sec_siz != 512)
+        goto fail;
+
+    if (rec->ent_num != 0)
+        goto fail;
+
+    unsigned fat_siz = rec->fat_siz32;
+    unsigned fat_sec = pentry->relative + rec->rev_num;
+    unsigned data_sec = fat_sec + rec->fat_num * fat_siz; 
+    unsigned root_sec = (rec->root_clst - 2) * rec->sec_perclst + data_sec;
+    DEBUGK(K_INIT,
+           "fat32 -> tab : %#x (%u,%u) , first_data_sec : %#x , root_sec : %#x "
+           "{%d}\n",
+           fat_sec, rec->fat_num, fat_siz, data_sec, root_sec,
+           rec->sec_perclst);
+
+    sys_t *f = malloc(sizeof(*f));
+    node_t *n = malloc(sizeof(*n));
+    lookup_t *r = malloc(sizeof(*r));
+    f->dev = NULL;
+    f->devp = NULL;
+    f->root = n;
+
+    f->sec_siz = 512;
+    f->fat_siz = fat_siz;
+    f->fat_entsz = 4;
+    f->fat_sec = fat_sec;
+    f->data_sec = data_sec;
+    f->root_sec = root_sec;
+    f->sec_perclst = rec->sec_perclst;
+
+    r->f = f;
+    r->node = n;
+    r->clst = sec2clst(f, root_sec);
+
+    n->name = "/";
+    n->attr = NA_DIR;
+    n->siz = 0;
+    n->parent = n;
+    n->child = n->next = NULL;
+    n->sys = f;
+    n->systype = FS_FAT32;
+    n->pdata = r;
+    n->mount = NULL;
+    n->opts = &__fat32_opts;
+
+    return n;
+
+fail:
+    return NULL;
+}
+
+fs_opts_t __fat32_opts = {
+    .open = fat32_open,
+    .close = fat32_close,
+    .remove = fat32_remove,
+    .read = fat32_read,
+    .write = fat32_write,
+    .truncate = fat32_truncate,
+    .readdir = fat32_readdir,
+};

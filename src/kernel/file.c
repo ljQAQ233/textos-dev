@@ -73,9 +73,17 @@ int open(char *path, int flgs)
     if (get_free(&fd, &file) < 0)
         return -EMFILE;
 
+    dirctx_t *dirctx = NULL;
+    if (flgs & O_DIRECTORY)
+    {
+        dirctx = malloc(sizeof(dirctx_t));
+        dirctx->stat = ctx_inv;
+    }
+
     file->refer = 1;
     file->offset = 0;
     file->node = node;
+    file->dirctx = dirctx;
     file->flgs = flgs;
 
 fail:
@@ -116,7 +124,7 @@ ssize_t readdir(int fd, void *buf, size_t mx)
     size_t cnt = 0;
     while (true) {
         node_t *chd;
-        if (file->node->opts->readdir(file->node, &chd, file->offset) < 0)
+        if (file->node->opts->readdir(file->node, &chd, file->dirctx) < 0)
             break;
 
         size_t len = strlen(chd->name);

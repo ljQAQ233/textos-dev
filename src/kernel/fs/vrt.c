@@ -274,18 +274,6 @@ fini:
     return 0;
 }
 
-int vfs_readdir (node_t *this, node_t **res, size_t idx)
-{
-    ASSERTK (!this || CKDIR(this));
-    if (!this) this = _fs_root;
-
-    int ret = this->opts->readdir (this, res, idx);
-    if (ret < 0)
-        DEBUGK(K_FS, "read directory failed - ret : %d\n", ret);
-
-    return ret;
-}
-
 extern fs_opts_t __vfs_devop;
 
 int vfs_mknod (char *path, dev_t *dev)
@@ -344,6 +332,12 @@ static regstr_t regstr[] = {
 
 // clang-format on
 
+struct pub {
+    dev_t *dev;
+    dev_t *devp;
+    node_t *root;
+};
+
 static void _init_partitions (dev_t *hd, mbr_t *rec)
 {
     part_t *ptr = rec->ptab;
@@ -355,15 +349,20 @@ static void _init_partitions (dev_t *hd, mbr_t *rec)
             continue;
 
         char *type = "none";
-        void *root = NULL;
+        node_t *root = NULL;
+        struct pub *pub;
 
         for (regstr_t *look = regstr; look->id != 0 ; look++) {
             if (look->id == ptr->sysid)
                 if ((root = look->init (hd, rec, ptr)))
                 {
                     type = look->name;
+                    pub = root->sys;
+                    pub->root = root;
+                    pub->dev = hd;
+                    pub->devp = NULL;
 
-                    __vfs_rootset (root);
+                    __vfs_rootset(root);
                 }
         }
 

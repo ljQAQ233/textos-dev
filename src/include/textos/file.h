@@ -10,6 +10,7 @@
 typedef struct {
     size_t offset;
     node_t *node;
+    dirctx_t *dirctx;
     int flgs;
     int spec;
     int refer;
