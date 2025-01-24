@@ -18,6 +18,8 @@ void stack_set (stack_t *stk, void *clr, void *pop);
 
 void stack_fini (stack_t *stk);
 
+void stack_move (stack_t *fr, stack_t *to);
+
 void stack_push (stack_t *stk, void *payload);
 
 void *stack_top (stack_t *stk);
@@ -47,4 +49,7 @@ typedef struct stacki
 
 #define stacki_data(iter) \
         (((stacki_t *)iter)->payload)
+
+#define stacki_none(iter) \
+        (iter == NULL)
 

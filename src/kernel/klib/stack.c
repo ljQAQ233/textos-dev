@@ -34,6 +34,18 @@ void stack_fini (stack_t *stk)
         free(stk);
 }
 
+#include <textos/assert.h>
+
+void stack_move (stack_t *fr, stack_t *to)
+{
+    ASSERTK(to->siz == 0);
+    to->siz = fr->siz;
+    to->pop = fr->pop;
+    to->clr = fr->clr;
+    to->top = fr->top;
+    fr->top = NULL;
+}
+
 void stack_push (stack_t *stk, void *payload)
 {
     elem_t *elem = malloc(sizeof(elem_t));
