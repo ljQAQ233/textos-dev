@@ -271,3 +271,17 @@ int mknod(char *path, int mode, long dev)
     dev_t *d = dev_lookup_nr(major, minor);
     return vfs_mknod(path, d);
 }
+
+int chdir(char *path)
+{
+    int ret;
+    node_t *node;
+    task_t *task = task_current();
+
+    ret = vfs_open(task->pwd, &node, path, VFS_DIR);
+    if (ret < 0)
+        return ret;
+
+    task->pwd = node;
+    return 0;
+}

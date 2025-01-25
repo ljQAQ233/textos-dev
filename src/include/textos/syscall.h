@@ -16,6 +16,7 @@
     _(exit, 60),         \
     _(wait4, 61),        \
     _(getppid, 64),      \
+    _(chdir, 80),        \
     _(mknod, 133),       \
     _(readdir, 500),     \
     _(test, 510),        \

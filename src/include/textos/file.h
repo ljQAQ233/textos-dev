@@ -88,4 +88,6 @@ int pipe(int fds[2]);
 
 int mknod(char *path, int mode, long dev);
 
+int chdir(char *path);
+
 #endif

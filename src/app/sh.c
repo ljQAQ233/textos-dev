@@ -56,8 +56,6 @@ struct backcmd {
 
 struct cmd *parsecmd(char *);
 
-#define SYS_chdir 0xff
-
 static inline void print(const char *s, ...) {
     va_list ap;
     va_start(ap, s);

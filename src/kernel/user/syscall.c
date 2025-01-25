@@ -13,6 +13,7 @@ extern void sys_stat();
 extern void sys_dup();
 extern void sys_dup2();
 extern void sys_pipe();
+extern void sys_chdir();
 extern void sys_mknod();
 extern void sys_execve();
 extern void sys_fork();
@@ -32,6 +33,7 @@ void *sys_handlers[] = {
     [SYS_dup] = sys_dup,
     [SYS_dup2] = sys_dup2,
     [SYS_pipe] = sys_pipe,
+    [SYS_chdir] = sys_chdir,
     [SYS_mknod] = sys_mknod,
     [SYS_execve] = sys_execve,
     [SYS_fork] = sys_fork,
