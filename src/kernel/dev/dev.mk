@@ -2,6 +2,7 @@
 SRCS += dev/8259.c
 SRCS += dev/pit.c
 SRCS += dev/serial.c
+SRCS += dev/dbgcon.c
 SRCS += dev/keyboard.c
 
 SRCS += dev/clock.c

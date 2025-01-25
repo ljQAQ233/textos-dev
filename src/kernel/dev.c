@@ -20,10 +20,12 @@ static void inv_handle()
 static list_t root = LIST_INIT(root);
 
 extern void __dev_initmem();
+extern void __dev_initdbgcon();
 
 void dev_init()
 {
     __dev_initmem();
+    __dev_initdbgcon();
 
     dev_list();
 }
