@@ -7,3 +7,4 @@ SRCS += user/test.c
 SRCS += user/file.c
 SRCS += user/exec.c
 SRCS += user/task.c
+SRCS += user/power.c

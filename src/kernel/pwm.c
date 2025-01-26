@@ -24,7 +24,7 @@ static void uefi_shutdown()
         ));
 }
 
-int shutdown()
+int poweroff()
 {
     // TODO: handle tasks
 

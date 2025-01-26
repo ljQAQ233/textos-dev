@@ -19,6 +19,7 @@
     _(chdir, 80),        \
     _(mknod, 133),       \
     _(readdir, 500),     \
+    _(poweroff, 501),    \
     _(test, 510),        \
     _(maxium, 511),
 
