@@ -4,8 +4,8 @@ extern task_current
 
 section .text
 
-%define TASK_ISTK 0xd0
-%define TASK_IF   0xe0
+%define TASK_ISTACK 0x00
+%define TASK_IFRAME 0x10
 
 global msyscall_exit
 
@@ -14,7 +14,7 @@ msyscall_handler:
     push rbp
     mov  rbp, rsp
     
-    mov  rsp, [gs:TASK_ISTK] ; istk
+    mov  rsp, [gs:TASK_ISTACK] ; istk
 
     push qword 0    ; ss
     push rbp        ; rsp
@@ -43,7 +43,7 @@ msyscall_handler:
     sti
 
     ; 也可以直接 call handler
-    mov  qword [gs:TASK_IF], rsp
+    mov  qword [gs:TASK_IFRAME], rsp
     mov  rdi, [rsp + 15 * 8]
     mov  rsi, [rsp + 16 * 8]
     mov  rdx, rsp

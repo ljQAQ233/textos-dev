@@ -21,6 +21,10 @@ typedef struct {
 #define MAX_FILE 16
 
 typedef struct _Task {
+    addr_t istk; // tss
+    task_frame_t *frame;
+    intr_frame_t *iframe;
+    
     int pid;
     int ppid;
     int stat;
@@ -39,10 +43,7 @@ typedef struct _Task {
     } init;
 
     addr_t pgt;
-    addr_t istk; // tss
 
-    task_frame_t *frame;
-    intr_frame_t *iframe;
     int retval;
     int waitpid;
 
