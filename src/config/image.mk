@@ -42,12 +42,18 @@ $(IMG):
 	sudo mount $(LOOP)p2 $(MNT2)
 	
 	sudo mkdir -p $(MNT1)/EFI/Boot
+	sudo mkdir -p $(MNT1)/bin
+	sudo mkdir -p $(MNT2)/bin
 	sudo cp -r $(BOOT_EXEC) $(MNT1)/EFI/Boot/$(OUT_EFI)
 	sudo cp -r resource/* $(MNT1)
 	sudo cp -r $(KERNEL_EXEC) $(MNT1)
-	sudo cp -r $(APP_OUTPUT)/*.elf $(MNT1)
-	sudo cp -r $(APP_OUTPUT)/*.elf $(MNT2)
-	sudo $(UTILS)/file_boom.sh $(MNT2)/test
+	
+	for app in $$(ls ${APP_OUTPUT}/*.elf) ; do \
+		sudo cp $$app $(MNT1)/bin/$$(basename $$app .elf); \
+	done
+	for app in $$(ls ${APP_OUTPUT}/*.elf) ; do \
+		sudo cp $$app $(MNT2)/bin/$$(basename $$app .elf); \
+	done
 	
 	sudo umount $(MNT1)
 	sudo umount $(MNT2)

@@ -85,7 +85,7 @@ static void __init_proc()
     char buf[5] = "test";
     
     exeinfo_t exe;
-    elf_load("/init.elf", &exe);
+    elf_load("/bin/init", &exe);
 
     task_t *curr = task_current();
     __asm__ volatile (

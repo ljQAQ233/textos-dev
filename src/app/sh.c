@@ -91,7 +91,7 @@ void runcmd(struct cmd *cmd) {
             syscall(SYS_exit, 1);
 
         char *c = malloc(5 + strlen(ecmd->argv[0]) + 1);
-        strcpy(c, "/");
+        strcpy(c, "/bin/");
         strcpy(c + strlen(c), ecmd->argv[0]);
         syscall(SYS_execve, c, ecmd->argv, envp);
         print("fail to exec ", c, "\n", NULL);
