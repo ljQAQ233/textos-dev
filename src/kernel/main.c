@@ -18,6 +18,7 @@ extern void keyboard_init();
 extern void ide_init();
 extern void buffer_init();
 extern void pci_init();
+extern void e1000_init();
 extern void fpu_init();
 extern void clock_init();
 
@@ -80,6 +81,7 @@ extern void dev_initnod();
 static void __init_proc()
 {
     fs_init();
+    e1000_init();
     dev_initnod();
 
     char buf[5] = "test";

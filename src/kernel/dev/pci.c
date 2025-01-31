@@ -2,6 +2,9 @@
 #define R_DATA 0xCFC
 
 #include <io.h>
+#include <textos/mm.h>
+#include <textos/assert.h>
+#include <textos/dev/pci.h>
 
 // 0x__80 -> other
 struct {
@@ -149,10 +152,21 @@ u32 pci_read_dword(u8 bus, u8 slot, u8 func, u8 offset)
     return tmp;
 }
 
+void pci_write_dword(u8 bus, u8 slot, u8 func, u8 offset, u32 val)
+{
+    pci_set_addr(bus, slot, func, offset);
+    outdw(R_DATA, val);
+}
+
 static inline u16 get_vendor(u8 bus, u8 slot, u8 func)
 {
     /* vendor 是第0个字 */
     return pci_read_word(bus, slot, func, 0);
+}
+
+static inline u16 get_devid(u8 bus, u8 slot, u8 func)
+{
+    return pci_read_word(bus, slot, func, 2);
 }
 
 static inline u16 get_hdrtype(u8 bus, u8 slot, u8 func)
@@ -165,24 +179,50 @@ static inline u16 get_code(u8 bus, u8 slot, u8 func)
     return pci_read_word(bus, slot, func, 10);
 }
 
-static void scan_dev(u8 bus, u8 dev)
+static inline u32 get_bar(u8 bus, u8 slot, u8 func, int x)
 {
-    u16 vendor;
+    ASSERTK(0 <= x && x <= 5);
+    return pci_read_dword(bus, slot, func, 16 + x * 4);
+}
+
+static inline u8 get_intr(u8 bus, u8 slot, u8 func)
+{
+    return pci_read_byte(bus, slot, func, 0x3c);
+}
+
+// device scan and register
+// lookup and public interface
+
+// all registered dev
+static list_t all;
+
+static void scan_dev(u8 bus, u8 slot)
+{
+    u16 vendor, devid;
     for (int func = 0 ; func < 8 ; func++) {
-        vendor = get_vendor(bus, dev, func);
+        devid = get_devid(bus, slot, func);
+        vendor = get_vendor(bus, slot, func);
         if (vendor == 0 || vendor == 0xFFFF)
             break;
 
-        u16 class = get_code(bus, dev, func);
+        u16 class = get_code(bus, slot, func);
 
-        dprintk(K_PCI, " [%u/%u/%d] %x %s\n", bus, dev, func, vendor, get_classname(class));
+        dprintk(K_PCI, " [%u/%u/%d] %x %x %s\n", bus, slot, func, vendor, devid, get_classname(class));
+
+        pci_idx_t *idx = malloc(sizeof(pci_idx_t));
+        idx->bus = bus;
+        idx->slot = slot;
+        idx->func = func;
+        idx->vendor = vendor;
+        idx->devid = devid;
+        list_insert(&all, &idx->all);
     }
 }
 
 static void scan_bus(u8 bus)
 {
-    for (int dev = 0 ; dev < 32 ; dev++)
-        scan_dev(bus, dev);
+    for (int slot = 0 ; slot < 32 ; slot++)
+        scan_dev(bus, slot);
 }
 
 static void scan_all()
@@ -200,7 +240,181 @@ static void scan_all()
     }
 }
 
+pci_idx_t *pci_find(u16 vendor, u16 devid, int x)
+{
+    list_t *ptr;
+    LIST_FOREACH(ptr, &all)
+    {
+        pci_idx_t *idx = CR(ptr, pci_idx_t, all);
+        if (idx->vendor == vendor && idx->devid == devid)
+            if (x-- == 0)
+                return idx;
+    }
+
+    return NULL;
+}
+
+void pci_get_bar(pci_idx_t *idx, pci_bar_t *barx, int x)
+{
+    u32 bar, mask, mx;
+    u32 off = 16 + x * 4;
+
+    ASSERTK(0 <= x && x <= 5);
+
+    // bar type
+    bar = pci_read_dword(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        off);
+    if (bar & 1)
+    {
+        mask = ~3;
+        barx->mmio = false;
+    }
+    else
+    {
+        mask = ~15;
+        barx->mmio = true;
+    }
+
+    // size
+    pci_write_dword(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        off, -1);
+    mx = pci_read_dword(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        off);
+    pci_write_dword(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        off, bar);
+
+    barx->base = bar & mask;
+    barx->size = ~mx + 1;
+    barx->nr = x;
+}
+
+u8 pci_get_intr(pci_idx_t *idx)
+{
+    return get_intr(idx->bus, idx->slot, idx->func);
+}
+
+void pci_set_busmaster(pci_idx_t *idx)
+{
+    // command register - bit 2
+    u32 mix;
+    mix = pci_read_dword(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        0x4);
+    mix |= (1 << 2) | (1 << 1);
+    pci_write_dword(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        0x4,
+        mix
+    );
+}
+
+bool pci_has_caplist(pci_idx_t *idx)
+{
+    u16 bit = (1 << 4);
+    u16 stat = pci_read_word(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        0x6
+    );
+    return (stat & bit) == bit;
+}
+
+/*
+ * Supposing the device must have capability list, and traverse the list.
+ * 
+ *  - bit 0~7 - id. for MSI, this field is 0x05 what for MSI-X it is 0x11
+ *  - bit 8~15 - next pointer. reaches the end when set to be 0
+ */
+int pci_set_msi(pci_idx_t *idx, u8 vector)
+{
+    if (!pci_has_caplist(idx))
+        return -1;
+
+    u8 ptr = pci_read_byte(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        0x34
+    );
+
+    u32 mix;
+    bool find = false;
+    while (ptr != 0 && !find)
+    {
+        mix = pci_read_word(
+            idx->bus,
+            idx->slot,
+            idx->func,
+            ptr
+        );
+        u8 capid = mix & 0xFF;
+        u8 nxtptr = (mix >> 8) & 0xFF;
+        if (capid == 0x05)
+            find = true;
+        else
+            ptr = nxtptr;
+    }
+
+    if (!find)
+        return -1;
+
+    mix |= 1 << 16; // enable
+    pci_write_dword(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        ptr,
+        mix
+    );
+        
+    u32 addr = 0;
+    addr |= 0xFEE << 20; // fixed field
+    addr |= 0;           // dest id = 0 / RH = 0 / DM = 0
+    pci_write_dword(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        ptr + 0x4,
+        addr
+    );
+
+    u8 reg = 0x8;
+    // 64-bit message addr reg
+    if ((mix >> 8) & (1 << 7))
+        reg += 4;
+
+    u32 data = 0;   // only 0~31 bits used
+    data |= vector; // vector / fixed mode
+    pci_write_dword(
+        idx->bus,
+        idx->slot,
+        idx->func,
+        ptr + reg,
+        data
+    );
+
+    return 0;
+}
+
 void pci_init()
 {
+    list_init(&all);
     scan_all();
 }

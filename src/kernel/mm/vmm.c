@@ -35,13 +35,17 @@ void *vmm_phyauto (u64 vrt, size_t num, u16 flgs)
 
 static u64 _idx;
 
+void *vmm_allocvrt(size_t num)
+{
+    void *page = (void *)__kern_vmm_pages + PAGE_SIZ * _idx;
+    _idx += num;
+    return page;
+}
+
 /* TODO: complete it */
 void *vmm_allocpages (size_t num, u16 flgs)
 {
-    void *page = (void *)__kern_vmm_pages + PAGE_SIZ * _idx;
-
-    _idx += num;
-
+    void *page = vmm_allocvrt(num);
     vmm_phyauto ((u64)page, num, flgs);
 
     return page;

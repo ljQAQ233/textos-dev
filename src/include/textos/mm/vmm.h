@@ -12,5 +12,7 @@ int vmm_caadjust (u64 *vrt);
    Num holds with an real physical pages */
 void *vmm_phyauto (u64 vrt, size_t num, u16 flgs);
 
+void *vmm_allocvrt(size_t num);
+
 void *vmm_allocpages (size_t num, u16 flgs);
 

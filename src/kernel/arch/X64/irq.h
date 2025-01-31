@@ -19,6 +19,8 @@
 #define IRQ_SECDISK 15
 #define INT_SECDISK 0x23
 
+#define INT_E1000 0x24
+
 #define INT_SYSCALL  0x80
 #define INT_MSYSCALL 0x81
 
@@ -46,6 +48,8 @@ bool intr_get ();
 
 /* 接下来是 APIC 的舞台! */
 void lapic_sendeoi ();
+
+void lapic_sendipi(u32 val);
 
 #define _IOAPIC_RTE(vector) ((u64)((u8)vector))
 

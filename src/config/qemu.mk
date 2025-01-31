@@ -15,12 +15,13 @@ MEM = 64M
 
 # Qemu Common Args
 QEMU_FLAGS := -hda $(IMG) \
-			   -net none \
 			   -cpu qemu64,+x2apic \
 			   -m $(MEM) \
 			   -no-reboot \
 			   -debugcon $(QEMU_LOG) \
-			   -device isa-debug-exit
+			   -device isa-debug-exit \
+			   -netdev tap,id=net0,ifname=tap0,script=no,downscript=no \
+			   -device e1000e,netdev=net0,mac=52:54:00:12:34:56
 
 # Firmware selection
 define fw_arg
