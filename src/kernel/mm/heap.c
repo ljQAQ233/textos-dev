@@ -101,6 +101,36 @@ void *malloc(size_t siz)
 
 #include <string.h>
 
+void *realloc(void *addr, size_t newsiz)
+{
+    if (!addr)
+        return malloc(newsiz);
+
+    if (!newsiz)
+    {
+        free(addr);
+        return NULL;
+    }
+
+    block_t *hdr = addr - 4;
+    size_t siz = SIZ(*hdr);
+
+    // do nothing
+    // TODO : replace it
+    if (siz >= newsiz)
+        return addr;
+    else
+    {
+        void *newmem = malloc(newsiz);
+        memcpy(newmem, addr, siz);
+        free(addr);
+        return newmem;
+    }
+
+    // unreachable
+    return NULL;
+}
+
 void *calloc(size_t siz)
 {
     void *ptr = malloc(siz);
