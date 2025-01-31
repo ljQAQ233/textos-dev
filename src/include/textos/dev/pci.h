@@ -2,6 +2,18 @@
 
 #include <textos/klib/list.h>
 
+u8 pci_read_byte(u8 bus, u8 slot, u8 func, u8 offset);
+
+u16 pci_read_word(u8 bus, u8 slot, u8 func, u8 offset);
+
+u32 pci_read_dword(u8 bus, u8 slot, u8 func, u8 offset);
+
+void pci_write_byte(u8 bus, u8 slot, u8 func, u8 offset, u8 val);
+
+void pci_write_word(u8 bus, u8 slot, u8 func, u8 offset, u16 val);
+
+void pci_write_dword(u8 bus, u8 slot, u8 func, u8 offset, u32 val);
+
 typedef struct
 {
     u16 vendor;

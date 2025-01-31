@@ -152,6 +152,29 @@ u32 pci_read_dword(u8 bus, u8 slot, u8 func, u8 offset)
     return tmp;
 }
 
+#define align_up(x, y) ((y) * ((x + y - 1) / y))
+#define align_down(x, y) ((y) * (x / y))
+
+// TODO: test
+void pci_write_byte(u8 bus, u8 slot, u8 func, u8 offset, u8 val)
+{
+    int off = align_down(offset, 4);
+    int low = offset % 4;
+    u32 ori = pci_read_dword(bus, slot, func, offset);
+    ((u8 *)&ori)[low] = val;
+    pci_write_dword(bus, slot, func, off, ori);
+}
+
+// TODO: test
+void pci_write_word(u8 bus, u8 slot, u8 func, u8 offset, u16 val)
+{
+    int off = align_down(offset, 4);
+    int low = offset % 4;
+    u32 ori = pci_read_dword(bus, slot, func, offset);
+    ((u16 *)&ori)[low / 2] = val;
+    pci_write_dword(bus, slot, func, off, ori);
+}
+
 void pci_write_dword(u8 bus, u8 slot, u8 func, u8 offset, u32 val)
 {
     pci_set_addr(bus, slot, func, offset);
