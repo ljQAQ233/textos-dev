@@ -131,6 +131,7 @@ __kstack_init:
 
 section .data
 
+align 16
 global __kstack:
     times 0x1000 dq 1
     __kstack_top:

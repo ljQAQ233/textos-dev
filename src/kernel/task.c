@@ -110,6 +110,9 @@ task_t *task_create (void *main, int args)
         istack = NULL;
     }
 
+    // keep 16-byte alignment of sp
+    stack -= sizeof(long);
+
     build_iframe(tsk, stack, args)->rip = (u64)main;
     build_tframe(tsk, stack, args);
 
@@ -267,7 +270,8 @@ task_t *task_current ()
 
 void __task_setif(void *iframe)
 {
-    task_current()->iframe = iframe;
+    if (table[0])
+        task_current()->iframe = iframe;
 }
 
 extern void fpu_disable();

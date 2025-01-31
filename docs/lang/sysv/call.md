@@ -68,6 +68,10 @@
 
 不关是 **有可能** 会 page fault 的, <strike>别问我怎么知道的</strike>
 
+## stack alignment!!!
+
+`call` 之前需要保证堆栈 16 字节对齐
+
 ## 参考
 
 - [System V ABI | osdev](https://wiki.osdev.org/System_V_ABI)

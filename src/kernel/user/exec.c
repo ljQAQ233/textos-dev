@@ -78,6 +78,10 @@ void *build(void *bp, char *const argv[], char *const envp[])
     bp -= len;
     str_argv = bp;
 
+    int rem = 1 + nargc + 1 + nenvc + 1;
+    if ((((addr_t)bp - rem * N) & 0xf) != 0)
+        bp -= N;
+
     // copy
     bp -= N * (nenvc + 1);
     nenvp = bp;
@@ -88,7 +92,7 @@ void *build(void *bp, char *const argv[], char *const envp[])
     copyarg(nargv, str_argv, argv, &len, &nargc);
 
     bp -= N * 1; // argc
-    (*(int *)bp) = nargc;
+    (*(long *)bp) = nargc;
 
     return bp;
 }

@@ -26,11 +26,8 @@ __attribute__((naked))
 void _start(long args)
 {
     asm volatile(
-        "movq $0, %rbp\n" // rbp = 0
-        "push %rbp\n"     // rip = 0
-        "push %rbp\n"     // rbp = 0
-        "movq %rdi, %rsp\n"
-        "movq %rsp, %rbp\n"
+        "movq %rsp, %rdi\n"
+        "xorq %rbp, %rbp\n"
         "call start0"
         );
 }
