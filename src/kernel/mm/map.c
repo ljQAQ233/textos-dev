@@ -143,6 +143,7 @@ void vmap_init ()
 
 extern void __uefi_tovmm();
 extern void __pmm_tovmm();
+extern void __acpi_tovmm();
 extern void __apic_tovmm();
 extern void __video_tovmm();
 
@@ -153,6 +154,7 @@ void vmap_initvm ()
     // As callback functions
     __uefi_tovmm();
     __pmm_tovmm();
+    __acpi_tovmm();
     __apic_tovmm();
     __video_tovmm();
     

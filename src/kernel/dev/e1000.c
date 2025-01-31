@@ -429,6 +429,8 @@ __INTR_HANDLER(e1000_handler)
     lapic_sendeoi();
 }
 
+#include <lai/helpers/pci.h>
+
 void irq_init(e1000_t *e)
 {
     intr_register(INT_E1000, e1000_handler);
@@ -439,10 +441,18 @@ void irq_init(e1000_t *e)
     }
     else
     {
-        // TODO: legacy INTx for e1000
-        PANIC("legacy intr not supported\n");
-        // e->irq = pci_get_intr(e->pi);
-        // ioapic_rteset(e->irq, _IOAPIC_RTE(INT_E1000));
+        pci_idx_t *idx = e->pi;
+        acpi_resource_t ar;
+
+        ASSERTK(lai_pci_route_pin(
+            &ar, 0,
+            idx->bus,
+            idx->slot,
+            idx->func,
+            pci_get_pin(idx)) == 0);
+
+        e->irq = ar.base;
+        ioapic_rteset(e->irq, _IOAPIC_RTE(INT_E1000));
     }
 }
 

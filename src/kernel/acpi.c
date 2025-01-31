@@ -1,3 +1,11 @@
+/*
+ * 3 phases to setup acpi
+ *   - prepare - get physical address from boot config
+ *   - acpi_init - find out some essential info
+ *   - tovmm - map all table to kernel space and enable lai
+ */
+
+
 #define RSDP_SIG SIGN_64('R','S','D',' ','P','T','R',' ')
 
 /* Root System Description Pointer */
@@ -13,8 +21,10 @@ typedef struct _packed {
     u8   rev[3];
 } rsdp_t;
 
+#define RSDT_SIG SIGN_32('R','S','D','T')
 #define XSDT_SIG SIGN_32('X','S','D','T')
 #define MADT_SIG SIGN_32('A','P','I','C')
+#define FADT_SIG SIGN_32('F','A','C','P')
 
 typedef struct _packed {
     u32  sign;
@@ -28,6 +38,10 @@ typedef struct _packed {
     u32  creator_revision;
 } hdr_t;
 
+typedef struct _packed {
+    hdr_t hdr;
+} rsdt_t;
+
 /* eXtended System Description Table */
 typedef struct _packed {
     hdr_t hdr;
@@ -39,6 +53,8 @@ typedef struct _packed {
 #include <boot.h>
 #include <string.h>
 
+rsdp_t *__rsdp;
+rsdt_t *__rsdt;
 xsdt_t *__xsdt;
 
 static bool _chksum (void * buf, size_t siz)
@@ -67,14 +83,14 @@ static void *_entryget (u32 sign)
     return NULL;
 }
 
-void madt_parser ();
-void fadt_parser ();
+#include <textos/mm.h>
+#include <textos/mm/pvpage.h>
 
-static rsdp_t *rsdp_phy;
+void madt_parser ();
 
 void acpi_init ()
 {
-    rsdp_t *rsdp = rsdp_phy;
+    rsdp_t *rsdp = __rsdp;
 
     /* This includes only the first 20 bytes of this Rsdp,
        including the checksum field. These bytes must sum
@@ -82,19 +98,146 @@ void acpi_init ()
        NOTE : Overflow to zero. (char/unsigned char/u8)   */
     if (rsdp->sign != RSDP_SIG || !_chksum(rsdp, 20))
         PANIC ("bad RSDP!!!\n");
+    
+    rsdt_t *rsdt = (rsdt_t *)(addr_t)rsdp->rsdt_addr;
+    if (rsdt->hdr.sign != RSDT_SIG || !_chksum(rsdt, rsdt->hdr.len))
+        PANIC ("bad Rsdt!!!");
 
     xsdt_t *xsdt = (xsdt_t *)rsdp->xsdt_addr;
     if (xsdt->hdr.sign != XSDT_SIG || !_chksum(xsdt, xsdt->hdr.len))
         PANIC ("bad Xsdt!!!");
+
+    __rsdt = rsdt;
     __xsdt = xsdt;
 
     madt_parser();
-    fadt_parser();
 }
 
 void __acpi_pre (void *acpi)
 {
-    rsdp_phy = acpi;
+    __rsdp = acpi;
+}
+
+#include <textos/mm.h>
+#include <textos/mm/pvpage.h>
+#include <lai/helpers/sci.h>
+
+#define align_up(x, y) ((y) * ((x + y - 1) / y))
+#define align_down(x, y) ((y) * (x / y))
+
+addr_t acpi_map(addr_t pa, size_t num)
+{
+    static size_t idx = 0;
+    addr_t va = __acpi_pages + PAGE_SIZ * idx;
+    vmap_map(pa, va, num, PE_P | PE_RW, MAP_4K);
+    idx += num;
+    return va;
+}
+
+void *acpi_remap(void *ptr)
+{
+    addr_t addr;
+    addr = (addr_t)ptr;
+    addr = align_down(addr, PAGE_SIZ);
+
+    size_t len;
+    hdr_t *hp = ptr;
+    rsdp_t *rp = ptr;
+    if (rp->sign == RSDP_SIG)
+        len = rp->len;
+    else
+        len = hp->len;
+
+    addr_t end;
+    end = addr + len;
+    end = align_up(end, PAGE_SIZ);
+
+    size_t pgnr = (end - addr) / PAGE_SIZ;
+    addr_t pgva = acpi_map(addr, pgnr);
+    addr_t low = (addr_t)ptr & PAGE_MASK;
+    return (void *)(pgva | low);
+}
+
+#include <textos/klib/list.h>
+
+list_t kacpi;
+
+typedef struct
+{
+    u32 sign;
+    addr_t pa;
+    addr_t va;
+    list_t list;
+} acpi_tab_t;
+
+// register a table and record its vrt addr
+void *acpi_regtab(hdr_t *hdr)
+{
+    void *vpg;
+    vpg = acpi_remap((void *)hdr);
+
+    acpi_tab_t *t = malloc(sizeof(*t));
+    t->sign = hdr->sign;
+    t->pa = (addr_t)hdr;
+    t->va = (addr_t)vpg;
+    list_insert(&kacpi, &t->list);
+
+    char *sig = (char *)(&t->sign);
+    DEBUGK(K_INIT, "ACPI REG %c%c%c%c\n",
+      sig[0], sig[1], sig[2], sig[3]);
+
+    return vpg;
+}
+
+void *acpi_gettab(u32 sign, int idx)
+{
+    list_t *ptr;
+    LIST_FOREACH(ptr, &kacpi)
+    {
+        acpi_tab_t *t = CR(ptr, acpi_tab_t, list);
+        if (t->sign == sign)
+        {
+            if (idx-- == 0)
+                return (void *)t->va;
+        }
+    }
+
+    return NULL;
+}
+
+/*
+ * remap and lai setup
+ */
+void __acpi_tovmm()
+{
+    list_init(&kacpi);
+
+    // top tables
+    __rsdp = acpi_remap(__rsdp);
+    __rsdt = acpi_regtab(&__rsdt->hdr);
+    __xsdt = acpi_regtab(&__xsdt->hdr);
+
+    // table and extened table
+    u32 *rtab = (void *)__rsdt + sizeof(rsdt_t);
+    for (int i = 0 ; i < (__rsdt->hdr.len - sizeof(rsdt_t)) / 4 ; i++)
+    {
+        acpi_regtab((hdr_t *)(addr_t)rtab[i]);
+    }
+
+    u64 *xtab = (void *)__xsdt + sizeof(xsdt_t);
+    for (int i = 0 ; i < (__xsdt->hdr.len - sizeof(xsdt_t)) / 8 ; i++)
+    {
+        acpi_regtab((hdr_t *)(addr_t)xtab[i]);
+    }
+
+    // parse subtable - DSDT
+    acpi_fadt_t *fadt = acpi_gettab(FADT_SIG, 0);
+    acpi_regtab((hdr_t *)(addr_t)fadt->x_dsdt);
+
+    // lai init
+    // ioapic mode
+    lai_create_namespace();
+    lai_enable_acpi(1);
 }
 
 #define APIC_SIG SIGN_32('A','P','I','C')
@@ -204,15 +347,3 @@ void madt_parser ()
 
     lapic = (void *)(u64)madt->lapic_addr;
 }
-
-typedef struct {
-    hdr_t hdr;
-} fadt_t;
-
-#define FADT_SIG SIGN_32('F','A','C','P')
-
-void fadt_parser ()
-{
-    fadt_t *fadt = _entryget (FADT_SIG);
-}
-

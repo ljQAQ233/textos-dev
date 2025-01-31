@@ -213,6 +213,11 @@ static inline u8 get_intr(u8 bus, u8 slot, u8 func)
     return pci_read_byte(bus, slot, func, 0x3c);
 }
 
+static inline u8 get_pin(u8 bus, u8 slot, u8 func)
+{
+    return pci_read_byte(bus, slot, func, 0x3d);
+}
+
 // device scan and register
 // lookup and public interface
 
@@ -326,6 +331,11 @@ void pci_get_bar(pci_idx_t *idx, pci_bar_t *barx, int x)
 u8 pci_get_intr(pci_idx_t *idx)
 {
     return get_intr(idx->bus, idx->slot, idx->func);
+}
+
+u8 pci_get_pin(pci_idx_t *idx)
+{
+    return get_pin(idx->bus, idx->slot, idx->func);
 }
 
 void pci_set_busmaster(pci_idx_t *idx)

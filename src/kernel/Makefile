@@ -16,6 +16,7 @@ SRCS := init.c main.c \
 include klib/klib.mk
 include mm/mm.mk
 include video/video.mk
+include lai/lai.mk
 include dev/dev.mk
 include fs/fs.mk
 include user/user.mk

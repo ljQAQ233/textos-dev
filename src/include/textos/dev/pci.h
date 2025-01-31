@@ -38,6 +38,8 @@ void pci_get_bar(pci_idx_t *idx, pci_bar_t *barx, int x);
 
 u8 pci_get_intr(pci_idx_t *idx);
 
+u8 pci_get_pin(pci_idx_t *idx);
+
 void pci_set_busmaster(pci_idx_t *idx);
 
 bool pci_has_caplist(pci_idx_t *idx);

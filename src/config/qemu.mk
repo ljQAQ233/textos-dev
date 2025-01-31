@@ -21,7 +21,7 @@ QEMU_FLAGS := -hda $(IMG) \
 			   -debugcon $(QEMU_LOG) \
 			   -device isa-debug-exit \
 			   -netdev tap,id=net0,ifname=tap0,script=no,downscript=no \
-			   -device e1000e,netdev=net0,mac=52:54:00:12:34:56
+			   -device e1000,netdev=net0,mac=52:54:00:12:34:56
 
 # Firmware selection
 define fw_arg
