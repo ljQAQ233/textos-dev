@@ -39,15 +39,24 @@ compile_commands.json: clean
 	@bear --output utils/compile_commands.json -- make clean all
 	@utils/fix_clcmd.sh utils/compile_commands.json
 
-qemu: all
+net:
+	if ! ip link show tap0 &> /dev/null ; then \
+		sudo ip tuntap add dev tap0 mode tap ; \
+		sudo ip link set tap0 up ; \
+		sudo ip link add name br0 type bridge ; \
+		sudo ip link set tap0 master br0 ; \
+		sudo ip link set br0 up ; \
+	fi
+
+qemu: all net
 	$(QEMU) $(QEMU_FLAGS_RUN)
 
-qemug: all
+qemug: all net
 	$(QEMU) $(QEMU_FLAGS_KDBG)
 
 qemubg: export BSRC_DEBUG:=true
 qemubg: export PIPE:=$(shell cat $(UDK_DBG_CFG) | grep -E "^[P ]ort" | awk '{print $$NF}')
-qemubg: all
+qemubg: all net
 	mkfifo $(PIPE).in $(PIPE).out
 	$(UDK_DBG_EXEC) 2>&1 &
 	$utils/monitor_qemu.sh > /dev/null 2>&1 & disown -h
