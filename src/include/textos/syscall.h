@@ -7,16 +7,16 @@
     _(open, 2),          \
     _(close, 3),         \
     _(stat, 4),          \
-    _(execve, 11),       \
-    _(getpid, 20),       \
     _(pipe, 22),         \
     _(dup, 32),          \
     _(dup2, 33),         \
+    _(getpid, 39),       \
     _(fork, 57),         \
+    _(execve, 59),       \
     _(exit, 60),         \
     _(wait4, 61),        \
-    _(getppid, 64),      \
     _(chdir, 80),        \
+    _(getppid, 110),     \
     _(mknod, 133),       \
     _(readdir, 500),     \
     _(poweroff, 501),    \
