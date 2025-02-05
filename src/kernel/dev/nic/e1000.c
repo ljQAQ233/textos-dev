@@ -138,6 +138,8 @@ typedef struct e1000 e1000_t;
 typedef u32 (*read_op)(e1000_t *dev, u16 addr);
 typedef void (*write_op)(e1000_t *dev, u16 addr, u32 val);
 
+#include <textos/dev/mbuf.h>
+
 struct e1000 {
     pci_idx_t *pi;
     bool mmio;
@@ -156,6 +158,8 @@ struct e1000 {
     addr_t prxds;
     tx_desc_t *txds; // tx descriptors
     rx_desc_t *rxds; // rx descriptors
+    mbuf_t **rxb;
+    mbuf_t **txb;
 };
 
 void mmio_reg_write(e1000_t *e, u16 addr, u32 val)
@@ -225,7 +229,7 @@ void mac_init(e1000_t *e)
         p[i] = eeprom_read(e, i);
 }
 
-void desc_alloc(addr_t *pa, void **desc, size_t num)
+void desc_alloc(addr_t *pa, void **desc, mbuf_t ***m, size_t num)
 {
     size_t npg = DIV_ROUND_UP(num * 16, PAGE_SIZ);
 
@@ -235,6 +239,8 @@ void desc_alloc(addr_t *pa, void **desc, size_t num)
     *desc = vp;
     vmap_map((addr_t)pp, (addr_t)vp, npg, PE_P | PE_RW, MAP_4K);
     memset(vp, 0, num * 16);
+
+    *m = malloc(sizeof(mbuf_t *) * num);
 }
 
 void rx_init(e1000_t *e)
@@ -267,16 +273,15 @@ void rx_init(e1000_t *e)
     reg_set(R_ITR, 0);
     
     // alloc some physical pages and map them to e->rxds
-    desc_alloc(&e->prxds, (void **)&e->rxds, RX_DESC);
+    desc_alloc(&e->prxds, (void **)&e->rxds, &e->rxb, RX_DESC);
     rx_desc_t *ptr = (rx_desc_t *)e->rxds;
-    for (int i = 0 ; i < RX_DESC ; i++)
+    for (int i = 0 ; i < RX_DESC ; i++, ptr++)
     {
-        // 4096-byte
-        void *pp = pmm_allocpages(1);
-        ptr->addr = (addr_t)pp;
-        // ptr->stat = 1;
-        ptr++;
+        mbuf_t *m = mbuf_alloc(0);
+        ptr->addr = m->phy;
+        e->rxb[i] = m;
     }
+
     reg_set(R_RDBAH, (u64)e->prxds >> 32);
     reg_set(R_RDBAL, (u64)e->prxds & 0xFFFFFFFF);
     reg_set(R_RDLEN, RX_DESC * sizeof(rx_desc_t));
@@ -303,7 +308,7 @@ void rx_init(e1000_t *e)
 void tx_init(e1000_t *e)
 {
     // alloc some physical pages and map them to e->txds
-    desc_alloc(&e->ptxds, (void **)&e->txds, TX_DESC);
+    desc_alloc(&e->ptxds, (void **)&e->txds, &e->txb, TX_DESC);
     reg_set(R_TDBAH, (u64)e->ptxds >> 32);
     reg_set(R_TDBAL, (u64)e->ptxds & 0xFFFFFFFF);
     reg_set(R_TDLEN, TX_DESC * sizeof(tx_desc_t));
@@ -354,11 +359,11 @@ void soft_reset(e1000_t *e)
     } while (ctrl & bit);
 }
 
-int send_packet(e1000_t *e, void *data, u32 len)
+int send_packet(e1000_t *e, mbuf_t *m)
 {
     tx_desc_t *tx = &e->txds[e->txi];
-    tx->addr = (addr_t)data;
-    tx->len = len;
+    tx->addr = m->phy;
+    tx->len = m->len;
     tx->cmd = CMD_EOP | CMD_IFCS | CMD_RS;
     tx->stat = 0;
 
@@ -370,6 +375,31 @@ int send_packet(e1000_t *e, void *data, u32 len)
     return 0;
 }
 
+#define RXD_DD  0x1 // descriptor done
+#define RXD_EOP 0x2 // end of packets
+
+int recv_packet(e1000_t *e)
+{
+    while (true)
+    {
+        // deliver all packets arrived
+        int i = e->rxi;
+        rx_desc_t *rx = &e->rxds[i];
+        if (!(rx->stat & RXD_DD))
+            break;
+        e->rxb[i]->len = e->rxds[i].len;
+        DEBUGK(K_SYNC, "ETH RX : len = %u\n", e->rxb[i]->len);
+
+        // new buffer
+        e->rxb[i] = mbuf_alloc(0);
+        rx->addr = e->rxb[i]->phy;
+        rx->stat = 0;
+        reg_set(R_RDT, i);
+        e->rxi = (e->rxi + 1) % RX_DESC;
+    }
+    return 0;
+}
+
 e1000_t e1000;
 
 typedef struct
@@ -378,7 +408,7 @@ typedef struct
     mac_t src;
     u16 type;
     u8 data[0];
-} eth_frame_t;
+} eth_hdr_t;
 
 u16 htons(u16 h)
 {
@@ -387,22 +417,21 @@ u16 htons(u16 h)
 
 void e1000_test(e1000_t *e)
 {
-    eth_frame_t ef = {
+    mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
+    int len;
+
+    char load[] = "hello world!!!";
+    len = strlen(load);
+    memcpy(mbuf_put(m, len), load, len);
+    
+    eth_hdr_t ef = {
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
         { 0x52, 0x54, 0x00, 0x12, 0x34, 0x56 },
         htons(0x0800)
     };
-    char load[] = "hello world!!!";
-    void *pp = pmm_allocpages(1);
-    void *vp = vmm_allocvrt(1);
-    void *base = vp;
-    vmap_map((addr_t)pp, (addr_t)vp, 1, PE_P | PE_RW, MAP_4K);
-
-    memcpy(vp, &ef, sizeof(ef));
-    vp += sizeof(ef);
-    memcpy(vp, load, sizeof(load));
-    vp += sizeof(load);
-    send_packet(&e1000, pp, (u32)(vp - base));
+    len = sizeof(eth_hdr_t);
+    memcpy(mbuf_pull(m, len), &ef, len);
+    send_packet(e, m);
 }
 
 __INTR_HANDLER(e1000_handler)
@@ -423,9 +452,10 @@ __INTR_HANDLER(e1000_handler)
 
     if (stat & IM_RXT0)
     {
-        PANIC("recv_packet not supported\n");
+        recv_packet(e);
     }
 
+    reg_set(R_ICR, 0xFFFFFFFF);
     lapic_sendeoi();
 }
 

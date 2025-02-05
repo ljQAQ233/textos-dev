@@ -22,7 +22,8 @@ SRCS += dev/fpu/i387.s
 SRCS += dev/pci.c
 
 # network
-SRCS += dev/e1000.c
+SRCS += dev/nic/mbuf.c
+SRCS += dev/nic/e1000.c
 
 # pseudo-dev
 SRCS += dev/mem.c

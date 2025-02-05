@@ -51,4 +51,13 @@ void *vmm_allocpages (size_t num, u16 flgs)
     return page;
 }
 
+void vmm_allocpv(size_t num, addr_t *va, addr_t *pa)
+{
+    addr_t vp = (addr_t)vmm_allocvrt(num);
+    addr_t pp = (addr_t)pmm_allocpages(num);
+    vmap_map(pp, vp, num, PE_P | PE_RW, MAP_4K);
+    *va = vp;
+    *pa = pp;
+}
+
 /* TODO: Design memory space and set up VMM */

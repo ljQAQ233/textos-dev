@@ -16,3 +16,4 @@ void *vmm_allocvrt(size_t num);
 
 void *vmm_allocpages (size_t num, u16 flgs);
 
+void vmm_allocpv(size_t num, addr_t *va, addr_t *pa);
