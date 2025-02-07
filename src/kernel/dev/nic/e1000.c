@@ -12,9 +12,6 @@
 #include <textos/panic.h>
 #include <textos/assert.h>
 
-typedef u8 mac_t[6];
-typedef u8 ipv4_t[4];
-
 #define INTEL_VEND    0x8086
 #define E1000_EMU     0x100E
 #define E1000E_EMU    0x10d3
@@ -138,15 +135,14 @@ typedef struct e1000 e1000_t;
 typedef u32 (*read_op)(e1000_t *dev, u16 addr);
 typedef void (*write_op)(e1000_t *dev, u16 addr, u32 val);
 
+#include <textos/net.h>
 #include <textos/dev/mbuf.h>
 
 struct e1000 {
-    pci_idx_t *pi;
+    nic_t nic;
     bool mmio;
     bool eeprom;
     bool e1000e;
-    bool link;
-    u8 mac[6];
     u8 irq;
     u64 base;
     u64 size;
@@ -224,7 +220,7 @@ u16 eeprom_read(e1000_t *e, u8 addr)
 
 void mac_init(e1000_t *e)
 {
-    u16 *p = (u16 *)e->mac;
+    u16 *p = (u16 *)e->nic.mac;
     for (int i = 0 ; i < 3 ; i++)
         p[i] = eeprom_read(e, i);
 }
@@ -252,7 +248,7 @@ void rx_init(e1000_t *e)
     // for QEMU, by EEPROM 52:54:00:12:34:56 is provided. actually
     // we can decide it by ourselves
     u64 mac;
-    mac = *(u64 *)&e->mac;
+    mac = *(u64 *)&e->nic.mac;
     mac &= 0xFFFFFFFFFF; // get low bits (0-5)
     mac |= (1ull << 63); // make addr valid
     reg_set(R_RAL, (u32)mac);
@@ -388,7 +384,7 @@ int recv_packet(e1000_t *e)
         if (!(rx->stat & RXD_DD))
             break;
         e->rxb[i]->len = e->rxds[i].len;
-        DEBUGK(K_SYNC, "ETH RX : len = %u\n", e->rxb[i]->len);
+        nic_eth_rx(&e->nic, e->rxb[i]);
 
         // new buffer
         e->rxb[i] = mbuf_alloc(0);
@@ -402,19 +398,6 @@ int recv_packet(e1000_t *e)
 
 e1000_t e1000;
 
-typedef struct
-{
-    mac_t dest;
-    mac_t src;
-    u16 type;
-    u8 data[0];
-} eth_hdr_t;
-
-u16 htons(u16 h)
-{
-    return ((h & 0xFF00) >> 8) | ((h & 0x00FF) << 8);
-}
-
 void e1000_test(e1000_t *e)
 {
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
@@ -424,12 +407,12 @@ void e1000_test(e1000_t *e)
     len = strlen(load);
     memcpy(mbuf_put(m, len), load, len);
     
-    eth_hdr_t ef = {
+    ethhdr_t ef = {
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
         { 0x52, 0x54, 0x00, 0x12, 0x34, 0x56 },
         htons(0x0800)
     };
-    len = sizeof(eth_hdr_t);
+    len = sizeof(ethhdr_t);
     memcpy(mbuf_pull(m, len), &ef, len);
     send_packet(e, m);
 }
@@ -466,12 +449,12 @@ void irq_init(e1000_t *e)
     intr_register(INT_E1000, e1000_handler);
     if (e->e1000e)
     {
-        if (pci_set_msi(e->pi, INT_E1000) < 0)
+        if (pci_set_msi(e->nic.pi, INT_E1000) < 0)
             PANIC("cannot set MSI\n");
     }
     else
     {
-        pci_idx_t *idx = e->pi;
+        pci_idx_t *idx = e->nic.pi;
         acpi_resource_t ar;
 
         ASSERTK(lai_pci_route_pin(
@@ -501,6 +484,14 @@ pci_idx_t *e1000_find(e1000_t *e)
     return idx;
 }
 
+void e1000_send(nic_t *n, mbuf_t *m)
+{
+    e1000_t *e = CR(n, e1000_t, nic);
+    send_packet(e, m);
+}
+
+extern void arp_request(ipv4_t dip);
+
 /*
  * it is not a good idea to use pci driver to test e1000e, because
  * we do not use the extended config space, we use old pci interface
@@ -517,7 +508,7 @@ void e1000_init()
 
     pci_bar_t bar0;
     pci_get_bar(idx, &bar0, 0);
-    e->pi = idx;
+    e->nic.pi = idx;
     e->base = bar0.base;
     e->size = bar0.size;
     if (!bar0.mmio)
@@ -546,15 +537,25 @@ void e1000_init()
     mac_init(e);
     DEBUGK(K_INIT,
       "E1000 - MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
-      e->mac[0], e->mac[1], e->mac[2],
-      e->mac[3], e->mac[4], e->mac[5]);
+      e->nic.mac[0], e->nic.mac[1], e->nic.mac[2],
+      e->nic.mac[3], e->nic.mac[4], e->nic.mac[5]);
 
     rx_init(e);
     tx_init(e);
     intr_init(e);
 
-    e->link = (reg_get(R_STATUS) & S_LU) == S_LU;
-    ASSERTK(e->link == true);
+    // default ip
+    ipv4_t qemu_ip = { 192, 168, 2, 2 };
+    memcpy(e->nic.ip, &qemu_ip, sizeof(ipv4_t));
+
+    e->nic.send = e1000_send;
+    e->nic.link = (reg_get(R_STATUS) & S_LU) == S_LU;
+    ASSERTK(e->nic.link == true);
 
     e1000_test(e);
+
+    nic0 = &e->nic;
+
+    ipv4_t dip = { 192, 168, 2, 1 };
+    arp_request(dip);
 }

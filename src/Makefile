@@ -39,14 +39,7 @@ compile_commands.json: clean
 	@bear --output utils/compile_commands.json -- make clean all
 	@utils/fix_clcmd.sh utils/compile_commands.json
 
-net:
-	if ! ip link show tap0 &> /dev/null ; then \
-		sudo ip tuntap add dev tap0 mode tap ; \
-		sudo ip link set tap0 up ; \
-		sudo ip link add name br0 type bridge ; \
-		sudo ip link set tap0 master br0 ; \
-		sudo ip link set br0 up ; \
-	fi
+include config/net.mk
 
 qemu: all net
 	$(QEMU) $(QEMU_FLAGS_RUN)

@@ -62,10 +62,11 @@ u8 *mbuf_push(mbuf_t *m, size_t len)
 
 u8 *mbuf_pull(mbuf_t *m, size_t len)
 {
+    u8 *ori = m->head;
     m->head += len;
     m->phy += len;
     m->len -= len;
-    return m->head;
+    return ori;
 }
 
 u8 *mbuf_put(mbuf_t *m, size_t len)

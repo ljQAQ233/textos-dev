@@ -19,6 +19,7 @@ include video/video.mk
 include lai/lai.mk
 include dev/dev.mk
 include fs/fs.mk
+include net/net.mk
 include user/user.mk
 
 include $(ARCH_DIR)/arch.mk
