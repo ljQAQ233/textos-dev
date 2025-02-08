@@ -15,3 +15,23 @@ typedef struct arp
     u8  dstpr[ETH_PLEN]; //
 } _packed arphdr_t;
 
+typedef struct
+{
+    bool init;
+    long ticks;
+    long expires;
+    ipv4_t ip;
+    mac_t hw;
+    list_t arps;
+    list_t ipque;
+} arpent_t;
+
+#define ARP_TIMEOUT 6000 // ticks (n * 10ms)
+
+arpent_t *arp_init(ipv4_t dip);
+
+arpent_t *arp_get(nic_t *n, ipv4_t ip);
+
+arpent_t *arp_set(nic_t *n, ipv4_t ip, mac_t hw, size_t ticks);
+
+void arp_request(ipv4_t dip);

@@ -5,7 +5,9 @@ void nic_eth_rx(nic_t *n, mbuf_t *m)
     ethhdr_t *hdr = mbuf_pullhdr(m, ethhdr_t);
 
     u16 type = ntohs(hdr->type);
-    if (type == ETH_ARP)
+    if (type == ETH_IP)
+        net_rx_ip(n, m);
+    else if (type == ETH_ARP)
         net_rx_arp(n, m);
 }
 

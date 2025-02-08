@@ -22,6 +22,7 @@ struct nic
     list_t nics; // all nics
     pci_idx_t *pi;
 
+    list_t arps;
     void (*send)(nic_t *n, mbuf_t *m);
 };
 
@@ -48,13 +49,32 @@ u32 ntohl(u32 h);
 void nic_eth_rx(nic_t *n, mbuf_t *m);
 void nic_eth_tx(nic_t *n, mbuf_t *m, mac_t dst, u16 type);
 
-void net_rx_ip(mbuf_t *m);
-void net_tx_ip(nic_t *n, mbuf_t *m);
+/*
+ * protocol operations:
+ *  - rx - input
+ *  - tx - output
+ *  - rp - reply only
+ */
+
+#define IP_P_ICMP 1
+#define IP_P_TCP  6
+#define IP_P_UDP  17
+
+void net_rx_ip(nic_t *n, mbuf_t *m);
+void net_tx_ip(nic_t *n, mbuf_t *m, ipv4_t dip, u8 ptype);
+
+#define ICMP_REPLY   0
+#define ICMP_REQUEST 8
+
+void net_rx_icmp(nic_t *n, mbuf_t *m, void *iph);
+void net_rp_icmp(nic_t *n, mbuf_t *m, ipv4_t dip);
+void net_tx_icmp(nic_t *n, u8 type, ipv4_t dip);
 
 #define ARP_OP_REQUEST 1
 #define ARP_OP_REPLY   2
 
 void net_rx_arp(nic_t *n, mbuf_t *m);
 void net_tx_arp(nic_t *n, u16 op, mac_t dmac, ipv4_t dip);
+void net_tx_arpip(nic_t *n, mbuf_t *m, ipv4_t dip);
 
 #endif

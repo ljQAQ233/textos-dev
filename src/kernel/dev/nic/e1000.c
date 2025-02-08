@@ -490,7 +490,8 @@ void e1000_send(nic_t *n, mbuf_t *m)
     send_packet(e, m);
 }
 
-extern void arp_request(ipv4_t dip);
+#include <textos/net/arp.h>
+#include <textos/net/icmp.h>
 
 /*
  * it is not a good idea to use pci driver to test e1000e, because
@@ -555,7 +556,9 @@ void e1000_init()
     e1000_test(e);
 
     nic0 = &e->nic;
+    list_init(&nic0->arps);
 
     ipv4_t dip = { 192, 168, 2, 1 };
     arp_request(dip);
+    icmp_request(dip);
 }

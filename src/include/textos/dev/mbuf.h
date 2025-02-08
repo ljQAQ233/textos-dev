@@ -16,6 +16,7 @@ struct mbuf
     addr_t phy;
     size_t len;
     list_t list;
+    list_t wque; // waiters queue
 };
 
 mbuf_t *mbuf_alloc(int headroom);
