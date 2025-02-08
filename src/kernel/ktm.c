@@ -1,8 +1,7 @@
 #include <textos/printk.h>
 #include <textos/assert.h>
 #include <textos/ktm.h>
-
-extern volatile size_t __ktick;
+#include <textos/tick.h>
 
 void ktm_start(ktm_t *k, char *label)
 {
