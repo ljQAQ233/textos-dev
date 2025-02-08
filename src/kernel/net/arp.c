@@ -6,6 +6,7 @@
 
 #include <string.h>
 
+// XXX: export match() and cksum()
 static bool match(ipv4_t a, ipv4_t b)
 {
     return *(u32 *)a == *(u32 *)b;
@@ -40,6 +41,7 @@ done:
     mbuf_free(m);
 }
 
+// XXX: fix -> unsafe address operation
 void net_tx_arp(nic_t *n, u16 op, mac_t dmac, ipv4_t dip)
 {
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
