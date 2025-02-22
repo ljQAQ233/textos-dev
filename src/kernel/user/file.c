@@ -60,3 +60,13 @@ RETVAL(int) sys_chdir(char *path)
 {
     return chdir(path);
 }
+
+RETVAL(int) sys_mkdir(char *path, int mode)
+{
+    return mkdir(path, mode);
+}
+
+RETVAL(int) sys_rmdir(char *path)
+{
+    return rmdir(path);
+}

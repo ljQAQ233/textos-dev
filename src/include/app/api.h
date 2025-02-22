@@ -88,3 +88,8 @@ int mknod(char *path, int mode, long dev);
 
 int mount(char *src, char *dst);
 
+int chdir(char *path);
+
+int mkdir(char *path, int mode);
+
+int rmdir(char *path);

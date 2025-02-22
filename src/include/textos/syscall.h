@@ -16,6 +16,8 @@
     _(exit, 60),         \
     _(wait4, 61),        \
     _(chdir, 80),        \
+    _(mkdir, 83),        \
+    _(rmdir, 84),        \
     _(getppid, 110),     \
     _(mknod, 133),       \
     _(mount, 165),       \

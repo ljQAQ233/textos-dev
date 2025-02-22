@@ -310,5 +310,26 @@ int chdir(char *path)
         return ret;
 
     task->pwd = node;
-    return 0;
+    return ret;
+}
+
+int mkdir(char *path, int mode)
+{
+    int ret;
+    node_t *node;
+    task_t *task = task_current();
+
+    ret = vfs_open(task->pwd, &node, path, VFS_DIR);
+    if (ret >= 0)
+    {
+        return EEXIST;
+    }
+
+    ret = vfs_open(task->pwd, &node, path, VFS_DIR | VFS_CREATE);
+    return ret;
+}
+
+int rmdir(char *path)
+{
+    return EPERM;
 }

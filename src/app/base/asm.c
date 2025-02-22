@@ -117,6 +117,21 @@ int mount(char *src, char *dst)
     return syscall(SYS_mount, src, dst);
 }
 
+int chdir(char *path)
+{
+    return syscall(SYS_chdir, path);
+}
+
+int mkdir(char *path, int mode)
+{
+    return syscall(SYS_mkdir, path, mode);
+}
+
+int rmdir(char *path)
+{
+    return syscall(SYS_rmdir, path);
+}
+
 int getpid()
 {
     return syscall(SYS_getpid);

@@ -14,6 +14,8 @@ extern void sys_dup();
 extern void sys_dup2();
 extern void sys_pipe();
 extern void sys_chdir();
+extern void sys_mkdir();
+extern void sys_rmdir();
 extern void sys_mknod();
 extern void sys_mount();
 extern void sys_execve();
@@ -36,6 +38,8 @@ void *sys_handlers[] = {
     [SYS_dup2] = sys_dup2,
     [SYS_pipe] = sys_pipe,
     [SYS_chdir] = sys_chdir,
+    [SYS_mkdir] = sys_mkdir,
+    [SYS_rmdir] = sys_rmdir,
     [SYS_mknod] = sys_mknod,
     [SYS_mount] = sys_mount,
     [SYS_execve] = sys_execve,
