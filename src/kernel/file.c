@@ -262,6 +262,7 @@ int pipe(int fds[2])
 
     fds[0] = fd0;
     fds[1] = fd1;
+    return 0;
 }
 
 int mknod(char *path, int mode, long dev)
@@ -282,14 +283,14 @@ int mount(char *src, char *dst)
         return ret;
 
     if (!(sn->attr & NA_DEV))
-        return ENOBLK;
+        return -ENOBLK;
 
     dev_t *dev = sn->pdata;
     if (dev->type != DEV_BLK)
-        return ENOBLK;
+        return -ENOBLK;
 
     if (dev->subtype != DEV_PART)
-        return EINVAL;
+        return -EINVAL;
 
     ret = vfs_open(task_current()->pwd, &dn, dst, VFS_DIR);
     if (ret < 0)
@@ -322,7 +323,7 @@ int mkdir(char *path, int mode)
     ret = vfs_open(task->pwd, &node, path, VFS_DIR);
     if (ret >= 0)
     {
-        return EEXIST;
+        return -EEXIST;
     }
 
     ret = vfs_open(task->pwd, &node, path, VFS_DIR | VFS_CREATE);
@@ -331,5 +332,5 @@ int mkdir(char *path, int mode)
 
 int rmdir(char *path)
 {
-    return EPERM;
+    return -EPERM;
 }
