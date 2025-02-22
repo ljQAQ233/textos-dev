@@ -341,8 +341,6 @@ struct pub {
 #include <textos/args.h>
 #include <textos/klib/vsprintf.h>
 
-extern dev_t *register_part(dev_t *disk, int nr, addr_t ptoff, size_t ptsiz);
-
 static void _init_partitions (dev_t *hd, mbr_t *rec)
 {
     part_t *ptr = rec->ptab;
@@ -356,7 +354,6 @@ static void _init_partitions (dev_t *hd, mbr_t *rec)
         char *type = "none";
         node_t *root = NULL;
         dev_t *devp;
-        struct pub *pub;
 
         for (regstr_t *look = regstr; look->id != 0 ; look++) {
             if (look->id != ptr->sysid)
@@ -365,18 +362,23 @@ static void _init_partitions (dev_t *hd, mbr_t *rec)
             if (!root)
                 break;
             type = look->name;
-            pub = root->sys;
-            pub->root = root;
-            pub->dev = hd;
-            pub->devp = devp;
 
             if (!__vfs_rootset(root))
+                ; // is not root
+
+            devp = register_part(hd, nr++,
+                    ptr->relative,
+                    ptr->total, root
+                    );
+
+            // set header info
+            if (root)
             {
-                char path[16];
-                sprintf(path, "/mnt%d", nr);
-                node_t *mnt;
-                vfs_open(NULL, &mnt, path, VFS_CREATE | VFS_DIR);
-                vfs_mount(mnt, root);
+                struct pub *pub;
+                pub = root->sys;
+                pub->root = root;
+                pub->dev = hd;
+                pub->devp = devp;
             }
         }
 

@@ -19,22 +19,30 @@ int part_write(dev_t *dev, u32 addr, void *buf, u8 cnt)
     return prt->bwrite(prt, addr + dev->ptoff, buf, cnt);
 }
 
-dev_t *register_part(dev_t *disk, int nr, addr_t ptoff, size_t ptsiz)
+dev_t *register_part(
+        dev_t *disk, int nr,
+        addr_t ptoff, size_t ptsiz,
+        node_t *root
+        )
 {
-    char name[128];
-    char path[128];
+    char name[32];
     disk->mkname(disk, name, nr);
-    sprintf(path, "/dev/%s", name);
     
     dev_t *part = dev_new();
-    strcpy(part->name, name);
+    part->name = strdup(name);
     part->type = DEV_BLK;
     part->subtype = DEV_PART;
     part->bread = (void *)part_read;
     part->bwrite = (void *)part_write;
     part->ptoff = ptoff;
     part->ptend = ptoff + ptsiz;
+    part->pdata = root;
     dev_register(disk, part);
 
     return part;
+}
+
+node_t *extract_part(dev_t *part)
+{
+    return part->pdata;
 }

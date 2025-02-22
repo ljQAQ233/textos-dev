@@ -272,6 +272,33 @@ int mknod(char *path, int mode, long dev)
     return vfs_mknod(path, d);
 }
 
+int mount(char *src, char *dst)
+{
+    int ret;
+    node_t *sn, *dn;
+
+    ret = vfs_open(task_current()->pwd, &sn, src, 0);
+    if (ret < 0)
+        return ret;
+
+    if (!(sn->attr & NA_DEV))
+        return ENOBLK;
+
+    dev_t *dev = sn->pdata;
+    if (dev->type != DEV_BLK)
+        return ENOBLK;
+
+    if (dev->subtype != DEV_PART)
+        return EINVAL;
+
+    ret = vfs_open(task_current()->pwd, &dn, dst, VFS_DIR);
+    if (ret < 0)
+        return ret;
+
+    node_t *root = extract_part(dev);
+    return vfs_mount(dn, root);
+}
+
 int chdir(char *path)
 {
     int ret;

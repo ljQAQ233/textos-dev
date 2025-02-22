@@ -51,6 +51,11 @@ RETVAL(int) sys_mknod(char *path, int mode, long dev)
     return mknod(path, mode, dev);
 }
 
+RETVAL(int) sys_mount(char *src, char *dst)
+{
+    return mount(src, dst);
+}
+
 RETVAL(int) sys_chdir(char *path)
 {
     return chdir(path);

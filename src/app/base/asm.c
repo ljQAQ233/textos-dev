@@ -112,6 +112,11 @@ int mknod(char *path, int mode, long dev)
     return syscall(SYS_mknod, path, mode, dev);
 }
 
+int mount(char *src, char *dst)
+{
+    return syscall(SYS_mount, src, dst);
+}
+
 int getpid()
 {
     return syscall(SYS_getpid);

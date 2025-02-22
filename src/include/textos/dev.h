@@ -77,9 +77,14 @@ dev_t *dev_lookup_nr(uint major, uint minor);
 
 void dev_list ();
 
+#include <textos/fs.h>
+
 dev_t *register_part(
-    dev_t *disk, int nr,
-    addr_t ptoff, size_t ptsiz
-    );
+        dev_t *disk, int nr,
+        addr_t ptoff, size_t ptsiz,
+        node_t *root
+        );
+
+node_t *extract_part(dev_t *part);
 
 #endif

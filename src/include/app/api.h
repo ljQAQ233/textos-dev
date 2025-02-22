@@ -85,3 +85,6 @@ int pipe(int fds[2]);
     ((((x) & 0xfffff000ULL) << 32) | (((x) & 0xfffULL) << 8) | (((y) & 0xffffff00ULL) << 12) | (((y) & 0xffULL)))
 
 int mknod(char *path, int mode, long dev);
+
+int mount(char *src, char *dst);
+

@@ -163,6 +163,14 @@ void ide_write (dev_t *dev, u32 lba, void *data, u8 cnt)
     UNINTR_AREA_END();
 }
 
+#include <textos/args.h>
+#include <textos/klib/vsprintf.h>
+
+void ide_mkname(dev_t *dev, char res[32], int nr)
+{
+    sprintf(res, "%s%d", dev->name, nr);
+}
+
 /* Details in `/usr/include/linux/hdreg.h` on your pc [doge] */
 
 #define ID_CONFIG   0   // Bit flags                  1  (word)
@@ -245,6 +253,7 @@ static bool ide_identify (pri_t **pri, int idx)
             dev->subtype = DEV_IDE;                                  \
             dev->bread = (void *)ide_read;                           \
             dev->bwrite = (void *)ide_write;                         \
+            dev->mkname = (void *)ide_mkname;                        \    
             dev->pdata = pri;                                        \
             dev_register(NULL, dev);                                 \
         }                                                            \

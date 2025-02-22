@@ -18,6 +18,7 @@
     _(chdir, 80),        \
     _(getppid, 110),     \
     _(mknod, 133),       \
+    _(mount, 165),       \
     _(readdir, 500),     \
     _(poweroff, 501),    \
     _(test, 510),        \
