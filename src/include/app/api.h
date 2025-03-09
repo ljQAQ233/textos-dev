@@ -93,3 +93,54 @@ int chdir(char *path);
 int mkdir(char *path, int mode);
 
 int rmdir(char *path);
+
+/* address family */
+#define AF_UNSPEC 0
+#define AF_INET   2
+#define AF_PACKET 17
+#define AF_MAX    45
+
+#define SOCK_STREAM 1
+#define SOCK_DGRAM  2
+#define SOCK_RAW    3
+#define SOCK_PACKET 10
+
+typedef struct sockaddr_t
+{
+    u16 family;
+    char data[14];
+} sockaddr_t;
+
+typedef struct sockaddr_in_t
+{
+    u16 family;
+    u16 port;
+    u8 addr[4];
+    u8 zero[8];
+} sockaddr_in_t;
+
+typedef struct
+{
+    void *base;
+    size_t len;
+} iovec_t;
+
+typedef struct
+{
+    sockaddr_t *name;
+    int namelen;
+    iovec_t *iov;
+    size_t iovlen;
+} msghdr_t;
+
+int socket(int domain, int type, int proto);
+
+ssize_t sendmsg(int fd, msghdr_t *msg, u32 flags);
+ssize_t recvmsg(int fd, msghdr_t *msg, u32 flags);
+
+ssize_t sendto(int fd, void *buf, size_t len, int flags, sockaddr_t *dst, size_t dlen);
+ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size_t slen);
+
+ssize_t send(int fd, void *buf, size_t len, int flags);
+ssize_t recv(int fd, void *buf, size_t len, int flags);
+

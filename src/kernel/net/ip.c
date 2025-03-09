@@ -23,6 +23,8 @@ u16 cksum(void *data)
     return ~s;
 }
 
+extern int sock_rx_raw(iphdr_t *hdr, mbuf_t *m);
+
 void net_rx_ip(nic_t *n, mbuf_t *m)
 {
     iphdr_t *hdr = mbuf_pullhdr(m, iphdr_t);
@@ -39,6 +41,10 @@ void net_rx_ip(nic_t *n, mbuf_t *m)
 
     if (!match(n->ip, hdr->dip))
         goto done;
+
+    int ret = sock_rx_raw(hdr, m);
+    if (ret > 0)
+        return ;
 
     switch (hdr->ptype)
     {

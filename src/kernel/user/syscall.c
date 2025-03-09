@@ -27,6 +27,12 @@ extern void sys_poweroff();
 extern void sys_getpid();
 extern void sys_getppid();
 
+extern void sys_socket();
+extern void sys_sendmsg();
+extern void sys_recvmsg();
+extern void sys_sendto();
+extern void sys_recvfrom();
+
 void *sys_handlers[] = {
     [SYS_read] = sys_read,
     [SYS_readdir] = sys_readdir,
@@ -50,6 +56,12 @@ void *sys_handlers[] = {
     [SYS_poweroff] = sys_poweroff,
     [SYS_getpid] = sys_getpid,
     [SYS_getppid] = sys_getppid,
+    
+    [SYS_socket] = sys_socket,
+    [SYS_sendmsg] = sys_sendmsg,
+    [SYS_recvmsg] = sys_recvmsg,
+    [SYS_sendto] = sys_sendto,
+    [SYS_recvfrom] = sys_recvfrom,
 };
 
 #include <textos/panic.h>

@@ -132,6 +132,41 @@ int rmdir(char *path)
     return syscall(SYS_rmdir, path);
 }
 
+int socket(int domain, int type, int proto)
+{
+    return syscall(SYS_socket, domain, type, proto);
+}
+
+ssize_t sendmsg(int fd, msghdr_t *msg, u32 flags)
+{
+    return syscall(SYS_sendmsg, fd, msg, flags);
+}
+
+ssize_t recvmsg(int fd, msghdr_t *msg, u32 flags)
+{
+    return syscall(SYS_recvmsg, fd, msg, flags);
+}
+
+ssize_t sendto(int fd, void *buf, size_t len, int flags, sockaddr_t *dst, size_t dlen)
+{
+    return syscall(SYS_sendto, fd, buf, len, flags, dst, dlen);
+}
+
+ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size_t slen)
+{
+    return syscall(SYS_recvfrom, fd, buf, len, flags, src, slen);
+}
+
+ssize_t send(int fd, void *buf, size_t len, int flags)
+{
+    return sendto(fd, buf, len, flags, NULL, 0);
+}
+
+ssize_t recv(int fd, void *buf, size_t len, int flags)
+{
+    return recvfrom(fd, buf, len, flags, NULL, 0);
+}
+
 int getpid()
 {
     return syscall(SYS_getpid);

@@ -6,7 +6,7 @@
 
 #include <textos/mm.h>
 
-static int get_fd()
+int fd_get()
 {
     file_t **ft = task_current()->files;
     for (int i = 0 ; i < MAX_FILE ; i++)
@@ -17,10 +17,10 @@ static int get_fd()
     return -1;
 }
 
-static int get_free(int *new, file_t **file)
+int file_get(int *new, file_t **file)
 {
     file_t **ft = task_current()->files;
-    int fd = get_fd();
+    int fd = fd_get();
     if (!(ft[fd] = malloc(sizeof(file_t))))
         return -1;
 
@@ -70,7 +70,7 @@ int open(char *path, int flgs)
         return ret;
 
     int fd;
-    if (get_free(&fd, &file) < 0)
+    if (file_get(&fd, &file) < 0)
         return -EMFILE;
 
     dirctx_t *dirctx = NULL;
@@ -231,7 +231,7 @@ int dup2(int old, int new)
 
 int dup(int fd)
 {
-    int new = get_fd();
+    int new = fd_get();
     if (new < 0)
         return -EMFILE;
 
@@ -242,8 +242,8 @@ int pipe(int fds[2])
 {
     int fd0, fd1;
     file_t *f0, *f1;
-    ASSERTK(get_free(&fd0, &f0) >= 0);
-    ASSERTK(get_free(&fd1, &f1) >= 0);
+    ASSERTK(file_get(&fd0, &f0) >= 0);
+    ASSERTK(file_get(&fd1, &f1) >= 0);
 
     node_t *n = malloc(sizeof(*n));
     ASSERTK(n != NULL);

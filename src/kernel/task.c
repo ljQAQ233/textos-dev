@@ -235,6 +235,11 @@ int task_wait(int pid, int *stat, int opt, void *rusage)
     int termd = tsk->waitpid;
     tsk->waitpid = 0;
 
+    task_t *chd = table[termd];
+    if (stat)
+        *stat = chd->retval;
+    table[termd] = NULL;
+
     return termd;
 }
 

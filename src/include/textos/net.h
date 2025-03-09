@@ -60,6 +60,12 @@ void nic_eth_tx(nic_t *n, mbuf_t *m, mac_t dst, u16 type);
 #define IP_P_TCP  6
 #define IP_P_UDP  17
 
+#define IPPROTO_IP   0
+#define IPPROTO_RAW  255
+#define IPPROTO_ICMP IP_P_ICMP
+#define IPPROTO_TCP  IP_P_TCP
+#define IPPROTO_UDP  IP_P_UDP
+
 void net_rx_ip(nic_t *n, mbuf_t *m);
 void net_tx_ip(nic_t *n, mbuf_t *m, ipv4_t dip, u8 ptype);
 

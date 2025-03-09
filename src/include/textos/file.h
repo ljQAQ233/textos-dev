@@ -16,6 +16,9 @@ typedef struct {
     int refer;
 } file_t;
 
+int fd_get();
+int file_get(int *new, file_t **file);
+
 typedef struct dirent
 {
     int idx;
