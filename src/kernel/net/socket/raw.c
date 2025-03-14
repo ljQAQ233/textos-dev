@@ -63,35 +63,33 @@ static ssize_t raw_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 
 #include <irq.h>
 
-static void block_as(lock_t *lock, int *as)
+static void block_as(int *as)
 {
     // only one task is supported
     ASSERTK(*as == -1);
 
     *as = task_current()->pid;
-    lock_release(lock);
     task_block();
-    lock_acquire(lock);
     *as = -1;
 }
 
 // TODO: timeout
 static ssize_t raw_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 {
-    lock_acquire(&s->lock);
-
-    // wait for input
-    if (list_empty(&s->rx_queue))
-    {
-        block_as(&s->lock, &s->rx_waiter);
-    }
+    UNINTR_AREA({
+        // wait for input
+        if (list_empty(&s->rx_queue))
+        {
+            block_as(&s->rx_waiter);
+        }
+    });
 
     list_t *ptr = s->rx_queue.next;
     mbuf_t *m = CR(ptr, mbuf_t, list);
     list_remove(ptr);
     int len = MIN(msg->iov[0].len, m->len);
     memcpy(msg->iov[0].base, m->head, len);
-    lock_release(&s->lock);
+
     return len;
 }
 
@@ -113,11 +111,12 @@ int sock_rx_raw(iphdr_t *hdr, mbuf_t *m)
         
         mbuf_pushhdr(m, iphdr_t);
 
-        lock_acquire(&s->lock);
         list_insert(&s->rx_queue, &m->list);
         if (s->rx_waiter >= 0)
+        {
             task_unblock(s->rx_waiter);
-        lock_release(&s->lock);
+            s->rx_waiter = -1;
+        }
 
         ret = 1;
         break;
