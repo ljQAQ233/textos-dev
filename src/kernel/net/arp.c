@@ -31,7 +31,7 @@ void net_rx_arp(nic_t *n, mbuf_t *m)
     }
     else if (op == ARP_OP_REPLY)
     {
-        DEBUGK(K_SYNC, "ARP RX reply - %02x:%02x:%02x:%02x:%02x:%02x\n",
+        DEBUGK(K_NET, "ARP RX reply - %02x:%02x:%02x:%02x:%02x:%02x\n",
           hdr->srchw[0], hdr->srchw[1], hdr->srchw[2],
           hdr->srchw[3], hdr->srchw[4], hdr->srchw[5]);
         arp_set(n, hdr->srcpr, hdr->srchw, ARP_TIMEOUT);
@@ -145,7 +145,7 @@ arpent_t *arp_set(nic_t *n, ipv4_t ip, mac_t hw, size_t ticks)
     }
     list_insert(&n->arps, &arp->arps);
 
-    DEBUGK(K_SYNC, "ARP SET - %d:%d:%d:%d -> %02x:%02x:%02x:%02x:%02x:%02x\n",
+    DEBUGK(K_NET, "ARP SET - %d:%d:%d:%d -> %02x:%02x:%02x:%02x:%02x:%02x\n",
       ip[0], ip[1], ip[2], ip[3], hw[0], hw[1], hw[2], hw[3], hw[4], hw[5]);
     return arp;
 }
