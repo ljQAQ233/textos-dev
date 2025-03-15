@@ -18,6 +18,10 @@ void list_insert(list_t *list, list_t *node);
 
 void list_remove(list_t *list);
 
+void list_push(list_t *list, list_t *node);
+
+list_t *list_pop(list_t *list);
+
 bool list_empty (list_t *list);
 
 #define LIST_INIT(list)           \

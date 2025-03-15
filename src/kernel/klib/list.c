@@ -47,6 +47,18 @@ void list_remove(list_t *list)
     list->next->prev = list->prev;
 }
 
+void list_push(list_t *list, list_t *node)
+{
+    list_insert_after(list, node);
+}
+
+list_t *list_pop(list_t *list)
+{
+    list_t *back = list->prev;
+    list_remove(back);
+    return back;
+}
+
 bool list_empty(list_t *list)
 {
     return list == list->prev ? true : false;

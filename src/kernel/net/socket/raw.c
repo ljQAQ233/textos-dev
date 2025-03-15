@@ -35,7 +35,7 @@ static int raw_socket(socket_t *s)
     r = s->pri = malloc(sizeof(raw_t));
     r->hdrincl = false; // iphdr not provided by user
 
-    list_insert(&intype, &s->intype);
+    list_push(&intype, &s->intype);
     return 0;
 }
 
@@ -76,17 +76,18 @@ static void block_as(int *as)
 // TODO: timeout
 static ssize_t raw_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 {
+    list_t *ptr;
+
     UNINTR_AREA({
         // wait for input
         if (list_empty(&s->rx_queue))
         {
             block_as(&s->rx_waiter);
         }
+        ptr = list_pop(&s->rx_queue);
     });
 
-    list_t *ptr = s->rx_queue.next;
     mbuf_t *m = CR(ptr, mbuf_t, list);
-    list_remove(ptr);
     int len = MIN(msg->iov[0].len, m->len);
     memcpy(msg->iov[0].base, m->head, len);
 
@@ -111,7 +112,7 @@ int sock_rx_raw(iphdr_t *hdr, mbuf_t *m)
         
         mbuf_pushhdr(m, iphdr_t);
 
-        list_insert(&s->rx_queue, &m->list);
+        list_push(&s->rx_queue, &m->list);
         if (s->rx_waiter >= 0)
         {
             task_unblock(s->rx_waiter);
