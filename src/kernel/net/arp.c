@@ -119,6 +119,7 @@ arpent_t *arp_get(nic_t *n, ipv4_t ip)
  * we register/set an entry when:
  *   - request arrived
  *   - reply accepted
+ * uninterruptable env is required
  */
 arpent_t *arp_set(nic_t *n, ipv4_t ip, mac_t hw, size_t ticks)
 {
@@ -128,6 +129,10 @@ arpent_t *arp_set(nic_t *n, ipv4_t ip, mac_t hw, size_t ticks)
         arp = malloc(sizeof(arpent_t));
         memcpy(arp->ip, ip, sizeof(ipv4_t));
         list_init(&arp->ipque);
+    }
+    else
+    {
+        list_remove(&arp->arps);
     }
 
     arp->init = true;
