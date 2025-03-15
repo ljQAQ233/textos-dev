@@ -83,6 +83,12 @@ int socket(int domain, int type, int proto)
     return fd;
 }
 
+int connect(int fd, sockaddr_t *addr, size_t len)
+{
+    socket_t *s = socket_get(fd);
+    return s->op->connect(s, addr, len);
+}
+
 ssize_t sendmsg(int fd, msghdr_t *msg, int flags)
 {
     socket_t *s = socket_get(fd);
@@ -126,10 +132,12 @@ ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size
 }
 
 extern void sock_raw_init();
+extern void sock_udp_init();
 
 void socket_init()
 {
     vfs_initops(&__socket_opts);
 
     sock_raw_init();
+    sock_udp_init();
 }

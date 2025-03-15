@@ -11,6 +11,7 @@
     _(dup, 32),          \
     _(dup2, 33),         \
     _(socket, 41),       \
+    _(connect, 42),      \
     _(sendto, 44),       \
     _(recvfrom, 45),     \
     _(sendmsg, 46),      \

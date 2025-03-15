@@ -28,6 +28,7 @@ extern void sys_getpid();
 extern void sys_getppid();
 
 extern void sys_socket();
+extern void sys_connect();
 extern void sys_sendmsg();
 extern void sys_recvmsg();
 extern void sys_sendto();
@@ -58,6 +59,7 @@ void *sys_handlers[] = {
     [SYS_getppid] = sys_getppid,
     
     [SYS_socket] = sys_socket,
+    [SYS_connect] = sys_connect,
     [SYS_sendmsg] = sys_sendmsg,
     [SYS_recvmsg] = sys_recvmsg,
     [SYS_sendto] = sys_sendto,

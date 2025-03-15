@@ -83,4 +83,6 @@ void net_rx_arp(nic_t *n, mbuf_t *m);
 void net_tx_arp(nic_t *n, u16 op, mac_t dmac, ipv4_t dip);
 void net_tx_arpip(nic_t *n, mbuf_t *m, ipv4_t dip);
 
+void net_tx_udp(nic_t *n, mbuf_t *m, ipv4_t dip, u16 sport, u16 dport);
+
 #endif

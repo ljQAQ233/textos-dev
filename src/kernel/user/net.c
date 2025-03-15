@@ -6,6 +6,11 @@ RETVAL(int) sys_socket(int domain, int type, int proto)
     return socket(domain, type, proto);
 }
 
+RETVAL(int) sys_connect(int fd, sockaddr_t *addr, size_t len)
+{
+    return connect(fd, addr, len);
+}
+
 RETVAL(ssize_t) sys_sendmsg(int fd, msghdr_t *msg, int flags)
 {
     return sendmsg(fd, msg, flags);

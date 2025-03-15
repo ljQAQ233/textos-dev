@@ -137,6 +137,11 @@ int socket(int domain, int type, int proto)
     return syscall(SYS_socket, domain, type, proto);
 }
 
+int connect(int fd, sockaddr_t *addr, size_t len)
+{
+    return syscall(SYS_connect, fd, addr, len);
+}
+
 ssize_t sendmsg(int fd, msghdr_t *msg, u32 flags)
 {
     return syscall(SYS_sendmsg, fd, msg, flags);
