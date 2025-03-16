@@ -14,6 +14,12 @@
 typedef struct
 {
     bool hdrincl;
+    /*
+     * in this case we only use a network interface (nic0) to
+     * communicate, when there're more cards, laddr is useful.
+     */
+    ipv4_t laddr;
+    ipv4_t raddr;
 } raw_t;
 
 static list_t intype = LIST_INIT(intype);
@@ -26,6 +32,16 @@ static bool hdrincl(socket_t *s)
         || s->proto == IPPROTO_RAW;
 }
 
+static bool is_any(ipv4_t ip)
+{
+    return *((u32 *)ip) == 0;
+}
+
+static bool match(ipv4_t a, ipv4_t b)
+{
+    return *(u32 *)a == *(u32 *)b;
+}
+
 static int raw_socket(socket_t *s)
 {
     ASSERTK(s->domain == AF_INET);
@@ -36,6 +52,14 @@ static int raw_socket(socket_t *s)
     r->hdrincl = false; // iphdr not provided by user
 
     list_push(&intype, &s->intype);
+    return 0;
+}
+
+static int raw_connect(socket_t *s, sockaddr_t *addr, size_t len)
+{
+    raw_t *r = s->pri;
+    sockaddr_in_t *in = (sockaddr_in_t *)addr;
+    memcpy(r->raddr, in->addr, sizeof(ipv4_t));
     return 0;
 }
 
@@ -96,7 +120,7 @@ static ssize_t raw_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 
 // m includes iphdr
 // retval 1 means that m has been handled
-int sock_rx_raw(iphdr_t *hdr, mbuf_t *m)
+int sock_rx_raw(iphdr_t *ip, mbuf_t *m)
 {
     int ret = 0;
 
@@ -106,9 +130,15 @@ int sock_rx_raw(iphdr_t *hdr, mbuf_t *m)
         socket_t *s = CR(ptr, socket_t, intype);
         if ((u8)s->proto != IPPROTO_RAW)
         {
-            if ((u8)s->proto != hdr->ptype)
+            if ((u8)s->proto != ip->ptype)
                 continue;
         }
+
+        raw_t *r = s->pri;
+        if (!is_any(r->raddr) && !match(r->raddr, ip->sip))
+            continue;
+        if (!is_any(r->laddr) && !match(r->laddr, ip->dip))
+            continue;
         
         mbuf_pushhdr(m, iphdr_t);
 
@@ -129,6 +159,7 @@ int sock_rx_raw(iphdr_t *hdr, mbuf_t *m)
 
 static sockop_t op = {
     .socket = raw_socket,
+    .connect = raw_connect,
     .sendmsg = raw_sendmsg,
     .recvmsg = raw_recvmsg,
 };

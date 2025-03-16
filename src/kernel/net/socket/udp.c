@@ -157,6 +157,7 @@ static ssize_t udp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
     if (in)
     {
         memcpy(in->addr, ip->sip, sizeof(ipv4_t));
+        in->family = AF_INET;
         in->port = hdr->sport;
     }
     
