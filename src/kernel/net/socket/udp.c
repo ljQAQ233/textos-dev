@@ -104,6 +104,26 @@ static int udp_connect(socket_t *s, sockaddr_t *addr, size_t len)
     return 0;
 }
 
+static int udp_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
+{
+    udp_t *u = UDP(s->pri);
+    sockaddr_in_t *in = (sockaddr_in_t *)addr;
+    memcpy(in->addr, u->laddr, sizeof(ipv4_t));
+    in->family = AF_INET;
+    in->port = htons(u->lport);
+    return 0;
+}
+
+static int udp_getpeername(socket_t *s, sockaddr_t *addr, size_t len)
+{
+    udp_t *u = UDP(s->pri);
+    sockaddr_in_t *in = (sockaddr_in_t *)addr;
+    memcpy(in->addr, u->raddr, sizeof(ipv4_t));
+    in->family = AF_INET;
+    in->port = htons(u->rport);
+    return 0;
+}
+
 static ssize_t udp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 {
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
@@ -240,6 +260,8 @@ static sockop_t op = {
     .socket = udp_socket,
     .bind = udp_bind,
     .connect = udp_connect,
+    .getsockname = udp_getsockname,
+    .getpeername = udp_getpeername,
     .sendmsg = udp_sendmsg,
     .recvmsg = udp_recvmsg,
 };

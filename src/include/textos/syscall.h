@@ -18,6 +18,8 @@
     _(sendmsg, 46),      \
     _(recvmsg, 47),      \
     _(bind, 49),         \
+    _(getsockname, 51),  \
+    _(getpeername, 52),  \
     _(fork, 57),         \
     _(execve, 59),       \
     _(exit, 60),         \

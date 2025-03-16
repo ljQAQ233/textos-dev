@@ -139,6 +139,9 @@ int bind(int fd, sockaddr_t *addr, size_t len);
 
 int connect(int fd, sockaddr_t *addr, size_t len);
 
+int getsockname(int fd, sockaddr_t *addr, size_t len);
+int getpeername(int fd, sockaddr_t *addr, size_t len);
+
 ssize_t sendmsg(int fd, msghdr_t *msg, u32 flags);
 ssize_t recvmsg(int fd, msghdr_t *msg, u32 flags);
 

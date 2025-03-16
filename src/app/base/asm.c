@@ -147,6 +147,16 @@ int connect(int fd, sockaddr_t *addr, size_t len)
     return syscall(SYS_connect, fd, addr, len);
 }
 
+int getsockname(int fd, sockaddr_t *addr, size_t len)
+{
+    return syscall(SYS_getsockname, fd, addr, len);
+}
+
+int getpeername(int fd, sockaddr_t *addr, size_t len)
+{
+    return syscall(SYS_getpeername, fd, addr, len);
+}
+
 ssize_t sendmsg(int fd, msghdr_t *msg, u32 flags)
 {
     return syscall(SYS_sendmsg, fd, msg, flags);

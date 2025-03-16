@@ -95,6 +95,18 @@ int connect(int fd, sockaddr_t *addr, size_t len)
     return s->op->connect(s, addr, len);
 }
 
+int getsockname(int fd, sockaddr_t *addr, size_t len)
+{
+    socket_t *s = socket_get(fd);
+    return s->op->getsockname(s, addr, len);
+}
+
+int getpeername(int fd, sockaddr_t *addr, size_t len)
+{
+    socket_t *s = socket_get(fd);
+    return s->op->getpeername(s, addr, len);
+}
+
 ssize_t sendmsg(int fd, msghdr_t *msg, int flags)
 {
     socket_t *s = socket_get(fd);

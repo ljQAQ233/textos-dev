@@ -16,6 +16,16 @@ RETVAL(int) sys_connect(int fd, sockaddr_t *addr, size_t len)
     return connect(fd, addr, len);
 }
 
+RETVAL(int) sys_getsockname(int fd, sockaddr_t *addr, size_t len)
+{
+    return getsockname(fd, addr, len);
+}
+
+RETVAL(int) sys_getpeername(int fd, sockaddr_t *addr, size_t len)
+{
+    return getpeername(fd, addr, len);
+}
+
 RETVAL(ssize_t) sys_sendmsg(int fd, msghdr_t *msg, int flags)
 {
     return sendmsg(fd, msg, flags);

@@ -81,6 +81,24 @@ static int raw_connect(socket_t *s, sockaddr_t *addr, size_t len)
     return 0;
 }
 
+static int raw_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
+{
+    raw_t *r = s->pri;
+    sockaddr_in_t *in = (sockaddr_in_t *)addr;
+    memcpy(in->addr, r->laddr, sizeof(ipv4_t));
+    in->family = AF_INET;
+    in->port = 0;
+}
+
+static int raw_getpeername(socket_t *s, sockaddr_t *addr, size_t len)
+{
+    raw_t *r = s->pri;
+    sockaddr_in_t *in = (sockaddr_in_t *)addr;
+    memcpy(in->addr, r->raddr, sizeof(ipv4_t));
+    in->family = AF_INET;
+    in->port = 0;
+}
+
 static ssize_t raw_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 {
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
@@ -179,6 +197,8 @@ static sockop_t op = {
     .socket = raw_socket,
     .bind = raw_bind,
     .connect = raw_connect,
+    .getsockname = raw_getsockname,
+    .getpeername = raw_getpeername,
     .sendmsg = raw_sendmsg,
     .recvmsg = raw_recvmsg,
 };

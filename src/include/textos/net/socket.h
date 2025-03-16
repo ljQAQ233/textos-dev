@@ -60,6 +60,8 @@ typedef struct
     int (*socket)(socket_t *s);
     int (*bind)(socket_t *s, sockaddr_t *addr, size_t len);
     int (*connect)(socket_t *s, sockaddr_t *addr, size_t len);
+    int (*getsockname)(socket_t *s, sockaddr_t *addr, size_t len);
+    int (*getpeername)(socket_t *s, sockaddr_t *addr, size_t len);
     ssize_t (*sendmsg)(socket_t *s, msghdr_t *msg, int flags);
     ssize_t (*recvmsg)(socket_t *s, msghdr_t *msg, int flags);
 } sockop_t;
@@ -90,6 +92,9 @@ int socket(int domain, int type, int proto);
 int bind(int fd, sockaddr_t *addr, size_t len);
 
 int connect(int fd, sockaddr_t *addr, size_t len);
+
+int getsockname(int fd, sockaddr_t *addr, size_t len);
+int getpeername(int fd, sockaddr_t *addr, size_t len);
 
 ssize_t sendmsg(int fd, msghdr_t *msg, int flags);
 ssize_t recvmsg(int fd, msghdr_t *msg, int flags);
