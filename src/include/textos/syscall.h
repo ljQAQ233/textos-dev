@@ -10,13 +10,14 @@
     _(pipe, 22),         \
     _(dup, 32),          \
     _(dup2, 33),         \
+    _(getpid, 39),       \
     _(socket, 41),       \
     _(connect, 42),      \
     _(sendto, 44),       \
     _(recvfrom, 45),     \
     _(sendmsg, 46),      \
     _(recvmsg, 47),      \
-    _(getpid, 39),       \
+    _(bind, 49),         \
     _(fork, 57),         \
     _(execve, 59),       \
     _(exit, 60),         \

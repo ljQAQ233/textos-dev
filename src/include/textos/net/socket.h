@@ -58,6 +58,7 @@ typedef struct
 typedef struct
 {
     int (*socket)(socket_t *s);
+    int (*bind)(socket_t *s, sockaddr_t *addr, size_t len);
     int (*connect)(socket_t *s, sockaddr_t *addr, size_t len);
     ssize_t (*sendmsg)(socket_t *s, msghdr_t *msg, int flags);
     ssize_t (*recvmsg)(socket_t *s, msghdr_t *msg, int flags);
@@ -85,6 +86,8 @@ struct socket
 socket_t *socket_get(int fd);
 
 int socket(int domain, int type, int proto);
+
+int bind(int fd, sockaddr_t *addr, size_t len);
 
 int connect(int fd, sockaddr_t *addr, size_t len);
 

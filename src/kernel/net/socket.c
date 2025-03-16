@@ -83,6 +83,12 @@ int socket(int domain, int type, int proto)
     return fd;
 }
 
+int bind(int fd, sockaddr_t *addr, size_t len)
+{
+    socket_t *s = socket_get(fd);
+    return s->op->bind(s, addr, len);
+}
+
 int connect(int fd, sockaddr_t *addr, size_t len)
 {
     socket_t *s = socket_get(fd);

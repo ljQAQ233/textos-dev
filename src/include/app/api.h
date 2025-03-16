@@ -135,6 +135,8 @@ typedef struct
 
 int socket(int domain, int type, int proto);
 
+int bind(int fd, sockaddr_t *addr, size_t len);
+
 int connect(int fd, sockaddr_t *addr, size_t len);
 
 ssize_t sendmsg(int fd, msghdr_t *msg, u32 flags);

@@ -14,6 +14,7 @@
 #define ENFILE       23  // 
 #define EMFILE       24  // Number of fd of this process was out of range
 #define EDESTADDRREQ 89  // Destination address required
+#define EADDRINUSE   98  // Address in use
 #define EISCONN      106
 
 #endif

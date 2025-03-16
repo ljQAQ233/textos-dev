@@ -2,6 +2,7 @@
 
 #include <textos/mm.h>
 #include <textos/task.h>
+#include <textos/errno.h>
 #include <textos/net.h>
 #include <textos/net/ip.h>
 #include <textos/net/socket.h>
@@ -54,6 +55,23 @@ static int raw_socket(socket_t *s)
     list_push(&intype, &s->intype);
     return 0;
 }
+
+static int raw_bind(socket_t *s, sockaddr_t *addr, size_t len)
+{
+    if (!addr)
+        return -EDESTADDRREQ;
+
+    raw_t *r = s->pri;
+    sockaddr_in_t *in = (sockaddr_in_t *)addr;
+
+    if (is_any(in->addr))
+        memcpy(r->laddr, nic0->ip, sizeof(ipv4_t));
+    else
+        memcpy(r->laddr, in->addr, sizeof(ipv4_t));
+
+    return 0;
+}
+
 
 static int raw_connect(socket_t *s, sockaddr_t *addr, size_t len)
 {
@@ -159,6 +177,7 @@ int sock_rx_raw(iphdr_t *ip, mbuf_t *m)
 
 static sockop_t op = {
     .socket = raw_socket,
+    .bind = raw_bind,
     .connect = raw_connect,
     .sendmsg = raw_sendmsg,
     .recvmsg = raw_recvmsg,

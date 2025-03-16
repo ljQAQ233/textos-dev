@@ -68,6 +68,33 @@ static int udp_socket(socket_t *s)
     return 0;
 }
 
+static int udp_bind(socket_t *s, sockaddr_t *addr, size_t len)
+{
+    if (!addr)
+        return -EDESTADDRREQ;
+
+    udp_t *u = UDP(s->pri);
+    sockaddr_in_t *in = (sockaddr_in_t *)addr;
+        
+    int port = ntohs(in->port);
+    if (port)
+    {
+        if (bitmap_test(&bmp, port))
+            return -EADDRINUSE;
+    }
+    else
+    {
+        ck_lport(u);
+    }
+
+    if (is_any(in->addr))
+        memcpy(u->laddr, nic0->ip, sizeof(ipv4_t));
+    else
+        memcpy(u->laddr, in->addr, sizeof(ipv4_t));
+
+    return 0;
+}
+
 static int udp_connect(socket_t *s, sockaddr_t *addr, size_t len)
 {
     udp_t *u = UDP(s->pri);
@@ -211,6 +238,7 @@ int sock_rx_udp(iphdr_t *ip, mbuf_t *m)
 
 static sockop_t op = {
     .socket = udp_socket,
+    .bind = udp_bind,
     .connect = udp_connect,
     .sendmsg = udp_sendmsg,
     .recvmsg = udp_recvmsg,
