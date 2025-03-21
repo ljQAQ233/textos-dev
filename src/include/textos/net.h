@@ -18,6 +18,8 @@ struct nic
 {
     u8 mac[6];
     u8 ip[4];
+    u8 gateway[4];
+    u8 netmask[4];
     bool link;
     list_t nics; // all nics
     pci_idx_t *pi;

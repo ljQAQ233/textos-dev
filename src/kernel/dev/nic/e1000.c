@@ -547,7 +547,11 @@ void e1000_init()
 
     // default ip
     ipv4_t qemu_ip = { 192, 168, 2, 2 };
+    ipv4_t gate_ip = { 192, 168, 2, 1 };
+    ipv4_t mask_ip = { 255, 255, 255, 0 };
     memcpy(e->nic.ip, &qemu_ip, sizeof(ipv4_t));
+    memcpy(e->nic.gateway, &gate_ip, sizeof(ipv4_t));
+    memcpy(e->nic.netmask, &mask_ip, sizeof(ipv4_t));
 
     e->nic.send = e1000_send;
     e->nic.link = (reg_get(R_STATUS) & S_LU) == S_LU;

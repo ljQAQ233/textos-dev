@@ -12,6 +12,11 @@ static bool match(ipv4_t a, ipv4_t b)
     return *(u32 *)a == *(u32 *)b;
 }
 
+static bool mask(ipv4_t a, ipv4_t b, ipv4_t m)
+{
+    return *(u32 *)a & *(u32 *)m == *(u32 *)b & *(u32 *)m;
+}
+
 void net_rx_arp(nic_t *n, mbuf_t *m)
 {
     arphdr_t *hdr = mbuf_pullhdr(m, arphdr_t);
@@ -63,10 +68,16 @@ void net_tx_arp(nic_t *n, u16 op, mac_t dmac, ipv4_t dip)
 
 void net_tx_arpip(nic_t *n, mbuf_t *m, ipv4_t dip)
 {
-    arpent_t *arp = arp_get(n, dip);
+    ipv4_t dip0;
+    arpent_t *arp = arp_get(n, dip0);
+    if (mask(dip, n->ip, n->netmask))
+        memcpy(dip0, dip, sizeof(ipv4_t));
+    else
+        memcpy(dip0, n->gateway, sizeof(ipv4_t));
+
     if (!arp)
     {
-        arp = arp_init(dip);
+        arp = arp_init(dip0);
         list_insert(&n->arps, &arp->arps);
     }
 
@@ -76,7 +87,7 @@ void net_tx_arpip(nic_t *n, mbuf_t *m, ipv4_t dip)
         // re-send it after get the destination mac.
         // insert in the tail
         list_insert_before(&arp->ipque, &m->wque);
-        arp_request(dip);
+        arp_request(dip0);
     }
     else
     {
