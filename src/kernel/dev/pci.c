@@ -241,6 +241,7 @@ static void scan_dev(u8 bus, u8 slot)
         idx->bus = bus;
         idx->slot = slot;
         idx->func = func;
+        idx->code = class;
         idx->vendor = vendor;
         idx->devid = devid;
         list_insert(&all, &idx->all);
@@ -275,6 +276,20 @@ pci_idx_t *pci_find(u16 vendor, u16 devid, int x)
     {
         pci_idx_t *idx = CR(ptr, pci_idx_t, all);
         if (idx->vendor == vendor && idx->devid == devid)
+            if (x-- == 0)
+                return idx;
+    }
+
+    return NULL;
+}
+
+pci_idx_t *pci_find_class(u16 code, int x)
+{
+    list_t *ptr;
+    LIST_FOREACH(ptr, &all)
+    {
+        pci_idx_t *idx = CR(ptr, pci_idx_t, all);
+        if (idx->code == code)
             if (x-- == 0)
                 return idx;
     }

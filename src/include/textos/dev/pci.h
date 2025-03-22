@@ -21,6 +21,7 @@ typedef struct
     u8 bus;
     u8 slot;
     u8 func;
+    u16 code;
     list_t all;
 } pci_idx_t;
 
@@ -33,6 +34,8 @@ typedef struct
 } pci_bar_t;
 
 pci_idx_t *pci_find(u16 vendor, u16 devid, int x);
+
+pci_idx_t *pci_find_class(u16 code, int x);
 
 void pci_get_bar(pci_idx_t *idx, pci_bar_t *barx, int x);
 
