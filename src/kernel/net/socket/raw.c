@@ -51,6 +51,8 @@ static int raw_socket(socket_t *s)
     raw_t *r;
     r = s->pri = malloc(sizeof(raw_t));
     r->hdrincl = false; // iphdr not provided by user
+    memset(r->laddr, 0, sizeof(r->laddr));
+    memset(r->raddr, 0, sizeof(r->raddr));
 
     list_push(&intype, &s->intype);
     return 0;
