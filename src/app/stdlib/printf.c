@@ -307,6 +307,17 @@ int printf(char *format, ...)
     return i;
 }
 
+int sprintf(char *buffer, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    int i = vsprintf(buffer, format, args);
+
+    va_end(args);
+    return i;
+}
+
 int dprintf(int fd, char *format, ...)
 {
     char buf[256];

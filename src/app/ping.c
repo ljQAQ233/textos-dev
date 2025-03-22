@@ -1,42 +1,10 @@
 #include <app/api.h>
+#include <app/inet.h>
 #include <textos/net.h>
 #include <textos/net/ip.h>
 #include <textos/net/icmp.h>
 
 #include <stdio.h>
-
-int inet_aton(const char *s, sockaddr_in_t *in)
-{
-    u8 *a = in->addr;
-    int p[4], c = 0, v = 0;
-    const char *x = s;
-    while (*x)
-    {
-        if ('0' <= *x && *x <= '9') {
-            v = v * 10 + (*x - '0');
-            if (v > 255)
-                return 0;
-        } else if (*x == '.') {
-            if (c >= 3) return 0;
-            p[c++] = v;
-            v = 0;
-        } else return 0;
-        x++;
-    }
-
-    if (c != 3) return 0;
-    p[c] = v;
-    a[0] = p[0];
-    a[1] = p[1];
-    a[2] = p[2];
-    a[3] = p[3];
-    return 1;
-}
-
-u16 htons(u16 h)
-{
-    return ((h & 0xFF00) >> 8) | ((h & 0x00FF) << 8);
-}
 
 #define ICMP_REPLY   0
 #define ICMP_REQUEST 8
@@ -81,7 +49,7 @@ int main(int argc, char const *argv[])
         goto die;
 
     sockaddr_t addr;
-    if (inet_aton(argv[1], (sockaddr_in_t *)&addr) == 0)
+    if (inet_aton(argv[1], &((sockaddr_in_t *)&addr)->addr) == 0)
         goto die;
     
     u16 seq = 1;

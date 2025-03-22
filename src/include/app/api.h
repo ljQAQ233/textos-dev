@@ -115,7 +115,7 @@ typedef struct sockaddr_in_t
 {
     u16 family;
     u16 port;
-    u8 addr[4];
+    u32 addr;
     u8 zero[8];
 } sockaddr_in_t;
 
@@ -145,6 +145,7 @@ int getpeername(int fd, sockaddr_t *addr, size_t len);
 ssize_t sendmsg(int fd, msghdr_t *msg, u32 flags);
 ssize_t recvmsg(int fd, msghdr_t *msg, u32 flags);
 
+// XXX: recvfrom is wrong
 ssize_t sendto(int fd, void *buf, size_t len, int flags, sockaddr_t *dst, size_t dlen);
 ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size_t slen);
 

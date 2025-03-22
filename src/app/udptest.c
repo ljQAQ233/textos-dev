@@ -6,28 +6,19 @@
  * in this case, we setup a socket at port 2333
 */
 #include <app/api.h>
+#include <app/inet.h>
 #include <stdio.h>
 
 char tx_buf[] = "test data!";
 char rx_buf[128];
 
-u16 htons(u16 h)
-{
-    return ((h & 0xFF00) >> 8) | ((h & 0x00FF) << 8);
-}
-
-u16 ntohs(u16 h)
-{
-    return ((h & 0xFF00) >> 8) | ((h & 0x00FF) << 8);
-}
-
 int main(int argc, char const *argv[])
 {
     sockaddr_in_t addr = {
         .family = AF_INET,
-        .addr = { 192, 168, 2, 1 },
         .port = htons(2333),
     };
+    inet_aton("192.168.2.1", &addr.addr);
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     // if (connect(fd, (void *)&addr, sizeof(addr)) < 0)
@@ -49,8 +40,8 @@ int main(int argc, char const *argv[])
         return 1;
     }
 
-    printf("received from %d.%d.%d.%d port %d: %s\n",
-      src.addr[0], src.addr[1], src.addr[2], src.addr[3],
+    printf("received from %s port %d: %s\n",
+      inet_ntoa(src.addr),
       ntohs(src.port), rx_buf);
     
     return 0;

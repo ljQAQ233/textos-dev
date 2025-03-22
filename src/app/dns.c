@@ -3,6 +3,7 @@
  */
 
 #include <app/api.h>
+#include <app/inet.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -21,26 +22,6 @@ typedef struct
     u16 qtype;
     u16 qclass;
 } quest_t;
-
-u16 htons(u16 h)
-{
-    return ((h & 0xFF00) >> 8) | ((h & 0x00FF) << 8);
-}
-
-u16 ntohs(u16 h)
-{
-    return ((h & 0xFF00) >> 8) | ((h & 0x00FF) << 8);
-}
-
-u32 htonl(u32 h)
-{
-    return ((h & 0xFF000000) >> 24) | ((h & 0x00FF0000) >> 8) | ((h & 0x0000FF00) << 8) | ((h & 0x000000FF) << 24);
-}
-
-u32 ntohl(u32 h)
-{
-    return ((h & 0xFF000000) >> 24) | ((h & 0x00FF0000) >> 8) | ((h & 0x0000FF00) << 8) | ((h & 0x000000FF) << 24);
-}
 
 void mkqry(const char *domain, u8 *buf, size_t *len)
 {
@@ -139,10 +120,7 @@ int main(int argc, char *argv[])
     memset(&addr, 0, sizeof(addr));
     addr.family = AF_INET;
     addr.port = htons(53);
-    addr.addr[0] = 180;
-    addr.addr[1] = 76;
-    addr.addr[2] = 76;
-    addr.addr[3] = 76;
+    inet_aton("180.76.76.76", &addr.addr);
 
     size_t len;
     mkqry(argv[1], tx, &len);
