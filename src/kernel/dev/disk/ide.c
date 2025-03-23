@@ -2,11 +2,16 @@
 #include <irq.h>
 #include <intr.h>
 #include <textos/dev.h>
+#include <textos/dev/pci.h>
+#include <textos/task.h>
+#include <textos/panic.h>
+#include <textos/mm.h>
+#include <textos/mm/map.h>
 #include <textos/printk.h>
 
-#define SECT_SIZ 512
-
 #include <string.h>
+
+#define SECT_SIZ 512
 
 #define BASE_PRI 0x1F0 // Prime
 #define BASE_SEC 0x170 // Secondary
@@ -22,25 +27,32 @@
 
 #define R_BCTL 0x206 // Offset of the block register
 
+typedef struct
+{
+    int wait;
+} channel_t;
+
+typedef struct _packed __attribute__((aligned(4)))
+{
+    u32 base; // physical
+    u16 size; // in bytes
+    u16 flag; // EOT
+} ideprd_t;
+
+static channel_t channel[2]; // 2 channels
+
 typedef struct {
-    int     wait;  // waiting task's pid
-//  暂时没用:
-//  mutex_t lock;  // lock of this port(disk channel)
-} port_stat_t;
+    bool dma;
+    u16 iobase;
+    u16 bmbase;
+    u8 dev;
+    ideprd_t prd;
+    channel_t *channel;
+    char serial_num[21];
+    char model_num[41];
+} ide_t;
 
-static port_stat_t pstat[2]; // 2 channels
-
-typedef struct {
-    char  serial_num[21];
-    char  model_num[41];
-
-    u16   port;
-    u8    dev;
-
-    port_stat_t *pstat;
-} pri_t;
-
-static pri_t info;
+static ide_t ide[4];
 
 #define STAT_ERR   (1 << 0) // Error
 #define STAT_IDX   (1 << 2) // Index
@@ -66,7 +78,8 @@ static pri_t info;
 #define CMD_READ  0x20
 #define CMD_WRITE 0x30
 
-#include <textos/task.h>
+#define CMD_RDMA  0xC8 // lba 28
+#define CMD_WDMA  0xCA // lba 28 
 
 /* TODO: Lock device */
 
@@ -75,17 +88,17 @@ __INTR_HANDLER(ide_handler)
     lapic_sendeoi();
 
     int idx = (vector - INT_PRIDISK);
-    port_stat_t *stat = &pstat[idx];
+    channel_t *stat = &channel[idx];
 
     if (stat->wait < 0)
         return ;
 
     DEBUGK(K_DEV, "Read opt has finished, waking proc... -> %d\n", stat->wait);
-    task_unblock (stat->wait);
+    task_unblock(stat->wait);
     stat->wait = -1;
 }
 
-static void read_sector (u16 port, u16 *data)
+static void read_sector(u16 port, u16 *data)
 {
     __asm__ volatile (
         "cld\n"
@@ -95,7 +108,7 @@ static void read_sector (u16 port, u16 *data)
         );
 }
 
-static void write_sector (u16 port, u16 *data)
+static void write_sector(u16 port, u16 *data)
 {
     __asm__ volatile (
         "cld\n"
@@ -105,58 +118,157 @@ static void write_sector (u16 port, u16 *data)
         );
 }
 
-void ide_read (dev_t *dev, u32 lba, void *data, u8 cnt)
+void ide_select(ide_t *pri, u32 lba, u8 cnt)
+{
+    outb(pri->iobase + R_DEV,  SET_DEV(pri->dev) | (lba >> 24)); // 选择设备并发送 LBA 的高4位
+    outb(pri->iobase + R_SECC, cnt);                // 扇区数目
+    outb(pri->iobase + R_LBAL, lba & 0xFF);         // LBA 0_7
+    outb(pri->iobase + R_LBAM, (lba >> 8) & 0xFF);  // LBA 8_15
+    outb(pri->iobase + R_LBAH, (lba >> 16) & 0xFF); // LBA 16_23
+}
+
+#define R_BMCMD  0
+#define R_BMSTAT 2
+#define R_BMPPRD 4
+
+#define CMD_BMSTOP  (0 << 0)
+#define CMD_BMSTART (1 << 0)
+#define CMD_BMREAD  (1 << 3)
+#define CMD_BMWRITE (0 << 3)
+
+#define STAT_BMACT  (1 << 0)
+#define STAT_BMERR  (1 << 1)
+#define STAT_BMINT  (1 << 2)
+
+#include <textos/assert.h>
+
+void ide_setdma(ide_t *pri, void *buf, u8 cmd, uint len)
+{
+    /*
+     * 缓冲区在物理空间上必须是连续的,
+     * 保证它不跨页是一个临时的措施 (可能临时吧!)
+     */
+    ASSERTK(((addr_t)buf + len) <= ((addr_t)buf &~ PAGE_MASK) + PAGE_SIZ);
+
+    addr_t va = (addr_t)buf;
+    addr_t pa = vmap_query(va);
+    addr_t pprd = vmap_query((addr_t)&pri->prd);
+
+    pri->prd.base = pa;
+    pri->prd.size = len;
+    pri->prd.flag = (1 << 15);
+
+    outdw(pri->bmbase + R_BMPPRD, pprd);  // prd addr
+    outb(pri->bmbase + R_BMCMD, cmd);     // direction
+
+    u8 status = inb(pri->bmbase + R_BMSTAT);
+    status |= STAT_BMERR | STAT_BMINT;
+    outb(pri->bmbase + R_BMSTAT, status); // set
+}
+
+void ide_rundma(ide_t *pri, u8 rw)
+{
+    outb(pri->iobase + R_SCMD, rw);
+
+    u8 bmcmd = inb(pri->bmbase + R_BMCMD);
+    outb(pri->bmbase + R_BMCMD, bmcmd | CMD_BMSTART);
+}
+
+void ide_enddma(ide_t *pri)
+{
+    u8 bmcmd = inb(pri->bmbase + R_BMCMD);
+    outb(pri->bmbase + R_BMCMD, bmcmd & ~CMD_BMSTART);
+    
+    u8 status = inb(pri->bmbase + R_BMSTAT);
+    status |= STAT_BMERR | STAT_BMINT;
+    outb(pri->bmbase + R_BMSTAT, status); // set
+}
+
+void ide_runpio(ide_t *pri, u8 rw)
+{
+    outb(pri->iobase + R_SCMD, rw);
+}
+
+void ide_dma_read(dev_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
-    pri_t *pri = dev->pdata;
+    ide_t *pri = dev->pdata;
     
-    /*
-       我们先 使用 28 位 PIO 模式练练手.
-    */
     lba &= 0xFFFFFFF;
     
-    while (inb(pri->port + R_SCMD) & STAT_BSY) ;
-    
-    outb(pri->port + R_DEV,  SET_DEV(pri->dev) | DEV_LBA | (lba >> 24)); // 选择设备并发送 LBA 的高4位
-    outb(pri->port + R_SECC, cnt);                             // 扇区数目
-    outb(pri->port + R_LBAL, lba & 0xFF);                      // LBA 0_7
-    outb(pri->port + R_LBAM, (lba >> 8) & 0xFF);               // LBA 8_15
-    outb(pri->port + R_LBAH, (lba >> 16) & 0xFF);              // LBA 16_23
-    outb(pri->port + R_SCMD, CMD_READ);                        // 读取指令
+    while (inb(pri->iobase + R_SCMD) & STAT_BSY) ;
 
-    pri->pstat->wait = task_current()->pid;
+    ide_setdma(pri, data, CMD_BMREAD, cnt * SECT_SIZ);
+    ide_select(pri, lba, cnt);
+    ide_rundma(pri, CMD_RDMA);
+
+    pri->channel->wait = task_current()->pid;
+    task_block();
+
+    ide_enddma(pri);
+    
+    UNINTR_AREA_END();
+}
+
+void ide_dma_write(dev_t *dev, u32 lba, void *data, u8 cnt)
+{
+    UNINTR_AREA_START();
+
+    ide_t *pri = dev->pdata;
+
+    lba &= 0xFFFFFFF;
+    
+    while (inb(R_SCMD + pri->iobase) & STAT_BSY) ;
+
+    ide_setdma(pri, data, CMD_BMWRITE, cnt * SECT_SIZ);
+    ide_select(pri, lba, cnt);
+    ide_rundma(pri, CMD_WDMA);
+    
+    UNINTR_AREA_END();
+}
+
+void ide_pio_read(dev_t *dev, u32 lba, void *data, u8 cnt)
+{
+    UNINTR_AREA_START();
+
+    ide_t *pri = dev->pdata;
+    
+    lba &= 0xFFFFFFF;
+    
+    while (inb(pri->iobase + R_SCMD) & STAT_BSY) ;
+
+    ide_select(pri, lba, cnt);
+    ide_runpio(pri, CMD_READ);
+
+    pri->channel->wait = task_current()->pid;
     task_block();
     for (int i = 0 ; i < cnt ; i++) {
-        read_sector (pri->port, data);
+        read_sector (pri->iobase, data);
         data += SECT_SIZ;
     }
     
     UNINTR_AREA_END();
 }
 
-void ide_write (dev_t *dev, u32 lba, void *data, u8 cnt)
+void ide_pio_write(dev_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
-    pri_t *pri = dev->pdata;
+    ide_t *pri = dev->pdata;
 
     lba &= 0xFFFFFFF;
     
-    while (inb(R_SCMD + pri->port) & STAT_BSY) ;
+    while (inb(R_SCMD + pri->iobase) & STAT_BSY) ;
 
-    outb(pri->port + R_DEV,  SET_DEV(pri->dev) | DEV_LBA | (lba >> 24)); // 选择设备并发送 LBA 的高4位
-    outb(pri->port + R_SECC, cnt);                                       // 扇区数目
-    outb(pri->port + R_LBAL, lba & 0xFF);                                // LBA 0_7
-    outb(pri->port + R_LBAM, (lba >> 8) & 0xFF);                         // LBA 8_15
-    outb(pri->port + R_LBAH, (lba >> 16) & 0xFF);                        // LBA 16_23
-    outb(pri->port + R_SCMD, CMD_WRITE);                                 // 写入指令
+    ide_select(pri, lba, cnt);
+    ide_runpio(pri, CMD_WRITE);
 
     for (int i = 0 ; i < cnt ; i++) {
-        write_sector (pri->port, data);
+        write_sector(pri->iobase, data);
         data += SECT_SIZ;
 
-        pri->pstat->wait = task_current()->pid;
+        pri->channel->wait = task_current()->pid;
         task_block();
     }
     
@@ -171,114 +283,118 @@ void ide_mkname(dev_t *dev, char res[32], int nr)
     sprintf(res, "%s%d", dev->name, nr);
 }
 
-/* Details in `/usr/include/linux/hdreg.h` on your pc [doge] */
-
 #define ID_CONFIG   0   // Bit flags                  1  (word)
 #define ID_SN       10  // Serial number              10 (word)
 #define ID_FWVER    23  // Firmware version           8  (word)
 #define ID_MODEL    27  // Model number               20 (word)
 #define ID_SUPPORT  49  // Capabality                 1  (byte)
-#define ID_ADDR_28  60  // 28位可寻址的全部逻辑扇区数 2  (word)
-#define ID_ADDR_48  100 // 28位可寻址的全部逻辑扇区数 3  (word)
+#define ID_ADDR_28  60  // 28位可寻址的全部逻辑扇区数     2  (word)
+#define ID_ADDR_48  100 // 28位可寻址的全部逻辑扇区数     3  (word)
 #define ID_MSN      176 // Current media sn           60 (word)
 
-#define TRY(count, opts)                            \
-    for ( int __try_count__ = count ;               \
-              __try_count__ > 0 || count == 0 ;     \
-              __try_count__-- )                     \
-        opts
-
-static inline void ide_wait ()
+static bool ide_identify(ide_t *pri)
 {
-    while (inb(R_SCMD) & STAT_BSY) ;
-}
-
-#include <textos/mm.h>
-
-static bool ide_identify (pri_t **pri, int idx)
-{
-    pri_t info;
-    memset (&info, 0, sizeof(pri_t));
-
-    u16 Buffer[256];
-
-    u16 port = idx > 1 ? BASE_SEC : BASE_PRI;
-    u8  dev = idx & 1 ? DEV_SLAVE : DEV_MASTER;
-
-    outb(port + R_DEV , SET_DEV(dev));
-    outb(port + R_SCMD, 0xEC);
+    outb(pri->iobase + R_DEV , SET_DEV(pri->dev));
+    outb(pri->iobase + R_SCMD, 0xEC);
 
     for (int i = 0 ; i < 0xFFFF ; i++) ;
 
-    u8 stat = inb(port + R_SCMD);
+    u8 stat = inb(pri->iobase + R_SCMD);
     if (stat == 0 || stat & STAT_ERR) // 没有这个设备, 或者错误
         return false;                 // 中断识别
 
-    read_sector (port, Buffer);
+    u16 buf[256];
+    read_sector(pri->iobase, buf);
     
-    for (int i = 0 ; i < 10 ; i++) {
-        info.serial_num[i*2  ] = Buffer[ID_SN + i] >> 8;
-        info.serial_num[i*2+1] = Buffer[ID_SN + i] &  0xFF;
+    for (int i = 0 ; i < 10 ; i++)
+    {
+        pri->serial_num[i*2  ] = buf[ID_SN + i] >> 8;
+        pri->serial_num[i*2+1] = buf[ID_SN + i] &  0xFF;
     }
-
-    for (int i = 0 ; i < 20 ; i++) {
-        info.model_num[i*2  ] = Buffer[ID_MODEL + i] >> 8;
-        info.model_num[i*2+1] = Buffer[ID_MODEL + i] &  0xFF;
+    for (int i = 0 ; i < 20 ; i++)
+    {
+        pri->model_num[i*2  ] = buf[ID_MODEL + i] >> 8;
+        pri->model_num[i*2+1] = buf[ID_MODEL + i] &  0xFF;
     }
-
-    info.dev = dev;
-    info.port = port;
-
-    DEBUGK (K_DEV | K_SYNC, "disk sn : %s\n", info.serial_num);
-    DEBUGK (K_DEV | K_SYNC, "disk model : %s\n", info.model_num);
-    DEBUGK (K_DEV | K_SYNC, "disk port base : %#x\n", info.port);
-    DEBUGK (K_DEV | K_SYNC, "disk dev : %d\n", info.dev);
-
-    info.pstat = &pstat[idx / 2];
-
-    *pri = malloc(sizeof(pri_t));
-    memcpy (*pri, &info, sizeof(pri_t));
 
     return true;
 }
 
-#define INIT(_i, _name)                                              \
-    do {                                                             \
-        pri_t *pri;                                                  \
-        dev_t *dev;                                                  \
-        if (ide_identify(&pri, _i)) {                                \
-            dev = dev_new();                                         \
-            dev->name = _name;                                       \
-            dev->type = DEV_BLK;                                     \
-            dev->subtype = DEV_IDE;                                  \
-            dev->bread = (void *)ide_read;                           \
-            dev->bwrite = (void *)ide_write;                         \
-            dev->mkname = (void *)ide_mkname;                        \    
-            dev->pdata = pri;                                        \
-            dev_register(NULL, dev);                                 \
-        }                                                            \
-    } while (0);                                                     \
+static char *ideid[] = {
+    "hda",
+    "hdb",
+    "hdc",
+    "hdd",
+};
 
-#define INIT_PS(i)                                                   \
-    do {                                                             \
-        pstat[i].wait = -1;                                          \
-    /*  mutex_init(&pstat[i].lock); */                               \
-    } while (0);
+void init(int x, u16 bmbase)
+{
+    bool dma = bmbase != 0;
+    ide_t *pri = &ide[x];
 
-/* TODO : Detect all devices */
+    pri->dma = dma;
+    pri->channel = &channel[x / 2];
+    pri->dev = x & 1 ? DEV_SLAVE : DEV_MASTER;
+    if (x < 2)
+    {
+        pri->iobase = BASE_PRI;
+        pri->bmbase = bmbase;
+    }
+    else
+    {
+        pri->iobase = BASE_SEC;
+        pri->bmbase = bmbase + 8;
+    }
+    
+    if (!ide_identify(pri))
+        return ;
+
+    dev_t *dev = dev_new();
+    dev->name = ideid[x];
+    dev->type = DEV_BLK;
+    dev->subtype = DEV_IDE;
+    if (dma)
+    {
+        dev->bread = (void *)ide_dma_read;
+        dev->bwrite = (void *)ide_dma_write;
+    }
+    else
+    {
+        dev->bread = (void *)ide_pio_read;
+        dev->bwrite = (void *)ide_pio_write;
+    }
+    dev->mkname = (void *)ide_mkname;
+    dev->pdata = pri;
+    dev_register(NULL, dev);
+
+    DEBUGK(K_DEV | K_SYNC, "disk : %s\n", dev->name);
+    DEBUGK(K_DEV | K_SYNC, "disk sn : %s\n", pri->serial_num);
+    DEBUGK(K_DEV | K_SYNC, "disk model : %s\n", pri->model_num);
+    DEBUGK(K_DEV | K_SYNC, "iobase = %x, bmbase = %x\n", pri->iobase, pri->bmbase);
+}
+
 void ide_init()
 {
+    u16 bmbase = 0;
+    pci_idx_t *idx = pci_find_class(0x0101, 0);
+    if (idx != NULL)
+    {
+        pci_bar_t bar;
+        pci_get_bar(idx, &bar, 4);
+        bmbase = bar.base;
+        pci_set_busmaster(idx);
+    }
+
+    init(0, bmbase);
+    init(1, bmbase);
+    init(2, bmbase);
+    init(3, bmbase);
+
     outb(0x3F6, 0);
 
-    INIT_PS(0); INIT_PS(1);
-
-    INIT(0, "hda"); INIT(1, "hdb");
-    intr_register (INT_PRIDISK, ide_handler);
-    ioapic_rteset (IRQ_PRIDISK, _IOAPIC_RTE(INT_PRIDISK));
-
-    INIT(2, "hdc"); INIT(3, "hdd");
-    intr_register (INT_SECDISK, ide_handler);
-    ioapic_rteset (IRQ_SECDISK, _IOAPIC_RTE(INT_SECDISK));
-    DEBUGK(K_INIT | K_SYNC, "disk initialized!\n");
+    intr_register(INT_PRIDISK, ide_handler);
+    intr_register(INT_SECDISK, ide_handler);
+    ioapic_rteset(IRQ_PRIDISK, _IOAPIC_RTE(INT_PRIDISK));
+    ioapic_rteset(IRQ_SECDISK, _IOAPIC_RTE(INT_SECDISK));
 }
 

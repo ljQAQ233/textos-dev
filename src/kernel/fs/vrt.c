@@ -394,11 +394,13 @@ extern void __pipe_init();
 extern void __kconio_init();
 extern void __vrtdev_init();
 
+#include <textos/mm/vmm.h>
+
 void fs_init ()
 {
     dev_t *hd = dev_lookup_type (DEV_IDE, 0);
 
-    mbr_t *record = malloc(sizeof(mbr_t));
+    mbr_t *record = vmm_allocpages(1, PE_P | PE_RW);
     hd->bread (hd, 0, record, 1);
 
     _init_partitions (hd, record);

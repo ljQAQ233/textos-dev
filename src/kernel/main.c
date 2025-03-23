@@ -46,9 +46,9 @@ void kernel_main ()
 
     dev_init();
     keyboard_init();
-    ide_init();
     buffer_init();
     pci_init();
+    ide_init();
     fpu_init();
 
     clock_init();

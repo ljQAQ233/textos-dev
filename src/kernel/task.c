@@ -382,8 +382,6 @@ void task_unblock (int pid)
 
 static int a = 0;
 
-extern void ide_read (u32 lba, void *data, u8 cnt);
-
 void proc_a ()
 {
     u8 buf[512];

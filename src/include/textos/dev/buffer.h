@@ -10,6 +10,7 @@ typedef struct
     size_t idx;
     size_t siz;
     void *blk;
+    addr_t phy;
     dev_t *dev;
     lock_t lock;
     list_t all;
