@@ -42,6 +42,7 @@ struct dev {
             int   (*bread)(dev_t *dev, u64 addr, void *buf, size_t cnt);
         };
     };
+    int   (*ioctl)(dev_t *dev, int req, void *argp);
 
     void (*mkname)(dev_t *dev, char res[32], int nr);
 

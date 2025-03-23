@@ -31,6 +31,11 @@ RETVAL(int) sys_stat(char *path, stat_t *sb)
     return stat(path, sb);
 }
 
+RETVAL(int) sys_ioctl(int fd, int req, void *argp)
+{
+    return ioctl(fd, req, argp);
+}
+
 RETVAL(int) sys_dup(int fd)
 {
     return dup(fd);

@@ -145,6 +145,10 @@ ssize_t readdir(int fd, void *buf, size_t mx)
     return cnt;
 }
 
+/*
+ * NOTE: actually the dev file uses the op of the
+ *       filesystem in which it locates.
+ */
 ssize_t read(int fd, void *buf, size_t cnt)
 {
     file_t *file = task_current()->files[fd];
@@ -208,6 +212,22 @@ int stat(char *path, stat_t *sb)
     sb->mode = mode;
 
     return 0;
+}
+
+int ioctl(int fd, int req, void *argp)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+    
+    node_t *node = file->node;
+    if (node->attr & NA_DEV)
+    {
+        dev_t *dev = node->pdata;
+        return dev->ioctl(dev, req, argp);
+    }
+
+    return node->opts->ioctl(node, req, argp);
 }
 
 int dup2(int old, int new)

@@ -97,6 +97,7 @@ void noopt_handler(node_t *node)
 void vfs_initops (fs_opts_t *opts)
 {
     INIT_OPT(opts->open);
+    INIT_OPT(opts->ioctl);
     INIT_OPT(opts->close);
     INIT_OPT(opts->remove);
     INIT_OPT(opts->read);

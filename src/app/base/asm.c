@@ -92,6 +92,16 @@ int stat(char *path, stat_t *sb)
     return syscall(SYS_stat, path, sb);
 }
 
+int ioctl(int fd, int req, ...)
+{
+    va_list args;
+    va_start(args, req);
+    void *argp = va_arg(args, void *);
+    va_end(args);
+
+    return syscall(SYS_ioctl, fd, req, argp);
+}
+
 int dup(int fd)
 {
     return syscall(SYS_dup, fd);

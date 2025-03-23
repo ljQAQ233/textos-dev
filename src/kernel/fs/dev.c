@@ -9,6 +9,12 @@
 
 fs_opts_t __vfs_devop;
 
+static int dev_ioctl(node_t *this, int req, void *argp)
+{
+    dev_t *dev = this->pdata;
+    return dev->ioctl(dev, req, argp);
+}
+
 static int dev_read(node_t *this, void *buf, size_t siz, size_t offset)
 {
     dev_t *dev = this->pdata;
@@ -70,6 +76,7 @@ static int dev_close(node_t *this)
 void __vrtdev_init()
 {
     vfs_initops(&__vfs_devop);
+    __vfs_devop.ioctl = (void *)dev_ioctl;
     __vfs_devop.read = (void *)dev_read;
     __vfs_devop.write = (void *)dev_write;
     __vfs_devop.close = (void *)dev_close;

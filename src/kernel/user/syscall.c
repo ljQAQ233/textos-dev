@@ -10,6 +10,7 @@ extern void sys_write();
 extern void sys_open();
 extern void sys_close();
 extern void sys_stat();
+extern void sys_ioctl();
 extern void sys_dup();
 extern void sys_dup2();
 extern void sys_pipe();
@@ -42,6 +43,7 @@ void *sys_handlers[] = {
     [SYS_open] = sys_open,
     [SYS_close] = sys_close,
     [SYS_stat] = sys_stat,
+    [SYS_ioctl] = sys_ioctl,
     [SYS_dup] = sys_dup,
     [SYS_dup2] = sys_dup2,
     [SYS_pipe] = sys_pipe,

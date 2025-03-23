@@ -72,6 +72,8 @@ typedef struct stat
 
 int stat(char *path, stat_t *sb);
 
+int ioctl(int fd, int req, ...);
+
 int dup(int fd);
 
 int dup2(int old, int new);

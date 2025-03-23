@@ -25,6 +25,7 @@ typedef struct dirctx dirctx_t;
 
 typedef struct {
     int  (*open)(node_t *parent, char *path, u64 args, node_t **result);
+    int  (*ioctl)(node_t *this, int req, void *argp);
     int  (*close)(node_t *this);
     int  (*remove)(node_t *this);
     /* 文件操作 */
