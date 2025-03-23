@@ -265,9 +265,22 @@ void __pmm_tovmm ()
 #include <boot.h>
 #include <textos/uefi.h>
 
+void __kpg_dump(kpgs_t *kpg)
+{
+    for (int i = 0 ; ; i++, kpg++)
+    {
+        if (!kpg->va)
+            break;
+        
+        DEBUGK(K_INIT, "[#%2d] kpg %p -> %p | %d\n", i, kpg->phy, kpg->vrt, kpg->msiz);
+    }
+}
+
 void __pmm_pre (mconfig_t *m)
 {
     DEBUGK(K_INIT, "early-init physical memory!\n");
+
+    __kpg_dump((kpgs_t *)m->kpgs);
 
     mapinfo_t *info = m->map;
     EFI_MEMORY_DESCRIPTOR *desc = info->maps + info->descsiz; // Skip the first one,its ptr points to NULL.
