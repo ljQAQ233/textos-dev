@@ -95,6 +95,24 @@ _map_walk (u64 phy, u64 vrt, u16 flgs, u64 *tab, int level, int mode)
     _map_walk (phy, vrt, flgs, tab, --level, mode);
 }
 
+static u64
+_qry_walk(u64 vrt, u64 *tab, int lv)
+{
+    u64 idx = IDX(vrt, lv);
+    u64 entry = tab[idx];
+
+    if (!(entry & PE_P))
+        return 0;
+
+    if (lv == MAP_4K)
+        return PE_V_ADDR(entry) | vrt & 0xfff;
+    if (lv & (1 << 7))
+        return PE_V_ADDR(entry) | vrt & ((1 << ((lv - 1) * 9) + 12) - 1);
+
+    tab = (u64 *)_vrt_entryget(vrt, lv - 1);
+    return _qry_walk(vrt, tab, lv - 1);
+}
+
 static inline u16
 parse_flags (int md)
 {
@@ -127,6 +145,11 @@ void vmap_map (u64 phy, u64 vrt, size_t num, u16 flgs, int mode)
         phy += pagesiz;
         vrt += pagesiz;
     }
+}
+
+addr_t vmap_query(addr_t vrt)
+{
+    return _qry_walk(vrt, pml4, L_PML4);
 }
 
 void vmap_init ()
