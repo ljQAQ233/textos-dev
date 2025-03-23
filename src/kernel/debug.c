@@ -33,7 +33,7 @@ int dprintk_set(int mask)
 
 static void dvprintk(int lv, const char *format, va_list ap)
 {
-    char buf[128];
+    char buf[256];
     int mask = dmask | K_SYNC;
     if (mask & lv) {
         vsprintf(buf, format, ap);
