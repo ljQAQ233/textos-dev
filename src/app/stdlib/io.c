@@ -20,7 +20,10 @@ void perror(const char *s)
 {
     char *err = strerror(errno);
     char *spl = ": ";
-    if (!s)
-        spl = s = "";
+    if (!s || !s[0])
+    {
+        s = "";
+        spl = "";
+    }
     dprintf(STDERR_FILENO, "%s%s%s\n", s, spl, err);
 }
