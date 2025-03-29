@@ -45,9 +45,6 @@ intr_caller:
     push  r14
     push  r15
     
-    mov  rdi, rsp
-    call __task_setif
-
     mov  rdi, [rsp + 15 * 8] ; vector
     mov  rsi, [rsp + 16 * 8] ; errcode
     mov  rdx, rsp            ; intr context

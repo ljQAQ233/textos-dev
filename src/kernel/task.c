@@ -145,10 +145,11 @@ task_t *task_create (void *main, int args)
 static int fork_stack(task_t *prt, task_t *chd)
 {
     void *istk = vmm_allocpages(istk_pages, PE_P | PE_RW);
-    build_tframe(chd, istk, 0); // 较正
+    build_tframe(chd, istk, 0);
     build_iframe(chd, istk, 0);
-    memcpy(chd->frame, prt->frame, sizeof(task_frame_t));
-    memcpy(chd->iframe, prt->iframe, sizeof(intr_frame_t));
+
+    // 子进程在调度时才正式启动, task_frame 手动构建
+    memcpy(chd->iframe, prt->sframe, sizeof(intr_frame_t));
     chd->istk = (addr_t)istk;
     return 0;
 }
@@ -174,16 +175,12 @@ int task_fork()
     task_t *prt = task_current();
     task_t *chd = _task_create(prt->init.args);
     
-    // prevent task switching
-    // because currently we use iframe to save context for fork
-    UNINTR_AREA_START();
-
     // page table
     fork_pgt(prt, chd);
 
     // context
     fork_stack(prt, chd);
-    if (prt->iframe->vector == INT_MSYSCALL)
+    if (prt->sframe->vector == INT_MSYSCALL)
         chd->frame->rip = (u64)msyscall_exit;
     else
         chd->frame->rip = (u64)intr_exit;
@@ -199,8 +196,6 @@ int task_fork()
     chd->stat = TASK_PRE;
 
     chd->init = prt->init;
-
-    UNINTR_AREA_END();
 
     return chd->pid; // 父进程返回子进程号
 }
@@ -271,12 +266,6 @@ static inline task_t *_getnext ()
 task_t *task_current ()
 {
     return table[_curr];
-}
-
-void __task_setif(void *iframe)
-{
-    if (table[0])
-        task_current()->iframe = iframe;
 }
 
 extern void fpu_disable();

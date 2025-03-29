@@ -6,6 +6,7 @@ section .text
 
 %define TASK_ISTACK 0x00
 %define TASK_IFRAME 0x10
+%define TASK_SFRMAE 0x18
 
 global msyscall_exit
 
@@ -26,7 +27,7 @@ msyscall_handler:
 
     push rax
     push rbx
-    push rcx
+    push rcx ; old rip
     push rdx
     push rbp
     push rsi
@@ -34,23 +35,20 @@ msyscall_handler:
     push r8
     push r9
     push r10
-    push r11
+    push r11 ; old eflags
     push r12
     push r13
     push r14
     push r15
-    
+
     sti
 
-    ; 也可以直接 call handler
-    mov  qword [gs:TASK_IFRAME], rsp
     mov  rdi, [rsp + 15 * 8]
     mov  rsi, [rsp + 16 * 8]
     mov  rdx, rsp
     call syscall_handler
 
 msyscall_exit:
-
     pop  r15
     pop  r14
     pop  r13

@@ -36,6 +36,8 @@ extern void sys_recvmsg();
 extern void sys_sendto();
 extern void sys_recvfrom();
 
+typedef long (*sys_func)(long, long, long, long, long, long);
+
 void *sys_handlers[] = {
     [SYS_read] = sys_read,
     [SYS_readdir] = sys_readdir,
@@ -71,6 +73,7 @@ void *sys_handlers[] = {
 };
 
 #include <textos/panic.h>
+#include <textos/task.h>
 
 // todo : optimize
 
@@ -79,24 +82,16 @@ __INTR_HANDLER(syscall_handler)
     int nr = frame->rax;
     if (nr >= SYS_maxium)
         PANIC("syscall number was out of range!\n");
-    else
-        frame->rax = 0;
 
-    __asm__ volatile (
-            "movq %1, %%rdi\n" // arg0
-            "movq %2, %%rsi\n" // arg1
-            "movq %3, %%rdx\n" // arg2
-            "movq %4, %%rcx\n" // arg3
-            "movq %5, %%r8 \n" // arg4
-            "movq %6, %%r9 \n" // arg5
-            "callq *%%rax\n"   // handler
-            "movq %%rax, %0"
-            :"=a"(frame->rax)
-            : "m"(frame->rdi), "m"(frame->rsi), "m"(frame->rdx),
-              "m"(frame->r10), "m"(frame->r8),  "m"(frame->r9),
-              "a"(sys_handlers[nr])    // 存放处理函数
-            : "%rdi", "%rsi", "%rdx",
-              "%r10", "%r8",  "%r9");   // 如果不告诉 gcc 我们改变了哪些寄存器, 它就有可能用这些寄存器进行寻址...
+    task_current()->sframe = frame;
+
+    DEBUGK(K_INIT, "syscall %d\n", nr);
+
+    sys_func func = sys_handlers[nr];
+    frame->rax = func(
+        frame->rdi, frame->rsi,
+        frame->rdx, frame->rcx,
+        frame->r8, frame->r9);
 }
 
 extern void msyscall_handler();

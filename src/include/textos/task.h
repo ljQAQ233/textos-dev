@@ -24,6 +24,7 @@ typedef struct _Task {
     addr_t istk; // tss
     task_frame_t *frame;
     intr_frame_t *iframe;
+    intr_frame_t *sframe;
     
     int pid;
     int ppid;
