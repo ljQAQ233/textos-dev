@@ -501,10 +501,14 @@ int e1000_ioctl(dev_t *dev, int req, void *argp)
 #include <textos/klib/vsprintf.h>
 
 /*
+ * 2 ways:
+ *   - MSI
+ *   - acpi
+ * 
  * it is not a good idea to use pci driver to test e1000e, because
  * we do not use the extended config space, we use old pci interface
  * to have a test on MSI (Message Signaled Interrupts)!
- * And later we will cope with it using `lai` to support ioapic int for NIC
+ * And now we cope with it using `lai` to support ioapic int for NIC
  */
 void e1000_init()
 {
