@@ -67,6 +67,7 @@ int socket(int domain, int type, int proto)
     socket->socktype = socktype;
     socket->op = sockop_get(socktype);
     socket->op->socket(socket);
+    socket->nif = nif0;
 
     if (file_get(&fd, &file) < 0)
     {
@@ -149,12 +150,28 @@ ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size
     return recvmsg(fd, &msg, flags);
 }
 
+#include <string.h>
+
+static int socket_ioctl(node_t *this, int req, void *argp)
+{
+    ifreq_t *ifr = argp;
+    socket_t *socket = this->pdata;
+
+    //
+    // TODO: handle its own req first here
+    //
+
+    nif_t *nif = nif_find(ifr->name);
+    return nif_ioctl(nif, req, argp);
+}
+
 extern void sock_raw_init();
 extern void sock_udp_init();
 
 void socket_init()
 {
     vfs_initops(&__socket_opts);
+    __socket_opts.ioctl = socket_ioctl;
 
     sock_raw_init();
     sock_udp_init();

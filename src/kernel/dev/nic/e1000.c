@@ -490,8 +490,15 @@ void e1000_send(nif_t *n, mbuf_t *m)
     send_packet(e, m);
 }
 
-#include <textos/net/arp.h>
-#include <textos/net/icmp.h>
+#include <textos/dev.h>
+
+int e1000_ioctl(dev_t *dev, int req, void *argp)
+{
+    e1000_t *e = dev->pdata;
+    return nif_ioctl(&e->nif, req, argp);
+}
+
+#include <textos/klib/vsprintf.h>
 
 /*
  * it is not a good idea to use pci driver to test e1000e, because
@@ -545,24 +552,35 @@ void e1000_init()
     tx_init(e);
     intr_init(e);
 
+    nif_t *nif = &e->nif;
+    sprintf(nif->name, "enp%ds%d", idx->bus, idx->slot);
+    
     // default ip
     ipv4_t qemu_ip = { 192, 168, 2, 2 };
     ipv4_t gate_ip = { 192, 168, 2, 1 };
     ipv4_t mask_ip = { 255, 255, 255, 0 };
-    ip_addr_copy(e->nif.ip, qemu_ip);
-    ip_addr_copy(e->nif.gateway, gate_ip);
-    ip_addr_copy(e->nif.netmask, mask_ip);
+    ipv4_t brdc_ip = { 192, 168, 2, 255 };
+    ip_addr_copy(nif->ip, qemu_ip);
+    ip_addr_copy(nif->gateway, gate_ip);
+    ip_addr_copy(nif->netmask, mask_ip);
+    ip_addr_copy(nif->broadcast, brdc_ip);
 
-    e->nif.send = e1000_send;
-    e->nif.link = (reg_get(R_STATUS) & S_LU) == S_LU;
-    ASSERTK(e->nif.link == true);
+    nif->link = (reg_get(R_STATUS) & S_LU) == S_LU;
+    ASSERTK(nif->link == true);
+    list_init(&nif->arps);
+    nif->send = e1000_send;
+ 
+    nif_register(nif);
+    nif0 = nif;
 
-    e1000_test(e);
-
-    nif0 = &e->nif;
-    list_init(&nif0->arps);
-
-    ipv4_t dip = { 192, 168, 2, 1 };
-    arp_request(dip);
-    icmp_request(dip);
+    dev_t *dev = dev_new();
+    dev->name = strdup(nif->name);
+    dev->read = NULL;
+    dev->write = NULL;
+    dev->mkname = NULL;
+    dev->type = DEV_NET;
+    dev->subtype = DEV_NETIF;
+    dev->ioctl = e1000_ioctl;
+    dev->pdata = e;
+    dev_register(NULL, dev);
 }

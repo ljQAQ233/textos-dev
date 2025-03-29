@@ -72,6 +72,8 @@ typedef struct stat
 
 int stat(char *path, stat_t *sb);
 
+#include <textos/ioctl.h>
+
 int ioctl(int fd, int req, ...);
 
 int dup(int fd);
@@ -154,3 +156,18 @@ ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size
 ssize_t send(int fd, void *buf, size_t len, int flags);
 ssize_t recv(int fd, void *buf, size_t len, int flags);
 
+#define IFNAMSIZ 16
+
+typedef struct ifreq
+{
+    char name[IFNAMSIZ];
+    
+    union
+    {
+        u8 addr[4];
+        u8 dstaddr[4];
+        u8 broadaddr[4];
+        u8 netmask[4];
+        u8 hwaddr[6];
+    };
+} ifreq_t;

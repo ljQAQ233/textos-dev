@@ -83,6 +83,8 @@ int close(int fd);
 
 int stat(char *path, stat_t *sb);
 
+#include <textos/ioctl.h>
+
 int ioctl(int fd, int req, void *argp);
 
 int dup(int fd);

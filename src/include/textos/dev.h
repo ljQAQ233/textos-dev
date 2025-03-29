@@ -6,6 +6,7 @@
 enum dev_type {
     DEV_CHAR,
     DEV_BLK,
+    DEV_NET,
 };
 
 enum sub_type {
@@ -18,6 +19,7 @@ enum sub_type {
     DEV_KNCON,  /* Kernel console */
     DEV_IDE,    /* Integrated Drive Electronics */
     DEV_PART,
+    DEV_NETIF,
 };
 
 struct dev;

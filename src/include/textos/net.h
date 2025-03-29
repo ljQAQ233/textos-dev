@@ -19,10 +19,13 @@ typedef struct nif nif_t;
 
 struct nif
 {
+    char name[16];
     mac_t mac;
     ipv4_t ip;
     ipv4_t gateway;
     ipv4_t netmask;
+    // TODO : apply broadcast
+    ipv4_t broadcast;
 
     bool link;
     list_t arps;
@@ -64,6 +67,10 @@ bool ip_addr_ismulticast(ipv4_t addr);
 // packet handle
 void nif_eth_rx(nif_t *n, mbuf_t *m);
 void nif_eth_tx(nif_t *n, mbuf_t *m, mac_t dst, u16 type);
+
+int nif_ioctl(nif_t *nif, int req, void *argp);
+void nif_register(nif_t *nif);
+nif_t *nif_find(char *name);
 
 /*
  * protocol operations:

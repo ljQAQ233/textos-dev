@@ -82,6 +82,7 @@ struct socket
     // special
     int socktype;
     sockop_t *op;
+    nif_t *nif;
     list_t intype;
 };
 
@@ -101,3 +102,19 @@ ssize_t recvmsg(int fd, msghdr_t *msg, int flags);
 
 ssize_t sendto(int fd, void *buf, size_t len, int flags, sockaddr_t *dst, size_t dlen);
 ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size_t slen);
+
+#define IFNAMSIZ 16
+
+typedef struct ifreq
+{
+    char name[IFNAMSIZ];
+    
+    union
+    {
+        ipv4_t addr;
+        ipv4_t dstaddr;
+        ipv4_t broadaddr;
+        ipv4_t netmask;
+        mac_t  hwaddr;
+    };
+} ifreq_t;

@@ -34,12 +34,16 @@ void dev_init()
 #include <textos/args.h>
 #include <textos/klib/vsprintf.h>
 
-// called recursively
 static void initnod(dev_t *dev)
 {
-    char path[128];
-    sprintf(path, "/dev/%s", dev->name);
+    char path[64];
+    if (dev->type == DEV_NET)
+        sprintf(path, "/dev/net/%s", dev->name);
+    else
+        sprintf(path, "/dev/%s", dev->name);
     vfs_mknod(path, dev);
+
+    DEBUGK(K_SYNC, "init dev at %s\n", path);
 
     if (dev->minor != 1)
         return;
@@ -55,6 +59,7 @@ void dev_initnod()
 {
     node_t *dir;
     vfs_open(NULL, &dir, "/dev", VFS_CREATE | VFS_DIR);
+    vfs_open(NULL, &dir, "/dev/net", VFS_CREATE | VFS_DIR);
 
     list_t *i;
     LIST_FOREACH(i, &root)
