@@ -2,7 +2,7 @@
 #define __VIDEO_H__
 
 union color {
-  struct {
+  struct _packed {
     u8 b, g, r;
     u8 rev;
   };
