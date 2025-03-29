@@ -14,6 +14,7 @@ struct con
     u32 fg;
     u32 bg;
     font_t *font;
+    bool scroll;
 };
 
 typedef struct con console_t;

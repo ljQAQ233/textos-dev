@@ -14,6 +14,20 @@ void console_clear ()
     screen_clear();
 }
 
+#include <string.h>
+
+void console_scroll()
+{
+    if (con.scroll)
+    {
+        screen_scroll(con.font->h, con.bg);
+        con.cur_x = 0;
+        con.cur_y = con.cur_y - 1;
+    }
+    else
+        console_clear();
+}
+
 void console_clrch (int xc, int yc)
 {
     int x = xc * con.font->w,
@@ -40,7 +54,7 @@ static int console_putc (char c)
             con.cur_x = 0;
         case '\f': // 进纸符
             if (++con.cur_y >= con.col) {
-                console_clear();
+                console_scroll();
             }
             return c;
         case '\r': // 将指针移动到 (0,CurY)
@@ -64,7 +78,7 @@ static int console_putc (char c)
     
     if (++con.cur_x >= con.row) {
         if (++con.cur_y >= con.col) {
-            console_clear();
+            console_scroll();
         }
         con.cur_x = 0;
     }
@@ -117,6 +131,7 @@ void console_init ()
 
     con.bg = 0x00000000;
     con.fg = 0x00ffffff;
+    con.scroll = true;
     
     __dev_register (&console);
 }

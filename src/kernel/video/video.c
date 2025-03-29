@@ -52,6 +52,18 @@ void screen_clear ()
         *p++ = 0;
 }
 
+void screen_scroll(u32 pix, u32 bg)
+{
+    u32 a = ver * hor;
+    u32 c = pix * hor;
+    u32 *d = fb;
+    u32 *s = fb + c;
+    for (u32 i = 0 ; i < a - c ; i++)
+        *d++ = *s++;
+    for (u32 i = 0 ; i < c ; i++)
+        *d++ = bg;
+}
+
 void screen_info (u32 *i_hor, u32 *i_ver)
 {
     *i_hor = hor;
