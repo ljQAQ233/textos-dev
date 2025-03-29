@@ -6,18 +6,7 @@
 
 #include <string.h>
 
-// XXX: export match() and cksum()
-static bool match(ipv4_t a, ipv4_t b)
-{
-    return *(u32 *)a == *(u32 *)b;
-}
-
-static bool mask(ipv4_t a, ipv4_t b, ipv4_t m)
-{
-    return *(u32 *)a & *(u32 *)m == *(u32 *)b & *(u32 *)m;
-}
-
-void net_rx_arp(nic_t *n, mbuf_t *m)
+void net_rx_arp(nif_t *n, mbuf_t *m)
 {
     arphdr_t *hdr = mbuf_pullhdr(m, arphdr_t);
 
@@ -30,7 +19,7 @@ void net_rx_arp(nic_t *n, mbuf_t *m)
     u16 op = ntohs(hdr->opcode);
     if (op == ARP_OP_REQUEST)
     {
-        if (match(n->ip, hdr->dstpr)) 
+        if (ip_addr_cmp(n->ip, hdr->dstpr)) 
             net_tx_arp(n, ARP_OP_REPLY, hdr->srchw, hdr->srcpr);
         arp_set(n, hdr->srcpr, hdr->srchw, ARP_TIMEOUT);
     }
@@ -47,7 +36,7 @@ done:
 }
 
 // XXX: fix -> unsafe address operation
-void net_tx_arp(nic_t *n, u16 op, mac_t dmac, ipv4_t dip)
+void net_tx_arp(nif_t *n, u16 op, mac_t dmac, ipv4_t dip)
 {
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
     arphdr_t *hdr = mbuf_pushhdr(m, arphdr_t);
@@ -57,23 +46,23 @@ void net_tx_arp(nic_t *n, u16 op, mac_t dmac, ipv4_t dip)
     hdr->hlen = ETH_HLEN;       // 6
     hdr->plen = ETH_PLEN;       // 4
     hdr->opcode = htons(op);    // req / reply
-    memcpy(hdr->srchw, n->mac, sizeof(mac_t));
-    memcpy(hdr->srcpr, n->ip, sizeof(ipv4_t));
-    memcpy(hdr->dsthw, dmac, sizeof(mac_t));
-    memcpy(hdr->dstpr, dip, sizeof(ipv4_t));
+    eth_addr_copy(hdr->srchw, n->mac);
+    ip_addr_copy(hdr->srcpr, n->ip);
+    eth_addr_copy(hdr->dsthw, dmac);
+    ip_addr_copy(hdr->dstpr, dip);
 
     // broadcast arp
-    nic_eth_tx(n, m, dmac, ETH_ARP);
+    nif_eth_tx(n, m, dmac, ETH_ARP);
 }
 
-void net_tx_arpip(nic_t *n, mbuf_t *m, ipv4_t dip)
+void net_tx_arpip(nif_t *n, mbuf_t *m, ipv4_t dip)
 {
     ipv4_t dip0;
     arpent_t *arp = arp_get(n, dip0);
-    if (mask(dip, n->ip, n->netmask))
-        memcpy(dip0, dip, sizeof(ipv4_t));
+    if (ip_addr_maskcmp(dip, n->ip, n->netmask))
+        ip_addr_copy(dip0, dip);
     else
-        memcpy(dip0, n->gateway, sizeof(ipv4_t));
+        ip_addr_copy(dip0, n->gateway);
 
     if (!arp)
     {
@@ -92,7 +81,7 @@ void net_tx_arpip(nic_t *n, mbuf_t *m, ipv4_t dip)
     else
     {
         // cache used
-        nic_eth_tx(n, m, arp->hw, ETH_IP);
+        nif_eth_tx(n, m, arp->hw, ETH_IP);
     }
 }
 
@@ -100,26 +89,26 @@ static mac_t bc = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 void arp_request(ipv4_t dip)
 {
-    net_tx_arp(nic0, ARP_OP_REQUEST, bc, dip);
+    net_tx_arp(nif0, ARP_OP_REQUEST, bc, dip);
 }
 
 arpent_t *arp_init(ipv4_t dip)
 {
     arpent_t *arp = malloc(sizeof(arpent_t));
-    memcpy(arp->ip, dip, sizeof(ipv4_t));
+    ip_addr_copy(arp->ip, dip);
     arp->init = false;
     list_init(&arp->ipque);
 
     return arp;
 }
 
-arpent_t *arp_get(nic_t *n, ipv4_t ip)
+arpent_t *arp_get(nif_t *n, ipv4_t ip)
 {
     list_t *ptr;
     LIST_FOREACH(ptr, &n->arps)
     {
         arpent_t *arp = CR(ptr, arpent_t, arps);
-        if (match(ip, arp->ip))
+        if (ip_addr_cmp(ip, arp->ip))
             return arp;
     }
 
@@ -132,13 +121,13 @@ arpent_t *arp_get(nic_t *n, ipv4_t ip)
  *   - reply accepted
  * uninterruptable env is required
  */
-arpent_t *arp_set(nic_t *n, ipv4_t ip, mac_t hw, size_t ticks)
+arpent_t *arp_set(nif_t *n, ipv4_t ip, mac_t hw, size_t ticks)
 {
     arpent_t *arp = arp_get(n, ip);
     if (!arp)
     {
         arp = malloc(sizeof(arpent_t));
-        memcpy(arp->ip, ip, sizeof(ipv4_t));
+        ip_addr_copy(arp->ip, ip);
         list_init(&arp->ipque);
     }
     else
@@ -149,14 +138,14 @@ arpent_t *arp_set(nic_t *n, ipv4_t ip, mac_t hw, size_t ticks)
     arp->init = true;
     arp->ticks = ticks;
     arp->expires = __ktick + ticks;
-    memcpy(arp->hw, hw, sizeof(mac_t));
+    eth_addr_copy(arp->hw, hw);
 
     // do send (pop)
     while (!list_empty(&arp->ipque))
     {
         list_t *ptr = arp->ipque.next;
         mbuf_t *mbuf = CR(ptr, mbuf_t, wque);
-        nic_eth_tx(n, mbuf, arp->hw, ETH_IP);
+        nif_eth_tx(n, mbuf, arp->hw, ETH_IP);
         list_remove(ptr);
     }
     list_insert(&n->arps, &arp->arps);

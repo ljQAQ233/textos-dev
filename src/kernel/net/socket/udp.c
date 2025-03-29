@@ -31,16 +31,6 @@ typedef struct
 
 #define UDP(x) ((udp_t *)x)
 
-static bool is_any(ipv4_t ip)
-{
-    return *((u32 *)ip) == 0;
-}
-
-static bool match(ipv4_t a, ipv4_t b)
-{
-    return *(u32 *)a == *(u32 *)b;
-}
-
 static void ck_lport(udp_t *u)
 {
     if (u->lport)
@@ -87,10 +77,10 @@ static int udp_bind(socket_t *s, sockaddr_t *addr, size_t len)
         ck_lport(u);
     }
 
-    if (is_any(in->addr))
-        memcpy(u->laddr, nic0->ip, sizeof(ipv4_t));
+    if (ip_addr_isany(in->addr))
+        ip_addr_copy(u->laddr, nif0->ip);
     else
-        memcpy(u->laddr, in->addr, sizeof(ipv4_t));
+        ip_addr_copy(u->laddr, in->addr);
 
     return 0;
 }
@@ -100,7 +90,7 @@ static int udp_connect(socket_t *s, sockaddr_t *addr, size_t len)
     udp_t *u = UDP(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
     u->rport = ntohs(in->port);
-    memcpy(u->raddr, in->addr, sizeof(ipv4_t));
+    ip_addr_copy(u->raddr, in->addr);
     return 0;
 }
 
@@ -108,7 +98,7 @@ static int udp_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
 {
     udp_t *u = UDP(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
-    memcpy(in->addr, u->laddr, sizeof(ipv4_t));
+    ip_addr_copy(in->addr, u->laddr);
     in->family = AF_INET;
     in->port = htons(u->lport);
     return 0;
@@ -118,7 +108,7 @@ static int udp_getpeername(socket_t *s, sockaddr_t *addr, size_t len)
 {
     udp_t *u = UDP(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
-    memcpy(in->addr, u->raddr, sizeof(ipv4_t));
+    ip_addr_copy(in->addr, u->raddr);
     in->family = AF_INET;
     in->port = htons(u->rport);
     return 0;
@@ -149,7 +139,7 @@ static ssize_t udp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
         }
     };
     sockaddr_in_t *in = (sockaddr_in_t *)msg->name;
-    if (!is_any(u->raddr))
+    if (!ip_addr_isany(u->raddr))
     {
         if (in)
             return -EISCONN;
@@ -160,12 +150,12 @@ static ssize_t udp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
         return -EDESTADDRREQ;
     if (!in->port)
         return -EINVAL;
-    if (is_any(in->addr))
+    if (ip_addr_isany(in->addr))
         return -EINVAL;
 
     ck_lport(u);
 
-    net_tx_udp(nic0, m, in->addr, u->lport, ntohs(in->port));
+    net_tx_udp(nif0, m, in->addr, u->lport, ntohs(in->port));
     return len;
 }
 
@@ -203,7 +193,7 @@ static ssize_t udp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
     // sender's ip and udp port
     if (in)
     {
-        memcpy(in->addr, ip->sip, sizeof(ipv4_t));
+        ip_addr_copy(in->addr, ip->sip);
         in->family = AF_INET;
         in->port = hdr->sport;
     }
@@ -227,16 +217,16 @@ int sock_rx_udp(iphdr_t *ip, mbuf_t *m)
     {
         socket_t *s = CR(ptr, socket_t, intype);
         udp_t *u = UDP(s->pri);
-        if (!is_any(u->raddr))
+        if (!ip_addr_isany(u->raddr))
         {
             if (u->rport != ntohs(hdr->sport))
                 continue;
             if (u->lport != ntohs(hdr->dport))
                 continue;
         }
-        if (!is_any(u->raddr) && !match(u->raddr, ip->sip))
+        if (!ip_addr_isany(u->raddr) && !ip_addr_cmp(u->raddr, ip->sip))
             continue;
-        if (!is_any(u->laddr) && !match(u->laddr, ip->dip))
+        if (!ip_addr_isany(u->laddr) && !ip_addr_cmp(u->laddr, ip->dip))
             continue;
 
         mbuf_pushhdr(m, udphdr_t);

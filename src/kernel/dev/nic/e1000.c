@@ -139,7 +139,7 @@ typedef void (*write_op)(e1000_t *dev, u16 addr, u32 val);
 #include <textos/dev/mbuf.h>
 
 struct e1000 {
-    nic_t nic;
+    nif_t nif;
     bool mmio;
     bool eeprom;
     bool e1000e;
@@ -220,7 +220,7 @@ u16 eeprom_read(e1000_t *e, u8 addr)
 
 void mac_init(e1000_t *e)
 {
-    u16 *p = (u16 *)e->nic.mac;
+    u16 *p = (u16 *)e->nif.mac;
     for (int i = 0 ; i < 3 ; i++)
         p[i] = eeprom_read(e, i);
 }
@@ -248,7 +248,7 @@ void rx_init(e1000_t *e)
     // for QEMU, by EEPROM 52:54:00:12:34:56 is provided. actually
     // we can decide it by ourselves
     u64 mac;
-    mac = *(u64 *)&e->nic.mac;
+    mac = *(u64 *)&e->nif.mac;
     mac &= 0xFFFFFFFFFF; // get low bits (0-5)
     mac |= (1ull << 63); // make addr valid
     reg_set(R_RAL, (u32)mac);
@@ -384,7 +384,7 @@ int recv_packet(e1000_t *e)
         if (!(rx->stat & RXD_DD))
             break;
         e->rxb[i]->len = e->rxds[i].len;
-        nic_eth_rx(&e->nic, e->rxb[i]);
+        nif_eth_rx(&e->nif, e->rxb[i]);
 
         // new buffer
         e->rxb[i] = mbuf_alloc(0);
@@ -449,12 +449,12 @@ void irq_init(e1000_t *e)
     intr_register(INT_E1000, e1000_handler);
     if (e->e1000e)
     {
-        if (pci_set_msi(e->nic.pi, INT_E1000) < 0)
+        if (pci_set_msi(e->nif.pi, INT_E1000) < 0)
             PANIC("cannot set MSI\n");
     }
     else
     {
-        pci_idx_t *idx = e->nic.pi;
+        pci_idx_t *idx = e->nif.pi;
         acpi_resource_t ar;
 
         ASSERTK(lai_pci_route_pin(
@@ -484,9 +484,9 @@ pci_idx_t *e1000_find(e1000_t *e)
     return idx;
 }
 
-void e1000_send(nic_t *n, mbuf_t *m)
+void e1000_send(nif_t *n, mbuf_t *m)
 {
-    e1000_t *e = CR(n, e1000_t, nic);
+    e1000_t *e = CR(n, e1000_t, nif);
     send_packet(e, m);
 }
 
@@ -509,7 +509,7 @@ void e1000_init()
 
     pci_bar_t bar0;
     pci_get_bar(idx, &bar0, 0);
-    e->nic.pi = idx;
+    e->nif.pi = idx;
     e->base = bar0.base;
     e->size = bar0.size;
     if (!bar0.mmio)
@@ -538,8 +538,8 @@ void e1000_init()
     mac_init(e);
     DEBUGK(K_INIT,
       "E1000 - MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
-      e->nic.mac[0], e->nic.mac[1], e->nic.mac[2],
-      e->nic.mac[3], e->nic.mac[4], e->nic.mac[5]);
+      e->nif.mac[0], e->nif.mac[1], e->nif.mac[2],
+      e->nif.mac[3], e->nif.mac[4], e->nif.mac[5]);
 
     rx_init(e);
     tx_init(e);
@@ -549,18 +549,18 @@ void e1000_init()
     ipv4_t qemu_ip = { 192, 168, 2, 2 };
     ipv4_t gate_ip = { 192, 168, 2, 1 };
     ipv4_t mask_ip = { 255, 255, 255, 0 };
-    memcpy(e->nic.ip, &qemu_ip, sizeof(ipv4_t));
-    memcpy(e->nic.gateway, &gate_ip, sizeof(ipv4_t));
-    memcpy(e->nic.netmask, &mask_ip, sizeof(ipv4_t));
+    ip_addr_copy(e->nif.ip, qemu_ip);
+    ip_addr_copy(e->nif.gateway, gate_ip);
+    ip_addr_copy(e->nif.netmask, mask_ip);
 
-    e->nic.send = e1000_send;
-    e->nic.link = (reg_get(R_STATUS) & S_LU) == S_LU;
-    ASSERTK(e->nic.link == true);
+    e->nif.send = e1000_send;
+    e->nif.link = (reg_get(R_STATUS) & S_LU) == S_LU;
+    ASSERTK(e->nif.link == true);
 
     e1000_test(e);
 
-    nic0 = &e->nic;
-    list_init(&nic0->arps);
+    nif0 = &e->nif;
+    list_init(&nif0->arps);
 
     ipv4_t dip = { 192, 168, 2, 1 };
     arp_request(dip);

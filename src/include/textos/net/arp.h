@@ -30,8 +30,8 @@ typedef struct
 
 arpent_t *arp_init(ipv4_t dip);
 
-arpent_t *arp_get(nic_t *n, ipv4_t ip);
+arpent_t *arp_get(nif_t *n, ipv4_t ip);
 
-arpent_t *arp_set(nic_t *n, ipv4_t ip, mac_t hw, size_t ticks);
+arpent_t *arp_set(nif_t *n, ipv4_t ip, mac_t hw, size_t ticks);
 
 void arp_request(ipv4_t dip);

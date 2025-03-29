@@ -4,31 +4,34 @@
 #define ETH_HLEN 6
 #define ETH_PLEN 4
 
-typedef u8 mac_t[6];
-typedef u8 ipv4_t[4];
+typedef u8 mac_t[ETH_HLEN];
+typedef u8 ipv4_t[ETH_PLEN];
+
+#define ETH_BC  "\xff\xff\xff\xff\xff\xff"
+#define ETH_ANY "\x00\x00\x00\x00\x00\x00"
 
 #include <textos/dev/pci.h>
 #include <textos/dev/mbuf.h>
 #include <textos/klib/list.h>
 
-struct nic;
-typedef struct nic nic_t;
+struct nif;
+typedef struct nif nif_t;
 
-struct nic
+struct nif
 {
-    u8 mac[6];
-    u8 ip[4];
-    u8 gateway[4];
-    u8 netmask[4];
-    bool link;
-    list_t nics; // all nics
-    pci_idx_t *pi;
+    mac_t mac;
+    ipv4_t ip;
+    ipv4_t gateway;
+    ipv4_t netmask;
 
+    bool link;
     list_t arps;
-    void (*send)(nic_t *n, mbuf_t *m);
+    list_t nifs; // all nifs
+    pci_idx_t *pi;
+    void (*send)(nif_t *n, mbuf_t *m);
 };
 
-extern nic_t *nic0;
+extern nif_t *nif0;
 
 typedef struct
 {
@@ -47,9 +50,20 @@ u16 ntohs(u16 h);
 u32 htonl(u32 h);
 u32 ntohl(u32 h);
 
+// addr op
+void eth_addr_copy(mac_t addr1, mac_t addr2);
+bool eth_addr_cmp(mac_t addr1, mac_t addr2);
+bool eth_addr_isany(mac_t addr);
+void ip_addr_copy(ipv4_t addr1, ipv4_t addr2);
+bool ip_addr_cmp(ipv4_t addr1, ipv4_t addr2);
+bool ip_addr_maskcmp(ipv4_t addr1, ipv4_t addr2, ipv4_t mask);
+bool ip_addr_isbroadcast(ipv4_t addr, ipv4_t mask);
+bool ip_addr_isany(ipv4_t addr);
+bool ip_addr_ismulticast(ipv4_t addr);
+
 // packet handle
-void nic_eth_rx(nic_t *n, mbuf_t *m);
-void nic_eth_tx(nic_t *n, mbuf_t *m, mac_t dst, u16 type);
+void nif_eth_rx(nif_t *n, mbuf_t *m);
+void nif_eth_tx(nif_t *n, mbuf_t *m, mac_t dst, u16 type);
 
 /*
  * protocol operations:
@@ -68,23 +82,23 @@ void nic_eth_tx(nic_t *n, mbuf_t *m, mac_t dst, u16 type);
 #define IPPROTO_TCP  IP_P_TCP
 #define IPPROTO_UDP  IP_P_UDP
 
-void net_rx_ip(nic_t *n, mbuf_t *m);
-void net_tx_ip(nic_t *n, mbuf_t *m, ipv4_t dip, u8 ptype);
+void net_rx_ip(nif_t *n, mbuf_t *m);
+void net_tx_ip(nif_t *n, mbuf_t *m, ipv4_t dip, u8 ptype);
 
 #define ICMP_REPLY   0
 #define ICMP_REQUEST 8
 
-void net_rx_icmp(nic_t *n, mbuf_t *m, void *iph);
-void net_rp_icmp(nic_t *n, mbuf_t *m, ipv4_t dip);
-void net_tx_icmp(nic_t *n, u8 type, ipv4_t dip);
+void net_rx_icmp(nif_t *n, mbuf_t *m, void *iph);
+void net_rp_icmp(nif_t *n, mbuf_t *m, ipv4_t dip);
+void net_tx_icmp(nif_t *n, u8 type, ipv4_t dip);
 
 #define ARP_OP_REQUEST 1
 #define ARP_OP_REPLY   2
 
-void net_rx_arp(nic_t *n, mbuf_t *m);
-void net_tx_arp(nic_t *n, u16 op, mac_t dmac, ipv4_t dip);
-void net_tx_arpip(nic_t *n, mbuf_t *m, ipv4_t dip);
+void net_rx_arp(nif_t *n, mbuf_t *m);
+void net_tx_arp(nif_t *n, u16 op, mac_t dmac, ipv4_t dip);
+void net_tx_arpip(nif_t *n, mbuf_t *m, ipv4_t dip);
 
-void net_tx_udp(nic_t *n, mbuf_t *m, ipv4_t dip, u16 sport, u16 dport);
+void net_tx_udp(nif_t *n, mbuf_t *m, ipv4_t dip, u16 sport, u16 dport);
 
 #endif

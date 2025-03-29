@@ -3,11 +3,6 @@
 
 #include <string.h>
 
-static bool match(ipv4_t a, ipv4_t b)
-{
-    return *(u32 *)a == *(u32 *)b;
-}
-
 u16 cksum(void *data)
 {
     u32 s = 0;
@@ -26,7 +21,7 @@ u16 cksum(void *data)
 extern int sock_rx_raw(iphdr_t *hdr, mbuf_t *m);
 extern int sock_rx_udp(iphdr_t *hdr, mbuf_t *m);
 
-void net_rx_ip(nic_t *n, mbuf_t *m)
+void net_rx_ip(nif_t *n, mbuf_t *m)
 {
     iphdr_t *hdr = mbuf_pullhdr(m, iphdr_t);
 
@@ -40,7 +35,7 @@ void net_rx_ip(nic_t *n, mbuf_t *m)
     if ((hdr->flgs & 4) || hdr->off0 || hdr->off1)
         goto drop;
 
-    if (!match(n->ip, hdr->dip))
+    if (!ip_addr_cmp(n->ip, hdr->dip))
         goto drop;
 
     int ret = sock_rx_raw(hdr, m);
@@ -65,9 +60,7 @@ drop:
     mbuf_free(m);
 }
 
-static mac_t bc = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-
-void net_tx_ip(nic_t *n, mbuf_t *m, ipv4_t dip, u8 ptype)
+void net_tx_ip(nif_t *n, mbuf_t *m, ipv4_t dip, u8 ptype)
 {
     iphdr_t *hdr = mbuf_pushhdr(m, iphdr_t);
     hdr->ver = 4;
@@ -78,8 +71,8 @@ void net_tx_ip(nic_t *n, mbuf_t *m, ipv4_t dip, u8 ptype)
     hdr->ptype = ptype;
     hdr->ttl = IP_TTL;
     hdr->len = htons(m->len);
-    memcpy(hdr->dip, dip, sizeof(ipv4_t));
-    memcpy(hdr->sip, n->ip, sizeof(ipv4_t));
+    ip_addr_copy(hdr->dip, dip);
+    ip_addr_copy(hdr->sip, n->ip);
     
     hdr->cksum = 0;
     hdr->cksum = cksum(hdr);

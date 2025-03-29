@@ -1,6 +1,6 @@
 #include <textos/net.h>
 
-void nic_eth_rx(nic_t *n, mbuf_t *m)
+void nif_eth_rx(nif_t *n, mbuf_t *m)
 {
     ethhdr_t *hdr = mbuf_pullhdr(m, ethhdr_t);
 
@@ -13,11 +13,11 @@ void nic_eth_rx(nic_t *n, mbuf_t *m)
 
 #include <string.h>
 
-void nic_eth_tx(nic_t *n, mbuf_t *m, mac_t dst, u16 type)
+void nif_eth_tx(nif_t *n, mbuf_t *m, mac_t dst, u16 type)
 {
     ethhdr_t *hdr = mbuf_pushhdr(m, ethhdr_t);
-    memcpy(hdr->dest, dst, sizeof(mac_t));
-    memcpy(hdr->src, n->mac, sizeof(mac_t));
+    eth_addr_copy(hdr->dest, dst);
+    eth_addr_copy(hdr->src, n->mac);
     hdr->type = htons(type);
 
     n->send(n, m);

@@ -19,7 +19,7 @@ static u16 cksum(void *data, int len)
     return (u16)~s;
 }
 
-void net_tx_icmp(nic_t *n, u8 type, ipv4_t dip)
+void net_tx_icmp(nif_t *n, u8 type, ipv4_t dip)
 {
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
     icmphdr_t *hdr = mbuf_pushhdr(m, icmphdr_t);
@@ -35,7 +35,7 @@ void net_tx_icmp(nic_t *n, u8 type, ipv4_t dip)
     net_tx_ip(n, m, dip, IP_P_ICMP);
 }
 
-void net_rp_icmp(nic_t *n, mbuf_t *m, ipv4_t dip)
+void net_rp_icmp(nif_t *n, mbuf_t *m, ipv4_t dip)
 {
     icmphdr_t *hdr = mbuf_pushhdr(m, icmphdr_t);
     hdr->type = ICMP_REPLY;
@@ -44,7 +44,7 @@ void net_rp_icmp(nic_t *n, mbuf_t *m, ipv4_t dip)
     net_tx_ip(n, m, dip, IP_P_ICMP);
 }
 
-void net_rx_icmp(nic_t *n, mbuf_t *m, void *iph)
+void net_rx_icmp(nif_t *n, mbuf_t *m, void *iph)
 {
     icmphdr_t *hdr = mbuf_pullhdr(m, icmphdr_t);
     iphdr_t *iphdr = (iphdr_t *)iph;
@@ -64,7 +64,7 @@ void net_rx_icmp(nic_t *n, mbuf_t *m, void *iph)
 
 void icmp_request(ipv4_t dip)
 {
-    net_tx_icmp(nic0, ICMP_REQUEST, dip);
+    net_tx_icmp(nif0, ICMP_REQUEST, dip);
 }
 
 // TODO

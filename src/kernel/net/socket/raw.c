@@ -16,7 +16,7 @@ typedef struct
 {
     bool hdrincl;
     /*
-     * in this case we only use a network interface (nic0) to
+     * in this case we only use a network interface (nif0) to
      * communicate, when there're more cards, laddr is useful.
      */
     ipv4_t laddr;
@@ -31,16 +31,6 @@ static bool hdrincl(socket_t *s)
     raw_t *r = s->pri;
     return r->hdrincl
         || s->proto == IPPROTO_RAW;
-}
-
-static bool is_any(ipv4_t ip)
-{
-    return *((u32 *)ip) == 0;
-}
-
-static bool match(ipv4_t a, ipv4_t b)
-{
-    return *(u32 *)a == *(u32 *)b;
 }
 
 static int raw_socket(socket_t *s)
@@ -66,10 +56,10 @@ static int raw_bind(socket_t *s, sockaddr_t *addr, size_t len)
     raw_t *r = s->pri;
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
 
-    if (is_any(in->addr))
-        memcpy(r->laddr, nic0->ip, sizeof(ipv4_t));
+    if (ip_addr_isany(in->addr))
+        ip_addr_copy(r->laddr, nif0->ip);
     else
-        memcpy(r->laddr, in->addr, sizeof(ipv4_t));
+        ip_addr_copy(r->laddr, in->addr);
 
     return 0;
 }
@@ -79,7 +69,7 @@ static int raw_connect(socket_t *s, sockaddr_t *addr, size_t len)
 {
     raw_t *r = s->pri;
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
-    memcpy(r->raddr, in->addr, sizeof(ipv4_t));
+    ip_addr_copy(r->raddr, in->addr);
     return 0;
 }
 
@@ -87,18 +77,20 @@ static int raw_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
 {
     raw_t *r = s->pri;
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
-    memcpy(in->addr, r->laddr, sizeof(ipv4_t));
+    ip_addr_copy(in->addr, r->laddr);
     in->family = AF_INET;
     in->port = 0;
+    return 0;
 }
 
 static int raw_getpeername(socket_t *s, sockaddr_t *addr, size_t len)
 {
     raw_t *r = s->pri;
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
-    memcpy(in->addr, r->raddr, sizeof(ipv4_t));
+    ip_addr_copy(in->addr, r->raddr);
     in->family = AF_INET;
     in->port = 0;
+    return 0;
 }
 
 static ssize_t raw_sendmsg(socket_t *s, msghdr_t *msg, int flags)
@@ -118,7 +110,7 @@ static ssize_t raw_sendmsg(socket_t *s, msghdr_t *msg, int flags)
     }
     else
     {
-        net_tx_ip(nic0, m, in->addr, s->proto);
+        net_tx_ip(nif0, m, in->addr, s->proto);
     }
     return len;
 }
@@ -173,9 +165,9 @@ int sock_rx_raw(iphdr_t *ip, mbuf_t *m)
         }
 
         raw_t *r = s->pri;
-        if (!is_any(r->raddr) && !match(r->raddr, ip->sip))
+        if (!ip_addr_isany(r->raddr) && !ip_addr_cmp(r->raddr, ip->sip))
             continue;
-        if (!is_any(r->laddr) && !match(r->laddr, ip->dip))
+        if (!ip_addr_isany(r->laddr) && !ip_addr_cmp(r->laddr, ip->dip))
             continue;
         
         mbuf_pushhdr(m, iphdr_t);
