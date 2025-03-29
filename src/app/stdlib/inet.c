@@ -7,7 +7,7 @@ int inet_aton(const char *s, u32 *in)
 {
     u8 *a = (u8 *)in;
     int p[4], c = 0, v = 0;
-    char *x = s;
+    const char *x = s;
     while (*x)
     {
         if ('0' <= *x && *x <= '9') {
