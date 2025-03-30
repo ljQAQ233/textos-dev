@@ -1004,6 +1004,7 @@ static size_t data_expand2(sys_t *f, unsigned *start, size_t cnt, bool append)
 
         if (cnt == 0) {
             iend[end % 128] = EOC;
+            bdirty(curblk, true);
             brelse(curblk);
             break;
         }
@@ -1020,7 +1021,7 @@ static size_t node_expand(node_t *this, size_t siz)
 
     sys_t *f = this->sys;
     lookup_t *lkp = this->pdata;
-    size_t cnt = DIV_ROUND_UP(siz - align_up(this->siz, 512), 512);
+    size_t cnt = DIV_ROUND_UP(siz, 512);
     size_t res = data_expand2(f, &lkp->clst, cnt, false) * 512;
     ASSERTK(res == 0);
 
