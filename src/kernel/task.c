@@ -174,7 +174,7 @@ int task_fork()
 {
     task_t *prt = task_current();
     task_t *chd = _task_create(prt->init.args);
-    
+
     // page table
     fork_pgt(prt, chd);
 

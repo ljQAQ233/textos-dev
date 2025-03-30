@@ -52,16 +52,31 @@ void screen_clear ()
         *p++ = 0;
 }
 
-void screen_scroll(u32 pix, u32 bg)
+// end 以上 (不包括 end) 的行上拉
+void screen_pullup(u32 end, u32 cnt, u32 bg)
 {
-    u32 a = ver * hor;
-    u32 c = pix * hor;
+    if (cnt == 0 || end >= ver)
+        return;
+
     u32 *d = fb;
-    u32 *s = fb + c;
-    for (u32 i = 0 ; i < a - c ; i++)
+    u32 *s = fb + cnt * hor;
+    for (u32 i = 0 ; i < (end - cnt) * hor ; i++)
         *d++ = *s++;
-    for (u32 i = 0 ; i < c ; i++)
+    for (u32 i = 0 ; i < cnt * hor ; i++)
         *d++ = bg;
+}
+
+// start 行以下 (包括了 start) 的下拉
+void screen_pulldown(u32 start, u32 cnt, u32 bg)
+{
+    if (cnt == 0)
+        return;
+    u32 *d = fb + ver * hor - 1;
+    u32 *s = d - cnt * hor;
+    for (u32 i = 0 ; i < hor * (ver - start - cnt) ; i++)
+        *d-- = *s--;
+    for (u32 i = 0 ; i < hor * cnt ; i++)
+        *d-- = bg;
 }
 
 void screen_info (u32 *i_hor, u32 *i_ver)

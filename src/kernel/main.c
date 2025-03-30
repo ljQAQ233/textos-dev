@@ -86,6 +86,8 @@ static void __init_proc()
     e1000_init();
     dev_initnod();
 
+    printk("\033[30;47mThis is black text on a white background\033[0m\n");
+
     char buf[5] = "test";
     
     exeinfo_t exe;

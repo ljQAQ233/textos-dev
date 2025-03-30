@@ -3,6 +3,22 @@
 
 #include <textos/video/font.h>
 
+enum
+{
+    STATE_NOR,
+    STATE_ESC,
+    STATE_CSI,
+    STATE_PMF,
+    STATE_ARG,
+    STATE_CMD,
+};
+
+#define ARG_MAX 4
+#define ARG_RESET -1
+
+#define FG_DEF 0x00ffffff
+#define BG_DEF 0x00000000
+
 struct con
 {
     u32 hor;    /* HorizontalResolution */
@@ -15,10 +31,17 @@ struct con
     u32 bg;
     font_t *font;
     bool scroll;
+    bool cursor;
+    bool hidden;
+    bool underl;
+    bool strike;
+
+    int argc;
+    int argv[ARG_MAX];
+    int state;
+    bool pmcmd;
 };
 
 typedef struct con console_t;
-
-void console_clear ();
 
 #endif
