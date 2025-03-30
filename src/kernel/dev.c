@@ -84,7 +84,7 @@ static uint applyid(dev_t *prt)
     static uint total = 1;
     if (!prt)
         return total++;
-    return CR(&prt->subdev.next, dev_t, subdev)->minor + 1;
+    return CR(prt->subdev.next, dev_t, subdev)->minor + 1;
 }
 
 void dev_register (dev_t *prt, dev_t *dev)
@@ -117,6 +117,8 @@ dev_t *dev_new()
     d->write = (void *)inv_handle;
     d->bread = (void *)inv_handle;
     d->bwrite = (void *)inv_handle;
+    d->major = 0;
+    d->minor = 0;
     
     return d;
 }
