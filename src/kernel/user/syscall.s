@@ -41,8 +41,6 @@ msyscall_handler:
     push r14
     push r15
 
-    sti
-
     mov  rdi, [rsp + 15 * 8]
     mov  rsi, [rsp + 16 * 8]
     mov  rdx, rsp
