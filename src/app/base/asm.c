@@ -127,6 +127,16 @@ int mount(char *src, char *dst)
     return syscall(SYS_mount, src, dst);
 }
 
+int umount2(char *target, int flags)
+{
+    return syscall(SYS_umount2, target, flags);
+}
+
+int umount(char *target)
+{
+    return umount2(target, 0);
+}
+
 int chdir(char *path)
 {
     return syscall(SYS_chdir, path);

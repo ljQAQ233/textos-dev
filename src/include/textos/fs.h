@@ -16,6 +16,7 @@ enum {
 #define VFS_DIR     0x02
 #define VFS_GAIN    0x04
 #define VFS_VRT     0x08
+#define VFS_GAINMNT 0x10
 
 struct node;
 typedef struct node node_t;

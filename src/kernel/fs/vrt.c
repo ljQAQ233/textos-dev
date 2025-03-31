@@ -132,7 +132,10 @@ static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args)
     }
 
     if (res->attr & NA_MNT)
-        res = res->child;
+    {
+        if (~args & VFS_GAINMNT)
+            res = res->child;
+    }
 
 fini:
     *node = res;

@@ -19,6 +19,7 @@ extern void sys_mkdir();
 extern void sys_rmdir();
 extern void sys_mknod();
 extern void sys_mount();
+extern void sys_umount2();
 extern void sys_execve();
 extern void sys_fork();
 extern void sys_exit();
@@ -54,6 +55,7 @@ void *sys_handlers[] = {
     [SYS_rmdir] = sys_rmdir,
     [SYS_mknod] = sys_mknod,
     [SYS_mount] = sys_mount,
+    [SYS_umount2] = sys_umount2,
     [SYS_execve] = sys_execve,
     [SYS_fork] = sys_fork,
     [SYS_exit] = sys_exit,

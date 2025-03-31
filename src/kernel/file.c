@@ -320,6 +320,19 @@ int mount(char *src, char *dst)
     return vfs_mount(dn, root);
 }
 
+int umount2(char *target, int flags)
+{
+    int ret;
+    node_t *dn;
+
+    ret = vfs_open(task_current()->pwd, &dn, target, VFS_GAIN | VFS_GAINMNT);
+    if (ret < 0)
+        return ret;
+    
+    ret = vfs_umount(dn);
+    return ret;
+}
+
 int chdir(char *path)
 {
     int ret;

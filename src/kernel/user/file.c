@@ -61,6 +61,11 @@ RETVAL(int) sys_mount(char *src, char *dst)
     return mount(src, dst);
 }
 
+RETVAL(int) sys_umount2(char *target, int flags)
+{
+    return umount2(target, flags);
+}
+
 RETVAL(int) sys_chdir(char *path)
 {
     return chdir(path);
