@@ -23,6 +23,8 @@ enum state
 };
 
 static list_t intype = LIST_INIT(intype);
+    
+#define MF_PSH (1 << 0) // PSH set, inform upper-layer immediately
 
 typedef struct
 {
@@ -42,11 +44,13 @@ typedef struct
     u32 snd_wl2;
     list_t snd_que;
     list_t ack_que;
+    list_t buf_que;
 
     u32 rcv_nxt;
     u32 rcv_irs;
 
-    int waiter;
+    int rx_waiter;
+    int syn_waiter;
 
     /* TODO : replace nif0 */
 } tcp_t;
@@ -86,9 +90,11 @@ static int tcp_socket(socket_t *s)
     t->mss = DEFMSS;
     t->state = CLOSED;
     t->errno = 0;
-    t->waiter = -1;
+    t->rx_waiter = -1;
+    t->syn_waiter = -1;
     list_init(&t->snd_que);
     list_init(&t->ack_que);
+    list_init(&t->buf_que);
 
     list_insert(&intype, &s->intype);
 
@@ -127,7 +133,7 @@ static int tcp_connect(socket_t *s, sockaddr_t *addr, size_t len)
     ck_lport(t);
     tcp_tx_setup(t, in->addr, t->lport, t->rport);
 
-    block_as(&t->waiter);
+    block_as(&t->syn_waiter);
     ASSERTK(t->state == ESTABLISHED);
 
     return 0;
@@ -164,9 +170,47 @@ static ssize_t tcp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
     tcp_tx_xmit(tcp);
 }
 
+#include <irq.h>
+
 static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 {
+    tcp_t *tcp = TCP(s->pri);
+    void *data = msg->iov[0].base;
+    size_t len = msg->iov[0].len;
+    size_t mss = tcp->mss;
+    ssize_t rem = len;
 
+    UNINTR_AREA_START();
+
+    while (len > 0)
+    {
+        if (list_empty(&tcp->buf_que))
+        {
+            block_as(&tcp->rx_waiter);
+        }
+        if (tcp->errno < 0)
+            return tcp->errno;
+        
+        list_t *ptr = tcp->buf_que.next;
+        mbuf_t *m = CR(ptr, mbuf_t, list);
+        mbuf_pullhdr(m, iphdr_t);
+        mbuf_pullhdr(m, tcphdr_t);
+        size_t cpy = MIN(rem, m->len);
+        memcpy(data, m->head, cpy);
+        list_remove(ptr);
+        DEBUGK(K_NET, "tcp rcvd seqnr=%u siz=%u psh=%d\n", m->id, cpy, m->flgs & MF_PSH);
+
+        rem -= cpy;
+        data += cpy;
+        if (m->flgs & MF_PSH)
+        {
+            break;
+        }
+    }
+
+    UNINTR_AREA_END();
+
+    return len - rem;
 }
 
 //
@@ -220,7 +264,11 @@ int tcp_tx_reset(tcpseg_t *seg)
 int tcp_exit_with(tcp_t *tcp, int errno)
 {
     tcp->errno = errno;
-    task_unblock(tcp->waiter);
+    if (tcp->rx_waiter >= 0)
+        task_unblock(tcp->rx_waiter);
+    if (tcp->syn_waiter >= 0)
+        task_unblock(tcp->syn_waiter);
+    
     return errno;
 }
 
@@ -271,8 +319,9 @@ int tcp_x_ack(tcp_t *tcp, tcpseg_t *seg)
     // una < ack <= nxt, 可被接收
     // remove them from retransmission queue
     u32 curr = tcp->snd_una;
-    list_t *ptr;
-    LIST_FOREACH(ptr, &tcp->ack_que)
+    list_t *ptr = tcp->ack_que.next;
+    list_t *nxt = ptr->next;
+    for ( ; ptr != &tcp->ack_que ; ptr = nxt, nxt = nxt->next)
     {
         mbuf_t *m = CR(ptr, mbuf_t, list);
         if (m->id < seg->hdr->acknr)
@@ -281,7 +330,9 @@ int tcp_x_ack(tcp_t *tcp, tcpseg_t *seg)
             mbuf_free(m);
         }
     }
+
     tcp->snd_una = seg->hdr->acknr;
+    return 0;
 }
 
 int tcp_tx_ack(tcp_t *tcp, u32 seqnr, u32 acknr, u8 flgs)
@@ -342,8 +393,8 @@ int tcp_rx_sent(tcp_t *tcp, tcpseg_t *seg)
             tcp_tx_ack(tcp,
                 tcp->snd_nxt, tcp->rcv_nxt,
                 TCP_F_ACK);
-            if (tcp->waiter > 0)
-                task_unblock(tcp->waiter);
+            if (tcp->syn_waiter > 0)
+                task_unblock(tcp->syn_waiter);
         }
         else
         {
@@ -376,13 +427,45 @@ int tcp_rx_rcvd(tcp_t *tcp, tcpseg_t *seg)
         if (TCP_SEQ_LT(tcp->snd_una, hdr->acknr)
             && TCP_SEQ_LE(hdr->acknr, tcp->snd_nxt)) {
             tcp->state = ESTABLISHED;
-            if (tcp->waiter > 0)
-                task_unblock(tcp->waiter);
+            if (tcp->syn_waiter > 0)
+                task_unblock(tcp->syn_waiter);
         } else {
             tcp_tx_reset(seg);
         }
     }
 
+    return 0;
+}
+
+// TODO : sort
+int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
+{
+    if (!seg->buf->len)
+        return 0;
+
+    mbuf_pushhdr(seg->buf, tcphdr_t);
+    mbuf_pushhdr(seg->buf, iphdr_t);
+    if (tcp->rcv_nxt < seg->seqnr)
+    {
+        DEBUGK(K_NET, "tcp fast-rexmit applied - %#08x\n", tcp->rcv_nxt);
+        tcp_tx_ack(tcp,
+            tcp->snd_nxt, tcp->rcv_nxt,
+            TCP_F_ACK);
+        return 1;
+    }
+    else if (tcp->rcv_nxt > seg->seqnr)
+    {
+        return 1;
+    }
+    tcp->rcv_nxt += seg->seqlen;
+    tcp_tx_ack(tcp,
+        tcp->snd_nxt, tcp->rcv_nxt,
+        TCP_F_ACK);
+    list_insert_before(&tcp->buf_que, &seg->buf->list);
+    if (seg->hdr->psh)
+        seg->buf->flgs = MF_PSH;
+    if (tcp->rx_waiter > 0)
+        task_unblock(tcp->rx_waiter);
     return 0;
 }
 
@@ -402,7 +485,7 @@ int tcp_rx_established(tcp_t *tcp, tcpseg_t *seg)
         tcp_tx_ack(tcp,
             tcp->snd_nxt, tcp->rcv_nxt,
             TCP_F_ACK);
-        return 1;
+        return 0;
     }
 
     if (hdr->ack)
@@ -411,7 +494,7 @@ int tcp_rx_established(tcp_t *tcp, tcpseg_t *seg)
     }
 
     ASSERTK(hdr->urg == false);
-    ASSERTK(false); // data input
+    tcp_rx_data(tcp, seg);
     ASSERTK(hdr->fin == false);
 
     return 0;
@@ -463,7 +546,6 @@ int sock_rx_tcp(iphdr_t *ip, mbuf_t *m)
     if (net_cksum_tcp(m->head, ip->sip, ip->dip, m->len))
         return 0;
     tcphdr_t *hdr = mbuf_pullhdr(m, tcphdr_t);
-    
     hdr->sport = ntohs(hdr->sport);
     hdr->dport = ntohs(hdr->dport);
     hdr->seqnr = ntohl(hdr->seqnr);
@@ -477,6 +559,9 @@ int sock_rx_tcp(iphdr_t *ip, mbuf_t *m)
     ip_addr_copy(seg.sip, ip->sip);
     ip_addr_copy(seg.dip, ip->dip);
     seg.nif = nif0;
+    seg.data = m->head;
+    seg.buf = m;
+    seg.buf->id = seg.seqnr;
     seg.hdr = hdr;
 
     tcp_t *t = find_tcb(ip, hdr);
@@ -505,7 +590,8 @@ int sock_rx_tcp(iphdr_t *ip, mbuf_t *m)
     }
 
 done:
-    mbuf_free(m);
+    // TODO : recycle
+    // mbuf_free(m);
     return 1;
 }
 

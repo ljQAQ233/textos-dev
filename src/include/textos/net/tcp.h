@@ -91,5 +91,7 @@ typedef struct
     ipv4_t sip;
     ipv4_t dip;
     nif_t *nif;
+    void *data;
+    mbuf_t *buf;
     tcphdr_t *hdr;
 } tcpseg_t;

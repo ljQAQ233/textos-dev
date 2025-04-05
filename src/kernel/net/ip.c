@@ -52,6 +52,7 @@ void net_rx_ip(nif_t *n, mbuf_t *m)
             break;
         case IP_P_TCP:
             sock_rx_tcp(hdr, m);
+            break;
         case IP_P_UDP:
             sock_rx_udp(hdr, m);
             break;
