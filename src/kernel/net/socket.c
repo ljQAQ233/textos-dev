@@ -167,6 +167,7 @@ static int socket_ioctl(node_t *this, int req, void *argp)
 
 extern void sock_raw_init();
 extern void sock_udp_init();
+extern void sock_tcp_init();
 
 void socket_init()
 {
@@ -175,4 +176,5 @@ void socket_init()
 
     sock_raw_init();
     sock_udp_init();
+    sock_tcp_init();
 }

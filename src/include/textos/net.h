@@ -108,4 +108,13 @@ void net_tx_arpip(nif_t *n, mbuf_t *m, ipv4_t dip);
 
 void net_tx_udp(nif_t *n, mbuf_t *m, ipv4_t dip, u16 sport, u16 dport);
 
+void net_tx_tcp(
+    nif_t *n, mbuf_t *m,
+    ipv4_t dip, u16 sport, u16 dport,
+    u32 seqnr, u32 acknr,
+    u8 flgs, u16 window, u16 urgptr
+    );
+
+u16 net_cksum_tcp(void *data, ipv4_t sip, ipv4_t dip, int len);
+
 #endif
