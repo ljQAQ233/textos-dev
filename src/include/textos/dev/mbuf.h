@@ -15,6 +15,8 @@ struct mbuf
     mbuf_t *next;
     addr_t phy;
     size_t len;
+    size_t dlen;
+    size_t id;
     list_t list;
     list_t wque; // waiters queue
 };

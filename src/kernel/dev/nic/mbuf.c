@@ -73,6 +73,7 @@ u8 *mbuf_put(mbuf_t *m, size_t len)
 {
     u8 *p = m->head + m->len;
     m->len += len;
+    m->dlen += len;
     return p;
 }
 
