@@ -58,7 +58,7 @@ void net_tx_arp(nif_t *n, u16 op, mac_t dmac, ipv4_t dip)
 void net_tx_arpip(nif_t *n, mbuf_t *m, ipv4_t dip)
 {
     ipv4_t dip0;
-    arpent_t *arp = arp_get(n, dip0);
+    arpent_t *arp = arp_get(n, dip);
     if (ip_addr_maskcmp(dip, n->ip, n->netmask))
         ip_addr_copy(dip0, dip);
     else

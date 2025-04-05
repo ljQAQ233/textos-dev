@@ -20,6 +20,7 @@ u16 cksum(void *data)
 
 extern int sock_rx_raw(iphdr_t *hdr, mbuf_t *m);
 extern int sock_rx_udp(iphdr_t *hdr, mbuf_t *m);
+extern int sock_rx_tcp(iphdr_t *hdr, mbuf_t *m);
 
 void net_rx_ip(nif_t *n, mbuf_t *m)
 {
@@ -38,6 +39,8 @@ void net_rx_ip(nif_t *n, mbuf_t *m)
     if (!ip_addr_cmp(n->ip, hdr->dip))
         goto drop;
 
+    m->len = ntohs(hdr->len) - sizeof(iphdr_t);
+
     int ret = sock_rx_raw(hdr, m);
     if (ret > 0)
         return ;
@@ -48,7 +51,7 @@ void net_rx_ip(nif_t *n, mbuf_t *m)
             net_rx_icmp(n, m, hdr);
             break;
         case IP_P_TCP:
-            break;
+            sock_rx_tcp(hdr, m);
         case IP_P_UDP:
             sock_rx_udp(hdr, m);
             break;
