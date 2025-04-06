@@ -8,7 +8,7 @@ void assertk(
         )
 {
     if (!state) {
-        debugk(K_SYNC, file, line, "[%s:%d] Assert failed!!! -> %s\n", expr);
+        dprintk(K_SYNC, "[%s:%d] Assert failed!!! -> %s\n", file, line, expr);
     } else {
         return;
     }
