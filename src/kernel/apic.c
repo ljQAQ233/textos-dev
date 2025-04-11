@@ -7,6 +7,7 @@
 
 #include <textos/panic.h>
 #include <textos/mm.h>
+#include <textos/ktimer.h>
 
 #define MSR_ID     0x802 // lapic id register
 #define MSR_VER    0x803 // lapic version register
@@ -67,6 +68,7 @@ __INTR_HANDLER(timer_handler)
     lapic_sendeoi();
     __ktick++;
 
+    ktimer_check();
     task_schedule();
 }
 
