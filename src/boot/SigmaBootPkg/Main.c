@@ -94,15 +94,16 @@ EFI_STATUS EFIAPI UefiMain (
 
     InitializeConfig();
 
+    UINT64 HorConfig = ConfigGetNumUint64 ("hor", D_HOR);
+    UINT64 VerConfig = ConfigGetNumUint64 ("ver", D_VER);
+    GraphicsResolutionSet (HorConfig, VerConfig);
+
     CHAR16 *KernelPath = ConfigGetStringChar16 ("kernel", D_KERNEL_PATH);
 
     KERNEL_PAGE *KernelPages;
     EFI_PHYSICAL_ADDRESS KernelEntry;
 
     KernelLoad (KernelPath, &KernelEntry, &KernelPages);
-    CHAR16 *FontPath = ConfigGetStringChar16 ("Font", D_FONT_PATH);
-    FONT_CONFIG *Font = AllocateZeroPool (sizeof (FONT_CONFIG));
-    FontLoad (FontPath,Font);
 
     EfiGetSystemConfigurationTable (&gEfiAcpi20TableGuid, &Config.AcpiTab);
 

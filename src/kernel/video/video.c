@@ -55,7 +55,7 @@ void screen_clear ()
 // end 以上 (不包括 end) 的行上拉
 void screen_pullup(u32 end, u32 cnt, u32 bg)
 {
-    if (cnt == 0 || end >= ver)
+    if (cnt == 0 || end > ver)
         return;
 
     u32 *d = fb;
