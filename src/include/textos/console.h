@@ -13,7 +13,7 @@ enum
     STATE_CMD,
 };
 
-#define ARG_MAX 4
+#define ARG_MAX 16
 #define ARG_RESET -1
 
 #define FG_DEF 0x00ffffff

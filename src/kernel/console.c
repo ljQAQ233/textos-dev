@@ -228,6 +228,78 @@ enum
     /* X */ STRIKE = 9,
 };
 
+/*
+ * 爱来自 ChatGPT :)
+ */
+static u32 rgb256(int x)
+{
+    int r, g, b;
+    if (x >= 0 && x <= 15)
+    {
+        u32 c = color[x >> 3][x & 7];
+        r = (c >> 16) & 0xFF;
+        g = (c >> 8) & 0xFF;
+        b = c & 0xFF;
+    }
+    else if (x >= 16 && x <= 231)
+    {
+        int offset = x - 16;
+        int r6 = offset / 36;
+        int g6 = (offset / 6) % 6;
+        int b6 = offset % 6;
+        r = r6 ? r6 * 40 + 55 : 0;
+        g = g6 ? g6 * 40 + 55 : 0;
+        b = b6 ? b6 * 40 + 55 : 0;
+    }
+    else if (x >= 232 && x <= 255)
+    {
+        int gray = 8 + (x - 232) * 10;
+        r = g = b = gray;
+    }
+    return RGB_COLOR(r, g, b);
+}
+
+/*
+ * 处理 m 模式的第 8 中情况, 并返回处理过了的参数个数
+ */
+static int sgr8(int *argv, u32 *fg, u32 *bg)
+{
+    bool modfg;
+    u32 color;
+
+    if (argv[0] == 38)
+        modfg = true;
+    else if (argv[0] == 48)
+        modfg = false;
+    else
+        return 1;
+
+    int ret;
+    if (argv[1] == 2)
+    {
+        // 24bit true-color
+        ret = 5;
+        int r = argv[2];
+        int g = argv[3];
+        int b = argv[4];
+        color = RGB_COLOR(r, g, b);
+    }
+    else if (argv[1] == 5)
+    {
+        // 256 colors
+        ret = 3;
+        color = rgb256(argv[2]);
+    }
+    else
+        return 2;
+
+    if (modfg)
+        *fg = color;
+    else
+        *bg = color;
+    return ret;
+}
+
 static void sgr()
 {
     u32 fg = 0, bg = 0;
@@ -275,6 +347,12 @@ static void sgr()
                 bg = color[0][v % 10];
             else if (100 <= v && v <= 107)
                 bg = color[1][v % 10];
+            else
+            {
+                int skip = sgr8(&con.argv[i], &fg, &bg);
+                i += skip - 1;
+            }
+
             break;
         }
     }
