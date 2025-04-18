@@ -22,6 +22,12 @@ void ktimer(
         void *arg, u64 ms
         );
 
+void ktimer_init(ktimer_t *tmr);
+
+void ktimer_kill(ktimer_t *tmr);
+
+void ktimer_fire(ktimer_t *tmr);
+
 void ktimer_check();
 
 #endif
