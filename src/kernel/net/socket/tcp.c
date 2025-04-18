@@ -11,6 +11,7 @@
 #include <textos/panic.h>
 #include <textos/assert.h>
 #include <textos/errno.h>
+#include <textos/ktimer.h>
 
 #include <string.h>
 
@@ -47,6 +48,7 @@ typedef struct
     list_t snd_que;
     list_t una_que;
     list_t buf_que;
+    ktimer_t tmr_ack;
 
     u32 rcv_nxt;
     u32 rcv_irs;
@@ -79,7 +81,9 @@ static void ck_lport(tcp_t *t)
 static void tcp_do_xmit(tcp_t *tcp);
 static void tcp_tx_setup(tcp_t *tcp, ipv4_t dip, u16 sport, u16 dport);
 static void tcp_tx_seg(tcp_t *tcp, mbuf_t *m);
-static void tcp_tx_ack(tcp_t *tcp, u32 seqnr, u32 acknr, u8 flgs);
+static void tcp_tx_ack(tcp_t *tcp);
+static void tcp_tx_dly(tcp_t *tcp);
+static void tcp_rm_dly(tcp_t *tcp);
 
 static int tcp_socket(socket_t *s)
 {
@@ -99,6 +103,7 @@ static int tcp_socket(socket_t *s)
     list_init(&t->snd_que);
     list_init(&t->una_que);
     list_init(&t->buf_que);
+    ktimer_init(&t->tmr_ack);
 
     list_insert(&intype, &s->intype);
 
@@ -311,6 +316,7 @@ static void tcp_do_xmit(tcp_t *tcp)
         if (tcp->snd_una != tcp->snd_nxt)
             return ;
 
+    tcp_rm_dly(tcp);
     while (!list_empty(&tcp->snd_que))
     {
         list_t *ptr = list_pop(&tcp->snd_que);
@@ -338,9 +344,7 @@ void tcp_x_ack(tcp_t *tcp, tcpseg_t *seg)
     else if (TCP_SEQ_LT(tcp->snd_nxt, seg->hdr->acknr))
     {
         // acks something not yet sent
-        tcp_tx_ack(tcp,
-            tcp->snd_nxt, tcp->rcv_nxt,
-            TCP_F_ACK);
+        tcp_tx_ack(tcp);
         return ;
     }
 
@@ -373,14 +377,42 @@ static void tcp_tx_seg(tcp_t *tcp, mbuf_t *m)
         TCP_F_ACK, TCP_WINDOW, 0);
 }
 
-void tcp_tx_ack(tcp_t *tcp, u32 seqnr, u32 acknr, u8 flgs)
+static void tcp_tx_ack(tcp_t *tcp)
 {
+    u8 flgs = TCP_F_ACK;
+    u32 seqnr = tcp->snd_nxt;
+    u32 acknr = tcp->rcv_nxt;
+    if (tcp->state == SYN_RCVD)
+    {
+        flgs |= TCP_F_SYN;
+        seqnr = tcp->snd_iss;
+    }
+
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
     net_tx_tcp(nif0, m,
         tcp->raddr, tcp->lport, tcp->rport,
         seqnr, acknr,
         flgs, TCP_WINDOW, 0);
     mbuf_free(m);
+}
+
+static void tcp_tmr_dly(void *arg)
+{
+    tcp_tx_ack(arg);
+}
+
+/*
+ * 延时发送 ack
+ * 给个缓冲的时间, 看接下来有没有数据要发送, 如果有就可以直接捎带 ack 了
+ */
+static void tcp_tx_dly(tcp_t *tcp)
+{
+    ktimer(&tcp->tmr_ack, tcp_tmr_dly, tcp, 50);
+}
+
+static void tcp_rm_dly(tcp_t *tcp)
+{
+    ktimer_kill(&tcp->tmr_ack);
 }
 
 // handle state `SYN_SENT`
@@ -426,9 +458,7 @@ int tcp_rx_sent(tcp_t *tcp, tcpseg_t *seg)
         if ((int32)(tcp->snd_una - tcp->snd_iss) > 0)
         {
             tcp->state = ESTABLISHED;
-            tcp_tx_ack(tcp,
-                tcp->snd_nxt, tcp->rcv_nxt,
-                TCP_F_ACK);
+            tcp_tx_ack(tcp);
             if (tcp->syn_waiter > 0)
                 task_unblock(tcp->syn_waiter);
         }
@@ -436,9 +466,7 @@ int tcp_rx_sent(tcp_t *tcp, tcpseg_t *seg)
         {
             // 没有确认 -> 同时打开
             tcp->state = SYN_RCVD;
-            tcp_tx_ack(tcp,
-                tcp->snd_iss, tcp->rcv_nxt,
-                TCP_F_ACK | TCP_F_SYN);
+            tcp_tx_ack(tcp);
         }
     }
 
@@ -484,9 +512,7 @@ int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
     if (tcp->rcv_nxt < seg->seqnr)
     {
         DEBUGK(K_NET, "tcp fast-rexmit applied - %#08x\n", tcp->rcv_nxt);
-        tcp_tx_ack(tcp,
-            tcp->snd_nxt, tcp->rcv_nxt,
-            TCP_F_ACK);
+        tcp_tx_ack(tcp);
         return 1;
     }
     else if (tcp->rcv_nxt > seg->seqnr)
@@ -494,9 +520,7 @@ int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
         return 1;
     }
     tcp->rcv_nxt += seg->seqlen;
-    tcp_tx_ack(tcp,
-        tcp->snd_nxt, tcp->rcv_nxt,
-        TCP_F_ACK);
+    tcp_tx_dly(tcp);
     list_insert_before(&tcp->buf_que, &seg->buf->list);
     if (seg->hdr->psh)
         seg->buf->flgs = MF_PSH;
@@ -518,9 +542,7 @@ int tcp_rx_established(tcp_t *tcp, tcpseg_t *seg)
     if (hdr->syn)
     {
         // issue a challenge ACK & drop
-        tcp_tx_ack(tcp,
-            tcp->snd_nxt, tcp->rcv_nxt,
-            TCP_F_ACK);
+        tcp_tx_ack(tcp);
         return 0;
     }
 
