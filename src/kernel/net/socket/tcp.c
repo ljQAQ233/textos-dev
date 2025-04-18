@@ -25,6 +25,7 @@ enum state
 static list_t intype = LIST_INIT(intype);
     
 #define MF_PSH (1 << 0) // PSH set, inform upper-layer immediately
+#define LIST_MF(x) (CR(x, mbuf_t, list))
 
 typedef struct
 {
@@ -33,6 +34,7 @@ typedef struct
     u16 lport;
     u16 rport;
     int mss;
+    bool nagle;  // nagle enabled
 
     int state;
     int errno;
@@ -43,7 +45,7 @@ typedef struct
     u32 snd_wl1;
     u32 snd_wl2;
     list_t snd_que;
-    list_t ack_que;
+    list_t una_que;
     list_t buf_que;
 
     u32 rcv_nxt;
@@ -74,9 +76,10 @@ static void ck_lport(tcp_t *t)
     t->lport = port;
 }
 
+static void tcp_do_xmit(tcp_t *tcp);
 static void tcp_tx_setup(tcp_t *tcp, ipv4_t dip, u16 sport, u16 dport);
-static int tcp_tx_xmit(tcp_t *tcp);
-static int tcp_tx_ack(tcp_t *tcp, u32 seqnr, u32 acknr, u8 flgs);
+static void tcp_tx_seg(tcp_t *tcp, mbuf_t *m);
+static void tcp_tx_ack(tcp_t *tcp, u32 seqnr, u32 acknr, u8 flgs);
 
 static int tcp_socket(socket_t *s)
 {
@@ -88,12 +91,13 @@ static int tcp_socket(socket_t *s)
     t->lport = 0;
     t->rport = 0;
     t->mss = DEFMSS;
+    t->nagle = true;
     t->state = CLOSED;
     t->errno = 0;
     t->rx_waiter = -1;
     t->syn_waiter = -1;
     list_init(&t->snd_que);
-    list_init(&t->ack_que);
+    list_init(&t->una_que);
     list_init(&t->buf_que);
 
     list_insert(&intype, &s->intype);
@@ -149,25 +153,48 @@ static int tcp_getpeername(socket_t *s, sockaddr_t *addr, size_t len)
 
 }
 
+/*
+ * nagle's algorithm
+ * - 1) 若发送方有未确认数据，延迟发送新的小包，等待 ACK 或数据累计
+ * - 2) 不影响大包或立即可发送的数据（如窗口允许 && 无未确认数据）
+ */
+static void tcp_makeseg(tcp_t *tcp, void *data, size_t len)
+{
+    size_t seglen = tcp->mss;
+    while (len > 0)
+    {
+        mbuf_t *m = NULL;
+        /*
+         * nagle 启用, 且还有没有被确认的数据, 合并到上一次的 mbuf
+         */
+        if (tcp->nagle)
+            if (!list_empty(&tcp->snd_que))
+                m = LIST_MF(&tcp->snd_que.prev);
+
+        if (!m || m->dlen >= seglen)
+        {
+            m = mbuf_alloc(MBUF_DEFROOM);
+            list_insert(&tcp->snd_que, &m->list);
+        }
+        
+        size_t cpy;
+        cpy = MIN(len, seglen);
+        cpy = MIN(cpy, seglen - m->dlen);
+        memcpy(mbuf_put(m, cpy), data, cpy);
+
+        len -= cpy;
+        data += cpy;
+    }
+}
+
 static ssize_t tcp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 {
     tcp_t *tcp = TCP(s->pri);
     void *data = msg->iov[0].base;
     size_t len = msg->iov[0].len;
-    size_t mss = tcp->mss;
 
-    while (len > 0)
-    {
-        size_t cpy = MIN(len, mss);
-        mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
-        memcpy(mbuf_put(m, cpy), data, cpy);
-        list_insert(&tcp->snd_que, &m->list);
-
-        len -= cpy;
-        data += cpy;
-    }
-
-    tcp_tx_xmit(tcp);
+    tcp_makeseg(tcp, data, len);
+    tcp_do_xmit(tcp);
 }
 
 #include <irq.h>
@@ -192,7 +219,7 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
             return tcp->errno;
         
         list_t *ptr = tcp->buf_que.next;
-        mbuf_t *m = CR(ptr, mbuf_t, list);
+        mbuf_t *m = LIST_MF(ptr);
         mbuf_pullhdr(m, iphdr_t);
         mbuf_pullhdr(m, tcphdr_t);
         size_t cpy = MIN(rem, m->len);
@@ -277,53 +304,54 @@ int tcp_exit_with(tcp_t *tcp, int errno)
 #define TCP_SEQ_LT(a, b) ((int32)(a - b < 0))  // less than
 #define TCP_SEQ_LE(a, b) ((int32)(a - b <= 0)) // less or equal
 
-// XXX: 相信对方的流量, 一股脑就发出去了
-static int tcp_tx_xmit(tcp_t *tcp)
+// 执行传输
+static void tcp_do_xmit(tcp_t *tcp)
 {
-    int ret = 0;
+    if (tcp->nagle)
+        if (tcp->snd_una != tcp->snd_nxt)
+            return ;
+
     while (!list_empty(&tcp->snd_que))
     {
         list_t *ptr = list_pop(&tcp->snd_que);
-        mbuf_t *m = CR(ptr, mbuf_t, list);
+        mbuf_t *m = LIST_MF(ptr);
         m->id = tcp->snd_nxt;
-        net_tx_tcp(nif0, m,
-            tcp->raddr, tcp->lport, tcp->rport,
-            tcp->snd_nxt, tcp->rcv_nxt,
-            TCP_F_ACK, TCP_WINDOW, 0);
+        tcp_tx_seg(tcp, m);
         tcp->snd_nxt += m->dlen;
-        list_insert_after(&tcp->ack_que, ptr);
-        ret++;
-    }
+        list_insert_after(&tcp->una_que, ptr);
 
-    return ret;
+        if (tcp->nagle)
+            return ;
+    }
 }
 
-// ack_que 队列首个字节对应 tcp->snd_una
-int tcp_x_ack(tcp_t *tcp, tcpseg_t *seg)
+// una_que 队列首个字节对应 tcp->snd_una
+void tcp_x_ack(tcp_t *tcp, tcpseg_t *seg)
 {
     ASSERTK(seg->hdr->ack == true);
 
     if (TCP_SEQ_LE(seg->hdr->acknr, tcp->snd_una))
     {
         // duplicate ACKs can be ignored
-        return 0;
+        return ;
     }
     else if (TCP_SEQ_LT(tcp->snd_nxt, seg->hdr->acknr))
     {
         // acks something not yet sent
-        return tcp_tx_ack(tcp,
-                tcp->snd_nxt, tcp->rcv_nxt,
-                TCP_F_ACK);
+        tcp_tx_ack(tcp,
+            tcp->snd_nxt, tcp->rcv_nxt,
+            TCP_F_ACK);
+        return ;
     }
 
     // una < ack <= nxt, 可被接收
     // remove them from retransmission queue
     u32 curr = tcp->snd_una;
-    list_t *ptr = tcp->ack_que.next;
+    list_t *ptr = tcp->una_que.next;
     list_t *nxt = ptr->next;
-    for ( ; ptr != &tcp->ack_que ; ptr = nxt, nxt = nxt->next)
+    for ( ; ptr != &tcp->una_que ; ptr = nxt, nxt = nxt->next)
     {
-        mbuf_t *m = CR(ptr, mbuf_t, list);
+        mbuf_t *m = LIST_MF(ptr);
         if (m->id < seg->hdr->acknr)
         {
             list_remove(ptr);
@@ -332,10 +360,20 @@ int tcp_x_ack(tcp_t *tcp, tcpseg_t *seg)
     }
 
     tcp->snd_una = seg->hdr->acknr;
-    return 0;
+
+    // send data blocked by nagle
+    tcp_do_xmit(tcp);
 }
 
-int tcp_tx_ack(tcp_t *tcp, u32 seqnr, u32 acknr, u8 flgs)
+static void tcp_tx_seg(tcp_t *tcp, mbuf_t *m)
+{
+    net_tx_tcp(nif0, m,
+        tcp->raddr, tcp->lport, tcp->rport,
+        tcp->snd_nxt, tcp->rcv_nxt,
+        TCP_F_ACK, TCP_WINDOW, 0);
+}
+
+void tcp_tx_ack(tcp_t *tcp, u32 seqnr, u32 acknr, u8 flgs)
 {
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
     net_tx_tcp(nif0, m,
@@ -343,8 +381,6 @@ int tcp_tx_ack(tcp_t *tcp, u32 seqnr, u32 acknr, u8 flgs)
         seqnr, acknr,
         flgs, TCP_WINDOW, 0);
     mbuf_free(m);
-
-    return 0;
 }
 
 // handle state `SYN_SENT`
