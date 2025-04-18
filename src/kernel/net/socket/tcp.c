@@ -21,6 +21,8 @@ enum state
     SYN_SENT,
     SYN_RCVD,
     ESTABLISHED,
+    CLOSE_WAIT,
+    LAST_ACK,
 };
 
 static list_t intype = LIST_INIT(intype);
@@ -377,6 +379,16 @@ static void tcp_tx_seg(tcp_t *tcp, mbuf_t *m)
         TCP_F_ACK, TCP_WINDOW, 0);
 }
 
+static void tcp_tx_fin(tcp_t *tcp)
+{
+    mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
+    net_tx_tcp(nif0, m,
+        tcp->raddr, tcp->lport, tcp->rport,
+        tcp->snd_nxt, tcp->rcv_nxt,
+        TCP_F_ACK | TCP_F_FIN, TCP_WINDOW, 0);
+    mbuf_free(m);
+}
+
 static void tcp_tx_ack(tcp_t *tcp)
 {
     u8 flgs = TCP_F_ACK;
@@ -413,6 +425,11 @@ static void tcp_tx_dly(tcp_t *tcp)
 static void tcp_rm_dly(tcp_t *tcp)
 {
     ktimer_kill(&tcp->tmr_ack);
+}
+
+static void tcp_go_dly(tcp_t *tcp)
+{
+    ktimer_fire(&tcp->tmr_ack);
 }
 
 // handle state `SYN_SENT`
@@ -504,11 +521,6 @@ int tcp_rx_rcvd(tcp_t *tcp, tcpseg_t *seg)
 // TODO : sort
 int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
 {
-    if (!seg->buf->len)
-        return 0;
-
-    mbuf_pushhdr(seg->buf, tcphdr_t);
-    mbuf_pushhdr(seg->buf, iphdr_t);
     if (tcp->rcv_nxt < seg->seqnr)
     {
         DEBUGK(K_NET, "tcp fast-rexmit applied - %#08x\n", tcp->rcv_nxt);
@@ -521,6 +533,12 @@ int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
     }
     tcp->rcv_nxt += seg->seqlen;
     tcp_tx_dly(tcp);
+
+    if (!seg->buf->len)
+        return 0;
+    
+    mbuf_pushhdr(seg->buf, tcphdr_t);
+    mbuf_pushhdr(seg->buf, iphdr_t);
     list_insert_before(&tcp->buf_que, &seg->buf->list);
     if (seg->hdr->psh)
         seg->buf->flgs = MF_PSH;
@@ -553,9 +571,22 @@ int tcp_rx_established(tcp_t *tcp, tcpseg_t *seg)
 
     ASSERTK(hdr->urg == false);
     tcp_rx_data(tcp, seg);
-    ASSERTK(hdr->fin == false);
+
+    if (hdr->fin)
+    {
+        tcp->state = CLOSE_WAIT;
+        tcp_go_dly(tcp);
+        tcp_tx_fin(tcp);
+        tcp->state = LAST_ACK;
+    }
 
     return 0;
+}
+
+// 简化版
+int tcp_rx_lastack(tcp_t *tcp, tcpseg_t *seg)
+{
+    tcp->state = CLOSED;
 }
 
 int tcp_rx_fin1(tcp_t *tcp, tcpseg_t *seg)
@@ -640,6 +671,10 @@ int sock_rx_tcp(iphdr_t *ip, mbuf_t *m)
 
         case ESTABLISHED:
             tcp_rx_established(t, &seg);
+            break;
+
+        case LAST_ACK:
+            tcp_rx_lastack(t, &seg);
             break;
 
         default:
