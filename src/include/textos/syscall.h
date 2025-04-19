@@ -14,11 +14,13 @@
     _(getpid, 39),       \
     _(socket, 41),       \
     _(connect, 42),      \
+    _(accept, 43),       \
     _(sendto, 44),       \
     _(recvfrom, 45),     \
     _(sendmsg, 46),      \
     _(recvmsg, 47),      \
     _(bind, 49),         \
+    _(listen, 50),       \
     _(getsockname, 51),  \
     _(getpeername, 52),  \
     _(fork, 57),         \

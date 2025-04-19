@@ -15,32 +15,42 @@
 
 #include <string.h>
 
+#include "inter.h"
+
 enum state
 {
     CLOSED = 0,
     SYN_SENT,
     SYN_RCVD,
+    LISTEN,
     ESTABLISHED,
     CLOSE_WAIT,
     LAST_ACK,
 };
 
-static list_t intype = LIST_INIT(intype);
-    
+static list_t list_common = LIST_INIT(list_common);
+static list_t list_listen = LIST_INIT(list_listen);
+
 #define MF_PSH (1 << 0) // PSH set, inform upper-layer immediately
 #define LIST_MF(x) (CR(x, mbuf_t, list))
 
 typedef struct
 {
+    socket_t *sock;
     ipv4_t laddr;
     ipv4_t raddr;
     u16 lport;
     u16 rport;
     int mss;
     bool nagle;  // nagle enabled
-
+    
     int state;
     int errno;
+    bool passive;// listen mode
+    void *ptcp;  // parent
+    list_t pchd; // children
+    list_t acpt; // wait for `accept`
+
     u32 snd_iss;
     u32 snd_una; // smallest seqnr not yet acknowledged by the receiver
     u32 snd_nxt; // next sequence number to be sent
@@ -67,6 +77,13 @@ typedef struct
 
 #define MAX_PORT 65536
 
+#define TRY_UNBLK(x)         \
+    do {                     \
+        if (x >= 0)          \
+            task_unblock(x); \
+        x = -1;              \
+    } while (0);
+
 static bitmap_t bmp;
 
 static void ck_lport(tcp_t *t)
@@ -81,7 +98,7 @@ static void ck_lport(tcp_t *t)
 }
 
 static void tcp_do_xmit(tcp_t *tcp);
-static void tcp_tx_setup(tcp_t *tcp, ipv4_t dip, u16 sport, u16 dport);
+static void tcp_tx_setup(tcp_t *tcp);
 static void tcp_tx_seg(tcp_t *tcp, mbuf_t *m);
 static void tcp_tx_ack(tcp_t *tcp);
 static void tcp_tx_dly(tcp_t *tcp);
@@ -94,27 +111,55 @@ static int tcp_socket(socket_t *s)
 
     tcp_t *t;
     t = s->pri = malloc(sizeof(tcp_t));
+    t->sock = s;
     t->lport = 0;
     t->rport = 0;
     t->mss = DEFMSS;
     t->nagle = true;
     t->state = CLOSED;
     t->errno = 0;
+    t->passive = false;
+    t->ptcp = NULL;
     t->rx_waiter = -1;
     t->syn_waiter = -1;
+    list_init(&t->pchd);
+    list_init(&t->acpt);
     list_init(&t->snd_que);
     list_init(&t->una_que);
     list_init(&t->buf_que);
     ktimer_init(&t->tmr_ack);
 
-    list_insert(&intype, &s->intype);
+    list_insert(&list_common, &s->intype);
 
     return 0;
 }
 
 static int tcp_bind(socket_t *s, sockaddr_t *addr, size_t len)
 {
+    if (!addr)
+        return -EDESTADDRREQ;
 
+    tcp_t *t = TCP(s->pri);
+    sockaddr_in_t *in = (sockaddr_in_t *)addr;
+        
+    int port = ntohs(in->port);
+    if (port)
+    {
+        if (bitmap_test(&bmp, port))
+            return -EADDRINUSE;
+        t->lport = port;
+    }
+    else
+    {
+        ck_lport(t);
+    }
+
+    if (ip_addr_isany(in->addr))
+        ip_addr_copy(t->laddr, nif0->ip);
+    else
+        ip_addr_copy(t->laddr, in->addr);
+
+    return 0;
 }
 
 static void block_as(int *as)
@@ -125,6 +170,57 @@ static void block_as(int *as)
     *as = task_current()->pid;
     task_block();
     *as = -1;
+}
+
+// 一直处于 LISTEN
+static int tcp_listen(socket_t *s, int backlog)
+{
+    tcp_t *t = TCP(s->pri);
+    t->state = LISTEN;
+    list_remove(&t->sock->intype);
+    list_insert(&list_listen, &t->sock->intype);
+    return 0;
+}
+
+#include <irq.h>
+
+// nonblock mode unsupported
+static int tcp_accept(socket_t *s, sockaddr_t *addr, size_t *len)
+{
+    tcp_t *t = TCP(s->pri);
+    tcp_t *conn;
+
+    list_t *ptr;
+    UNINTR_AREA({
+        if (list_empty(&t->acpt))
+            block_as(&t->syn_waiter);
+        ptr = list_pop(&t->acpt);
+    });
+
+    conn = CR(ptr, tcp_t, acpt);
+    ASSERTK(conn->state == ESTABLISHED);
+
+    // truncate
+    if (addr != NULL && len != NULL)
+    {
+        sockaddr_in_t tmp;
+        sockaddr_in_t *in = (sockaddr_in_t *)addr;
+        tmp.port = t->rport;
+        tmp.family = AF_INET;
+        ip_addr_copy(tmp.addr, conn->raddr);
+        *len = MIN(*len, sizeof(sockaddr_in_t));
+        memcpy(addr, &tmp, *len);
+    }
+    else
+        return -EINVAL;
+
+    int fd = socket_makefd(conn->sock);
+    if (fd < 0)
+    {
+        free(t);
+        free(conn->sock);
+    }
+    return fd;
 }
 
 static int tcp_connect(socket_t *s, sockaddr_t *addr, size_t len)
@@ -142,7 +238,7 @@ static int tcp_connect(socket_t *s, sockaddr_t *addr, size_t len)
 
     // allocate local port
     ck_lport(t);
-    tcp_tx_setup(t, in->addr, t->lport, t->rport);
+    tcp_tx_setup(t);
 
     block_as(&t->syn_waiter);
     ASSERTK(t->state == ESTABLISHED);
@@ -256,7 +352,7 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 
 #define TCP_WINDOW 65535
 
-static void tcp_tx_setup(tcp_t *tcp, ipv4_t dip, u16 sport, u16 dport)
+static void tcp_tx_setup(tcp_t *tcp)
 {
     u32 iss = __ktick ^ 0x20250403;
     tcp->snd_iss = iss;
@@ -266,9 +362,24 @@ static void tcp_tx_setup(tcp_t *tcp, ipv4_t dip, u16 sport, u16 dport)
 
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
     net_tx_tcp(nif0, m,
-        dip, sport, dport,
+        tcp->raddr, tcp->lport, tcp->rport,
         iss, 0,
         TCP_F_SYN, TCP_WINDOW, 0);
+}
+
+static void tcp_tx_agree(tcp_t *tcp)
+{
+    u32 iss = __ktick ^ 0x20250403;
+    tcp->snd_iss = iss;
+    tcp->snd_una = iss;
+    tcp->snd_nxt = iss + 1;
+    tcp->state = SYN_RCVD;
+
+    mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
+    net_tx_tcp(nif0, m,
+        tcp->raddr, tcp->lport, tcp->rport,
+        iss, tcp->rcv_nxt,
+        TCP_F_SYN | TCP_F_ACK, 0, 0);
 }
 
 int tcp_tx_reset(tcpseg_t *seg)
@@ -291,31 +402,29 @@ int tcp_tx_reset(tcpseg_t *seg)
             TCP_F_RST | TCP_F_ACK, 0, 0);
     }
 
-    mbuf_free(m);
+    // mbuf_free(m);
     return 0;
 }
 
 int tcp_exit_with(tcp_t *tcp, int errno)
 {
     tcp->errno = errno;
-    if (tcp->rx_waiter >= 0)
-        task_unblock(tcp->rx_waiter);
-    if (tcp->syn_waiter >= 0)
-        task_unblock(tcp->syn_waiter);
+    TRY_UNBLK(tcp->rx_waiter);
+    TRY_UNBLK(tcp->syn_waiter);
     
     return errno;
 }
 
 #include <textos/assert.h>
 
-#define TCP_SEQ_LT(a, b) ((int32)(a - b < 0))  // less than
-#define TCP_SEQ_LE(a, b) ((int32)(a - b <= 0)) // less or equal
+#define TCP_SEQ_LT(a, b) ((int32)(a - b) < 0)  // less than
+#define TCP_SEQ_LE(a, b) ((int32)(a - b) <= 0) // less or equal
 
 // 执行传输
 static void tcp_do_xmit(tcp_t *tcp)
 {
     if (tcp->nagle)
-        if (tcp->snd_una != tcp->snd_nxt)
+        if (tcp->snd_una < tcp->snd_nxt - 1)
             return ;
 
     tcp_rm_dly(tcp);
@@ -361,7 +470,7 @@ void tcp_x_ack(tcp_t *tcp, tcpseg_t *seg)
         if (m->id < seg->hdr->acknr)
         {
             list_remove(ptr);
-            mbuf_free(m);
+            // mbuf_free(m);
         }
     }
 
@@ -386,7 +495,7 @@ static void tcp_tx_fin(tcp_t *tcp)
         tcp->raddr, tcp->lport, tcp->rport,
         tcp->snd_nxt, tcp->rcv_nxt,
         TCP_F_ACK | TCP_F_FIN, TCP_WINDOW, 0);
-    mbuf_free(m);
+    // mbuf_free(m);
 }
 
 static void tcp_tx_ack(tcp_t *tcp)
@@ -405,7 +514,7 @@ static void tcp_tx_ack(tcp_t *tcp)
         tcp->raddr, tcp->lport, tcp->rport,
         seqnr, acknr,
         flgs, TCP_WINDOW, 0);
-    mbuf_free(m);
+    // mbuf_free(m);
 }
 
 static void tcp_tmr_dly(void *arg)
@@ -476,8 +585,7 @@ int tcp_rx_sent(tcp_t *tcp, tcpseg_t *seg)
         {
             tcp->state = ESTABLISHED;
             tcp_tx_ack(tcp);
-            if (tcp->syn_waiter > 0)
-                task_unblock(tcp->syn_waiter);
+            TRY_UNBLK(tcp->syn_waiter);
         }
         else
         {
@@ -493,23 +601,47 @@ int tcp_rx_sent(tcp_t *tcp, tcpseg_t *seg)
 // handle state `SYN_RCVD`
 int tcp_rx_rcvd(tcp_t *tcp, tcpseg_t *seg)
 {
-    // XXX: 假设现在还不支持 listen
-
     tcphdr_t *hdr = seg->hdr;
     if (hdr->rst)
     {
+        if (tcp->passive)
+        {
+            // TODO: free
+            list_remove(&tcp->pchd);
+            list_remove(&tcp->sock->intype);
+            return -1;
+        }
         return tcp_exit_with(tcp, -ECONNREFUSED);
     }
 
     // Security check skipped
-    
+
     if (hdr->syn)
+    {
+        // return to LISTEN state
+        if (tcp->passive)
+        {
+            // TODO: free
+            list_remove(&tcp->pchd);
+            list_remove(&tcp->sock->intype);
+            return -1;
+        }
+    }
+    
+    if (hdr->ack)
     {
         if (TCP_SEQ_LT(tcp->snd_una, hdr->acknr)
             && TCP_SEQ_LE(hdr->acknr, tcp->snd_nxt)) {
-            tcp->state = ESTABLISHED;
-            if (tcp->syn_waiter > 0)
-                task_unblock(tcp->syn_waiter);
+            tcp->state = ESTABLISHED; 
+            if (tcp->ptcp)
+            {
+                list_insert(&TCP(tcp->ptcp)->acpt, &tcp->acpt);
+                TRY_UNBLK(TCP(tcp->ptcp)->syn_waiter);
+            }
+            else
+            {
+                TRY_UNBLK(tcp->syn_waiter);
+            }
         } else {
             tcp_tx_reset(seg);
         }
@@ -542,15 +674,64 @@ int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
     list_insert_before(&tcp->buf_que, &seg->buf->list);
     if (seg->hdr->psh)
         seg->buf->flgs = MF_PSH;
-    if (tcp->rx_waiter > 0)
-        task_unblock(tcp->rx_waiter);
+    TRY_UNBLK(tcp->rx_waiter);
     return 0;
+}
+
+int tcp_rx_listen(tcp_t *tcp, tcpseg_t *seg)
+{
+    // Any reset is invalid
+    // Any acknowledgement is invalid.
+    tcphdr_t *hdr = seg->hdr;
+    if (hdr->rst)
+        return -1;
+    if (hdr->ack)
+    {
+        tcp_tx_reset(seg);
+        return -1;
+    }
+
+    if (hdr->syn)
+    {
+        // TODO: backlog / backcnt
+        socket_t *sock = malloc(sizeof(socket_t));
+        sock->domain = tcp->sock->domain;
+        sock->type = tcp->sock->type;
+        sock->proto = tcp->sock->proto;
+        sock->socktype = tcp->sock->socktype;
+        sock->op = tcp->sock->op;
+        sock->nif = tcp->sock->nif;
+
+        tcp_t *conn = malloc(sizeof(tcp_t));
+        conn->sock = sock;
+        sock->pri = conn;
+        ip_addr_copy(conn->laddr, tcp->laddr);
+        ip_addr_copy(conn->raddr, seg->iph->sip);
+        conn->lport = tcp->lport;
+        conn->rport = hdr->sport;
+        conn->mss = tcp->mss;
+        conn->nagle = true;
+        conn->passive = true;
+        conn->ptcp = tcp;
+        conn->state = LISTEN;
+        conn->errno = 0;
+        list_init(&conn->snd_que);
+        list_init(&conn->una_que);
+        list_init(&conn->buf_que);
+        ktimer_init(&conn->tmr_ack);
+        conn->rx_waiter = -1;
+        conn->syn_waiter = -1;
+        list_insert(&tcp->pchd, &conn->pchd);
+        list_insert(&list_common, &conn->sock->intype);
+
+        conn->rcv_nxt = seg->seqnr + 1;
+        conn->rcv_irs = seg->seqnr;
+        tcp_tx_agree(conn);
+    }
 }
 
 int tcp_rx_established(tcp_t *tcp, tcpseg_t *seg)
 {
-    // XXX: 假设现在还不支持 listen
-
     tcphdr_t *hdr = seg->hdr;
     if (hdr->rst)
     {
@@ -611,7 +792,7 @@ int tcp_rx_timewait(tcp_t *tcp, tcpseg_t *seg)
 static tcp_t *find_tcb(iphdr_t *ip, tcphdr_t *hdr)
 {
     list_t *ptr;
-    LIST_FOREACH(ptr, &intype)
+    LIST_FOREACH(ptr, &list_common)
     {
         socket_t *s = CR(ptr, socket_t, intype);
         tcp_t *t = TCP(s->pri);
@@ -620,6 +801,18 @@ static tcp_t *find_tcb(iphdr_t *ip, tcphdr_t *hdr)
         if (!ip_addr_isany(t->laddr) && !ip_addr_cmp(t->laddr, ip->dip))
             continue;
         if (t->rport != hdr->sport)
+            continue;
+        if (t->lport != hdr->dport)
+            continue;
+
+        return t;
+    }
+
+    LIST_FOREACH(ptr, &list_listen)
+    {
+        socket_t *s = CR(ptr, socket_t, intype);
+        tcp_t *t = TCP(s->pri);
+        if (!ip_addr_isany(t->laddr) && !ip_addr_cmp(t->laddr, ip->dip))
             continue;
         if (t->lport != hdr->dport)
             continue;
@@ -651,6 +844,7 @@ int sock_rx_tcp(iphdr_t *ip, mbuf_t *m)
     seg.data = m->head;
     seg.buf = m;
     seg.buf->id = seg.seqnr;
+    seg.iph = ip;
     seg.hdr = hdr;
 
     tcp_t *t = find_tcb(ip, hdr);
@@ -667,6 +861,10 @@ int sock_rx_tcp(iphdr_t *ip, mbuf_t *m)
 
         case SYN_RCVD:
             tcp_rx_rcvd(t, &seg);
+            break;
+
+        case LISTEN:
+            tcp_rx_listen(t, &seg);
             break;
 
         case ESTABLISHED:
@@ -691,6 +889,8 @@ done:
 static sockop_t op = {
     tcp_socket,
     tcp_bind,
+    tcp_listen,
+    tcp_accept,
     tcp_connect,
     tcp_getsockname,
     tcp_getpeername,
@@ -702,7 +902,7 @@ static sockop_t op = {
 
 void sock_tcp_init()
 {
-    bitmap_init(&bmp, NULL, MAX_PORT / mpembs);
+    bitmap_init(&bmp, NULL, MAX_PORT);
     bitmap_set(&bmp, 0);
     sockop_set(SOCK_T_TCP, &op);
 }

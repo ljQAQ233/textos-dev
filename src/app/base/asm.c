@@ -162,6 +162,16 @@ int bind(int fd, sockaddr_t *addr, size_t len)
     return syscall(SYS_bind, fd, addr, len);
 }
 
+int listen(int fd, int backlog)
+{
+    return syscall(SYS_listen, fd, backlog);
+}
+
+int accept(int fd, sockaddr_t *addr, size_t *len)
+{
+    return syscall(SYS_accept, fd, addr, len);
+}
+
 int connect(int fd, sockaddr_t *addr, size_t len)
 {
     return syscall(SYS_connect, fd, addr, len);

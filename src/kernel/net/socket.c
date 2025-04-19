@@ -13,11 +13,25 @@ socket_t *socket_get(int fd)
 
 static fs_opts_t __socket_opts;
 
-int socket(int domain, int type, int proto)
+int socket_makefd(socket_t *socket)
 {
     int fd;
     file_t *file;
     node_t *sockn;
+    if (file_get(&fd, &file) < 0)
+        return fd;
+    
+    sockn = malloc(sizeof(node_t));
+    sockn->name = "socket";
+    sockn->pdata = socket;
+    sockn->opts = &__socket_opts;
+
+    file->node = sockn;
+    return fd;
+}
+
+int socket(int domain, int type, int proto)
+{
     socket_t *socket;
 
     int socktype = SOCK_T_NONE;
@@ -68,26 +82,25 @@ int socket(int domain, int type, int proto)
     socket->op = sockop_get(socktype);
     socket->op->socket(socket);
     socket->nif = nif0;
-
-    if (file_get(&fd, &file) < 0)
-    {
-        free(socket);
-        return fd;
-    }
-    
-    sockn = malloc(sizeof(node_t));
-    sockn->name = "socket";
-    sockn->pdata = socket;
-    sockn->opts = &__socket_opts;
-
-    file->node = sockn;
-    return fd;
+    return socket_makefd(socket);
 }
 
 int bind(int fd, sockaddr_t *addr, size_t len)
 {
     socket_t *s = socket_get(fd);
     return s->op->bind(s, addr, len);
+}
+
+int listen(int fd, int backlog)
+{
+    socket_t *s = socket_get(fd);
+    return s->op->listen(s, backlog);
+}
+
+int accept(int fd, sockaddr_t *addr, size_t *len)
+{
+    socket_t *s = socket_get(fd);
+    return s->op->accept(s, addr, len);
 }
 
 int connect(int fd, sockaddr_t *addr, size_t len)

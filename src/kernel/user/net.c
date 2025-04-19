@@ -11,6 +11,16 @@ RETVAL(int) sys_bind(int fd, sockaddr_t *addr, size_t len)
     return bind(fd, addr, len);
 }
 
+RETVAL(int) sys_listen(int fd, int backlog)
+{
+    return listen(fd, backlog);
+}
+
+RETVAL(int) sys_accept(int fd, sockaddr_t *addr, size_t *len)
+{
+    return accept(fd, addr, len);
+}
+
 RETVAL(int) sys_connect(int fd, sockaddr_t *addr, size_t len)
 {
     return connect(fd, addr, len);

@@ -84,6 +84,8 @@ typedef struct _packed
     u16 len;
 } tcpchk_t;
 
+#include <textos/net/ip.h>
+
 typedef struct
 {
     u32 seqnr;
@@ -93,5 +95,6 @@ typedef struct
     nif_t *nif;
     void *data;
     mbuf_t *buf;
+    iphdr_t *iph;
     tcphdr_t *hdr;
 } tcpseg_t;

@@ -144,7 +144,8 @@ typedef struct
 int socket(int domain, int type, int proto);
 
 int bind(int fd, sockaddr_t *addr, size_t len);
-
+int listen(int fd, int backlog);
+int accept(int fd, sockaddr_t *addr, size_t *len);
 int connect(int fd, sockaddr_t *addr, size_t len);
 
 int getsockname(int fd, sockaddr_t *addr, size_t len);

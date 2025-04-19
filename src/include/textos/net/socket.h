@@ -59,6 +59,8 @@ typedef struct
 {
     int (*socket)(socket_t *s);
     int (*bind)(socket_t *s, sockaddr_t *addr, size_t len);
+    int (*listen)(socket_t *s, int backlog);
+    int (*accept)(socket_t *s, sockaddr_t *addr, size_t *len);
     int (*connect)(socket_t *s, sockaddr_t *addr, size_t len);
     int (*getsockname)(socket_t *s, sockaddr_t *addr, size_t len);
     int (*getpeername)(socket_t *s, sockaddr_t *addr, size_t len);
@@ -91,8 +93,9 @@ socket_t *socket_get(int fd);
 int socket(int domain, int type, int proto);
 
 int bind(int fd, sockaddr_t *addr, size_t len);
-
 int connect(int fd, sockaddr_t *addr, size_t len);
+int listen(int fd, int backlog);
+int accept(int fd, sockaddr_t *addr, size_t *len);
 
 int getsockname(int fd, sockaddr_t *addr, size_t len);
 int getpeername(int fd, sockaddr_t *addr, size_t len);
