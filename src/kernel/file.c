@@ -14,7 +14,7 @@ int fd_get()
         if (!ft[i])
             return i;
     }
-    return -1;
+    return -EMFILE;
 }
 
 int file_get(int *new, file_t **file)
@@ -22,7 +22,7 @@ int file_get(int *new, file_t **file)
     file_t **ft = task_current()->files;
     int fd = fd_get();
     if (!(ft[fd] = malloc(sizeof(file_t))))
-        return -1;
+        return -ENOMEM;
 
     *file = ft[fd];
     return *new = fd;
