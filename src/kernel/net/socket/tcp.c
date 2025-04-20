@@ -304,6 +304,9 @@ static ssize_t tcp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 
 #include <irq.h>
 
+// FIXME: the ptr poped may not be read completely, we should put it back
+//        if there's still data remained which would be processed next time.
+//        that's what tcp differs from others...
 static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 {
     tcp_t *tcp = TCP(s->pri);
