@@ -24,6 +24,8 @@ typedef struct node node_t;
 struct dirctx;
 typedef struct dirctx dirctx_t;
 
+#include <textos/noopt.h>
+
 typedef struct {
     int  (*open)(node_t *parent, char *path, u64 args, node_t **result);
     int  (*ioctl)(node_t *this, int req, void *argp);

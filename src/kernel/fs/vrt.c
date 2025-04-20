@@ -4,6 +4,7 @@
 #include <textos/fs/inter.h>
 #include <textos/panic.h>
 #include <textos/assert.h>
+#include <textos/errno.h>
 
 #include <string.h>
 
@@ -86,28 +87,17 @@ node_t *vfs_exist(node_t *dir, char *path)
     return NULL;
 }
 
-#define INIT_OPT(x) (x = (void *)noopt_handler)
-
-void noopt_handler(node_t *node)
+void vfs_initops(fs_opts_t *opts)
 {
-    PANIC("unsupported opt for this file (system) - %s!\n", node->name);
+    opts->open = noopt;
+    opts->ioctl = noopt;
+    opts->close = noopt;
+    opts->remove = noopt;
+    opts->read = noopt;
+    opts->write = noopt;
+    opts->truncate = noopt;
+    opts->readdir = noopt;
 }
-
-/* let `opts` in an initial state -> opt unsupported */
-void vfs_initops (fs_opts_t *opts)
-{
-    INIT_OPT(opts->open);
-    INIT_OPT(opts->ioctl);
-    INIT_OPT(opts->close);
-    INIT_OPT(opts->remove);
-    INIT_OPT(opts->read);
-    INIT_OPT(opts->write);
-    INIT_OPT(opts->truncate);
-    INIT_OPT(opts->readdir);
-}
-
-/* return-value for interfaces */
-#include <textos/errno.h>
 
 static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args)
 {
