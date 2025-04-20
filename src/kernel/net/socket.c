@@ -11,7 +11,7 @@ socket_t *socket_get(int fd)
     return (socket_t *)file->node->pdata;
 }
 
-static fs_opts_t __socket_opts;
+extern fs_opts_t __socket_opts;
 
 int socket_makefd(socket_t *socket)
 {
@@ -27,6 +27,7 @@ int socket_makefd(socket_t *socket)
     sockn->opts = &__socket_opts;
 
     file->node = sockn;
+    file->flgs = O_RDWR;
     return fd;
 }
 
@@ -165,28 +166,12 @@ ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size
 
 #include <string.h>
 
-static int socket_ioctl(node_t *this, int req, void *argp)
-{
-    ifreq_t *ifr = argp;
-    socket_t *socket = this->pdata;
-
-    //
-    // TODO: handle its own req first here
-    //
-
-    nif_t *nif = nif_find(ifr->name);
-    return nif_ioctl(nif, req, argp);
-}
-
 extern void sock_raw_init();
 extern void sock_udp_init();
 extern void sock_tcp_init();
 
 void socket_init()
 {
-    vfs_initops(&__socket_opts);
-    __socket_opts.ioctl = socket_ioctl;
-
     sock_raw_init();
     sock_udp_init();
     sock_tcp_init();
