@@ -201,7 +201,7 @@ static int tcp_accept(socket_t *s, sockaddr_t *addr, size_t *len)
     ASSERTK(conn->state == ESTABLISHED);
 
     // truncate
-    if (addr != NULL && len != NULL)
+    if (addr && len)
     {
         sockaddr_in_t tmp;
         sockaddr_in_t *in = (sockaddr_in_t *)addr;
@@ -211,7 +211,9 @@ static int tcp_accept(socket_t *s, sockaddr_t *addr, size_t *len)
         *len = MIN(*len, sizeof(sockaddr_in_t));
         memcpy(addr, &tmp, *len);
     }
-    else
+    else if (addr && !len)
+        return -EINVAL;
+    else if (!addr && len)
         return -EINVAL;
 
     int fd = socket_makefd(conn->sock);
@@ -379,7 +381,7 @@ static void tcp_tx_agree(tcp_t *tcp)
     net_tx_tcp(nif0, m,
         tcp->raddr, tcp->lport, tcp->rport,
         iss, tcp->rcv_nxt,
-        TCP_F_SYN | TCP_F_ACK, 0, 0);
+        TCP_F_SYN | TCP_F_ACK, TCP_WINDOW, 0);
 }
 
 int tcp_tx_reset(tcpseg_t *seg)
