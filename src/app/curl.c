@@ -20,19 +20,6 @@ static int atoi(char *s)
     return x;
 }
 
-char *strstr(const char *s, const char *t)
-{
-    if (!*t) return (char *)s;
-
-    for (; *s; s++) {
-        const char *a = s, *b = t;
-        while (*a && *b && *a == *b) a++, b++;
-        if (!*b) return (char *)s;
-    }
-    return NULL;
-}
-
-
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("usage: curl http://ip[:port]/path\n");

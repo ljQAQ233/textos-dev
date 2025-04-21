@@ -24,40 +24,6 @@ static int num(char *s, int b)
     return x;
 }
 
-char *strcat(char* dest, const char* src)
-{
-    char* ret = dest;
-    while (*dest)
-        dest++;
-    while (*src)
-        *dest++ = *src++;
-    *dest = '\0';
-    return ret;
-}
-
-char *strstr(const char *haystack, const char *needle)
-{
-    if (*needle == '\0')
-        return (char *)haystack;
-
-    for (; *haystack != '\0'; ++haystack)
-    {
-        const char *h = haystack;
-        const char *n = needle;
-
-        while (*h != '\0' && *n != '\0' && *h == *n)
-        {
-            ++h;
-            ++n;
-        }
-
-        if (*n == '\0')
-            return (char *)haystack;
-    }
-
-    return NULL;
-}
-
 char buf[4096];
 
 #define MAX_PATH 128

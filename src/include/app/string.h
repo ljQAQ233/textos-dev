@@ -27,6 +27,8 @@ int strcmp (const char* str1,const char *str2);
 */
 int strncmp (const char* str1, const char *str2, size_t n);
 
+char *strcat(char* dest, const char* src);
+
 /*
   The `strchr()` function returns a pointer to the first
   occurrence of the character `c` in the string `str`
@@ -34,6 +36,8 @@ int strncmp (const char* str1, const char *str2, size_t n);
 char *strchr (const char *str, int c);
 
 char *strchrnul (const char *str, int c);
+
+char *strstr(const char *haystack, const char *needle);
 
 /*
   The `strnchr()` function returns a pointer to the first

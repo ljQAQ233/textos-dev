@@ -45,7 +45,7 @@ int strcmp(const char* str1,const char *str2)
  * The `strchr()` function returns a pointer to the first
  * occurrence of the character `c` in the string `str`
 */
-char *strchr (const char *str, int c)
+char *strchr(const char *str, int c)
 {
     while (*str) {
         if (*str == (char)c)
@@ -67,6 +67,29 @@ char *strchrnul (const char *str, int c)
     }
 
     return (char *)str;
+}
+
+char *strstr(const char *haystack, const char *needle)
+{
+    if (*needle == '\0')
+        return (char *)haystack;
+
+    for (; *haystack != '\0'; ++haystack)
+    {
+        const char *h = haystack;
+        const char *n = needle;
+
+        while (*h != '\0' && *n != '\0' && *h == *n)
+        {
+            ++h;
+            ++n;
+        }
+
+        if (*n == '\0')
+            return (char *)haystack;
+    }
+
+    return NULL;
 }
 
 /*
@@ -98,6 +121,17 @@ int strncmp(const char* str1, const char *str2, size_t n)
     if (n == 0)
         return 0;
     return (u8)*str1 - (u8)*str2;
+}
+
+char *strcat(char* dest, const char* src)
+{
+    char* ret = dest;
+    while (*dest)
+        dest++;
+    while (*src)
+        *dest++ = *src++;
+    *dest = '\0';
+    return ret;
 }
 
 /*
