@@ -306,9 +306,11 @@ static ssize_t tcp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 
 #include <irq.h>
 
-// FIXME: the ptr poped may not be read completely, we should put it back
-//        if there's still data remained which would be processed next time.
-//        that's what tcp differs from others...
+/*
+ * the ptr poped may not be read completely, we should put it back
+ * if there's still data remained which would be processed next time.
+ * that's what tcp differs from others...
+ */
 static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 {
     tcp_t *tcp = TCP(s->pri);
@@ -334,7 +336,13 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
         mbuf_pullhdr(m, tcphdr_t);
         size_t cpy = MIN(rem, m->len);
         memcpy(data, m->head, cpy);
-        list_remove(ptr);
+        m->len -= cpy;
+        m->head += cpy;
+        if (!m->len)
+        {
+            list_remove(ptr);
+            mbuf_free(m);
+        }
         DEBUGK(K_NET, "tcp rcvd seqnr=%u siz=%u psh=%d\n", m->id, cpy, m->flgs & MF_PSH);
 
         rem -= cpy;
