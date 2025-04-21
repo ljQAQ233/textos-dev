@@ -245,9 +245,7 @@ static int tcp_connect(socket_t *s, sockaddr_t *addr, size_t len)
     tcp_tx_setup(t);
 
     block_as(&t->syn_waiter);
-    ASSERTK(t->state == ESTABLISHED);
-
-    return 0;
+    return t->errno;
 }
 
 static int tcp_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
@@ -319,8 +317,6 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
     size_t mss = tcp->mss;
     ssize_t rem = len;
 
-    UNINTR_AREA_START();
-
     while (len > 0)
     {
         if (list_empty(&tcp->buf_que))
@@ -336,13 +332,15 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
         mbuf_pullhdr(m, tcphdr_t);
         size_t cpy = MIN(rem, m->len);
         memcpy(data, m->head, cpy);
-        m->len -= cpy;
-        m->head += cpy;
-        if (!m->len)
+        if (m->len == cpy)
         {
             list_remove(ptr);
             mbuf_free(m);
+            break;
         }
+        m->len -= cpy;
+        m->phy += cpy;
+        m->head += cpy;
         DEBUGK(K_NET, "tcp rcvd seqnr=%u siz=%u psh=%d\n", m->id, cpy, m->flgs & MF_PSH);
 
         rem -= cpy;
@@ -352,8 +350,6 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
             break;
         }
     }
-
-    UNINTR_AREA_END();
 
     return len - rem;
 }
