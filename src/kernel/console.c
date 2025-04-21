@@ -133,14 +133,23 @@ static void xputc(char c, u32 x, u32 y)
 // 将光标移动到当前行的开头
 static void cr()
 {
+    con.oldxy[0] = con.cur_x;
+    con.oldxy[1] = con.cur_y;
     con.cur_x = 0;
-    clrln(con.cur_y);
 }
 
 // 回车
 static void lf()
 {
-    con.cur_x = 0;
+    if (con.oldch == '\r')
+    {
+        con.cur_x = con.oldxy[0];
+        con.cur_y = con.oldxy[1];
+    }
+    else
+    {
+        con.cur_x = 0;
+    }
     if (++con.cur_y >= con.col)
         full();
 }
@@ -579,7 +588,7 @@ static void cputc(char c)
 {
     switch (con.state)
     {
-    case STATE_NOR: COMMIT(nor(c));
+    case STATE_NOR: COMMIT(nor(c) ; con.oldch = c);
     case STATE_ESC: COMMIT(esc(c));
     case STATE_CSI:
         if (csi(c)) COMMIT();
@@ -646,6 +655,8 @@ void console_init()
     con.hidden = false; // 显示字符
     con.underl = false; // 关下划线
     con.strike = false; // 关删除线
+
+    con.oldch = 0;
 
     con.argc = ARG_RESET;
     con.state = STATE_NOR;

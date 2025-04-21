@@ -36,6 +36,9 @@ struct con
     bool underl;
     bool strike;
 
+    bool oldch;
+    u16 oldxy[2];
+
     int argc;
     int argv[ARG_MAX];
     int state;
