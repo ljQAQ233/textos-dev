@@ -76,11 +76,6 @@ struct socket
     int proto;
     void *pri;
 
-    // queue
-    int rx_waiter;
-    list_t rx_queue;
-    lock_t lock;
-
     // special
     int socktype;
     sockop_t *op;

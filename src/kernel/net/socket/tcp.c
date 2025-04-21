@@ -114,6 +114,8 @@ static int tcp_socket(socket_t *s)
     t->sock = s;
     t->lport = 0;
     t->rport = 0;
+    memset(t->laddr, 0, sizeof(ipv4_t));
+    memset(t->raddr, 0, sizeof(ipv4_t));
     t->mss = DEFMSS;
     t->nagle = true;
     t->state = CLOSED;
@@ -129,7 +131,7 @@ static int tcp_socket(socket_t *s)
     list_init(&t->buf_que);
     ktimer_init(&t->tmr_ack);
 
-    list_insert(&list_common, &s->intype);
+    list_push(&list_common, &s->intype);
 
     return 0;
 }

@@ -15,21 +15,21 @@
 typedef struct
 {
     bool hdrincl;
-    /*
-     * in this case we only use a network interface (nif0) to
-     * communicate, when there're more cards, laddr is useful.
-     */
     ipv4_t laddr;
     ipv4_t raddr;
+    
+    int rx_waiter;
+    list_t rx_que;
 } raw_t;
+
+#define RAW(x) ((raw_t *)x)
 
 static list_t intype = LIST_INIT(intype);
 
 // if it doesn't have a iphdr, kernel will build one
 static bool hdrincl(socket_t *s)
 {
-    raw_t *r = s->pri;
-    return r->hdrincl
+    return RAW(s->pri)->hdrincl
         || s->proto == IPPROTO_RAW;
 }
 
@@ -43,6 +43,8 @@ static int raw_socket(socket_t *s)
     r->hdrincl = false; // iphdr not provided by user
     memset(r->laddr, 0, sizeof(r->laddr));
     memset(r->raddr, 0, sizeof(r->raddr));
+    r->rx_waiter = -1;
+    list_init(&r->rx_que);
 
     list_push(&intype, &s->intype);
     return 0;
@@ -53,11 +55,11 @@ static int raw_bind(socket_t *s, sockaddr_t *addr, size_t len)
     if (!addr)
         return -EDESTADDRREQ;
 
-    raw_t *r = s->pri;
+    raw_t *r = RAW(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
 
     if (ip_addr_isany(in->addr))
-        ip_addr_copy(r->laddr, nif0->ip);
+        ip_addr_copy(r->laddr, s->nif->ip);
     else
         ip_addr_copy(r->laddr, in->addr);
 
@@ -67,7 +69,7 @@ static int raw_bind(socket_t *s, sockaddr_t *addr, size_t len)
 
 static int raw_connect(socket_t *s, sockaddr_t *addr, size_t len)
 {
-    raw_t *r = s->pri;
+    raw_t *r = RAW(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
     ip_addr_copy(r->raddr, in->addr);
     return 0;
@@ -75,7 +77,7 @@ static int raw_connect(socket_t *s, sockaddr_t *addr, size_t len)
 
 static int raw_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
 {
-    raw_t *r = s->pri;
+    raw_t *r = RAW(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
     ip_addr_copy(in->addr, r->laddr);
     in->family = AF_INET;
@@ -85,7 +87,7 @@ static int raw_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
 
 static int raw_getpeername(socket_t *s, sockaddr_t *addr, size_t len)
 {
-    raw_t *r = s->pri;
+    raw_t *r = RAW(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
     ip_addr_copy(in->addr, r->raddr);
     in->family = AF_INET;
@@ -110,7 +112,7 @@ static ssize_t raw_sendmsg(socket_t *s, msghdr_t *msg, int flags)
     }
     else
     {
-        net_tx_ip(nif0, m, in->addr, s->proto);
+        net_tx_ip(s->nif, m, in->addr, s->proto);
     }
     return len;
 }
@@ -130,21 +132,22 @@ static void block_as(int *as)
 // TODO: timeout
 static ssize_t raw_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 {
+    raw_t *raw = RAW(s->pri);
     list_t *ptr;
 
     UNINTR_AREA({
         // wait for input
-        if (list_empty(&s->rx_queue))
+        if (list_empty(&raw->rx_que))
         {
-            block_as(&s->rx_waiter);
+            block_as(&raw->rx_waiter);
         }
-        ptr = list_pop(&s->rx_queue);
+        ptr = list_pop(&raw->rx_que);
     });
 
     mbuf_t *m = CR(ptr, mbuf_t, list);
     int len = MIN(msg->iov[0].len, m->len);
     memcpy(msg->iov[0].base, m->head, len);
-
+    mbuf_free(m);
     return len;
 }
 
@@ -164,7 +167,7 @@ int sock_rx_raw(iphdr_t *ip, mbuf_t *m)
                 continue;
         }
 
-        raw_t *r = s->pri;
+        raw_t *r = RAW(s->pri);
         if (!ip_addr_isany(r->raddr) && !ip_addr_cmp(r->raddr, ip->sip))
             continue;
         if (!ip_addr_isany(r->laddr) && !ip_addr_cmp(r->laddr, ip->dip))
@@ -172,11 +175,11 @@ int sock_rx_raw(iphdr_t *ip, mbuf_t *m)
         
         mbuf_pushhdr(m, iphdr_t);
 
-        list_push(&s->rx_queue, &m->list);
-        if (s->rx_waiter >= 0)
+        list_push(&r->rx_que, &m->list);
+        if (r->rx_waiter >= 0)
         {
-            task_unblock(s->rx_waiter);
-            s->rx_waiter = -1;
+            task_unblock(r->rx_waiter);
+            r->rx_waiter = -1;
         }
 
         ret = 1;
@@ -188,13 +191,15 @@ int sock_rx_raw(iphdr_t *ip, mbuf_t *m)
 }
 
 static sockop_t op = {
-    .socket = raw_socket,
-    .bind = raw_bind,
-    .connect = raw_connect,
-    .getsockname = raw_getsockname,
-    .getpeername = raw_getpeername,
-    .sendmsg = raw_sendmsg,
-    .recvmsg = raw_recvmsg,
+    raw_socket,
+    raw_bind,
+    noopt,
+    noopt,
+    raw_connect,
+    raw_getsockname,
+    raw_getpeername,
+    raw_sendmsg,
+    raw_recvmsg,
 };
 
 void sock_raw_init()

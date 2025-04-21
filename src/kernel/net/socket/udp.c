@@ -27,6 +27,9 @@ typedef struct
 
     u16 lport; // local
     u16 rport; // remote
+
+    list_t rx_que;
+    int rx_waiter;
 } udp_t;
 
 #define UDP(x) ((udp_t *)x)
@@ -53,6 +56,8 @@ static int udp_socket(socket_t *s)
     u->rport = 0;
     memset(u->laddr, 0, sizeof(ipv4_t));
     memset(u->raddr, 0, sizeof(ipv4_t));
+    u->rx_waiter = -1;
+    list_init(&u->rx_que);
 
     list_push(&intype, &s->intype);
     return 0;
@@ -179,11 +184,11 @@ static ssize_t udp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
     list_t *ptr;
     UNINTR_AREA({
         // wait for input
-        if (list_empty(&s->rx_queue))
+        if (list_empty(&u->rx_que))
         {
-            block_as(&s->rx_waiter);
+            block_as(&u->rx_waiter);
         }
-        ptr = list_pop(&s->rx_queue);
+        ptr = list_pop(&u->rx_que);
     });
 
     mbuf_t *m = CR(ptr, mbuf_t, list);
@@ -232,11 +237,11 @@ int sock_rx_udp(iphdr_t *ip, mbuf_t *m)
         mbuf_pushhdr(m, udphdr_t);
         mbuf_pushhdr(m, iphdr_t);
 
-        list_push(&s->rx_queue, &m->list);
-        if (s->rx_waiter >= 0)
+        list_push(&u->rx_que, &m->list);
+        if (u->rx_waiter >= 0)
         {
-            task_unblock(s->rx_waiter);
-            s->rx_waiter = -1;
+            task_unblock(u->rx_waiter);
+            u->rx_waiter = -1;
         }
 
         ret = 1;
@@ -247,13 +252,15 @@ int sock_rx_udp(iphdr_t *ip, mbuf_t *m)
 }
 
 static sockop_t op = {
-    .socket = udp_socket,
-    .bind = udp_bind,
-    .connect = udp_connect,
-    .getsockname = udp_getsockname,
-    .getpeername = udp_getpeername,
-    .sendmsg = udp_sendmsg,
-    .recvmsg = udp_recvmsg,
+    udp_socket,
+    udp_bind,
+    noopt,
+    noopt,
+    udp_connect,
+    udp_getsockname,
+    udp_getpeername,
+    udp_sendmsg,
+    udp_recvmsg,
 };
 
 void sock_udp_init()

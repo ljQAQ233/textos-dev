@@ -74,10 +74,6 @@ int socket(int domain, int type, int proto)
     socket->domain = domain;
     socket->type = type;
     socket->proto = proto;
-
-    socket->rx_waiter = -1;
-    list_init(&socket->rx_queue);
-    lock_init(&socket->lock);
     
     socket->socktype = socktype;
     socket->op = sockop_get(socktype);
