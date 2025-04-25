@@ -45,6 +45,7 @@ void net_tx_tcp(
     hdr->dport = htons(dport);
     hdr->seqnr = htonl(seqnr);
     hdr->acknr = htonl(acknr);
+    hdr->rev0 = 0;
     hdr->offset = 5;
     hdr->flgs = flgs;
     hdr->window = htons(window);
