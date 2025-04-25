@@ -26,6 +26,10 @@ enum state
     ESTABLISHED,
     CLOSE_WAIT,
     LAST_ACK,
+    FIN_WAIT1,
+    FIN_WAIT2,
+    CLOSING,
+    TIME_WAIT,
 };
 
 static list_t list_common = LIST_INIT(list_common);
@@ -45,6 +49,7 @@ typedef struct
     bool nagle;  // nagle enabled
     
     int state;
+    int shutdown;
     int errno;
     bool passive;// listen mode
     void *ptcp;  // parent
@@ -61,6 +66,7 @@ typedef struct
     list_t una_que;
     list_t buf_que;
     ktimer_t tmr_ack;
+    ktimer_t tmr_wait;
 
     u32 rcv_nxt;
     u32 rcv_irs;
@@ -70,6 +76,9 @@ typedef struct
 
     /* TODO : replace nif0 */
 } tcp_t;
+
+#define TCP_SHUT_RD 1
+#define TCP_SHUT_WR 2
 
 #define TCP(x) ((tcp_t *)x)
 
@@ -97,12 +106,15 @@ static void ck_lport(tcp_t *t)
     t->lport = port;
 }
 
+static void tcp_release(tcp_t *tcp);
 static void tcp_do_xmit(tcp_t *tcp);
 static void tcp_tx_setup(tcp_t *tcp);
 static void tcp_tx_seg(tcp_t *tcp, mbuf_t *m);
+static void tcp_tx_fin(tcp_t *tcp);
 static void tcp_tx_ack(tcp_t *tcp);
 static void tcp_tx_dly(tcp_t *tcp);
 static void tcp_rm_dly(tcp_t *tcp);
+static void tcp_go_dly(tcp_t *tcp);
 
 static int tcp_socket(socket_t *s)
 {
@@ -119,6 +131,7 @@ static int tcp_socket(socket_t *s)
     t->mss = DEFMSS;
     t->nagle = true;
     t->state = CLOSED;
+    t->shutdown = 0;
     t->errno = 0;
     t->passive = false;
     t->ptcp = NULL;
@@ -130,6 +143,7 @@ static int tcp_socket(socket_t *s)
     list_init(&t->una_que);
     list_init(&t->buf_que);
     ktimer_init(&t->tmr_ack);
+    ktimer_init(&t->tmr_wait);
 
     list_push(&list_common, &s->intype);
 
@@ -248,6 +262,36 @@ static int tcp_connect(socket_t *s, sockaddr_t *addr, size_t len)
     return t->errno;
 }
 
+void callback_shutwr(tcp_t *tcp);
+
+/*
+ * send FIN when how == SHUT_WR, writing is not allowed
+ * mark flag when how == SHUT_RD, reading is not allowed
+ */
+static int tcp_shutdown(socket_t *s, int how)
+{
+    tcp_t *t = TCP(s->pri);
+
+    switch (how)
+    {
+    case SHUT_RD:
+        t->shutdown |= TCP_SHUT_RD;
+        break;
+    case SHUT_WR:
+        t->shutdown |= TCP_SHUT_WR;
+        break;
+    case SHUT_RDWR:
+        tcp_shutdown(s, SHUT_RD);
+        tcp_shutdown(s, SHUT_WR);
+        break;
+    
+    default:
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static int tcp_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
 {
 
@@ -279,7 +323,7 @@ static void tcp_makeseg(tcp_t *tcp, void *data, size_t len)
         if (!m || m->dlen >= seglen)
         {
             m = mbuf_alloc(MBUF_DEFROOM);
-            list_insert(&tcp->snd_que, &m->list);
+            list_push(&tcp->snd_que, &m->list);
         }
         
         size_t cpy;
@@ -391,6 +435,7 @@ static void tcp_tx_agree(tcp_t *tcp)
         tcp->raddr, tcp->lport, tcp->rport,
         iss, tcp->rcv_nxt,
         TCP_F_SYN | TCP_F_ACK, TCP_WINDOW, 0);
+    DEBUGK(K_SYNC, "agreed - client on port %d\n", tcp->rport);
 }
 
 int tcp_tx_reset(tcpseg_t *seg)
@@ -443,13 +488,28 @@ static void tcp_do_xmit(tcp_t *tcp)
     {
         list_t *ptr = list_pop(&tcp->snd_que);
         mbuf_t *m = LIST_MF(ptr);
-        m->id = tcp->snd_nxt;
         tcp_tx_seg(tcp, m);
-        tcp->snd_nxt += m->dlen;
-        list_insert_after(&tcp->una_que, ptr);
+        list_push(&tcp->una_que, ptr);
 
-        if (tcp->nagle)
-            return ;
+        if (tcp->nagle && m->dlen)
+            break;
+    }
+    
+    if ((tcp->shutdown & TCP_SHUT_WR) && list_empty(&tcp->snd_que) && list_empty(&tcp->una_que))
+    {
+        switch (tcp->state)
+        {
+        case ESTABLISHED:
+            tcp->state = FIN_WAIT1;
+            break;
+        case CLOSE_WAIT:
+            tcp->state = LAST_ACK;
+            break;
+        case LAST_ACK:
+            break;
+        }
+        tcp_rm_dly(tcp);
+        tcp_tx_fin(tcp);
     }
 }
 
@@ -493,10 +553,12 @@ void tcp_x_ack(tcp_t *tcp, tcpseg_t *seg)
 
 static void tcp_tx_seg(tcp_t *tcp, mbuf_t *m)
 {
+    m->id = tcp->snd_nxt;
     net_tx_tcp(nif0, m,
         tcp->raddr, tcp->lport, tcp->rport,
         tcp->snd_nxt, tcp->rcv_nxt,
         TCP_F_ACK, TCP_WINDOW, 0);
+    tcp->snd_nxt += m->dlen;
 }
 
 static void tcp_tx_fin(tcp_t *tcp)
@@ -506,7 +568,7 @@ static void tcp_tx_fin(tcp_t *tcp)
         tcp->raddr, tcp->lport, tcp->rport,
         tcp->snd_nxt, tcp->rcv_nxt,
         TCP_F_ACK | TCP_F_FIN, TCP_WINDOW, 0);
-    // mbuf_free(m);
+    tcp->snd_nxt += 1;
 }
 
 static void tcp_tx_ack(tcp_t *tcp)
@@ -661,7 +723,11 @@ int tcp_rx_rcvd(tcp_t *tcp, tcpseg_t *seg)
     return 0;
 }
 
-// TODO : sort
+/*
+ * TODO : sort segs
+ * 
+ * handle data and send ack
+ */
 int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
 {
     if (tcp->rcv_nxt < seg->seqnr)
@@ -674,15 +740,18 @@ int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
     {
         return 1;
     }
-    tcp->rcv_nxt += seg->seqlen;
+
+    if (!seg->seqlen)
+        return 0;
     tcp_tx_dly(tcp);
+    tcp->rcv_nxt += seg->seqlen;
 
     if (!seg->buf->len)
         return 0;
-    
+
     mbuf_pushhdr(seg->buf, tcphdr_t);
     mbuf_pushhdr(seg->buf, iphdr_t);
-    list_insert_before(&tcp->buf_que, &seg->buf->list);
+    list_push(&tcp->buf_que, &seg->buf->list);
     if (seg->hdr->psh)
         seg->buf->flgs = MF_PSH;
     TRY_UNBLK(tcp->rx_waiter);
@@ -725,6 +794,7 @@ int tcp_rx_listen(tcp_t *tcp, tcpseg_t *seg)
         conn->passive = true;
         conn->ptcp = tcp;
         conn->state = LISTEN;
+        conn->shutdown = 0;
         conn->errno = 0;
         list_init(&conn->snd_que);
         list_init(&conn->una_que);
@@ -767,37 +837,193 @@ int tcp_rx_established(tcp_t *tcp, tcpseg_t *seg)
     if (hdr->fin)
     {
         tcp->state = CLOSE_WAIT;
-        tcp_go_dly(tcp);
-        tcp_tx_fin(tcp);
-        tcp->state = LAST_ACK;
     }
 
     return 0;
 }
 
+int tcp_rx_closewait(tcp_t *tcp, tcpseg_t *seg)
+{
+    tcphdr_t *hdr = seg->hdr;
+    if (hdr->rst)
+    {
+        tcp_exit_with(tcp, -ECONNRESET);
+    }
+
+    if (hdr->syn)
+    {
+        tcp_tx_ack(tcp);
+        return 0;
+    }
+
+    if (hdr->ack)
+    {
+        tcp_x_ack(tcp, seg);
+    }
+
+    ASSERTK(hdr->urg == false);
+
+    // a data delivery cannot occur
+    // a FIN may be a rexmission, remain in CLOSE_WAIT
+}
+
 // 简化版
 int tcp_rx_lastack(tcp_t *tcp, tcpseg_t *seg)
 {
-    tcp->state = CLOSED;
+    tcphdr_t *hdr = seg->hdr;
+    if (hdr->rst)
+    {
+        tcp->state = CLOSED;
+        tcp_release(tcp);
+    }
+
+    if (hdr->syn)
+    {
+        tcp_tx_ack(tcp);
+        return 0;
+    }
+
+    if (hdr->ack)
+    {
+        tcp->state = CLOSED;
+    }
+
+    ASSERTK(!hdr->urg);
 }
 
-int tcp_rx_fin1(tcp_t *tcp, tcpseg_t *seg)
+void tcp_tmr_timewait(void *arg)
 {
+    tcp_release(arg);
 }
 
-int tcp_rx_fin2(tcp_t *tcp, tcpseg_t *seg)
-{
+#define TCP_MSL 120
 
+int tcp_do_timewait(tcp_t *tcp)
+{
+    u64 ms = TCP_MSL * 1000;
+    ktimer(&tcp->tmr_wait, tcp_tmr_timewait, tcp, ms);
+}
+
+int tcp_rx_finwait(tcp_t *tcp, tcpseg_t *seg)
+{
+    /*
+     * in this case, step 1,2,[3],4,[6],7 keep the same with ESTABLISHED handler,
+     * step 5 (ACK), we should do handling according to the state of FIN-WAIT
+     */
+    tcphdr_t *hdr = seg->hdr;
+    if (hdr->rst)
+    {
+        return tcp_exit_with(tcp, -ECONNREFUSED);
+    }
+
+    if (hdr->syn)
+    {
+        // issue a challenge ACK & drop
+        tcp_tx_ack(tcp);
+        return 0;
+    }
+
+    if (hdr->ack)
+    {
+        if (hdr->acknr == tcp->snd_nxt)
+        {
+            switch (tcp->state)
+            {
+            case FIN_WAIT1:
+                tcp->state = FIN_WAIT2;
+                break;
+            case FIN_WAIT2:
+                // ack user's close
+                break;
+            }
+        }
+    }
+
+    ASSERTK(!hdr->urg);
+    tcp_rx_data(tcp, seg);
+
+    if (hdr->fin)
+    {
+        switch (tcp->state)
+        {
+        case FIN_WAIT1:
+            tcp->state = CLOSING;
+            break;
+        case FIN_WAIT2:
+            tcp->state = TIME_WAIT;
+        }
+    }
+}
+
+static void tcp_release(tcp_t *tcp)
+{
+    list_remove(&tcp->sock->intype);
+    bitmap_reset(&bmp, tcp->lport);
 }
 
 int tcp_rx_closing(tcp_t *tcp, tcpseg_t *seg)
 {
+    tcphdr_t *hdr = seg->hdr;
+    if (hdr->rst)
+    {
+        tcp->state = CLOSED;
+        tcp_release(tcp);
+    }
 
+    if (hdr->syn)
+    {
+        // issue a challenge ACK & drop
+        tcp_tx_ack(tcp);
+        return 0;
+    }
+
+    if (hdr->ack)
+    {
+        tcp->state = TIME_WAIT;
+        tcp_do_timewait(tcp);
+    }
+
+    ASSERTK(!hdr->urg);
+
+    // processing data
+    // This should not occur since a FIN has been received
+    // from the remote side. Ignore the segment text
+
+    if (hdr->fin)
+    {
+        // remain in CLOSE_WAIT
+    }
 }
 
 int tcp_rx_timewait(tcp_t *tcp, tcpseg_t *seg)
 {
+    tcphdr_t *hdr = seg->hdr;
+    if (hdr->rst)
+    {
+        tcp->state = CLOSED;
+        tcp_release(tcp);
+    }
 
+    if (hdr->syn)
+    {
+        tcp_tx_ack(tcp);
+        return 0;
+    }
+
+    if (hdr->ack)
+    {
+        // is a retransmission of FIN, restart timer
+        tcp_tx_ack(tcp);
+        tcp_do_timewait(tcp);
+    }
+
+    ASSERTK(!hdr->urg);
+
+    if (hdr->fin)
+    {
+        // restart timer
+        tcp_do_timewait(tcp);
+    }
 }
 
 static tcp_t *find_tcb(iphdr_t *ip, tcphdr_t *hdr)
@@ -882,8 +1108,25 @@ int sock_rx_tcp(iphdr_t *ip, mbuf_t *m)
             tcp_rx_established(t, &seg);
             break;
 
+        case CLOSE_WAIT:
+            tcp_rx_closewait(t, &seg);
+            break;
+
         case LAST_ACK:
             tcp_rx_lastack(t, &seg);
+            break;
+
+        case FIN_WAIT1:
+        case FIN_WAIT2:
+            tcp_rx_finwait(t, &seg);
+            break;
+
+        case CLOSING:
+            tcp_rx_closing(t, &seg);
+            break;
+        
+        case TIME_WAIT:
+            tcp_rx_timewait(t, &seg);
             break;
 
         default:
@@ -903,6 +1146,7 @@ static sockop_t op = {
     tcp_listen,
     tcp_accept,
     tcp_connect,
+    tcp_shutdown,
     tcp_getsockname,
     tcp_getpeername,
     tcp_sendmsg,

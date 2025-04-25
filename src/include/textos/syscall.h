@@ -19,6 +19,7 @@
     _(recvfrom, 45),     \
     _(sendmsg, 46),      \
     _(recvmsg, 47),      \
+    _(shutdown, 48),     \
     _(bind, 49),         \
     _(listen, 50),       \
     _(getsockname, 51),  \

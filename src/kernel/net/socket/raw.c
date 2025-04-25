@@ -196,6 +196,7 @@ static sockop_t op = {
     noopt,
     noopt,
     raw_connect,
+    noopt,
     raw_getsockname,
     raw_getpeername,
     raw_sendmsg,

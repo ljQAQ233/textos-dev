@@ -106,6 +106,12 @@ int connect(int fd, sockaddr_t *addr, size_t len)
     return s->op->connect(s, addr, len);
 }
 
+int shutdown(int fd, int how)
+{
+    socket_t *s = socket_get(fd);
+    return s->op->shutdown(s, how);
+}
+
 int getsockname(int fd, sockaddr_t *addr, size_t len)
 {
     socket_t *s = socket_get(fd);

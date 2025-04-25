@@ -18,8 +18,8 @@ static int socket_ioctl(node_t *this, int req, void *argp)
 
 static int socket_close(node_t *this)
 {
-    // TODO
-    return 0;
+    socket_t *s = this->pdata;
+    return s->op->shutdown(s, SHUT_RDWR);
 }
 
 // XXX: recvmsg need a pointer to address_len

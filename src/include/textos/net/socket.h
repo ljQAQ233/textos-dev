@@ -62,6 +62,7 @@ typedef struct
     int (*listen)(socket_t *s, int backlog);
     int (*accept)(socket_t *s, sockaddr_t *addr, size_t *len);
     int (*connect)(socket_t *s, sockaddr_t *addr, size_t len);
+    int (*shutdown)(socket_t *s, int how);
     int (*getsockname)(socket_t *s, sockaddr_t *addr, size_t len);
     int (*getpeername)(socket_t *s, sockaddr_t *addr, size_t len);
     ssize_t (*sendmsg)(socket_t *s, msghdr_t *msg, int flags);
@@ -75,6 +76,8 @@ struct socket
     int type;
     int proto;
     void *pri;
+
+    int shutdown;
 
     // special
     int socktype;
@@ -91,6 +94,12 @@ int bind(int fd, sockaddr_t *addr, size_t len);
 int connect(int fd, sockaddr_t *addr, size_t len);
 int listen(int fd, int backlog);
 int accept(int fd, sockaddr_t *addr, size_t *len);
+
+#define SHUT_RD 0
+#define SHUT_WR 1
+#define SHUT_RDWR 2
+
+int shutdown(int fd, int how);
 
 int getsockname(int fd, sockaddr_t *addr, size_t len);
 int getpeername(int fd, sockaddr_t *addr, size_t len);

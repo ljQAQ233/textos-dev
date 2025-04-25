@@ -257,6 +257,7 @@ static sockop_t op = {
     noopt,
     noopt,
     udp_connect,
+    noopt,
     udp_getsockname,
     udp_getpeername,
     udp_sendmsg,

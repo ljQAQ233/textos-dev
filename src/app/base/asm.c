@@ -177,6 +177,11 @@ int connect(int fd, sockaddr_t *addr, size_t len)
     return syscall(SYS_connect, fd, addr, len);
 }
 
+int shutdown(int fd, int how)
+{
+    return syscall(SYS_shutdown, fd, how);
+}
+
 int getsockname(int fd, sockaddr_t *addr, size_t len)
 {
     return syscall(SYS_getsockname, fd, addr, len);

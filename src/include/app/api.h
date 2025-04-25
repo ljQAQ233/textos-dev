@@ -148,6 +148,12 @@ int listen(int fd, int backlog);
 int accept(int fd, sockaddr_t *addr, size_t *len);
 int connect(int fd, sockaddr_t *addr, size_t len);
 
+#define SHUT_RD 0
+#define SHUT_WR 1
+#define SHUT_RDWR 2
+
+int shutdown(int fd, int how);
+
 int getsockname(int fd, sockaddr_t *addr, size_t len);
 int getpeername(int fd, sockaddr_t *addr, size_t len);
 
