@@ -21,6 +21,9 @@ mbuf_t *mbuf_alloc(int headroom)
         m = (mbuf_t *)vp;
         m->phy = pp;
         m->len = 0;
+        m->dlen = 0;
+        m->id = 0;
+        m->flgs = 0;
         m->next = NULL;
         m->head = m->buf;
     }
@@ -47,6 +50,9 @@ void mbuf_free(mbuf_t *m)
         i->head -= off;
         i->phy -= off;
         i->len = 0;
+        i->dlen = 0;
+        i->id = 0;
+        i->flgs = 0;
         list_insert(&l_free, &i->list);
         i = nxt;
     }
