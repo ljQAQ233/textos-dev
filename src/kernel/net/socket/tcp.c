@@ -35,7 +35,6 @@ enum state
 static list_t list_common = LIST_INIT(list_common);
 static list_t list_listen = LIST_INIT(list_listen);
 
-#define MF_PSH (1 << 0) // PSH set, inform upper-layer immediately
 #define LIST_MF(x) (CR(x, mbuf_t, list))
 
 typedef struct
@@ -372,8 +371,8 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
         
         list_t *ptr = tcp->buf_que.next;
         mbuf_t *m = LIST_MF(ptr);
-        mbuf_pullhdr(m, iphdr_t);
-        mbuf_pullhdr(m, tcphdr_t);
+        iphdr_t *iph = mbuf_pullhdr(m, iphdr_t);
+        tcphdr_t *hdr = mbuf_pullhdr(m, tcphdr_t);
         size_t cpy = MIN(rem, m->len);
         memcpy(data, m->head, cpy);
         if (m->len == cpy)
@@ -385,11 +384,11 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
         m->len -= cpy;
         m->phy += cpy;
         m->head += cpy;
-        DEBUGK(K_NET, "tcp rcvd seqnr=%u siz=%u psh=%d\n", m->id, cpy, m->flgs & MF_PSH);
+        DEBUGK(K_NET, "tcp rcvd seqnr=%u siz=%u psh=%d\n", m->id, cpy, hdr->flgs & TCP_F_PSH);
 
         rem -= cpy;
         data += cpy;
-        if (m->flgs & MF_PSH)
+        if (hdr->flgs & TCP_F_PSH)
         {
             break;
         }
@@ -752,8 +751,6 @@ int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
     mbuf_pushhdr(seg->buf, tcphdr_t);
     mbuf_pushhdr(seg->buf, iphdr_t);
     list_push(&tcp->buf_que, &seg->buf->list);
-    if (seg->hdr->psh)
-        seg->buf->flgs = MF_PSH;
     TRY_UNBLK(tcp->rx_waiter);
     return 0;
 }
