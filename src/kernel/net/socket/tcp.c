@@ -54,6 +54,8 @@ typedef struct
     void *ptcp;  // parent
     list_t pchd; // children
     list_t acpt; // wait for `accept`
+    int backlog;
+    int backcnt;
 
     u32 snd_iss;
     u32 snd_una; // smallest seqnr not yet acknowledged by the receiver
@@ -134,6 +136,8 @@ static int tcp_socket(socket_t *s)
     t->errno = 0;
     t->passive = false;
     t->ptcp = NULL;
+    t->backlog = 0;
+    t->backcnt = 0;
     t->rx_waiter = -1;
     t->syn_waiter = -1;
     list_init(&t->pchd);
@@ -192,6 +196,7 @@ static int tcp_listen(socket_t *s, int backlog)
 {
     tcp_t *t = TCP(s->pri);
     t->state = LISTEN;
+    t->backlog = backlog;
     list_remove(&t->sock->intype);
     list_insert(&list_listen, &t->sock->intype);
     return 0;
@@ -204,7 +209,6 @@ static int tcp_accept(socket_t *s, sockaddr_t *addr, size_t *len)
 {
     tcp_t *t = TCP(s->pri);
     tcp_t *conn;
-
     list_t *ptr;
     UNINTR_AREA_START();
         for (;;)
@@ -241,8 +245,11 @@ static int tcp_accept(socket_t *s, sockaddr_t *addr, size_t *len)
     int fd = socket_makefd(conn->sock);
     if (fd < 0)
     {
-        free(t);
-        free(conn->sock);
+        list_pushback(&t->acpt, &conn->acpt);
+    }
+    else
+    {
+        t->backcnt--;
     }
     return fd;
 }
@@ -439,7 +446,7 @@ static void tcp_tx_agree(tcp_t *tcp)
         tcp->raddr, tcp->lport, tcp->rport,
         iss, tcp->rcv_nxt,
         TCP_F_SYN | TCP_F_ACK, TCP_WINDOW, 0);
-    DEBUGK(K_SYNC, "agreed - client on port %d\n", tcp->rport);
+    DEBUGK(K_NET, "agreed - client on port %d\n", tcp->rport);
 }
 
 int tcp_tx_reset(tcpseg_t *seg)
@@ -710,13 +717,11 @@ int tcp_rx_rcvd(tcp_t *tcp, tcpseg_t *seg)
         if (TCP_SEQ_LT(tcp->snd_una, hdr->acknr)
             && TCP_SEQ_LE(hdr->acknr, tcp->snd_nxt)) {
             tcp->state = ESTABLISHED; 
-            if (tcp->ptcp)
-            {
-                list_insert(&TCP(tcp->ptcp)->acpt, &tcp->acpt);
-                TRY_UNBLK(TCP(tcp->ptcp)->syn_waiter);
-            }
-            else
-            {
+            if (tcp->ptcp) {
+                tcp_t *prt = TCP(tcp->ptcp);
+                list_insert(&prt->acpt, &tcp->acpt);
+                TRY_UNBLK(prt->syn_waiter);
+            } else {
                 TRY_UNBLK(tcp->syn_waiter);
             }
         } else {
@@ -775,7 +780,14 @@ int tcp_rx_listen(tcp_t *tcp, tcpseg_t *seg)
 
     if (hdr->syn)
     {
-        // TODO: backlog / backcnt
+        if (tcp->backcnt + 1 == tcp->backlog)
+        {
+            tcp->backcnt++;
+        }
+        else
+        {
+            tcp_tx_reset(seg);
+        }
         socket_t *sock = malloc(sizeof(socket_t));
         sock->domain = tcp->sock->domain;
         sock->type = tcp->sock->type;
