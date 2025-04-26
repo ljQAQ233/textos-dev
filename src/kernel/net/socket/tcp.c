@@ -207,12 +207,16 @@ static int tcp_accept(socket_t *s, sockaddr_t *addr, size_t *len)
 
     list_t *ptr;
     UNINTR_AREA({
-        if (list_empty(&t->acpt))
+        while (list_empty(&t->acpt))
+        {
             block_as(&t->syn_waiter);
-        ptr = list_pop(&t->acpt);
+            ptr = list_pop(&t->acpt);
+            conn = CR(ptr, tcp_t, acpt);
+            if (conn->state == ESTABLISHED)
+                break;
+        }
     });
 
-    conn = CR(ptr, tcp_t, acpt);
     ASSERTK(conn->state == ESTABLISHED);
 
     // truncate
@@ -359,8 +363,9 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
     size_t len = msg->iov[0].len;
     size_t mss = tcp->mss;
     ssize_t rem = len;
+    bool wind = false;
 
-    while (len > 0)
+    while (len > 0 && !wind)
     {
         if (list_empty(&tcp->buf_que))
         {
@@ -373,25 +378,22 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
         mbuf_t *m = LIST_MF(ptr);
         iphdr_t *iph = mbuf_pullhdr(m, iphdr_t);
         tcphdr_t *hdr = mbuf_pullhdr(m, tcphdr_t);
+        if (hdr->flgs & TCP_F_PSH)
+            wind = true;
         size_t cpy = MIN(rem, m->len);
         memcpy(data, m->head, cpy);
-        if (m->len == cpy)
-        {
-            list_remove(ptr);
-            mbuf_free(m);
-            break;
-        }
         m->len -= cpy;
         m->phy += cpy;
         m->head += cpy;
-        DEBUGK(K_NET, "tcp rcvd seqnr=%u siz=%u psh=%d\n", m->id, cpy, hdr->flgs & TCP_F_PSH);
+        DEBUGK(K_NET, "tcp rcvd seqnr=%u cpysz=%u psh=%d\n", m->id, cpy, hdr->flgs & TCP_F_PSH);
+        if (!m->len)
+        {
+            list_remove(ptr);
+            mbuf_free(m);
+        }
 
         rem -= cpy;
         data += cpy;
-        if (hdr->flgs & TCP_F_PSH)
-        {
-            break;
-        }
     }
 
     return len - rem;
