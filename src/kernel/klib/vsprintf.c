@@ -114,7 +114,8 @@ parse_args:
         {
             case '%':
                 *out++ = '%';
-                break;
+                ptr++;
+                continue;
             case 'l':
             case 'L':
                 len = 1;
