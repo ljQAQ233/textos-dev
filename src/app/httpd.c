@@ -10,6 +10,68 @@
 #include <string.h>
 #include <malloc.h>
 
+/*
+ * __________ 100%
+ */
+
+struct pbar
+{
+    int cur;   // 当前数值
+    int total; // 完整进度代表数值
+    int rowsz; // 完整进度条占用字符
+    int nshow; // 显示进度 / bool
+};
+
+static void render(struct pbar *bar)
+{
+    printf("\r");
+    int prosz = bar->rowsz;
+    if (bar->nshow)
+        prosz -= 5;
+    int blk = 1.0 * bar->cur / (bar->total / prosz);
+    for (int i = 0 ; i < blk ; i++)
+        printf("\033[30;47m \033[0m");
+    for (int i = 0 ; i < prosz - blk ; i++)
+        printf(" ");
+    
+    if (bar->nshow)
+        printf(" %3d%%", (int)(100.0 * bar->cur / bar->total));
+    if (bar->cur == bar->total)
+        printf("\n");
+}
+
+#include <assert.h>
+
+void pbar_init(struct pbar *bar, int total, int rowsz, int nshow)
+{
+    assert(total != 0);
+    assert(rowsz != 0);
+    bar->cur = 0;
+    bar->total = total;
+    bar->rowsz = rowsz;
+    bar->nshow = nshow;
+    render(bar);
+}
+
+void pbar_jump(struct pbar *bar, int jmp)
+{
+    bar->cur = MIN(bar->total, jmp);
+    render(bar);
+}
+
+void pbar_step(struct pbar *bar, int step)
+{
+    bar->cur += step;
+    bar->cur = MIN(bar->total, bar->cur);
+    render(bar);
+}
+
+void pbar_clr(struct pbar *bar)
+{
+    bar->cur = 0;
+    render(bar);
+}
+
 static int num(char *s, int b)
 {
     int x = 0;
@@ -24,7 +86,7 @@ static int num(char *s, int b)
     return x;
 }
 
-char buf[4096];
+char buf[8192];
 
 #define MAX_PATH 128
 
@@ -56,7 +118,7 @@ char *errmsg[600] = {
 
 #define CRLF "\r\n"
 
-int tiny_rp(int err, char *type, int len, void *body)
+int tiny_hdr(int err, char *type, int len)
 {
     char hdr[256];
 
@@ -67,7 +129,19 @@ int tiny_rp(int err, char *type, int len, void *body)
     dprintf(cu, "Content-type: %s" CRLF, type);
     dprintf(cu, "Content-length: %d" CRLF, len);
     dprintf(cu, CRLF);
-    return write(cu, body, len) & 0;
+    return 0;
+}
+
+int tiny_out(int len, void *data)
+{
+    return write(cu, data, len);
+}
+
+int tiny_rp(int err, char *type, int len, void *body)
+{
+    if (tiny_hdr(err, type, len) < 0)
+        return -1;
+    return tiny_out(len, body) & 0;
 }
 
 char *tiny_ver = "tiny/1.0";
@@ -234,9 +308,12 @@ int slook(char *path, int *sz)
     return 0;
 }
 
+#define BLKSZ 4096
+
 int serve(struct request *r)
 {
     // static files
+    char buf[BLKSZ];
     char path[MAX_PATH];
     if (acces(path, r->path) < 0)
     {
@@ -260,10 +337,17 @@ int serve(struct request *r)
         return -1;
     }
 
-    void *buf = malloc(len);
     char *type = stype(path);
-    read(fd, buf, len);
-    tiny_rp(200, type, len, buf);
+    tiny_hdr(200, type, len);
+    struct pbar bar;
+    pbar_init(&bar, len, 25, 1);
+    while (len)
+    {
+        int sz = read(fd, buf, MIN(len, BLKSZ));
+        tiny_out(sz, buf);
+        pbar_step(&bar, sz);
+        len -= sz;
+    }
 
     close(fd);
     return 0;
@@ -312,8 +396,6 @@ int main(int argc, char *argv[])
     // realpath(argv[1], tiny.root);
     strcpy(tiny.root, argv[1]);
     int port = num(argv[2], 10);
-    printf("%d\n", port);
-
     return tiny_main(port);
 }
 
