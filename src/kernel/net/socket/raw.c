@@ -46,7 +46,7 @@ static int raw_socket(socket_t *s)
     r->rx_waiter = -1;
     list_init(&r->rx_que);
 
-    list_push(&intype, &s->intype);
+    list_pushback(&intype, &s->intype);
     return 0;
 }
 
@@ -141,7 +141,7 @@ static ssize_t raw_recvmsg(socket_t *s, msghdr_t *msg, int flags)
         {
             block_as(&raw->rx_waiter);
         }
-        ptr = list_pop(&raw->rx_que);
+        ptr = list_popback(&raw->rx_que);
     });
 
     mbuf_t *m = CR(ptr, mbuf_t, list);
@@ -175,7 +175,7 @@ int sock_rx_raw(iphdr_t *ip, mbuf_t *m)
         
         mbuf_pushhdr(m, iphdr_t);
 
-        list_push(&r->rx_que, &m->list);
+        list_pushback(&r->rx_que, &m->list);
         if (r->rx_waiter >= 0)
         {
             task_unblock(r->rx_waiter);

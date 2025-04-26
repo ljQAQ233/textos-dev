@@ -144,7 +144,7 @@ static int tcp_socket(socket_t *s)
     ktimer_init(&t->tmr_ack);
     ktimer_init(&t->tmr_wait);
 
-    list_push(&list_common, &s->intype);
+    list_pushback(&list_common, &s->intype);
 
     return 0;
 }
@@ -206,16 +206,19 @@ static int tcp_accept(socket_t *s, sockaddr_t *addr, size_t *len)
     tcp_t *conn;
 
     list_t *ptr;
-    UNINTR_AREA({
-        while (list_empty(&t->acpt))
+    UNINTR_AREA_START();
+        for (;;)
         {
-            block_as(&t->syn_waiter);
-            ptr = list_pop(&t->acpt);
+            if (list_empty(&t->acpt))
+            {
+                block_as(&t->syn_waiter);
+            }
+            ptr = list_popback(&t->acpt);
             conn = CR(ptr, tcp_t, acpt);
             if (conn->state == ESTABLISHED)
                 break;
         }
-    });
+    UNINTR_AREA_END();
 
     ASSERTK(conn->state == ESTABLISHED);
 
@@ -326,7 +329,7 @@ static void tcp_makeseg(tcp_t *tcp, void *data, size_t len)
         if (!m || m->dlen >= seglen)
         {
             m = mbuf_alloc(MBUF_DEFROOM);
-            list_push(&tcp->snd_que, &m->list);
+            list_pushback(&tcp->snd_que, &m->list);
         }
         
         size_t cpy;
@@ -487,10 +490,10 @@ static void tcp_do_xmit(tcp_t *tcp)
     tcp_rm_dly(tcp);
     while (!list_empty(&tcp->snd_que))
     {
-        list_t *ptr = list_pop(&tcp->snd_que);
+        list_t *ptr = list_pophead(&tcp->snd_que);
         mbuf_t *m = LIST_MF(ptr);
         tcp_tx_seg(tcp, m);
-        list_push(&tcp->una_que, ptr);
+        list_pushback(&tcp->una_que, ptr);
 
         if (tcp->nagle && m->dlen)
             break;
@@ -752,7 +755,7 @@ int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
 
     mbuf_pushhdr(seg->buf, tcphdr_t);
     mbuf_pushhdr(seg->buf, iphdr_t);
-    list_push(&tcp->buf_que, &seg->buf->list);
+    list_pushback(&tcp->buf_que, &seg->buf->list);
     TRY_UNBLK(tcp->rx_waiter);
     return 0;
 }

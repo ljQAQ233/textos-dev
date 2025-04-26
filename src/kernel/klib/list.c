@@ -47,12 +47,24 @@ void list_remove(list_t *list)
     list->next->prev = list->prev;
 }
 
-void list_push(list_t *list, list_t *node)
+void list_pushhead(list_t *list, list_t *node)
 {
     list_insert_after(list, node);
 }
 
-list_t *list_pop(list_t *list)
+void list_pushback(list_t *list, list_t *node)
+{
+    list_insert_before(list, node);
+}
+
+list_t *list_pophead(list_t *list)
+{
+    list_t *head = list->next;
+    list_remove(head);
+    return head;
+}
+
+list_t *list_popback(list_t *list)
 {
     list_t *back = list->prev;
     list_remove(back);

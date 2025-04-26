@@ -59,7 +59,7 @@ static int udp_socket(socket_t *s)
     u->rx_waiter = -1;
     list_init(&u->rx_que);
 
-    list_push(&intype, &s->intype);
+    list_pushback(&intype, &s->intype);
     return 0;
 }
 
@@ -188,7 +188,7 @@ static ssize_t udp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
         {
             block_as(&u->rx_waiter);
         }
-        ptr = list_pop(&u->rx_que);
+        ptr = list_popback(&u->rx_que);
     });
 
     mbuf_t *m = CR(ptr, mbuf_t, list);
@@ -237,7 +237,7 @@ int sock_rx_udp(iphdr_t *ip, mbuf_t *m)
         mbuf_pushhdr(m, udphdr_t);
         mbuf_pushhdr(m, iphdr_t);
 
-        list_push(&u->rx_que, &m->list);
+        list_pushback(&u->rx_que, &m->list);
         if (u->rx_waiter >= 0)
         {
             task_unblock(u->rx_waiter);
