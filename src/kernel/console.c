@@ -376,14 +376,16 @@ static void sgr()
 static void move(int x, int y)
 {
     if (x < 0)
-        con.cur_x = 0;
+        x = 0;
     if (x >= con.row)
-        con.cur_x = con.row - 1;
+        x = con.row - 1;
+    con.cur_x = x;
     
     if (y < 0)
         con.cur_y = 0;
     if (y >= con.col)
-        con.cur_y = con.col - 1;
+        y = con.col - 1;
+    con.cur_y = y;
 }
 
 static void moved(int dx, int dy)
