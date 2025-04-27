@@ -164,7 +164,7 @@ ssize_t read(int fd, void *buf, size_t cnt)
 
     int ret = file->node->opts->read(file->node, buf, cnt, file->offset);
     if (ret < 0)
-        return -1;
+        return ret;
     
     file->offset += ret;
     return ret;
