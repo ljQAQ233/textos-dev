@@ -96,7 +96,7 @@ __INTR_HANDLER(syscall_handler)
     sys_func func = sys_handlers[nr];
     frame->rax = func(
         frame->rdi, frame->rsi,
-        frame->rdx, frame->rcx,
+        frame->rdx, frame->r10,
         frame->r8, frame->r9);
 }
 
