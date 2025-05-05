@@ -6,6 +6,7 @@
 #define PE_PWT   (1 << 3)
 #define PE_PCD   (1 << 4)
 #define PE_A     (1 << 5)   // This page is accessed by a programe
+#define PE_NX    (1ULL << 63)
 
 #define PE_D     (1 << 6)   // Dirty data,all entries can use except for PML4E
 

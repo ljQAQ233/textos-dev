@@ -7,6 +7,9 @@
     _(open, 2),          \
     _(close, 3),         \
     _(stat, 4),          \
+    _(mmap, 9),          \
+    _(mprotect, 10),     \
+    _(munmap, 11),       \
     _(ioctl, 16),        \
     _(pipe, 22),         \
     _(dup, 32),          \

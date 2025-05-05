@@ -182,3 +182,5 @@ typedef struct ifreq
         u8 hwaddr[6];
     };
 } ifreq_t;
+
+#include <textos/mm/mman.h>

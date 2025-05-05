@@ -222,6 +222,21 @@ ssize_t recv(int fd, void *buf, size_t len, int flags)
     return recvfrom(fd, buf, len, flags, NULL, 0);
 }
 
+void *mmap(void *addr, size_t len, int prot, int flgs, int fd, size_t off)
+{
+    return (void *)syscall(SYS_mmap, addr, len, prot, flgs, fd, off);
+}
+
+int mprotect(void *addr, size_t len, int prot)
+{
+    return syscall(SYS_mprotect, addr, len, prot);
+}
+
+int munmap(void *addr, size_t len)
+{
+    return syscall(SYS_munmap, addr, len);
+}
+
 int getpid()
 {
     return syscall(SYS_getpid);

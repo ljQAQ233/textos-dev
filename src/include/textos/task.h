@@ -44,6 +44,7 @@ typedef struct _Task {
     } init;
 
     addr_t pgt;
+    addr_t mmap;
 
     int retval;
     int waitpid;

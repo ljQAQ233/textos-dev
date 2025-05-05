@@ -9,6 +9,9 @@ extern void sys_readdir();
 extern void sys_write();
 extern void sys_open();
 extern void sys_close();
+extern void sys_mmap();
+extern void sys_mprotect();
+extern void sys_munmap();
 extern void sys_stat();
 extern void sys_ioctl();
 extern void sys_dup();
@@ -47,6 +50,9 @@ void *sys_handlers[] = {
     [SYS_write] = sys_write,
     [SYS_open] = sys_open,
     [SYS_close] = sys_close,
+    [SYS_mmap] = sys_mmap,
+    [SYS_mprotect] = sys_mprotect,
+    [SYS_munmap] = sys_munmap,
     [SYS_stat] = sys_stat,
     [SYS_ioctl] = sys_ioctl,
     [SYS_dup] = sys_dup,

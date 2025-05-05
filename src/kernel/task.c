@@ -128,6 +128,7 @@ task_t *task_create (void *main, int args)
     tsk->pwd = NULL; // root
 
     tsk->pgt = get_kppgt();
+    tsk->mmap = __user_mmap_va;
     tsk->istk = (addr_t)istack;
 
     for (int i = 0 ; i < MAX_FILE ; i++)
@@ -157,6 +158,7 @@ static int fork_stack(task_t *prt, task_t *chd)
 static int fork_pgt(task_t *prt, task_t *chd)
 {
     chd->pgt = copy_pgtd(prt->pgt);
+    chd->mmap = prt->mmap;
     return 0;
 }
 
