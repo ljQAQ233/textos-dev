@@ -43,6 +43,23 @@
  *  portions of the file is unspecified.
  */
 
+#ifdef __TEXT_OS__
+
+typedef struct
+{
+    addr_t va;
+    size_t num;
+    int prot;
+    int flgs;
+    size_t foff;
+    void *file;
+    addr_t *ppgs;
+} vm_region_t;
+
+#define MRET(x) ((void *)x)
+
+#endif
+
 void *mmap(void *addr, size_t len, int prot, int flgs, int fd, size_t off);
 
 int mprotect(void *addr, size_t len, int prot);

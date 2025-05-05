@@ -14,6 +14,7 @@ extern void mm_init();
 extern void acpi_init();
 extern void apic_init();
 extern void dev_init();
+extern void fbdev_init();
 extern void keyboard_init();
 extern void ide_init();
 extern void buffer_init();
@@ -45,6 +46,7 @@ void kernel_main ()
     mm_init();
 
     dev_init();
+    fbdev_init();
     keyboard_init();
     buffer_init();
     pci_init();

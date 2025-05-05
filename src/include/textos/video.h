@@ -29,5 +29,7 @@ void screen_pulldown(u32 start, u32 cnt, u32 bg);
 
 void screen_info (u32 *i_hor, u32 *i_ver);
 
+void screen_info5 (void **i_buf, addr_t *i_pa, size_t *i_sz, u32 *i_hor, u32 *i_ver);
+
 #endif
 

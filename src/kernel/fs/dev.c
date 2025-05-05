@@ -73,6 +73,12 @@ static int dev_close(node_t *this)
     return 0;
 }
 
+static void *dev_mmap(node_t *this, vm_region_t *vm)
+{
+    dev_t *dev = this->pdata;
+    return dev->mmap(dev, vm);
+}
+
 void __vrtdev_init()
 {
     vfs_initops(&__vfs_devop);
@@ -80,4 +86,5 @@ void __vrtdev_init()
     __vfs_devop.read = (void *)dev_read;
     __vfs_devop.write = (void *)dev_write;
     __vfs_devop.close = (void *)dev_close;
+    __vfs_devop.mmap = (void *)dev_mmap;
 }

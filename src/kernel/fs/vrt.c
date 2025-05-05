@@ -97,6 +97,7 @@ void vfs_initops(fs_opts_t *opts)
     opts->write = noopt;
     opts->truncate = noopt;
     opts->readdir = noopt;
+    opts->mmap = noopt;
 }
 
 static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args)

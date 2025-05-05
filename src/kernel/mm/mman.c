@@ -12,19 +12,10 @@
 #include <textos/task.h>
 #include <textos/errno.h>
 
-typedef struct
-{
-    addr_t va;
-    size_t num;
-    int prot;
-    int flgs;
-    size_t foff;
-    file_t *file;
-    addr_t *ppgs;
-} vm_region_t;
-
 void *mmap_file(vm_region_t *vm)
 {
+    file_t *file = vm->file;
+    return file->node->opts->mmap(file->node, vm);
 }
 
 void *mmap_anon(vm_region_t *vm)
@@ -76,7 +67,7 @@ void *mmap(void *addr, size_t len, int prot, int flgs, int fd, size_t off)
             goto done;
         ret = mmap_anon(&vm);
     } else {
-        goto done;
+        ret = mmap_file(&vm);
     }
 
 done:

@@ -1,6 +1,7 @@
 #ifndef __DEV_H__
 #define __DEV_H__
 
+#include <textos/mm/mman.h>
 #include <textos/klib/list.h>
 
 enum dev_type {
@@ -13,6 +14,7 @@ enum sub_type {
     DEV_NULL = 1,
     DEV_ZERO,
     DEV_MEMORY,
+    DEV_FBDEV,
     DEV_KBD,    /* PS/2 Keyboard  */
     DEV_SERIAL, /* Serial port    */
     DEV_DBGCON, /* QEMU debugcon */
@@ -44,8 +46,8 @@ struct dev {
             int   (*bread)(dev_t *dev, u64 addr, void *buf, size_t cnt);
         };
     };
-    int   (*ioctl)(dev_t *dev, int req, void *argp);
-
+    void *(*mmap)(dev_t *dev, vm_region_t *vm);
+    int (*ioctl)(dev_t *dev, int req, void *argp);
     void (*mkname)(dev_t *dev, char res[32], int nr);
 
     /* TODO : device isolation 设备隔离 */

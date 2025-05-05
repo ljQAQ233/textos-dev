@@ -3,6 +3,7 @@
 static u32 hor, ver;
 static u32 *fb;
 static u64 fb_siz;
+static addr_t fb_pa;
 
 #include <textos/assert.h>
 
@@ -85,6 +86,15 @@ void screen_info (u32 *i_hor, u32 *i_ver)
     *i_ver = ver;
 }
 
+void screen_info5 (void **i_buf, addr_t *i_pa, size_t *i_sz, u32 *i_hor, u32 *i_ver)
+{
+    if (i_buf) *i_buf = fb;
+    if (i_pa) *i_pa = fb_pa;
+    if (i_sz) *i_sz = fb_siz;
+    if (i_hor) *i_hor = hor;
+    if (i_ver) *i_ver = ver;
+}
+
 #include <boot.h>
 
 void __video_pre (vconfig_t *v)
@@ -103,6 +113,7 @@ void __video_tovmm ()
     size_t pages = DIV_ROUND_UP(fb_siz, PAGE_SIZ);
     vmap_map ((u64)fb, __kern_fb_base, pages, PE_RW | PE_P | PTE_G, MAP_4K);
 
+    fb_pa = (addr_t)fb;
     fb = (void *)__kern_fb_base;
 }
 

@@ -25,6 +25,7 @@ struct dirctx;
 typedef struct dirctx dirctx_t;
 
 #include <textos/noopt.h>
+#include <textos/mm/mman.h>
 
 typedef struct {
     int  (*open)(node_t *parent, char *path, u64 args, node_t **result);
@@ -37,6 +38,8 @@ typedef struct {
     int  (*truncate)(node_t *this, size_t offset);
     /* 文件夹操作 */
     int  (*readdir)(node_t *this, node_t **res, dirctx_t *ctx);
+    /* 文件映射 */
+    void *(*mmap)(node_t *this, vm_region_t *vm);
 } fs_opts_t;
 
 struct node {
