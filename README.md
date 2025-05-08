@@ -132,22 +132,34 @@ Qemu启动可选项:
 
 ## 初始化
 
+## git
+
+使用本仓库:
+
+```shell
+git clone https://github.com/ljqaq233/textos-pre
+```
+
+edk2 子模块也必须要克隆:
+
+```shell
+git submodule update --init --progress
+```
+
 ## compile_commands.json
+
+本项目使用 bear + make 进行 `compile_commands.json` 的构建
+
+```
+# archlinux
+sudo pacman -S bear
+```
 
 ```shell
 make -C src compile_commands.json
 ```
 
 将 `src/utils/compile_commands.json`添加到配置中.
-
-如果你使用的是 VSCode , 将下述片段根据你的实际情况添加到 `.vscode/c_cpp_properties.json` 中
-
-```
-"compilerPath": "/usr/bin/gcc",
-"cStandard": "c11",
-"cppStandard": "c++14",
-"intelliSenseMode": "linux-gcc-x64",
-```
 
 VSCode可以配置`includePath`
 
