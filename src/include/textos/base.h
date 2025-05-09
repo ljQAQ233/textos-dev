@@ -44,10 +44,6 @@
 #define TRUE     true
 #define FALSE    false
 
-/* Enabled flags */
-#define enable   true
-#define disable  false
-
 #define STATIC   static 
 #define CONST    const  
 #define VOID     void   

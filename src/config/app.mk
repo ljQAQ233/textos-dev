@@ -16,8 +16,8 @@ INCLUDE := \
 LIBC := $(APP_OUTPUT)/libc/libc.o
 
 CFLAGS := \
-  -static -nostdlib -g \
-  -std=c11 -O0 -fshort-wchar -ffreestanding \
+  -static -nostdlib \
+  -std=c11 -fshort-wchar -ffreestanding \
   -fno-builtin -fno-stack-check -fno-stack-protector \
   -include $(SRC_DIR)/include/app/app.h \
   $(addprefix -I,${INCLUDE}) \
