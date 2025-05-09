@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <arch.h>
 #include <textos/base.h>
 
@@ -17,4 +21,8 @@ typedef int (*main_t)(
         const char **argv,  \
         const char **envp   \
         )
+
+#ifdef __cplusplus
+}
+#endif
 

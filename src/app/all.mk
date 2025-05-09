@@ -2,7 +2,7 @@ APP_OUTPUT := $(APP_OUTPUT)/$(notdir ${CURDIR})
 
 TARG := $(addprefix $(APP_OUTPUT)/,${TARG})
 
-OBJS := $(SRCS:.c=.c.o)
+OBJS := $(addsuffix .o,${SRCS})
 OBJS := $(addprefix ${APP_OUTPUT}/,${OBJS})
 
 $(APP_OUTPUT)/%.c.o: %.c

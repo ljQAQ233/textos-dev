@@ -10,7 +10,8 @@ OBJCOPY := objcopy
 INCLUDE := \
   $(SRC_DIR)/include \
   $(SRC_DIR)/include/app \
-  $(SRC_DIR)/include/arch/$(ARCH)
+  $(SRC_DIR)/include/arch/$(ARCH) \
+  $(SRC_DIR)/app/lvgl
 
 LIBC := $(APP_OUTPUT)/libc/libc.o
 

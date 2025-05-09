@@ -1,3 +1,7 @@
 [submodule "src/boot/Edk2"]
 	path = src/boot/Edk2
 	url = https://github.com/ljQAQ233/edk2
+[submodule "src/app/lvgl/lvgl"]
+	path = src/app/lvgl/lvgl
+	url = https://github.com/lvgl/lvgl
+	shallow = true

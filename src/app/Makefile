@@ -7,7 +7,8 @@ elfs := $(elfs:.c=.elf)
 elfs := $(addprefix ${APP_OUTPUT}/,${elfs})
 
 MODS := \
-	libc
+	libc \
+	lvgl
 
 app: mods $(elfs)
 
@@ -21,7 +22,7 @@ clean:
 
 $(APP_OUTPUT)/%.elf: %.c
 	@mkdir -p $(@D)
-	@$(CC) $(CFLAGS) $< $(LIBC) $(shell ${UTILS}/fix_libs.sh $<) -o $@
+	@$(CC) $(CFLAGS) $< $(LIBC) $(addprefix $(APP_OUTPUT)/,$(shell ${UTILS}/fix_libs.sh $<)) -o $@
 	@echo -e "\033[032m   CC  \033[0m $<"
 
 .PHONY: app mods clean
