@@ -48,10 +48,8 @@ $(IMG):
 	sudo cp -r resource/* $(MNT1)
 	sudo cp -r $(KERNEL_EXEC) $(MNT1)
 	
-	for app in $$(ls ${APP_OUTPUT}/*.elf) ; do \
+	for app in $$(find ${APP_OUTPUT} -name '*.elf') ; do \
 		sudo cp $$app $(MNT1)/bin/$$(basename $$app .elf); \
-	done
-	for app in $$(ls ${APP_OUTPUT}/*.elf) ; do \
 		sudo cp $$app $(MNT2)/bin/$$(basename $$app .elf); \
 	done
 	

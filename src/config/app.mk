@@ -12,6 +12,8 @@ INCLUDE := \
   $(SRC_DIR)/include/app \
   $(SRC_DIR)/include/arch/$(ARCH)
 
+LIBC := $(APP_OUTPUT)/libc/libc.o
+
 CFLAGS := \
   -static -nostdlib -g \
   -std=c11 -O0 -fshort-wchar -ffreestanding \
@@ -22,4 +24,5 @@ CFLAGS := \
 LDFLAGS := \
   -static -nostdlib \
 
-LIBC := $(APP_OUTPUT)/libc.o
+export CC LD NASM OBJCOPY LIBC CFLAGS LDFLAGS
+
