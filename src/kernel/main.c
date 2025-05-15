@@ -22,6 +22,7 @@ extern void pci_init();
 extern void socket_init();
 extern void e1000_init();
 extern void fpu_init();
+extern void hpet_init();
 extern void clock_init();
 
 extern void file_init();
@@ -52,6 +53,7 @@ void kernel_main ()
     pci_init();
     ide_init();
     fpu_init();
+    hpet_init();
 
     clock_init();
 

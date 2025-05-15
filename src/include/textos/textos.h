@@ -19,6 +19,7 @@
 
 #define __kern_vmm_pages 0xffffb00000000000ull
 #define __acpi_pages     0xffffbff000000000ull // acpi mapped
+#define __hpet_pages     0xffffbff800000000ull // hpet mapped
 
 #define __kern_pvpg_base 0xffffc00000000000ull
 #define __kern_pvpg_max  0xffffc00000100000ull
