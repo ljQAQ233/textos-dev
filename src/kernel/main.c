@@ -23,6 +23,7 @@ extern void socket_init();
 extern void e1000_init();
 extern void fpu_init();
 extern void hpet_init();
+extern void ktm_init();
 extern void clock_init();
 
 extern void file_init();
@@ -55,6 +56,7 @@ void kernel_main ()
     fpu_init();
     hpet_init();
 
+    ktm_init();
     clock_init();
 
     task_init();

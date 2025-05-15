@@ -9,3 +9,5 @@ u64 hpet_get_period();
 u64 hpet_get_fs();
 
 u64 hpet_get_us();
+
+bool hpet_is_long();

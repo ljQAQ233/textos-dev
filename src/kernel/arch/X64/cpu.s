@@ -54,6 +54,14 @@ load_tss:
     ltr di
     ret
 
+; u64 read_tsc ();
+global read_tsc
+read_tsc:
+    rdtsc
+    shl rdx, 32
+    or  rax, rdx
+    ret
+
 ; void reload_segs ();
 global reload_segs
 reload_segs:

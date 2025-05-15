@@ -142,3 +142,13 @@ u64 hpet_get_us()
 {
     return hpet_get_fs() / 1000000000ull;
 }
+
+/*
+ * hpet counter is 64-bit?
+ */
+bool hpet_is_long()
+{
+    bool bit;
+    HPET_RD(&hpet->capid, counter_size, bit);
+    return bit == 1;
+}
