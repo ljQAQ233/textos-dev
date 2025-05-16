@@ -10,3 +10,4 @@ SRCS += user/file.c
 SRCS += user/exec.c
 SRCS += user/task.c
 SRCS += user/power.c
+SRCS += user/uname.c

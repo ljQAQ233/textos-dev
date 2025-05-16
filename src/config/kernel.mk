@@ -19,6 +19,7 @@ CFLAGS := \
   -fno-builtin -fno-stack-check -fno-stack-protector \
   -mcmodel=large -mno-red-zone \
   -include $(SRC_DIR)/include/textos/textos.h \
+  -include $(KERNEL_OUTPUT)/autogen.h \
   $(addprefix -I,${INCLUDE})
 
 CFLAGS   += -D__TEXTOS_DEBUG

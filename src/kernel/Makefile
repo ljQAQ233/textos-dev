@@ -32,7 +32,18 @@ OBJS := $(addprefix ${OUTPUT}/,${OBJS})
 
 include ../config/kernel.mk
 
-kernel: $(KERNEL_OUTPUT) $(KERNEL_EXEC)
+kernel: autogen $(KERNEL_OUTPUT) $(KERNEL_EXEC)
+
+autogen:
+	@printf '%s\n' > $(KERNEL_OUTPUT)/autogen.h \
+		'#ifndef __AUTOGEN_H__'                 \
+		'#define __AUTOGEN_H__'                 \
+		''                                      \
+		'#define UTS_RELEASE    "$(GIT_HASH)"'  \
+		'#define UTS_VERSION    "'"`date`"'"'   \
+		''                                      \
+		'#endif'
+
 
 $(KERNEL_EXEC): $(OBJS)
 	@$(LD) $(LDFLAGS) $^ -T linker.ld -o $@
@@ -67,4 +78,4 @@ $(OUTPUT)/%.c.o: %.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 	@echo -e "\033[032m   CC  \033[0m $<"
 
-.PHONY: kernel clean
+.PHONY: kernel autogen clean

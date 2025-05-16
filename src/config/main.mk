@@ -1,6 +1,12 @@
 SRC_DIR  := $(shell pwd)
 # Set Source Root
 
+ifneq ($(shell git rev-parse --is-inside-work-tree 2>/dev/null),true)
+  GIT_HASH := unknown
+else
+  GIT_HASH := $(shell git rev-parse --short HEAD)
+endif
+
 OUTPUT   := ../build
 # avoid location error
 OUTPUT   := $(abspath ${OUTPUT})
@@ -28,5 +34,6 @@ BASE   := $(abspath ${BASE})
 UTILS  := $(abspath ${UTILS})
 
 export SHELL
+export GIT_HASH
 export SRC_DIR BASE UTILS
 export BOOT_OUTPUT BOOT_EXEC KERNEL_OUTPUT KERNEL_EXEC APP_OUTPUT

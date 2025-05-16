@@ -31,6 +31,7 @@
     _(execve, 59),       \
     _(exit, 60),         \
     _(wait4, 61),        \
+    _(uname, 63),        \
     _(chdir, 80),        \
     _(mkdir, 83),        \
     _(rmdir, 84),        \

@@ -184,3 +184,7 @@ typedef struct ifreq
 } ifreq_t;
 
 #include <textos/mm/mman.h>
+
+#include <textos/utsname.h>
+
+int uname(utsname_t *name);

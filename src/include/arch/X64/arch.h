@@ -1,6 +1,8 @@
 #ifndef __TYPE_ARC_H__
 #define __TYPE_ARC_H__
 
+#define ARCH_STRING "x86_64"
+
 typedef long long           INT64;
 typedef unsigned long long  UINT64;
 
