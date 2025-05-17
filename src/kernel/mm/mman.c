@@ -11,6 +11,7 @@
 #include <textos/file.h>
 #include <textos/task.h>
 #include <textos/errno.h>
+#include <textos/syscall.h>
 
 void *mmap_file(vm_region_t *vm)
 {
@@ -40,7 +41,7 @@ void *mmap_anon(vm_region_t *vm)
     return vmm_phyauto(vaddr, vm->num, mapflg);
 }
 
-void *mmap(void *addr, size_t len, int prot, int flgs, int fd, size_t off)
+__SYSCALL_DEFINE6(void *, mmap, void *, addr, size_t, len, int, prot, int, flgs, int, fd, size_t, off)
 {
     void *ret = MAP_FAILED;
     file_t *file = NULL;
@@ -74,12 +75,12 @@ done:
     return ret;
 }
 
-int mprotect(void *addr, size_t len, int prot)
+__SYSCALL_DEFINE3(int, mprotect, void *, addr, size_t, len, int, prot)
 {
     return -EINVAL;
 }
 
-int munmap(void *addr, size_t len)
+__SYSCALL_DEFINE2(int, munmap, void *, addr, size_t, len)
 {
     return -EINVAL;
 }

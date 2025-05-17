@@ -3,6 +3,7 @@
 #include <textos/errno.h>
 #include <textos/assert.h>
 #include <textos/fs/pipe.h>
+#include <textos/syscall.h>
 
 #include <textos/mm.h>
 
@@ -59,7 +60,7 @@ static inline u64 parse_args(int x)
     return v;
 }
 
-int open(char *path, int flgs)
+__SYSCALL_DEFINE2(int, open, char *, path, int, flgs)
 {
     node_t *node;
     file_t *file;
@@ -91,7 +92,7 @@ fail:
 }
 
 // todo: max size limited
-ssize_t write(int fd, void *buf, size_t cnt)
+__SYSCALL_DEFINE3(ssize_t, write, int, fd, void *, buf, size_t, cnt)
 {
     file_t *file = task_current()->files[fd];
     if (!file)
@@ -111,7 +112,7 @@ ssize_t write(int fd, void *buf, size_t cnt)
 
 #include <string.h>
 
-ssize_t readdir(int fd, void *buf, size_t mx)
+__SYSCALL_DEFINE3(ssize_t, readdir, int, fd, void *, buf, size_t, mx)
 {
     file_t *file = task_current()->files[fd];
     if (!file)
@@ -149,7 +150,7 @@ ssize_t readdir(int fd, void *buf, size_t mx)
  * NOTE: actually the dev file uses the op of the
  *       filesystem in which it locates.
  */
-ssize_t read(int fd, void *buf, size_t cnt)
+__SYSCALL_DEFINE3(ssize_t, read, int, fd, void *, buf, size_t, cnt)
 {
     file_t *file = task_current()->files[fd];
     if (!file)
@@ -170,7 +171,7 @@ ssize_t read(int fd, void *buf, size_t cnt)
     return ret;
 }
 
-int close(int fd)
+__SYSCALL_DEFINE1(int, close, int, fd)
 {
     file_t *file = task_current()->files[fd];
     if (!file)
@@ -188,7 +189,7 @@ int close(int fd)
     return ret;
 }
 
-int stat(char *path, stat_t *sb)
+__SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb) 
 {
     int ret;
     node_t *node;
@@ -214,7 +215,7 @@ int stat(char *path, stat_t *sb)
     return 0;
 }
 
-int ioctl(int fd, int req, void *argp)
+__SYSCALL_DEFINE3(int, ioctl, int, fd, int, req, void *, argp)
 {
     file_t *file = task_current()->files[fd];
     if (!file)
@@ -230,7 +231,7 @@ int ioctl(int fd, int req, void *argp)
     return node->opts->ioctl(node, req, argp);
 }
 
-int dup2(int old, int new)
+__SYSCALL_DEFINE2(int, dup2, int, old, int, new)
 {
     file_t **ft = task_current()->files;
     file_t *file = ft[old];
@@ -249,7 +250,7 @@ int dup2(int old, int new)
     return new;
 }
 
-int dup(int fd)
+__SYSCALL_DEFINE1(int, dup, int, fd)
 {
     int new = fd_get();
     if (new < 0)
@@ -258,7 +259,7 @@ int dup(int fd)
     return dup2(fd, new);
 }
 
-int pipe(int fds[2])
+__SYSCALL_DEFINE1(int, pipe, int *, fds)
 {
     int fd0, fd1;
     file_t *f0, *f1;
@@ -285,7 +286,7 @@ int pipe(int fds[2])
     return 0;
 }
 
-int mknod(char *path, int mode, long dev)
+__SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)
 {
     uint major = get_major(dev);
     uint minor = get_minor(dev);
@@ -293,7 +294,7 @@ int mknod(char *path, int mode, long dev)
     return vfs_mknod(path, d);
 }
 
-int mount(char *src, char *dst)
+__SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
 {
     int ret;
     node_t *sn, *dn;
@@ -320,7 +321,7 @@ int mount(char *src, char *dst)
     return vfs_mount(dn, root);
 }
 
-int umount2(char *target, int flags)
+__SYSCALL_DEFINE2(int, umount2, char *, target, int, flags)
 {
     int ret;
     node_t *dn;
@@ -333,7 +334,7 @@ int umount2(char *target, int flags)
     return ret;
 }
 
-int chdir(char *path)
+__SYSCALL_DEFINE1(int, chdir, char *, path)
 {
     int ret;
     node_t *node;
@@ -347,7 +348,7 @@ int chdir(char *path)
     return ret;
 }
 
-int mkdir(char *path, int mode)
+__SYSCALL_DEFINE2(int, mkdir, char *, path, int, mode)
 {
     int ret;
     node_t *node;
@@ -363,7 +364,7 @@ int mkdir(char *path, int mode)
     return ret;
 }
 
-int rmdir(char *path)
+__SYSCALL_DEFINE1(int, rmdir, char *, path)
 {
     return -EPERM;
 }

@@ -11,7 +11,7 @@ utsname_t __kuname = {
 	.machine = UTS_MACHINE,
 };
 
-RETVAL(int) sys_uname(utsname_t *u)
+__SYSCALL_DEFINE1(int, uname, utsname_t *, u)
 {
 	if (!u)
 		return -EINVAL;

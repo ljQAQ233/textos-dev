@@ -1,6 +1,7 @@
 #include <textos/mm.h>
 #include <textos/file.h>
 #include <textos/errno.h>
+#include <textos/syscall.h>
 #include <textos/net/socket.h>
 
 #include "socket/inter.h"
@@ -31,7 +32,10 @@ int socket_makefd(socket_t *socket)
     return fd;
 }
 
-int socket(int domain, int type, int proto)
+/*
+ * syscalls
+ */
+__SYSCALL_DEFINE3(int, socket, int, domain, int, type, int, proto)
 {
     socket_t *socket;
 
@@ -82,61 +86,63 @@ int socket(int domain, int type, int proto)
     return socket_makefd(socket);
 }
 
-int bind(int fd, sockaddr_t *addr, size_t len)
+__SYSCALL_DEFINE3(int, bind, int, fd, sockaddr_t *, addr, size_t, len)
 {
     socket_t *s = socket_get(fd);
     return s->op->bind(s, addr, len);
 }
 
-int listen(int fd, int backlog)
+__SYSCALL_DEFINE2(int, listen, int, fd, int, backlog)
 {
     socket_t *s = socket_get(fd);
     return s->op->listen(s, backlog);
 }
 
-int accept(int fd, sockaddr_t *addr, size_t *len)
+__SYSCALL_DEFINE3(int, accept, int, fd, sockaddr_t *, addr, size_t *, len)
 {
     socket_t *s = socket_get(fd);
     return s->op->accept(s, addr, len);
 }
 
-int connect(int fd, sockaddr_t *addr, size_t len)
+__SYSCALL_DEFINE3(int, connect, int, fd, sockaddr_t *, addr, size_t, len)
 {
     socket_t *s = socket_get(fd);
     return s->op->connect(s, addr, len);
 }
 
-int shutdown(int fd, int how)
+__SYSCALL_DEFINE2(int, shutdown, int, fd, int, how)
 {
     socket_t *s = socket_get(fd);
     return s->op->shutdown(s, how);
 }
 
-int getsockname(int fd, sockaddr_t *addr, size_t len)
+__SYSCALL_DEFINE3(int, getsockname, int, fd, sockaddr_t *, addr, size_t, len)
 {
     socket_t *s = socket_get(fd);
     return s->op->getsockname(s, addr, len);
 }
 
-int getpeername(int fd, sockaddr_t *addr, size_t len)
+__SYSCALL_DEFINE3(int, getpeername, int, fd, sockaddr_t *, addr, size_t, len)
 {
     socket_t *s = socket_get(fd);
     return s->op->getpeername(s, addr, len);
 }
 
-ssize_t sendmsg(int fd, msghdr_t *msg, int flags)
+__SYSCALL_DEFINE3(ssize_t, sendmsg, int, fd, msghdr_t *, msg, int, flags)
 {
     socket_t *s = socket_get(fd);
     return s->op->sendmsg(s, msg, flags);
 }
 
-ssize_t recvmsg(int fd, msghdr_t *msg, int flags)
+__SYSCALL_DEFINE3(ssize_t, recvmsg, int, fd, msghdr_t *, msg, int, flags)
 {
     socket_t *s = socket_get(fd);
     return s->op->recvmsg(s, msg, flags);
 }
 
-ssize_t sendto(int fd, void *buf, size_t len, int flags, sockaddr_t *dst, size_t dlen)
+__SYSCALL_DEFINE6(ssize_t, sendto,
+    int, fd, void *, buf, size_t, len,
+    int, flags, sockaddr_t *, dst, size_t, dlen)
 {
     msghdr_t msg = {
         .name = dst,
@@ -151,7 +157,9 @@ ssize_t sendto(int fd, void *buf, size_t len, int flags, sockaddr_t *dst, size_t
     return sendmsg(fd, &msg, flags);
 }
 
-ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size_t slen)
+__SYSCALL_DEFINE6(ssize_t, recvfrom,
+    int, fd, void *, buf, size_t, len,
+    int, flags, sockaddr_t *, src, size_t, slen)
 {
     msghdr_t msg = {
         .name = src,
@@ -165,8 +173,6 @@ ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size
 
     return recvmsg(fd, &msg, flags);
 }
-
-#include <string.h>
 
 extern void sock_raw_init();
 extern void sock_udp_init();

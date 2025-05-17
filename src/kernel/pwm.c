@@ -24,7 +24,9 @@ static void uefi_shutdown()
         ));
 }
 
-int poweroff()
+#include <textos/syscall.h>
+
+__SYSCALL_DEFINE0(int, poweroff)
 {
     // TODO: handle tasks
 

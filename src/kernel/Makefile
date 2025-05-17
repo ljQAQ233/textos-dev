@@ -32,7 +32,7 @@ OBJS := $(addprefix ${OUTPUT}/,${OBJS})
 
 include ../config/kernel.mk
 
-kernel: autogen $(KERNEL_OUTPUT) $(KERNEL_EXEC)
+kernel: $(KERNEL_OUTPUT) autogen $(KERNEL_EXEC)
 
 autogen:
 	@printf '%s\n' > $(KERNEL_OUTPUT)/autogen.h \

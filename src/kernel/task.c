@@ -366,6 +366,39 @@ void task_unblock (int pid)
     tsk->stat = TASK_PRE;
 }
 
+#include <textos/syscall.h>
+
+/*
+ * syscalls
+ */
+__SYSCALL_DEFINE0(int, fork)
+{
+    return task_fork();
+}
+
+__SYSCALL_DEFINE1(RETVAL(void), exit, int, stat)
+{
+    task_exit(stat);
+
+    __builtin_unreachable();
+}
+
+// uninterrupt
+__SYSCALL_DEFINE4(int, wait4, int, pid, int *, stat, int, opt, void *, rusage)
+{
+    return task_wait(pid, stat, opt, rusage);
+}
+
+__SYSCALL_DEFINE0(int, getpid)
+{
+    return task_current()->pid;
+}
+
+__SYSCALL_DEFINE0(int, getppid)
+{
+    return task_current()->ppid;
+}
+
 #include <textos/dev.h>
 #include <textos/printk.h>
 
