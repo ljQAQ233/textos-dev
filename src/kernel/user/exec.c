@@ -120,7 +120,7 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     __asm__ volatile (
             "push %0 \n" // ss
             "push %1 \n" // rsp
-            "pushfq  \n" // rflags
+            "pushq $0x200\n" // rflags
             "push %2 \n" // cs
             "push %3 \n" // rip
             : :
