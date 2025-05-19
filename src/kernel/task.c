@@ -399,6 +399,12 @@ __SYSCALL_DEFINE0(int, getppid)
     return task_current()->ppid;
 }
 
+__SYSCALL_DEFINE0(int, yield)
+{
+    task_schedule();
+    return 0;
+}
+
 #include <textos/dev.h>
 #include <textos/printk.h>
 

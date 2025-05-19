@@ -41,6 +41,7 @@
     _(umount2, 166),     \
     _(readdir, 500),     \
     _(poweroff, 501),    \
+    _(yield, 502),       \
     _(test, 510),        \
     _(maxium, 511),
 

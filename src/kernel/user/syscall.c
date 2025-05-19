@@ -30,6 +30,7 @@ extern void sys_wait4();
 extern void sys_uname();
 extern void sys_test();
 extern void sys_poweroff();
+extern void sys_yield();
 extern void sys_getpid();
 extern void sys_getppid();
 
@@ -72,6 +73,7 @@ void *sys_handlers[] = {
     [SYS_uname] = sys_uname,
     [SYS_test] = sys_test,
     [SYS_poweroff] = sys_poweroff,
+    [SYS_yield] = sys_yield,
     [SYS_getpid] = sys_getpid,
     [SYS_getppid] = sys_getppid,
     
