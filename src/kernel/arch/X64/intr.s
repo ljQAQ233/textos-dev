@@ -2,9 +2,10 @@
 
 %define HANDLER_MAX 256
 %define ENTRY_SIZ   16
+%define TASK_IFRAME 0x10
 
-extern __task_setif
 extern intr_handlers
+extern __handle_signal
 
 section .text
 
@@ -52,6 +53,9 @@ intr_caller:
     mov  rax, intr_handlers
     lea  rax, [rax + rdi * 8]
     call [rax]
+    
+    lea  rdi, [rsp + 15 * 8]
+    call __handle_signal
 
 intr_exit:
     pop  r15 ; 恢复寄存器

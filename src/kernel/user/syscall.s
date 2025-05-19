@@ -1,6 +1,7 @@
 extern sys_handlers
 extern syscall_handler
 extern task_current
+extern __handle_signal
 
 section .text
 
@@ -44,6 +45,9 @@ msyscall_handler:
     mov  rsi, [rsp + 16 * 8]
     mov  rdx, rsp
     call syscall_handler
+
+    mov  rdi, rsp
+    call __handle_signal
 
 msyscall_exit:
     pop  r15

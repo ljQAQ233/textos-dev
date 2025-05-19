@@ -8,6 +8,8 @@ int execve(char *path, char *const argv[], char *const envp[]);
 
 void _exit(int stat);
 
+#include <textos/signal.h>
+
 int wait4(int pid, int *stat, int opt, void *rusage);
 
 int wait(int *stat);

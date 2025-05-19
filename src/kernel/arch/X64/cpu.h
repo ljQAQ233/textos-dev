@@ -17,6 +17,26 @@ typedef struct {
   u64 ss;
 } intr_frame_t;
 
+typedef struct {
+  void *restorer;
+  u64 signum;
+  u64 sigmask;
+
+  u64 r15, r14, r13, r12, r11, r10, r9, r8;
+  u64 rdi, rsi;
+  u64 rbp;
+  u64 rdx, rcx, rbx, rax;
+
+  u64 vector;
+  u64 errcode;
+
+  u64 rip;
+  u64 cs;
+  u64 rflags;
+  u64 rsp;
+  u64 ss;
+} signal_frame_t;
+
 void cpuid (int leaf, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
 
 void halt ();

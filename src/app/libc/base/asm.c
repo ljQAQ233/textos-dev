@@ -62,6 +62,51 @@ int wait(int *stat)
     return wait4(-1, stat, 0, NULL);
 }
 
+__attribute__((naked))
+__attribute__((noreturn))
+void __restorer()
+{
+    asm volatile(
+        "syscall\n"
+        :
+        : "a"(15)
+        : "rcx", "r11", "memory"
+        );
+}
+
+sighandler_t signal(int signum, sighandler_t handler)
+{
+    sigaction_t act = {
+        .sa_handler = handler,
+        .sa_flags = SA_RESTART,
+        .sa_mask = 0,
+    }, old;
+    if (sigaction(signum, &act, &old) < 0)
+        return SIG_ERR;
+    return old.sa_handler;
+}
+
+int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact)
+{
+    sigaction_t __act = {
+        .sa_handler = act->sa_handler,
+        .sa_flags = act->sa_flags | SA_RESTORER,
+        .sa_mask = act->sa_mask,
+        .sa_restorer = __restorer
+    };
+    return syscall(SYS_sigaction, signum, &__act, oldact);
+}
+
+int sigprocmask(int how, const sigset_t *set, sigset_t *oset)
+{
+    return syscall(SYS_sigprocmask, how, set, oset);
+}
+
+int kill(int pid, int sig)
+{
+    return syscall(SYS_kill, pid, sig);
+}
+
 int uname(utsname_t *name)
 {
     return syscall(SYS_uname, name);

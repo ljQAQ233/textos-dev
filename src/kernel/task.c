@@ -137,6 +137,11 @@ task_t *task_create (void *main, int args)
     tsk->files[STDOUT_FILENO] = &sysfile[STDOUT_FILENO];
     tsk->files[STDERR_FILENO] = &sysfile[STDERR_FILENO];
 
+    tsk->sigcurr = 0;
+    tsk->sigpend = 0;
+    tsk->sigmask = 0;
+    memset(tsk->sigacts, 0, sizeof(tsk->sigacts));
+
     return tsk;
 }
 
@@ -169,6 +174,16 @@ static int fork_fd(task_t *prt, task_t *chd)
     return 0;
 }
 
+static int fork_sig(task_t *prt, task_t *chd)
+{
+    chd->sigcurr = prt->sigcurr;
+    chd->sigpend = prt->sigpend;
+    chd->sigmask = prt->sigmask;
+    for (int i = 0 ; i < _NSIG ; i++)
+        chd->sigacts[i] = prt->sigacts[i];
+    return 0;
+}
+
 #include <irq.h>
 #include <textos/syscall.h>
 
@@ -191,6 +206,9 @@ int task_fork()
     // files
     fork_fd(prt, chd);
 
+    // signals
+    fork_sig(prt, chd);
+
     chd->tick = prt->tick;
     chd->curr = prt->curr;
     chd->ppid = prt->pid;
@@ -202,9 +220,12 @@ int task_fork()
     return chd->pid; // 父进程返回子进程号
 }
 
-void task_exit(int val)
+void task_exit(int pid, int val)
 {
-    task_t *tsk = task_current();
+    task_t *tsk = task_get(pid);
+    if (!tsk)
+        return ;
+
     tsk->stat = TASK_DIE;
     tsk->retval = val;
 
@@ -268,6 +289,13 @@ static inline task_t *_getnext ()
 task_t *task_current ()
 {
     return table[_curr];
+}
+
+task_t *task_get(int pid)
+{
+    if (pid < 0 || pid >= TASK_MAX)
+        return NULL;
+    return table[pid];
 }
 
 extern void fpu_disable();
@@ -378,7 +406,7 @@ __SYSCALL_DEFINE0(int, fork)
 
 __SYSCALL_DEFINE1(RETVAL(void), exit, int, stat)
 {
-    task_exit(stat);
+    task_exit(task_current()->pid, stat);
 
     __builtin_unreachable();
 }

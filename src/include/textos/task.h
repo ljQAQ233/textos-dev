@@ -16,6 +16,7 @@ typedef struct {
 } task_frame_t;
 
 #include <textos/file.h>
+#include <textos/signal.h>
 #include <textos/klib/list.h>
 
 #define MAX_FILE 16
@@ -52,6 +53,10 @@ typedef struct _Task {
 
     list_t sleeping;
     list_t waiting;
+    int sigcurr;
+    sigset_t sigpend;
+    sigset_t sigmask;
+    sigaction_t sigacts[_NSIG];
 
     void *fpu;
 } task_t;
@@ -61,12 +66,15 @@ typedef struct _Task {
 #define TASK_RUN  2 // Running
 #define TASK_SLP  3 // Sleep
 #define TASK_BLK  4 // Blocked
+#define TASK_STP  5 // Stoped
 
 void task_schedule ();
 
 void task_yield ();
 
 task_t *task_current ();
+
+task_t *task_get(int pid);
 
 #define TC_KERN (0 << 0) // ring 0 (kernel)
 #define TC_USER (1 << 0) // ring 3 (init / app)
@@ -83,7 +91,7 @@ void task_block ();
 
 void task_unblock (int pid);
 
-void task_exit(int val);
+void task_exit(int pid, int val);
 
 int task_wait(int pid, int *stat, int opt, void *rusage);
 

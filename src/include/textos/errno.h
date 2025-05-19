@@ -3,6 +3,7 @@
 
 #define EPERM        1   // Operation not permitted
 #define ENOENT       2   // No that file or dir
+#define ESRCH        3   // No such process
 #define EBADF        9   // Bad file descriptor
 #define ENOEXEC      8   // Exec format error
 #define ENOMEM       12  // No memory to allocate

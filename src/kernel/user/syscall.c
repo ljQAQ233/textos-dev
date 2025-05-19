@@ -27,6 +27,10 @@ extern void sys_execve();
 extern void sys_fork();
 extern void sys_exit();
 extern void sys_wait4();
+extern void sys_sigaction();
+extern void sys_sigprocmask();
+extern void sys_sigreturn();
+extern void sys_kill();
 extern void sys_uname();
 extern void sys_test();
 extern void sys_poweroff();
@@ -70,7 +74,11 @@ void *sys_handlers[] = {
     [SYS_fork] = sys_fork,
     [SYS_exit] = sys_exit,
     [SYS_wait4] = sys_wait4,
+    [SYS_sigaction] = sys_sigaction,
+    [SYS_sigprocmask] = sys_sigprocmask,
+    [SYS_sigreturn] = sys_sigreturn,
     [SYS_uname] = sys_uname,
+    [SYS_kill] = sys_kill,
     [SYS_test] = sys_test,
     [SYS_poweroff] = sys_poweroff,
     [SYS_yield] = sys_yield,

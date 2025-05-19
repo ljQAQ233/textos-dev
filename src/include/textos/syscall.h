@@ -10,6 +10,9 @@
     _(mmap, 9),          \
     _(mprotect, 10),     \
     _(munmap, 11),       \
+    _(sigaction, 13),    \
+    _(sigprocmask, 14),  \
+    _(sigreturn, 15),    \
     _(ioctl, 16),        \
     _(pipe, 22),         \
     _(dup, 32),          \
@@ -31,6 +34,7 @@
     _(execve, 59),       \
     _(exit, 60),         \
     _(wait4, 61),        \
+    _(kill, 62),         \
     _(uname, 63),        \
     _(chdir, 80),        \
     _(mkdir, 83),        \
