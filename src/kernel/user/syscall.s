@@ -7,27 +7,26 @@ section .text
 %define TASK_ISTACK 0x00
 %define TASK_IFRAME 0x10
 %define TASK_SFRMAE 0x18
+%define TASK_OLDSP  0x20
 
 global msyscall_exit
 
 global msyscall_handler
 msyscall_handler:
-    push rbp
-    mov  rbp, rsp
-    
+    mov  [gs:TASK_OLDSP], rsp
     mov  rsp, [gs:TASK_ISTACK] ; istk
 
-    push qword 0    ; ss
-    push rbp        ; rsp
-    push qword 0    ; rflags
-    push qword 0    ; cs
-    push qword 0    ; rip
+    push qword 0x23 ; user ss
+    push qword [gs:TASK_OLDSP] ; rsp
+    push r11        ; rflags
+    push qword 0x2b ; user cs
+    push rcx        ; rip
     push qword 2333 ; errcode
     push qword 0x81 ; vector
 
     push rax
     push rbx
-    push rcx ; old rip
+    push qword 0 ; old rip
     push rdx
     push rbp
     push rsi
@@ -35,7 +34,7 @@ msyscall_handler:
     push r8
     push r9
     push r10
-    push r11 ; old eflags
+    push qword 0 ; old eflags
     push r12
     push r13
     push r14
@@ -51,7 +50,7 @@ msyscall_exit:
     pop  r14
     pop  r13
     pop  r12
-    pop  r11
+    add  rsp, 8
     pop  r10
     pop  r9
     pop  r8
@@ -59,7 +58,7 @@ msyscall_exit:
     pop  rsi
     pop  rbp
     pop  rdx
-    pop  rcx
+    add  rsp, 8
     pop  rbx
     pop  rax
 
@@ -69,11 +68,10 @@ msyscall_exit:
     ; r11 寄存器的值在 sysret 时成为 rflags
     cli
 
-    add  rsp, 40
-    pop  rbp      ; old rsp
+    add  rsp, 16
+    pop  rcx
     add  rsp, 8
-    mov  rsp, rbp
-
-    pop  rbp      ; old rbp
+    pop  r11
+    pop  rsp
 
     o64 sysret
