@@ -107,6 +107,11 @@ int kill(int pid, int sig)
     return syscall(SYS_kill, pid, sig);
 }
 
+int raise(int sig)
+{
+    return kill(getpid(), sig);
+}
+
 int uname(utsname_t *name)
 {
     return syscall(SYS_uname, name);

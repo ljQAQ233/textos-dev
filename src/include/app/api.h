@@ -2,6 +2,10 @@
 
 // api
 
+int getpid();
+
+int getppid();
+
 int fork();
 
 int execve(char *path, char *const argv[], char *const envp[]);
