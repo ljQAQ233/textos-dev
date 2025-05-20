@@ -131,6 +131,7 @@ void __handle_signal(intr_frame_t *iframe)
 
         frame->restorer = act->sa_restorer;
         frame->signum = i;
+        frame->sigprv = tsk->sigcurr;
         frame->sigmask = tsk->sigmask;
         frame->r15 = iframe->r15;
         frame->r14 = iframe->r14;
@@ -188,6 +189,7 @@ __SYSCALL_DEFINE0(int, sigreturn)
     if (~frame->rflags & (1 << 9))
         PANIC("eflags error\n");
 
+    tsk->sigcurr = frame->sigprv;
     tsk->sigmask = frame->sigmask;
 
     addr_t rsp = (addr_t)&frame->r15;

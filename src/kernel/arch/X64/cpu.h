@@ -20,6 +20,7 @@ typedef struct {
 typedef struct {
   void *restorer;
   u64 signum;
+  u64 sigprv;
   u64 sigmask;
 
   u64 r15, r14, r13, r12, r11, r10, r9, r8;
