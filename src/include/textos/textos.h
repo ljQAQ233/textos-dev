@@ -37,6 +37,6 @@
 #define __user_stack_bot    0x00007fffffff0000ull
 #define __user_stack_pages  ((__user_stack_top - __user_stack_bot) / PAGE_SIZ)
 
-#define istk_pages 1
+#define istk_pages 4
 
 #endif

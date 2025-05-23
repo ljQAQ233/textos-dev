@@ -104,9 +104,9 @@ task_t *task_create (void *main, int args)
     {
         vmm_phyauto(__user_stack_bot, __user_stack_pages, PE_P | PE_RW | PE_US);
         stack = (void *)__user_stack_top;
-        istack = vmm_allocpages(1, PE_P | PE_RW);
+        istack = vmm_allocpages(istk_pages, PE_P | PE_RW) + istk_pages * PAGE_SIZ;
     } else {
-        stack = vmm_allocpages(1, PE_P | PE_RW); // TODO: replace it
+        stack = vmm_allocpages(4, PE_P | PE_RW) + 4 * PAGE_SIZ; // TODO: replace it
         istack = NULL;
     }
 
@@ -150,7 +150,7 @@ task_t *task_create (void *main, int args)
 
 static int fork_stack(task_t *prt, task_t *chd)
 {
-    void *istk = vmm_allocpages(istk_pages, PE_P | PE_RW);
+    void *istk = vmm_allocpages(istk_pages, PE_P | PE_RW) + istk_pages * PAGE_SIZ;
     build_tframe(chd, istk, 0);
     build_iframe(chd, istk, 0);
 
