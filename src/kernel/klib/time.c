@@ -38,7 +38,7 @@ u64 time_stamp (time_t *tm)
        计算闰年润过来的天数
        这里 Y < 2000 时, "向上取整"的结果依然是 0
     */
-    u64 Y = tm->year - 1;
+    u64 Y = tm->year;
     u64 offset = DIV_ROUND_UP(Y - 1972, 4)
                - DIV_ROUND_UP(Y - 2000, 100)
                + DIV_ROUND_UP(Y - 2000, 400);
