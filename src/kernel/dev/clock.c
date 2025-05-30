@@ -27,7 +27,7 @@ static inline u8 read_rtc (u16 reg)
     return inb (R_CMOS_DATA);
 }
 
-static u64 __startup_time;
+extern time_t __startup_time;
 
 #define DUMP_BCD(bcd) \
     ((bcd >> 4) * 10 + (bcd & 0xF))
@@ -36,8 +36,8 @@ static u64 __startup_time;
 
 void clock_init ()
 {
-    time_t tm;
-    memset (&tm, 0, sizeof(time_t));
+    rtc_tm_t tm;
+    memset (&tm, 0, sizeof(tm));
 
     /* 让 CMOS 自己告诉我们它有没有用 BCD */
     bool BcdMode = !(read_rtc(R_STAT_B) & STAT_NOBCD);
@@ -74,5 +74,6 @@ void clock_init ()
     printk ("time now -> %u/%u/%u %02u:%02u:%02u (%llu)\n",
            tm.year, tm.month, tm.day,
            tm.hour, tm.minute, tm.second, stamp);
+    __startup_time = stamp;
 }
 

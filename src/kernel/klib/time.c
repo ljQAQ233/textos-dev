@@ -32,7 +32,7 @@ static u32 month[13] = {
 #define TS_HOUR   (60 * 60)
 #define TS_DAY    (60 * 60 * 24)
 
-u64 time_stamp (time_t *tm)
+u64 time_stamp (rtc_tm_t *tm)
 {
     /*
        计算闰年润过来的天数
@@ -55,5 +55,55 @@ u64 time_stamp (time_t *tm)
             + tm->minute * TS_MINUTE
             + tm->second;
     return res;
+}
+
+// subsquently by deepseek
+void time_rtctm(u64 ts, rtc_tm_t *tm)
+{
+    u64 days_total = ts / TS_DAY;
+    u64 seconds_in_day = ts % TS_DAY;
+    int year = 1970;
+    u64 days_left = days_total;
+    
+    while (1)
+    {
+        int is_leap = LEAP_CKR(year);
+        u32 year_days = is_leap ? 366 : 365;
+        
+        if (days_left < year_days) 
+            break;
+        
+        days_left -= year_days;
+        year++;
+    }
+    
+    int is_leap = LEAP_CKR(year);
+    int i;
+    u32 prev_days = 0;
+    
+    for (i = 1; i <= 12; i++)
+    {
+        u32 cum_days = month[i];
+        if (is_leap && i >= 2)
+            cum_days++;
+            
+        if (days_left < cum_days)
+        {
+            prev_days = month[i-1];
+            if (is_leap && (i-1) >= 2)
+                prev_days++;
+            break;
+        }
+    }
+    
+    tm->year = year;
+    tm->month = i;
+    tm->day = days_left - prev_days + 1;
+    
+    tm->hour = seconds_in_day / TS_HOUR;
+    seconds_in_day %= TS_HOUR;
+    
+    tm->minute = seconds_in_day / TS_MINUTE;
+    tm->second = seconds_in_day % TS_MINUTE;
 }
 
