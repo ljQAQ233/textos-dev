@@ -24,6 +24,7 @@ typedef struct node node_t;
 struct dirctx;
 typedef struct dirctx dirctx_t;
 
+#include <textos/time.h>
 #include <textos/noopt.h>
 #include <textos/mm/mman.h>
 
@@ -47,6 +48,9 @@ struct node {
 
     u64 attr;
     u64 siz;     // Zero for dir
+    time_t atime;
+    time_t mtime;
+    time_t ctime;
 
     // unused
     node_t *root;

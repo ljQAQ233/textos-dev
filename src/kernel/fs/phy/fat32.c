@@ -2,6 +2,7 @@
 #include <textos/fs.h>
 #include <textos/fs/inter.h>
 #include <textos/errno.h>
+#include <textos/klib/time.h>
 #include <textos/dev/buffer.h>
 
 #include <string.h>
@@ -85,12 +86,12 @@ typedef struct _packed {
     u8 attr;
     u8 rev;
     u8 create_ms;
-    u16 create_tm;
-    u16 create_date;
-    u16 access_date;
+    fat_time_t create_tm;
+    fat_date_t create_date;
+    fat_date_t access_date;
     u16 clst_high;
-    u16 write_tm;
-    u16 write_date;
+    fat_time_t write_tm;
+    fat_date_t write_date;
     u16 clst_low;
     u32 filesz;
 } sentry_t;
@@ -353,6 +354,42 @@ static inline char *make_namel(lentry_t *lent, char **buf)
 
 #undef _
 
+static const fat_time_t fat_time_null = { 0, 0, 0 };
+static const fat_date_t fat_date_null = { 0, 0, 0 };
+
+static inline time_t parse_time(fat_date_t fdate, fat_time_t ftime)
+{
+    rtc_tm_t rtctm = {
+        .second = ftime.second << 1,
+        .minute = ftime.minute,
+        .hour = ftime.hour,
+        .day = fdate.day,
+        .month = fdate.month,
+        .year = fdate.year + 1980,
+    };
+    return time_stamp(&rtctm);
+}
+
+static inline void make_time(time_t ts, fat_date_t *fdate, fat_time_t *ftime)
+{
+    rtc_tm_t tm;
+    time_rtctm(ts, &tm);
+
+    if (fdate)
+    {
+        fdate->day = tm.day;
+        fdate->month = tm.month;
+        fdate->year = tm.year - 1980;
+    }
+
+    if (ftime)
+    {
+        ftime->second = tm.second >> 1;
+        ftime->minute = tm.minute;
+        ftime->hour = tm.hour;
+    }
+}
+
 static node_t *analyse_entry(stack_t *stk, unsigned *clst)
 {
     ASSERTK(!stack_empty(stk));
@@ -396,6 +433,10 @@ static node_t *analyse_entry(stack_t *stk, unsigned *clst)
     else
         *clst = 0;
 
+    n->atime = parse_time(main->access_date, fat_time_null);
+    n->mtime = parse_time(main->write_date, main->write_tm);
+    n->ctime = n->mtime; // fat doesn't support ctime natively
+
     return n;
 }
 
@@ -407,7 +448,7 @@ static node_t *analyse_entry(stack_t *stk, unsigned *clst)
  * target 提供 name, time...
  * lkp 提供条目的定位信息
  */
-static stack_t *make_entry(node_t *target, lookup_t *lkp)
+static stack_t *make_entry(node_t *target, lookup_t *lkp, bool init)
 {
     stack_t *stk = stack_init(NULL);
     stack_set(stk, free, NULL);
@@ -564,6 +605,16 @@ make:
         lent->nr |= 0x40;
     }
 
+    if (init)
+    {
+        time_t now = arch_time_now();
+        target->atime = now;
+        target->mtime = now;
+        target->ctime = now;
+        make_time(now, &sent->create_date, &sent->create_tm);
+    }
+    make_time(target->atime, &sent->access_date, NULL);
+    make_time(target->mtime, &sent->write_date, &sent->write_tm);
     return stk;
 }
 
@@ -1031,7 +1082,7 @@ static size_t node_expand(node_t *this, size_t siz)
 static void node_update(node_t *this)
 {
     lookup_t *lkp = this->pdata;
-    stack_t *stk = make_entry(this, lkp);
+    stack_t *stk = make_entry(this, lkp, 0);
     lookup_update(lkp, stk);
 }
 
@@ -1074,6 +1125,8 @@ static int byte_rd(node_t *n, void *buf, size_t rdsiz, size_t off)
             break;
     }
 
+    n->atime = arch_time_now();
+
 done:
     return real;
 }
@@ -1111,6 +1164,10 @@ static int byte_wr(node_t *n, void *buf, size_t wrsiz, size_t off)
         if (is_eoc(curr))
             break;
     }
+
+    n->atime = arch_time_now();
+    n->mtime = arch_time_now();
+    n->ctime = n->mtime;
 
 done:
     return wrsiz;
@@ -1152,7 +1209,7 @@ static node_t *create(node_t *prt, char *name, int attr)
     list_init(&lkp->link);
     stack_init(&lkp->ents);
 
-    stack_t *stk = make_entry(chd, lkp);
+    stack_t *stk = make_entry(chd, lkp, 1);
     lookup_alloc(lkpp, lkp, stk);
     lookup_save0(lkp, stk);
 
@@ -1229,6 +1286,7 @@ end:
 static int fat32_close(node_t *this)
 {
     lookup_t *lkp = this->pdata;
+    node_update(this);
     vfs_release(this);
     lct_clr(&lkp->link);
     free(lkp);
@@ -1322,6 +1380,8 @@ static int fat32_readdir(node_t *dir, node_t **res, dirctx_t *ctx)
         chd->systype = dir->systype;
         chd_insert(dir, chd);
     }
+
+    dir->atime = arch_time_now();
 
     *res = chd;
     return 0;
