@@ -133,6 +133,7 @@ typedef struct
 
     unsigned sec_siz;
     unsigned fat_siz;
+    unsigned clst_siz;
     unsigned fat_entsz;
     unsigned fat_sec;
     unsigned data_sec;
@@ -163,6 +164,16 @@ static inline unsigned get_next(sys_t *f, unsigned clst)
     unsigned next = tab[clst % 128];
     brelse(blk);
     return next;
+}
+
+static inline unsigned get_next_til(sys_t *f, unsigned from, unsigned delta)
+{
+    unsigned clst = from;
+    while (delta-- > 0)
+    {
+        clst = get_next(f, clst);
+    }
+    return clst;
 }
 
 static inline sentry_t *entry_dup(sentry_t *e)
@@ -269,6 +280,32 @@ typedef struct
             }                                          \
         } while (false);                               \
 
+typedef struct {
+    u32 pos;
+    u32 clst;
+    list_t link;
+} lru_t;
+
+#define CACHE_FIXED  32 // 跳表大小
+#define CACHE_LRUMAX 16 // LRU 最大容量
+#define CACHE_LRUGAP 1  // LRU 相邻记录的扇区的最小间隔
+
+/*
+ * 缓存: 跳表 + LRU
+ * 跳表的粒度 根据访问的偏移量增加动态调整, 最开始是 clst_siz,
+ * 一旦超过, 就会发生调整, 粒度翻倍, 每一次调整会将 表项 减半
+ */
+    
+typedef struct
+{
+    u32 maxpos; // 当前最大偏移
+    u32 unit;   // 当前 jmp 粒度
+    u32 unitclst;
+    u32 jmp[CACHE_FIXED];
+    int lrucap; // lru 当前容量
+    list_t lru; // lru 链表
+} cache_t;
+
 typedef struct
 {
     sys_t *f;
@@ -276,8 +313,142 @@ typedef struct
     node_t *node;
     stack_t ents; // entries
     list_t link;  // -> entlct_t.ents
-    void *cache; // TODO: context cache
+    cache_t cache;
 } lookup_t;
+
+static inline void lru_record(lookup_t *lkp, u32 curpos, u32 curclst)
+{
+    lru_t *lru;
+    cache_t *cache = &lkp->cache;
+
+    // 间隔小于 CACHE_LRUCAP 不记录
+    // if (!list_empty(&cache->lru))
+    // {
+    //     lru_t *prev = CR(cache->lru.next, lru_t, link);
+    //     u32 prev_rela = prev->pos / lkp->f->clst_siz;
+    //     u32 curr_rela = curpos / lkp->f->clst_siz;
+    //     if (ABS((int64)curr_rela - (int64)prev_rela) < CACHE_LRUGAP)
+    //         return ;
+    // }
+
+    if (cache->lrucap == CACHE_LRUMAX - 1)
+    {
+        list_t *list = list_popback(&cache->lru);
+        lru = CR(list, lru_t, link);
+        cache->lrucap--;
+    }
+    else
+    {
+        lru = malloc(sizeof(lru_t));
+    }
+    cache->lrucap++;
+    lru->pos = curpos;
+    lru->clst = curclst;
+    list_pushhead(&cache->lru, &lru->link);
+}
+
+/* lru 被使用, 使它成为最新 */
+static inline void lru_refresh(lookup_t *lkp, lru_t *lru)
+{
+    cache_t *cache = &lkp->cache;
+    list_remove(&lru->link);
+    list_pushhead(&cache->lru, &lru->link);
+}
+
+static inline void jmp_adjust(lookup_t *lkp, int *idx)
+{
+    cache_t *cache = &lkp->cache;
+    while (*idx >= CACHE_FIXED)
+    {
+        cache->unit <<= 1;
+        cache->unitclst <<= 1;
+        for (int i = 0 ; i < (CACHE_FIXED >> 1) ; i++)
+            cache->jmp[i] = cache->jmp[i << 1];
+        for (int i = CACHE_FIXED >> 1 ; i < CACHE_FIXED ; i++)
+            cache->jmp[i] = 0;
+        *idx >>= 1;
+    }
+}
+
+/*
+ * 512K data testing:
+ *  $ tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 1023 | head -n 512 > src/resource/rand0
+ *  >  (sh-xv6) > cp /rand0 /rand
+ */
+static u32 cache_search(lookup_t *lkp, u32 pos)
+{
+    // return get_next_til(lkp->f, lkp->clst, pos / 512);
+    cache_t *cache = &lkp->cache;
+    u32 pos_clst;
+    u32 pos_rela = pos / lkp->f->clst_siz; // 相对文件开头的扇区数
+
+    list_t *iter;
+    u32 dist = -1;
+    lru_t *srch = NULL;
+    LIST_FOREACH(iter, &cache->lru)
+    {
+        lru_t *lru = CR(iter, lru_t, link);
+        u32 lru_rela = lru->pos / lkp->f->clst_siz;
+        if (lru_rela <= pos_rela)
+        {
+            if (dist > pos_rela - lru_rela)
+            {
+                dist = pos_rela - lru_rela;
+                srch = lru;
+            }
+            if (dist == 0)
+                break;
+        }
+    }
+
+    // LRU 没找到再去找 跳表
+    if (srch == NULL || dist > cache->unitclst)
+    {
+        int idx = pos_rela / cache->unitclst;
+        jmp_adjust(lkp, &idx);
+        while (idx > 0)
+        {
+            if (cache->jmp[idx])
+                break;
+            idx--;
+        }
+
+        u32 cur_clst = cache->jmp[idx];
+        u32 cur_rela = idx * cache->unitclst;
+        while (true)
+        {
+            // pos_rela 之后的区域已经被 unitclst 个扇区覆盖到了
+            if (cur_rela + cache->unitclst >= pos_rela)
+                break;
+            idx++;
+            jmp_adjust(lkp, &idx);
+            cache->jmp[idx] = cur_clst = get_next_til(lkp->f, cur_clst, cache->unitclst);
+            cur_rela += cache->unitclst;
+        }
+        dist = pos_rela - cur_rela;
+        pos_clst = get_next_til(lkp->f, cur_clst, dist);
+        lru_record(lkp, pos, pos_clst);
+    }
+    else
+    {
+        lru_refresh(lkp, srch);
+        pos_clst = get_next_til(lkp->f, srch->clst, dist);
+    }
+
+    return pos_clst;
+}
+
+static void cache_init(lookup_t *lkp)
+{
+    cache_t *cache = &lkp->cache;
+    cache->maxpos = 0;
+    cache->unit = lkp->f->clst_siz;
+    cache->unitclst = 1;
+    memset(cache->jmp, 0, sizeof(cache->jmp));
+    cache->jmp[0] = lkp->clst;
+    cache->lrucap = 0;
+    list_init(&cache->lru);
+}
 
 static lookup_t *lkp_prt(lookup_t *lkp)
 {
@@ -715,6 +886,7 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
         lkp = NULL;
     } else {
         lkp->f = f;
+        cache_init(lkp);
     }
     return lkp;
 }
@@ -771,9 +943,6 @@ static lookup_t *lookup_byctx(dirctx_t *ctx)
 
                 // generate node
                 lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
-                ctx->eidx = eidx+1;
-                ctx->bidx = sec0 + isec;
-                ctx->pos += 1;
             
             lkp_end:
                 wind = true;
@@ -785,7 +954,6 @@ static lookup_t *lookup_byctx(dirctx_t *ctx)
                 goto done;
         }
 
-        eidx = 0;
         curr = get_next(f, curr);
         if (is_eoc(curr)) {
             ASSERTK(lkp->node == NULL);
@@ -798,7 +966,6 @@ done:
     if (!lkp->node) {
         free(lkp);
         lkp = NULL;
-        ctx->stat = ctx_end;
     } else {
         lkp->f = ctx->sys;
     }
@@ -991,7 +1158,7 @@ static void data_relse(sys_t *sys, unsigned start, unsigned skip, bool cut)
     }
 }
 
-// 拓展 this 所指向的实体, 在原有的基础上拓宽/拓宽到 cnt 个扇区
+// 在原有的基础上拓宽/拓宽到 cnt 个扇区
 static size_t data_expand2(sys_t *f, unsigned *start, size_t cnt, bool append)
 {
     if (*start == 0) {
@@ -1095,35 +1262,35 @@ static int byte_rd(node_t *n, void *buf, size_t rdsiz, size_t off)
         return EOF;
 
     lookup_t *lkp = n->pdata;
-    unsigned curr = lkp->clst;
-    unsigned skip_sect = off / 512,
-             skip_byte = off % 512;
+    unsigned curr = cache_search(lkp, off);
+    unsigned skip_byte = off % 512;
     unsigned real = MIN(n->siz, off + rdsiz) - off;
     unsigned rem = real;
-    for (int s = 0 ; ; )
+    while (true)
     {
         unsigned sec0 = clst2sec(f, curr);
-        for (int isec = 0 ; isec < f->sec_perclst ; isec++, s++)
+        for (int isec = 0 ; isec < f->sec_perclst ; isec++)
         {
-            if (s >= skip_sect)
-            {
-                buffer_t *tmp = bread(f->dev, sec0 + isec);
-                size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
-                memcpy(buf, tmp->blk + skip_byte, cpysiz);
-                brelse(tmp);
-                skip_byte = 0;
+            buffer_t *tmp = bread(f->dev, sec0 + isec);
+            size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
+            memcpy(buf, tmp->blk + skip_byte, cpysiz);
+            brelse(tmp);
+            skip_byte = 0;
 
-                buf += cpysiz;
-                rem -= cpysiz;
-                if (rem == 0)
-                    goto done;
-            }
+            buf += cpysiz;
+            off += cpysiz;
+            rem -= cpysiz;
+            if (rem == 0)
+                goto done;
         }
         
         curr = get_next(f, curr);
         if (is_eoc(curr))
             break;
     }
+
+    // if (!is_eoc(curr))
+    //     lru_record(lkp, off, curr);
 
     n->atime = arch_time_now();
 
@@ -1135,29 +1302,25 @@ static int byte_wr(node_t *n, void *buf, size_t wrsiz, size_t off)
 {
     sys_t *f = n->sys;
     lookup_t *lkp = n->pdata;
-    unsigned curr = lkp->clst;
-    unsigned skip_sect = off / 512,
-             skip_byte = off % 512;
+    unsigned curr = cache_search(lkp, off);
+    unsigned skip_byte = off % 512;
     unsigned rem = wrsiz;
     for (size_t s = 0 ;  ; )
     {
         unsigned sec0 = clst2sec(f, curr);
         for (int isec = 0 ; isec < f->sec_perclst ; isec++, s++)
         {
-            if (s >= skip_sect)
-            {
-                buffer_t *ori = bread(f->dev, sec0 + isec);
-                size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
-                memcpy(ori->blk + skip_byte, buf, cpysiz);
-                bdirty(ori, true);
-                brelse(ori);
-                skip_byte = 0;
+            buffer_t *ori = bread(f->dev, sec0 + isec);
+            size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
+            memcpy(ori->blk + skip_byte, buf, cpysiz);
+            bdirty(ori, true);
+            brelse(ori);
+            skip_byte = 0;
 
-                buf += cpysiz;
-                rem -= cpysiz;
-                if (rem == 0)
-                    goto done;
-            }
+            buf += cpysiz;
+            rem -= cpysiz;
+            if (rem == 0)
+                goto done;
         }
 
         curr = get_next(f, curr);
@@ -1311,8 +1474,11 @@ static int fat32_read(node_t *this, void *buf, size_t siz, size_t offset)
 static int fat32_write(node_t *this, void *buf, size_t siz, size_t offset)
 {
     bool chg = false;
+    bool zero = !this->siz;
     if (siz + offset >= this->siz) {
         this->siz = node_expand(this, siz + offset);
+        if (zero)
+            cache_init(this->pdata);
         chg = true;
     }
 
@@ -1422,6 +1588,7 @@ FS_INITIALIZER(__fs_init_fat32)
 
     f->sec_siz = 512;
     f->fat_siz = fat_siz;
+    f->clst_siz = rec->sec_perclst * 512;
     f->fat_entsz = 4;
     f->fat_sec = fat_sec;
     f->data_sec = data_sec;
