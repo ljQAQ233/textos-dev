@@ -47,7 +47,9 @@ ssize_t write(int fd, const void *buf, size_t cnt);
 
 ssize_t read(int fd, void *buf, size_t cnt);
 
-ssize_t readdir(int fd, void *buf, size_t mx);
+ssize_t __readdir(int fd, void *buf, size_t mx);
+
+int __seekdir(int fd, size_t *pos);
 
 int close(int fd);
 

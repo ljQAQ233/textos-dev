@@ -38,7 +38,8 @@ typedef struct {
     int  (*write)(node_t *this, void *buf, size_t siz, size_t offset);
     int  (*truncate)(node_t *this, size_t offset);
     /* 文件夹操作 */
-    int  (*readdir)(node_t *this, node_t **res, dirctx_t *ctx);
+    int  (*readdir)(node_t *this, dirctx_t *ctx);
+    int  (*seekdir)(node_t *this, dirctx_t *ctx, size_t *pos);
     /* 文件映射 */
     void *(*mmap)(node_t *this, vm_region_t *vm);
 } fs_opts_t;
@@ -84,6 +85,13 @@ struct dirctx
     addr_t bidx;
     addr_t eidx;
     size_t perblk;
+    
+    // emit info, DO NOT CHANGE IT EXCEPT
+    // IN __readdir AND FS readdir !!!
+    void *buf;
+    size_t bufmx;
+    size_t bufused;
+    size_t bufents;
 };
 
 extern int vfs_open (node_t *parent, node_t **node, const char *path, u64 args);

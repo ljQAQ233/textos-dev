@@ -75,7 +75,9 @@ int open(char *path, int flgs);
 
 ssize_t write(int fd, void *buf, size_t cnt);
 
-ssize_t readdir(int fd, void *buf, size_t mx);
+ssize_t __readdir(int fd, void *buf, size_t mx);
+
+bool __dir_emit_node(dirctx_t *ctx, node_t *chd);
 
 ssize_t read(int fd, void *buf, size_t cnt);
 

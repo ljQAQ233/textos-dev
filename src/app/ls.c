@@ -20,7 +20,7 @@ int ls(char *path)
         }
 
         int nr;
-        while ((nr = readdir(fd, b, sizeof(b))) > 0)
+        while ((nr = __readdir(fd, b, sizeof(b))) > 0)
         {
             dir_t *p = (dir_t *)b;
             while (p < (dir_t *)(b + nr)) {

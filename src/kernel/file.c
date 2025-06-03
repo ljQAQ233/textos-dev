@@ -122,28 +122,44 @@ __SYSCALL_DEFINE3(ssize_t, readdir, int, fd, void *, buf, size_t, mx)
     if (accm == O_WRONLY)
         return -EBADF;
 
-    size_t cnt = 0;
-    while (true) {
-        node_t *chd;
-        if (file->node->opts->readdir(file->node, &chd, file->dirctx) < 0)
-            break;
+    dirctx_t *ctx = file->dirctx;
+    ctx->buf = buf;
+    ctx->bufmx = mx;
+    ctx->bufused = 0;
+    ctx->bufents = 0;
 
-        size_t len = strlen(chd->name);
-        size_t siz = sizeof(dir_t) + len + 1;
-        if (cnt + siz > mx)
-            break;
+    if (file->node->opts->readdir(file->node, ctx) < 0)
+        return EOF;
 
-        dir_t *dir = buf;
-        dir->idx = file->offset;
-        dir->siz = siz;
-        dir->len = len;
-        strcpy(dir->name, chd->name);
+    file->offset = ctx->pos;
+    return ctx->bufused;
+}
 
-        cnt += siz;
-        buf += siz;
-        file->offset += 1;
-    }
-    return cnt;
+bool __dir_emit_node(dirctx_t *ctx, node_t *chd)
+{
+    size_t len = strlen(chd->name);
+    size_t siz = sizeof(dir_t) + len + 1;
+    if (ctx->bufused + siz > ctx->bufmx)
+        return false;
+
+    dir_t *dir = ctx->buf;
+    dir->idx = ctx->pos;
+    dir->siz = siz;
+    dir->len = len;
+    strcpy(dir->name, chd->name);
+
+    ctx->bufused += siz;
+    ctx->buf += siz;
+    return ctx->bufused != ctx->bufmx;
+}
+
+__SYSCALL_DEFINE2(int, seekdir, int, fd, size_t *, pos)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+
+    return file->node->opts->seekdir(file->node, file->dirctx, pos);
 }
 
 /*

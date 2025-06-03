@@ -891,7 +891,79 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
     return lkp;
 }
 
-static lookup_t *lookup_byctx(dirctx_t *ctx)
+static inline void init_ctx(dirctx_t *ctx, node_t *dir);
+
+static int lookup_skctx(dirctx_t *ctx, size_t *pos)
+{
+    if (ctx->pos == *pos) {
+        return *pos;
+    } else if (ctx->pos > *pos) {
+        init_ctx(ctx, ctx->node);
+        if (!*pos)
+            return 0;
+    }
+
+    sys_t *f = ctx->sys;
+    unsigned curr = sec2clst(ctx->sys, ctx->bidx);
+    unsigned eidx = ctx->eidx;
+    bool wind = false;
+    while (true)
+    {
+        unsigned sec0 = clst2sec(f, curr);
+        for (int isec = 0 ; isec < f->sec_perclst ; isec++) {
+            buffer_t *buf = bread(f->dev, sec0 + isec);
+            sentry_t *ents = buf->blk;
+
+            for ( ; eidx < f->clst_siz / 32 ; eidx++)
+            {
+                if (is_free(&ents[eidx]))
+                    continue;
+                if (is_none(&ents[eidx])) {
+                    ctx->stat = ctx_inv;
+                    goto lkp_end;
+                }
+                if (ents[eidx].attr & FA_LONG)
+                    continue;
+                else {
+                    ctx->eidx = eidx+1;
+                    ctx->bidx = sec0 + isec;
+                    ctx->pos += 1;
+                    if (ctx->pos == *pos)
+                        goto lkp_end;
+                }
+
+                continue;
+
+            lkp_end:
+                wind = true;
+                break;
+            }
+            brelse(buf);
+
+            if (wind)
+                goto done;
+            eidx = 0;
+        }
+
+        curr = get_next(f, curr);
+        if (is_eoc(curr)) {
+            ctx->stat = ctx_inv;
+            goto done;
+        }
+    }
+done:
+    if (ctx->stat == ctx_pre)
+        return 0;
+    *pos = ctx->pos - 1;
+    return EOF;
+}
+
+static void chd_insert(node_t *prt, node_t *chd);
+
+/*
+ * ctx 记录上下文信息, ctx 描述 下一个将被读取的目录项
+*/
+static void lookup_byctx(dirctx_t *ctx)
 {
     lookup_t *lkp = malloc(sizeof(*lkp));
     lkp->node = NULL;
@@ -910,7 +982,7 @@ static lookup_t *lookup_byctx(dirctx_t *ctx)
             buffer_t *buf = bread(f->dev, sec0 + isec);
             sentry_t *ents = buf->blk;
 
-            for ( ; eidx < 16 ; eidx++)
+            for ( ; eidx < f->clst_siz / 32 ; eidx++)
             {
                 if (is_free(&ents[eidx]))
                     continue;
@@ -943,6 +1015,17 @@ static lookup_t *lookup_byctx(dirctx_t *ctx)
 
                 // generate node
                 lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
+                if (__dir_emit_node(ctx, lkp->node))
+                {
+                    ctx->eidx = eidx+1;
+                    ctx->bidx = sec0 + isec;
+                    ctx->pos += 1;
+                    vfs_release(lkp->node);
+                    lkp->node = NULL;
+                    stack_clear(&lkp->ents);
+                    lct_clr(&lkp->link);
+                    continue;
+                }
             
             lkp_end:
                 wind = true;
@@ -952,6 +1035,7 @@ static lookup_t *lookup_byctx(dirctx_t *ctx)
 
             if (wind)
                 goto done;
+            eidx = 0;
         }
 
         curr = get_next(f, curr);
@@ -962,15 +1046,7 @@ static lookup_t *lookup_byctx(dirctx_t *ctx)
     }
 
 done:
-    // remained info
-    if (!lkp->node) {
-        free(lkp);
-        lkp = NULL;
-    } else {
-        lkp->f = ctx->sys;
-    }
-
-    return lkp;
+    free(lkp);
 }
 
 static size_t data_expand2(sys_t *f, unsigned *start, size_t cnt, bool append);
@@ -1521,36 +1597,28 @@ static inline void init_ctx(dirctx_t *ctx, node_t *dir)
     ctx->stat = ctx_pre;
 }
 
-static int fat32_readdir(node_t *dir, node_t **res, dirctx_t *ctx)
+static int fat32_readdir(node_t *dir, dirctx_t *ctx)
 {
-    lookup_t *lkp, *prt = dir->pdata;
-
     if (ctx->stat == ctx_inv)
         init_ctx(ctx, dir);
     if (ctx->stat == ctx_end)
-        return -1;
-
-    lkp = lookup_byctx(ctx);
-    if (lkp == NULL)
-        return -1;
-
-    node_t *chd = lkp->node;
-    if (vfs_test(dir, chd->name, NULL, NULL)) {
-        vfs_release(chd);
-    } else {
-        chd = lkp->node;
-        chd->pdata = lkp;
-
-        chd->opts = dir->opts;
-        chd->sys = dir->sys;
-        chd->systype = dir->systype;
-        chd_insert(dir, chd);
-    }
-
+        return EOF;
+    lookup_byctx(ctx);
     dir->atime = arch_time_now();
-
-    *res = chd;
     return 0;
+}
+
+/**
+ * @brief 调整 ctx 到 pos 位置
+
+ * @retval 0   操作成功
+ * @retval EOF 到达目录末端, pos 被设置成 目录最后一项的位置
+ */
+static int fat32_seekdir(node_t *dir, dirctx_t *ctx, size_t *pos)
+{
+    if (ctx->stat == ctx_inv)
+        init_ctx(ctx, dir);
+    return lookup_skctx(ctx, pos);
 }
 
 fs_opts_t __fat32_opts;
@@ -1624,4 +1692,5 @@ fs_opts_t __fat32_opts = {
     .write = fat32_write,
     .truncate = fat32_truncate,
     .readdir = fat32_readdir,
+    .seekdir = fat32_seekdir,
 };

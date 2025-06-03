@@ -6,6 +6,7 @@
 
 extern void sys_read();
 extern void sys_readdir();
+extern void sys_seekdir();
 extern void sys_write();
 extern void sys_open();
 extern void sys_close();
@@ -53,6 +54,7 @@ typedef long (*sys_func)(long, long, long, long, long, long);
 void *sys_handlers[] = {
     [SYS_read] = sys_read,
     [SYS_readdir] = sys_readdir,
+    [SYS_seekdir] = sys_seekdir,
     [SYS_write] = sys_write,
     [SYS_open] = sys_open,
     [SYS_close] = sys_close,

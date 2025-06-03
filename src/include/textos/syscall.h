@@ -46,6 +46,7 @@
     _(readdir, 500),     \
     _(poweroff, 501),    \
     _(yield, 502),       \
+    _(seekdir, 503),     \
     _(test, 510),        \
     _(maxium, 511),
 
