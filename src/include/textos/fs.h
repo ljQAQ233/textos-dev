@@ -120,6 +120,8 @@ extern void vfs_initops (fs_opts_t *opts);
 
 int vfs_mount(node_t *dir, node_t *root);
 
+int vfs_mount_to(char *path, node_t *root);
+
 int vfs_umount(node_t *dir);
 
 #endif
