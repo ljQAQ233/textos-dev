@@ -135,9 +135,12 @@ __SYSCALL_DEFINE3(ssize_t, readdir, int, fd, void *, buf, size_t, mx)
     return ctx->bufused;
 }
 
-bool __dir_emit_node(dirctx_t *ctx, node_t *chd)
+/**
+ * @param ino    unused yet
+ * @param type   unused yet
+ */
+bool __dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type)
 {
-    size_t len = strlen(chd->name);
     size_t siz = sizeof(dir_t) + len + 1;
     if (ctx->bufused + siz > ctx->bufmx)
         return false;
@@ -146,11 +149,16 @@ bool __dir_emit_node(dirctx_t *ctx, node_t *chd)
     dir->idx = ctx->pos;
     dir->siz = siz;
     dir->len = len;
-    strcpy(dir->name, chd->name);
+    strcpy(dir->name, name);
 
     ctx->bufused += siz;
     ctx->buf += siz;
     return ctx->bufused != ctx->bufmx;
+}
+
+bool __dir_emit_node(dirctx_t *ctx, node_t *chd)
+{
+    return __dir_emit(ctx, chd->name, strlen(chd->name), 0, 0);
 }
 
 __SYSCALL_DEFINE2(int, seekdir, int, fd, size_t *, pos)
