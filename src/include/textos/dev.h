@@ -5,6 +5,7 @@
 #include <textos/klib/list.h>
 
 enum dev_type {
+    DEV_NONE,
     DEV_CHAR,
     DEV_BLK,
     DEV_NET,
@@ -22,6 +23,7 @@ enum sub_type {
     DEV_IDE,    /* Integrated Drive Electronics */
     DEV_PART,
     DEV_NETIF,
+    DEV_ANONY,
 };
 
 struct dev;
@@ -73,6 +75,8 @@ dev_t *dev_new ();
 void __dev_register (dev_pri_t *pri);
 
 void dev_register (dev_t *prt, dev_t *dev);
+
+void dev_register_anony(dev_t *dev);
 
 dev_t *dev_lookup_type (int subtype, int idx);
 

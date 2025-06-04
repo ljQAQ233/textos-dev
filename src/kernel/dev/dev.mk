@@ -30,3 +30,4 @@ SRCS += dev/nic/e1000.c
 
 # pseudo-dev
 SRCS += dev/mem.c
+SRCS += dev/anony.c

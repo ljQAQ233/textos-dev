@@ -20,11 +20,13 @@ static void inv_handle()
 static list_t root = LIST_INIT(root);
 
 extern void __dev_initmem();
+extern void __dev_initanony();
 extern void __dev_initdbgcon();
 
 void dev_init()
 {
     __dev_initmem();
+    __dev_initanony();
     __dev_initdbgcon();
 
     dev_list();
@@ -37,6 +39,8 @@ void dev_init()
 static void initnod(dev_t *dev)
 {
     char path[64];
+    if (dev->subtype == DEV_ANONY)
+        return ;
     if (dev->type == DEV_NET)
         sprintf(path, "/dev/net/%s", dev->name);
     else
