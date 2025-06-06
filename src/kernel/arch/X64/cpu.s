@@ -8,6 +8,25 @@ cpuid:
   mov rax, rdi          ; leaf
   mov rdi, rdx
   mov r9,  rcx
+  xor rcx, rcx
+
+  cpuid
+  mov dword [rsi], eax  ; eax
+  mov dword [rdi], ebx  ; ebx
+  mov dword [r9],  ecx  ; ecx
+  mov dword [r8],  edx  ; edx
+  
+  pop  rbx
+  ret
+
+; void cpuid2 (int leaf, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
+global cpuid2
+cpuid2:
+  push rbx ; 被调用方保存
+
+  mov rax, rdi          ; leaf
+  mov rdi, rdx
+  mov r9,  rcx
 
   cpuid
   mov dword [rsi], eax  ; eax
