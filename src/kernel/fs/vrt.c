@@ -237,6 +237,10 @@ int vfs_truncate (node_t *this, size_t offset)
     return ret;
 }
 
+/*
+ * FIXME: do not use this after a close directly!!! page fault may happen
+ *        for instance, you cannot release a mount directory or even the vfs root!
+ */
 int vfs_release (node_t *this)
 {
     if (this->attr & NA_DIR)

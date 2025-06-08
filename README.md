@@ -31,7 +31,7 @@
   - [x] 内核重映射
 
 - 任务管理
-  - [ ] 信号
+  - [x] 信号
 
 - 可执行程序
   - [x] ELF 加载
@@ -45,12 +45,13 @@
   - [x] QEMU debugcon
   - [x] 控制台
     - [x] CSI
+  - [ ] tty
   - [x] RTC 时钟
   - [x] PS/2 键盘
   - [x] IDE 硬盘
   - [x] E1000 网卡
   - [x] RTL8139 网卡
-  - [ ] FPU 协处理器
+  - [x] FPU 协处理器
   - 虚拟设备
     - [ ] mem
     - [x] zero
@@ -67,6 +68,8 @@
   - [x] fat32
   - [ ] minix
   - [ ] iso9660
+  - [x] procfs
+  - [ ] tmpfs
 
 - 网络接口
   - [x] ethernet
