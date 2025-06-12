@@ -9,3 +9,5 @@ SRCS += klib/fifo.c
 SRCS += klib/stack.c
 SRCS += klib/bitmap.c
 SRCS += klib/rbtree.c
+SRCS += klib/hlist.c
+SRCS += klib/htable.c
