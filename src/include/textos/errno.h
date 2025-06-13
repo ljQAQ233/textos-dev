@@ -14,6 +14,7 @@
 #define	EINVAL       22  // Invalid argument
 #define ENFILE       23  // 
 #define EMFILE       24  // Number of fd of this process was out of range
+#define ENOTEMPTY    39  // Directory not empty
 #define EDESTADDRREQ 89  // Destination address required
 #define EADDRINUSE   98  // Address in use
 #define ECONNRESET   104 // Connection reset by peer

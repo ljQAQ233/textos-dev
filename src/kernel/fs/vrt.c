@@ -392,6 +392,7 @@ static void _init_partitions (dev_t *hd, mbr_t *rec)
 extern void __pipe_init();
 extern void __kconio_init();
 extern void __vrtdev_init();
+extern node_t *__fs_init_tmpfs();
 extern node_t *__fs_init_procfs();
 
 #include <textos/mm/vmm.h>
@@ -412,6 +413,7 @@ void fs_init ()
     __kconio_init();
     __vrtdev_init();
 
+    vfs_mount_to("/tmp", __fs_init_tmpfs());
     vfs_mount_to("/proc", __fs_init_procfs());
 
     printk ("file system initialized!\n");
