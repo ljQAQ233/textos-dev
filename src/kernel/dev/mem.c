@@ -3,34 +3,34 @@
 #include <string.h>
 
 // EOF
-static int null_read(dev_t *dev, void *buf, size_t cnt)
+static int null_read(devst_t *dev, void *buf, size_t cnt)
 {
     memset(buf, EOF, cnt);
     return 0;
 }
 
 // drop!!!
-static int null_write(dev_t *dev, void *buf, size_t cnt)
+static int null_write(devst_t *dev, void *buf, size_t cnt)
 {
     return 0;
 }
 
 // 0
-static int zero_read(dev_t *dev, void *buf, size_t cnt)
+static int zero_read(devst_t *dev, void *buf, size_t cnt)
 {
     memset(buf, 0, cnt);
     return cnt;
 }
 
 // drop
-static int zero_write(dev_t *dev, void *buf, size_t cnt)
+static int zero_write(devst_t *dev, void *buf, size_t cnt)
 {
     return 0;
 }
 
 // todo : full
 
-static dev_t null = {
+static devst_t null = {
     .name = "null",
     .read = null_read,
     .write = null_write,
@@ -39,7 +39,7 @@ static dev_t null = {
     .minor = 3,
 };
 
-static dev_t zero = {
+static devst_t zero = {
     .name = "zero",
     .read = zero_read,
     .write = zero_write,
@@ -48,7 +48,7 @@ static dev_t zero = {
     .minor = 5
 };
 
-static dev_t mem = {
+static devst_t mem = {
     .name = "mem",
     .type = DEV_CHAR,
     .subtype = DEV_MEMORY,

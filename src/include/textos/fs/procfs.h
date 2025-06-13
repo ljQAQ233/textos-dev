@@ -36,7 +36,7 @@ typedef struct proc_entry
 
 typedef struct proc_super
 {
-    dev_t *dev;
+    devst_t *dev;
 } proc_super_t;
 
 proc_entry_t *proc_create(char *name, int mode, proc_entry_t *prt, proc_opts_t *op);

@@ -221,7 +221,7 @@ static char keyboard_getc()
     return *((char *)ring_pop(&ikey));
 }
 
-size_t keyboard_read(dev_t *dev, char *buf, size_t cnt)
+size_t keyboard_read(devst_t *dev, char *buf, size_t cnt)
 {
     for (int i = 0 ; i < cnt ; i++) {
         char c = keyboard_getc();
@@ -277,7 +277,7 @@ void keyboard_init ()
     outb(R_CMD, CMD_W_CTL);
     outb(R_DATA, CTL_INT1_ON | CTL_TRSAN1);
 
-    dev_t *dev = dev_new();
+    devst_t *dev = dev_new();
     dev->name = "keyboard";
     dev->read = (void *)keyboard_read;
     dev->write = NULL;

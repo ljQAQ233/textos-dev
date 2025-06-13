@@ -19,7 +19,7 @@ typedef struct tmpfs_page
 
 typedef struct tmpfs_super
 {
-    dev_t *dev;
+    devst_t *dev;
 } tmpfs_super_t;
 
 typedef struct tmpfs_entry
@@ -363,7 +363,7 @@ static void *tmpfs_mmap(node_t *this, vm_region_t *vm)
  */
 node_t *__fs_init_tmpfs()
 {
-    dev_t *anony = dev_new();
+    devst_t *anony = dev_new();
     tmpfs_super_t *super = malloc(sizeof(tmpfs_super_t));
     dev_register_anony(anony);
     super->dev = anony;

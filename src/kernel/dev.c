@@ -36,7 +36,7 @@ void dev_init()
 #include <textos/args.h>
 #include <textos/klib/vsprintf.h>
 
-static void initnod(dev_t *dev)
+static void initnod(devst_t *dev)
 {
     char path[64];
     if (dev->subtype == DEV_ANONY)
@@ -55,7 +55,7 @@ static void initnod(dev_t *dev)
     list_t *i;
     LIST_FOREACH(i, &dev->subdev)
     {
-        initnod(CR(i, dev_t, subdev));
+        initnod(CR(i, devst_t, subdev));
     }
 }
 
@@ -68,11 +68,11 @@ void dev_initnod()
     list_t *i;
     LIST_FOREACH(i, &root)
     {
-        initnod(CR(i, dev_pri_t, list)->dev);
+        initnod(CR(i, devstp_t, list)->dev);
     }
 }
 
-void __dev_register(dev_pri_t *pri)
+void __dev_register(devstp_t *pri)
 {
     if (pri->dev->read == NULL)
         pri->dev->read = (void *)inv_handle;
@@ -83,15 +83,15 @@ void __dev_register(dev_pri_t *pri)
     list_insert_after(&root, &pri->list);
 }
 
-static uint applyid(dev_t *prt)
+static uint applyid(devst_t *prt)
 {
     static uint total = 1;
     if (!prt)
         return total++;
-    return CR(prt->subdev.next, dev_t, subdev)->minor + 1;
+    return CR(prt->subdev.next, devst_t, subdev)->minor + 1;
 }
 
-void dev_register (dev_t *prt, dev_t *dev)
+void dev_register (devst_t *prt, devst_t *dev)
 {
     if (prt != NULL)
     {
@@ -107,15 +107,15 @@ void dev_register (dev_t *prt, dev_t *dev)
     dev->minor = 1;
     list_init(&dev->subdev);
 
-    dev_pri_t *pri = malloc(sizeof(dev_pri_t));
+    devstp_t *pri = malloc(sizeof(devstp_t));
     pri->dev = dev;
 
     __dev_register(pri);
 }
 
-dev_t *dev_new()
+devst_t *dev_new()
 {
-    dev_t *d = malloc(sizeof(dev_t));
+    devst_t *d = malloc(sizeof(devst_t));
     
     d->read = (void *)inv_handle;
     d->write = (void *)inv_handle;
@@ -127,12 +127,12 @@ dev_t *dev_new()
     return d;
 }
 
-dev_t *dev_lookup_type(int subtype, int idx)
+devst_t *dev_lookup_type(int subtype, int idx)
 {
     list_t *i;
     LIST_FOREACH(i, &root)
     {
-        dev_pri_t *pri = CR(i, dev_pri_t, list);
+        devstp_t *pri = CR(i, devstp_t, list);
         if (pri->dev->subtype == subtype)
             if (idx-- == 0)
                 return pri->dev;
@@ -141,12 +141,12 @@ dev_t *dev_lookup_type(int subtype, int idx)
     return NULL;
 }
 
-dev_t *dev_lookup_name(const char *name)
+devst_t *dev_lookup_name(const char *name)
 {
     list_t *i;
     LIST_FOREACH(i, &root)
     {
-        dev_pri_t *pri = CR(i, dev_pri_t, list);
+        devstp_t *pri = CR(i, devstp_t, list);
         if (strcmp(pri->dev->name, name) == 0)
             return pri->dev;
     }
@@ -154,15 +154,15 @@ dev_t *dev_lookup_name(const char *name)
     return NULL;
 }
 
-dev_t *dev_lookup_nr(uint major, uint minor)
+devst_t *dev_lookup_nr(uint major, uint minor)
 {
     list_t *im, *i; // iterator
-    dev_pri_t *pm;  // private
-    dev_t *dm, *d;  // device
+    devstp_t *pm;  // private
+    devst_t *dm, *d;  // device
 
     LIST_FOREACH(im, &root)
     {
-        pm = CR(im, dev_pri_t, list);
+        pm = CR(im, devstp_t, list);
         dm = pm->dev;
         if (dm->major != major)
             continue;
@@ -170,7 +170,7 @@ dev_t *dev_lookup_nr(uint major, uint minor)
             return pm->dev;
         LIST_FOREACH(i, &pm->dev->subdev)
         {
-            d = CR(i, dev_t, subdev);
+            d = CR(i, devst_t, subdev);
             if (d->minor == minor)
                 return d;
         }
@@ -198,7 +198,7 @@ void dev_list()
 
     LIST_FOREACH(i, &root)
     {
-        dev_pri_t *pri = CR (i, dev_pri_t, list);
+        devstp_t *pri = CR (i, devstp_t, list);
         printk ("dev index - %04d -> %s\n"  , idx, pri->dev->name);
         printk ("            type -> %s\n"  , dev_typestr(pri->dev->type));
         printk ("            opts -> %d%d\n",

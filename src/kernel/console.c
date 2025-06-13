@@ -13,8 +13,6 @@ void clrcon()
     screen_clear();
 }
 
-#include <string.h>
-
 static void scrln(bool up)
 {
     if (up)
@@ -607,7 +605,7 @@ static void cputc(char c)
 
 #include <irq.h>
 
-size_t console_write(dev_t *dev, char *s, size_t len)
+size_t console_write(devst_t *dev, char *s, size_t len)
 {
     char *p;
 
@@ -621,14 +619,14 @@ size_t console_write(dev_t *dev, char *s, size_t len)
     return (size_t)(p - s);
 }
 
-size_t console_read(dev_t *dev, char *buf, size_t len)
+size_t console_read(devst_t *dev, char *buf, size_t len)
 {
-    dev_t *kbd = dev_lookup_type(DEV_KBD, 0);
+    devst_t *kbd = dev_lookup_type(DEV_KBD, 0);
     return kbd->read(kbd, buf, len);
 }
 
-static dev_pri_t console = {
-    .dev = &(dev_t) {
+static devstp_t console = {
+    .dev = &(devst_t) {
         .name = "console",
         .read = (void *)console_read,
         .write = (void *)console_write,

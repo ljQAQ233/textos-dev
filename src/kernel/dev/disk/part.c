@@ -5,22 +5,22 @@
 
 #include <string.h>
 
-int part_read(dev_t *dev, u32 addr, void *buf, u8 cnt)
+int part_read(devst_t *dev, u32 addr, void *buf, u8 cnt)
 {
-    dev_t *prt = dev_lookup_nr(dev->major, 0);
+    devst_t *prt = dev_lookup_nr(dev->major, 0);
     cnt = MIN(cnt, dev->ptend - addr);
     return prt->bread(prt, addr + dev->ptoff, buf, cnt);
 }
 
-int part_write(dev_t *dev, u32 addr, void *buf, u8 cnt)
+int part_write(devst_t *dev, u32 addr, void *buf, u8 cnt)
 {
-    dev_t *prt = dev_lookup_nr(dev->major, 0);
+    devst_t *prt = dev_lookup_nr(dev->major, 0);
     cnt = MIN(cnt, dev->ptend - addr);
     return prt->bwrite(prt, addr + dev->ptoff, buf, cnt);
 }
 
-dev_t *register_part(
-        dev_t *disk, int nr,
+devst_t *register_part(
+        devst_t *disk, int nr,
         addr_t ptoff, size_t ptsiz,
         node_t *root
         )
@@ -28,7 +28,7 @@ dev_t *register_part(
     char name[32];
     disk->mkname(disk, name, nr);
     
-    dev_t *part = dev_new();
+    devst_t *part = dev_new();
     part->name = strdup(name);
     part->type = DEV_BLK;
     part->subtype = DEV_PART;
@@ -42,7 +42,7 @@ dev_t *register_part(
     return part;
 }
 
-node_t *extract_part(dev_t *part)
+node_t *extract_part(devst_t *part)
 {
     return part->pdata;
 }

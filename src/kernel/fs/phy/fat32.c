@@ -127,8 +127,8 @@ STATIC_ASSERT(sizeof(lentry_t) == 32, "wrong size");
 
 typedef struct
 {
-    dev_t *dev;
-    dev_t *devp;
+    devst_t *dev;
+    devst_t *devp;
     node_t *root;
 
     unsigned sec_siz;

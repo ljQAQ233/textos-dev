@@ -23,7 +23,7 @@ static inline char serial_getc ()
     return inb (COM1 + R_DATA);
 }
 
-size_t serial_read (dev_t *dev, char *str, size_t siz)
+size_t serial_read (devst_t *dev, char *str, size_t siz)
 {
     for (size_t i = 0 ; i < siz ; i++)
         *str++ = serial_getc (); 
@@ -38,7 +38,7 @@ static inline void serial_putc (char Char)
     outb (COM1 + R_DATA, Char);
 }
 
-size_t serial_write (dev_t *dev, char *str, size_t siz)
+size_t serial_write (devst_t *dev, char *str, size_t siz)
 {
     char *p = str;
     while (siz-- && p && *p)
@@ -47,8 +47,8 @@ size_t serial_write (dev_t *dev, char *str, size_t siz)
     return (size_t)(p - str);
 }
 
-static dev_pri_t serial = {
-    .dev = &(dev_t) {
+static devstp_t serial = {
+    .dev = &(devst_t) {
         .name = "serial",
         .read = (void *)serial_read,
         .write = (void *)serial_write,

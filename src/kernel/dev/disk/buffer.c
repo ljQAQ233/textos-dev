@@ -14,7 +14,7 @@ static list_t lru;
 
 static lock_t lkall;
 
-static buffer_t *find_all(dev_t *dev, int idx)
+static buffer_t *find_all(devst_t *dev, int idx)
 {
     buffer_t *c;
 
@@ -77,7 +77,7 @@ static buffer_t *find_fre(size_t bsiz)
 }
 
 // read a block and use exclusively
-buffer_t *bread(dev_t *dev, size_t idx)
+buffer_t *bread(devst_t *dev, size_t idx)
 {
     buffer_t *b;
     lock_acquire(&lkall);
@@ -112,7 +112,7 @@ void bwrite(buffer_t *b)
     if (!b->dirty)
         return;
 
-    dev_t *dev = b->dev;
+    devst_t *dev = b->dev;
     dev->bwrite(dev, b->idx, b->blk, 1);
 }
 

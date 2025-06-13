@@ -8,7 +8,7 @@
 #include <textos/mm/map.h>
 #include <textos/mm/mman.h>
 
-static void *fbdev_mmap(dev_t *fb, vm_region_t *vm)
+static void *fbdev_mmap(devst_t *fb, vm_region_t *vm)
 {
     addr_t vaddr;
     addr_t paddr;
@@ -40,7 +40,7 @@ static void *fbdev_mmap(dev_t *fb, vm_region_t *vm)
 
 void fbdev_init()
 {
-    dev_t *fb = dev_new();
+    devst_t *fb = dev_new();
     fb->name = "fb0";
     fb->mmap = fbdev_mmap;
     fb->type = DEV_CHAR;

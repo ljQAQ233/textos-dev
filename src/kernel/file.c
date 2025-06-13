@@ -226,11 +226,11 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
     if (node->attr & NA_DIR)
         mode |= S_IFDIR;
 
-    dev_t *d;
+    devst_t *d;
     if (node->attr & NA_DEV)
         d = node->pdata;
     else
-        d = *(dev_t **)node->sys;
+        d = *(devst_t **)node->sys;
 
     sb->siz = node->siz;
     sb->dev = make_dev(d->major, d->minor);
@@ -248,7 +248,7 @@ __SYSCALL_DEFINE3(int, ioctl, int, fd, int, req, void *, argp)
     node_t *node = file->node;
     if (node->attr & NA_DEV)
     {
-        dev_t *dev = node->pdata;
+        devst_t *dev = node->pdata;
         return dev->ioctl(dev, req, argp);
     }
 
@@ -314,7 +314,7 @@ __SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)
 {
     uint major = get_major(dev);
     uint minor = get_minor(dev);
-    dev_t *d = dev_lookup_nr(major, minor);
+    devst_t *d = dev_lookup_nr(major, minor);
     return vfs_mknod(path, d);
 }
 
@@ -330,7 +330,7 @@ __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
     if (!(sn->attr & NA_DEV))
         return -ENOBLK;
 
-    dev_t *dev = sn->pdata;
+    devst_t *dev = sn->pdata;
     if (dev->type != DEV_BLK)
         return -ENOBLK;
 

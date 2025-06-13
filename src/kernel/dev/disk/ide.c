@@ -189,7 +189,7 @@ void ide_runpio(ide_t *pri, u8 rw)
     outb(pri->iobase + R_SCMD, rw);
 }
 
-void ide_dma_read(dev_t *dev, u32 lba, void *data, u8 cnt)
+void ide_dma_read(devst_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
@@ -211,7 +211,7 @@ void ide_dma_read(dev_t *dev, u32 lba, void *data, u8 cnt)
     UNINTR_AREA_END();
 }
 
-void ide_dma_write(dev_t *dev, u32 lba, void *data, u8 cnt)
+void ide_dma_write(devst_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
@@ -228,7 +228,7 @@ void ide_dma_write(dev_t *dev, u32 lba, void *data, u8 cnt)
     UNINTR_AREA_END();
 }
 
-void ide_pio_read(dev_t *dev, u32 lba, void *data, u8 cnt)
+void ide_pio_read(devst_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
@@ -251,7 +251,7 @@ void ide_pio_read(dev_t *dev, u32 lba, void *data, u8 cnt)
     UNINTR_AREA_END();
 }
 
-void ide_pio_write(dev_t *dev, u32 lba, void *data, u8 cnt)
+void ide_pio_write(devst_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
@@ -278,7 +278,7 @@ void ide_pio_write(dev_t *dev, u32 lba, void *data, u8 cnt)
 #include <textos/args.h>
 #include <textos/klib/vsprintf.h>
 
-void ide_mkname(dev_t *dev, char res[32], int nr)
+void ide_mkname(devst_t *dev, char res[32], int nr)
 {
     sprintf(res, "%s%d", dev->name, nr);
 }
@@ -349,7 +349,7 @@ void init(int x, u16 bmbase)
     if (!ide_identify(pri))
         return ;
 
-    dev_t *dev = dev_new();
+    devst_t *dev = dev_new();
     dev->name = ideid[x];
     dev->type = DEV_BLK;
     dev->subtype = DEV_IDE;

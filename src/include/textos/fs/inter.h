@@ -3,7 +3,7 @@
 #include <textos/dev.h>
 
 #define FS_INITIALIZER(name) \
-        void *name(dev_t *hd, mbr_t *mbr, part_t *pentry)
+        void *name(devst_t *hd, mbr_t *mbr, part_t *pentry)
 
 typedef struct _packed
 {

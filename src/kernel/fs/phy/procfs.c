@@ -619,7 +619,7 @@ static proc_opts_t root_op = {
  */
 node_t *__fs_init_procfs()
 {
-    dev_t *anony = dev_new();
+    devst_t *anony = dev_new();
     dev_register_anony(anony);
     __procfs_super.dev = anony;
 

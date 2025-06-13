@@ -14,7 +14,7 @@
 typedef struct {
     char      *name;
     u8        id;
-    void      *(*init)(dev_t *hd, mbr_t *mbr, part_t *pentry);
+    void      *(*init)(devst_t *hd, mbr_t *mbr, part_t *pentry);
 } regstr_t;
 
 static node_t *_fs_root = NULL;
@@ -275,7 +275,7 @@ fini:
 
 extern fs_opts_t __vfs_devop;
 
-int vfs_mknod (char *path, dev_t *dev)
+int vfs_mknod (char *path, devst_t *dev)
 {
     int ret;
     
@@ -332,15 +332,15 @@ static regstr_t regstr[] = {
 // clang-format on
 
 struct pub {
-    dev_t *dev;
-    dev_t *devp;
+    devst_t *dev;
+    devst_t *devp;
     node_t *root;
 };
 
 #include <textos/args.h>
 #include <textos/klib/vsprintf.h>
 
-static void _init_partitions (dev_t *hd, mbr_t *rec)
+static void _init_partitions (devst_t *hd, mbr_t *rec)
 {
     part_t *ptr = rec->ptab;
 
@@ -352,7 +352,7 @@ static void _init_partitions (dev_t *hd, mbr_t *rec)
 
         char *type = "none";
         node_t *root = NULL;
-        dev_t *devp;
+        devst_t *devp;
 
         for (regstr_t *look = regstr; look->id != 0 ; look++) {
             if (look->id != ptr->sysid)
@@ -399,7 +399,7 @@ extern node_t *__fs_init_procfs();
 
 void fs_init ()
 {
-    dev_t *hd = dev_lookup_type (DEV_IDE, 0);
+    devst_t *hd = dev_lookup_type (DEV_IDE, 0);
 
     mbr_t *record = vmm_allocpages(1, PE_P | PE_RW);
     hd->bread (hd, 0, record, 1);

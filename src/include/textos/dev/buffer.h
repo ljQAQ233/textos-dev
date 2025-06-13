@@ -11,12 +11,12 @@ typedef struct
     size_t siz;
     void *blk;
     addr_t phy;
-    dev_t *dev;
+    devst_t *dev;
     lock_t lock;
     list_t all;
 } buffer_t;
 
-buffer_t *bread(dev_t *dev, size_t idx);
+buffer_t *bread(devst_t *dev, size_t idx);
 
 void bdirty(buffer_t *b, bool dirty);
 

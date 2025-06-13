@@ -1,6 +1,6 @@
 #include <textos/dev.h>
 
-static dev_t anony = {
+static devst_t anony = {
     .name = "anony",
     .type = DEV_NONE,
     .subtype = DEV_ANONY,
@@ -9,9 +9,9 @@ static dev_t anony = {
     .subdev = LIST_INIT(anony.subdev),
 };
 
-static dev_pri_t pri = { &anony };
+static devstp_t pri = { &anony };
 
-void dev_register_anony(dev_t *dev)
+void dev_register_anony(devst_t *dev)
 {
     dev->type = DEV_NONE;
     dev->subtype = DEV_ANONY;

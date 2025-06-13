@@ -112,7 +112,7 @@ extern int vfs_readdir (node_t *this, node_t **res, size_t idx);
 
 #include <textos/dev.h>
 
-extern int vfs_mknod (char *path, dev_t *dev);
+extern int vfs_mknod (char *path, devst_t *dev);
 
 extern node_t *vfs_test (node_t *start, char *path, node_t **last, char **lastpath);
 
