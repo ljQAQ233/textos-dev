@@ -3,53 +3,36 @@
 
 #define ARCH_STRING "x86_64"
 
-typedef long long           INT64;
-typedef unsigned long long  UINT64;
+// stdint.h (partial)
+typedef long long           __int64_t;
+typedef int                 __int32_t;
+typedef short               __int16_t;
+typedef signed char         __int8_t;
 
-typedef int                 INT32;
-typedef unsigned int        UINT32;
+typedef unsigned long long  __uint64_t;
+typedef unsigned int        __uint32_t;
+typedef unsigned short      __uint16_t;
+typedef unsigned char       __uint8_t;
 
-typedef short               INT16;
-typedef unsigned short      UINT16;
+typedef char                __char8;
+typedef unsigned short      __char16;
 
-typedef signed char         INT8;
-typedef unsigned char       UINT8;
+typedef __int64_t  __intptr_t;
+typedef __int64_t  __intmax_t;
+typedef __uint64_t __uintptr_t;
+typedef __uint64_t __uintmax_t;
 
-typedef INT64               INTN;
-typedef UINT64              UINTN;
+// stddef.h
+typedef __uint64_t __size_t;
+typedef __int64_t __ssize_t;
+typedef __int64_t __ptrdiff_t;
 
-typedef char                CHAR8;
-typedef unsigned short      CHAR16;
+// c11
+typedef struct {
+    long long __ll;
+    long double __ld;
+} __max_align_t;
 
-typedef unsigned char       BOOLEAN;
-
-typedef UINT64  PHYSICAL_ADDRESS;
-typedef UINT64  VIRTUAL_ADDRESS;
-
-typedef long long           int64;
-typedef unsigned long long  u64;
-
-typedef int                 int32;
-typedef unsigned int        u32;
-
-typedef short               int16;
-typedef unsigned short      u16;
-
-typedef signed char         int8;
-typedef unsigned char       u8;
-
-typedef unsigned            uint;
-
-typedef char                char8;
-typedef unsigned short      char16;
-
-typedef unsigned char       bool;
-
-typedef u64                 addr_t;
-
-#define _SIZE_T
-
-typedef u64                 size_t;
-typedef int64               ssize_t;
+typedef int __wchar_t;
 
 #endif

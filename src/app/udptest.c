@@ -5,8 +5,9 @@
  *   $ nc -p 2333 -uv 192.168.2.2 1
  * in this case, we setup a socket at port 2333
 */
-#include <app/api.h>
-#include <app/inet.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <stdio.h>
 
 char tx_buf[] = "test data!";
@@ -14,11 +15,11 @@ char rx_buf[128];
 
 int main(int argc, char const *argv[])
 {
-    sockaddr_in_t addr = {
-        .family = AF_INET,
-        .port = htons(2333),
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(2333),
     };
-    inet_aton("192.168.2.1", &addr.addr);
+    inet_aton("192.168.2.1", &addr.sin_addr.s_addr);
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     // if (connect(fd, (void *)&addr, sizeof(addr)) < 0)
@@ -33,7 +34,7 @@ int main(int argc, char const *argv[])
         return 1;
     }
 
-    sockaddr_in_t src;
+    struct sockaddr_in src;
     if (recvfrom(fd, rx_buf, sizeof(rx_buf), 0, (void *)&src, sizeof(src)) < 0)
     {
         perror("recvfrom");
@@ -41,8 +42,8 @@ int main(int argc, char const *argv[])
     }
 
     printf("received from %s port %d: %s\n",
-      inet_ntoa(src.addr),
-      ntohs(src.port), rx_buf);
+      inet_ntoa(src.sin_addr.s_addr),
+      ntohs(src.sin_port), rx_buf);
     
     return 0;
 }

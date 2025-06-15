@@ -1,6 +1,7 @@
-#include <app/api.h>
-#include <app/sys.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/syscall.h>
 
 void handler(int sig)
 {

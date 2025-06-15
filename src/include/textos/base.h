@@ -4,7 +4,6 @@
 #define _ofp      __attribute__((optimize("omit-frame-pointer")))
 #define _packed   __attribute__((packed))
 
-/* Tools like MAX and MIN */
 #define MAX(A,B) \
     (((A) > (B)) ? (A) : (B))
 #define MIN(A,B) \
@@ -41,14 +40,8 @@
 #define true     (1 == 1)
 #define false    (1 == 0)
 
-#define TRUE     true
-#define FALSE    false
-
-#define STATIC   static 
-#define CONST    const  
-#define VOID     void   
-
-#define NULL     (VOID*)0
+/* C++ nullptr not supported */
+#define NULL ((void*)0)
 
 #define PAGE_SHIFT 12
 #define PAGE_SIZ   (1 << PAGE_SHIFT)

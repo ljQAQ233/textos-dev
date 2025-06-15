@@ -1,8 +1,3 @@
-#ifndef _ERRNO_H
-#define _ERRNO_H
-
-extern int errno;
-
 #define EPERM            1
 #define ENOENT           2
 #define ESRCH            3
@@ -137,5 +132,3 @@ extern int errno;
 #define ENOTRECOVERABLE 131
 #define ERFKILL         132
 #define EHWPOISON       133
-
-#endif

@@ -356,7 +356,4 @@ typedef UINTN RETURN_STATUS;
 ///
 typedef RETURN_STATUS             EFI_STATUS;
 
-typedef u64 EFI_PHYSICAL_ADDRESS;
-typedef u64 EFI_VIRTUAL_ADDRESS;
-
 #endif

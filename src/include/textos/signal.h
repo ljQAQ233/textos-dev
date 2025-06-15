@@ -1,8 +1,6 @@
 #ifndef __SIGNAL_H__
 #define __SIGNAL_H__
 
-typedef u64 sigset_t;
-
 int sigemptyset(sigset_t *set);
 int sigfillset(sigset_t *set);
 int sigaddset(sigset_t *set, int signum);

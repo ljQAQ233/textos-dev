@@ -1,5 +1,7 @@
+#include <stdint.h>
 #include <stdarg.h>
-#include <app/api.h>
+#include <unistd.h>
+#include <stdbool.h>
 
 #define TMP_BUFFER_SIZE 64
 
@@ -31,7 +33,7 @@ static int _int(char *ptr, int *width)
 static const char upstr[] = "0123456789ABCDEF";
 static const char lwstr[] = "0123456789abcdef";
 
-static int _number(char *buffer, u64 num, int base, bool upper)
+static int _number(char *buffer, uint64_t num, int base, bool upper)
 {
     const char *letters = upper ? upstr : lwstr;
 
@@ -197,7 +199,7 @@ parse_args:
                 goto parse_args;
         }
 
-        u64 val;
+        uint64_t val;
         bool minus = false;
 
         if (len == 0)

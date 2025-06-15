@@ -1,14 +1,17 @@
-#include <app/api.h>
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/dir.h>
+#include <sys/stat.h>
 
 void tree(char *path, int depth)
 {
-    stat_t sb;
+    struct stat sb;
     if (stat(path, &sb) < 0)
         return;
 
-    if (!S_ISDIR(sb.mode))
+    if (!S_ISDIR(sb.st_mode))
         return;
 
     int fd = open(path, O_DIRECTORY);
@@ -33,8 +36,8 @@ void tree(char *path, int depth)
                     strcat(sub, "/");
                 strcat(sub, p->name);
 
-                stat_t st;
-                if (stat(sub, &st) == 0 && S_ISDIR(st.mode))
+                struct stat st;
+                if (stat(sub, &st) == 0 && S_ISDIR(st.st_mode))
                     tree(sub, depth + 1);
             }
             p = (void *)p + p->siz;

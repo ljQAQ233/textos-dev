@@ -1,39 +1,46 @@
-#include <app/api.h>
-#include <app/inet.h>
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <malloc.h>
+#include <unistd.h>
+#include <net/if.h>
+#include <sys/dir.h>
+#include <sys/stat.h>
+#include <arpa/inet.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
 
-#define ip4(x) (*((u32 *)x))
+#define ip4(x) (*((uint32_t *)x))
 
 int ifconfig(char *name)
 {
     int fd = socket(AF_INET, SOCK_RAW, 0);
     int ret = 0;
-    ifreq_t ifr;
-    strcpy(ifr.name, name);
+    struct ifreq ifr;
+    strcpy(ifr.ifr_name, name);
 
     printf("%s:\n", name);
     if (ioctl(fd, SIOCGIFADDR, &ifr) < 0)
         ret = 1;
     else
-        printf("  inet %s\n", inet_ntoa(ip4(ifr.addr)));
+        printf("  inet %s\n", inet_ntoa(ip4(ifr.ifr_addr)));
 
     if (ioctl(fd, SIOCGIFNETMASK, &ifr) < 0)
         ret = 1;
     else
-        printf("  netmask %s\n", inet_ntoa(ip4(ifr.netmask)));
+        printf("  netmask %s\n", inet_ntoa(ip4(ifr.ifr_netmask)));
 
     if (ioctl(fd, SIOCGIFBRDADDR, &ifr) < 0)
         ret = 1;
     else
-        printf("  broadcast %s\n", inet_ntoa(ip4(ifr.broadaddr)));
+        printf("  broadcast %s\n", inet_ntoa(ip4(ifr.ifr_broadaddr)));
 
     if (ioctl(fd, SIOCGIFHWADDR, &ifr))
         ret = 1;
     else
         printf("  ether %02x:%02x:%02x:%02x:%02x:%02x\n",
-            ifr.hwaddr[0], ifr.hwaddr[1], ifr.hwaddr[2],
-            ifr.hwaddr[3], ifr.hwaddr[4], ifr.hwaddr[5]);
+            ifr.ifr_hwaddr[0], ifr.ifr_hwaddr[1], ifr.ifr_hwaddr[2],
+            ifr.ifr_hwaddr[3], ifr.ifr_hwaddr[4], ifr.ifr_hwaddr[5]);
     
     return ret;
 }

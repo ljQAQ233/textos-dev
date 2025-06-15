@@ -1,5 +1,5 @@
-#include <app/api.h>
 #include <stdio.h>
+#include <sys/utsname.h>
 
 char buf[1 << 9];
 

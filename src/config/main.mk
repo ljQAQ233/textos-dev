@@ -33,7 +33,12 @@ UTILS  := utils
 BASE   := $(abspath ${BASE})
 UTILS  := $(abspath ${UTILS})
 
+# makefile will deal with x.h.in
+%.h: %.h.in
+	sed -f $(UTILS)/mkalltypes.sed $< > $@
+
 export SHELL
 export GIT_HASH
 export SRC_DIR BASE UTILS
 export BOOT_OUTPUT BOOT_EXEC KERNEL_OUTPUT KERNEL_EXEC APP_OUTPUT
+

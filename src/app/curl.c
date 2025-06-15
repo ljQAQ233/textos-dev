@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <app/api.h>
-#include <app/inet.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 char req[512];
 char buf[4096];
@@ -58,13 +60,13 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    sockaddr_in_t addr = {
-        .family = AF_INET,
-        .port = htons(atoi(port)),
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(atoi(port)),
     };
-    inet_aton(ip, &addr.addr);
+    inet_aton(ip, &addr.sin_addr.s_addr);
 
-    if (connect(fd, (sockaddr_t *)&addr, sizeof(addr)) < 0)
+    if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
         perror("curl");
         exit(1);

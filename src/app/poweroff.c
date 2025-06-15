@@ -1,5 +1,4 @@
-#include <app/sys.h>
-#include <app/api.h>
+#include <sys/syscall.h>
 
 int main(int argc, char const *argv[])
 {

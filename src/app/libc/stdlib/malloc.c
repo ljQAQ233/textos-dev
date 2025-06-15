@@ -1,10 +1,11 @@
 // 这样粗暴的 "堆" 直接集成在 可执行文件中 了 (.bss)
 
+#include <stdint.h>
 #include <malloc.h>
 
 #define MAXN (1 << 16)
 
-u8 heap[MAXN];
+uint8_t heap[MAXN];
 
 void *ap = heap;
 

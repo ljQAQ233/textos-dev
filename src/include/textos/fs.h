@@ -1,7 +1,8 @@
 #ifndef __FILE_SYS_H__
 #define __FILE_SYS_H__
 
-enum {
+enum
+{
     FS_FAT32,
     FS_END,
 };
@@ -24,11 +25,13 @@ typedef struct node node_t;
 struct dirctx;
 typedef struct dirctx dirctx_t;
 
+#include <textos/dev.h>
 #include <textos/time.h>
 #include <textos/noopt.h>
 #include <textos/mm/mman.h>
 
-typedef struct {
+typedef struct
+{
     int  (*open)(node_t *parent, char *path, u64 args, node_t **result);
     int  (*ioctl)(node_t *this, int req, void *argp);
     int  (*close)(node_t *this);
@@ -44,7 +47,8 @@ typedef struct {
     void *(*mmap)(node_t *this, vm_region_t *vm);
 } fs_opts_t;
 
-struct node {
+struct node
+{
     char *name;
 
     u64 attr;
@@ -60,6 +64,8 @@ struct node {
     node_t *child;
     node_t *next;
 
+    dev_t dev;
+    dev_t rdev;
     void *sys;
     int systype;
     addr_t idx;
@@ -70,7 +76,8 @@ struct node {
     fs_opts_t *opts;
 };
 
-enum {
+enum
+{
     ctx_inv = 0, // invalid
     ctx_pre,     // prepared
     ctx_end,     // end of dir
@@ -94,34 +101,25 @@ struct dirctx
     size_t bufents;
 };
 
-extern int vfs_open (node_t *parent, node_t **node, const char *path, u64 args);
-
-extern int vfs_read (node_t *this, void *buf, size_t siz, size_t offset);
-
-extern int vfs_write (node_t *this, void *buf, size_t siz, size_t offset);
-
-extern int vfs_close (node_t *this);
-
-extern int vfs_remove (node_t *this);
-
-extern int vfs_truncate (node_t *this, size_t offset);
-
-extern int vfs_release (node_t *this);
-
-extern int vfs_readdir (node_t *this, node_t **res, size_t idx);
+int vfs_open(node_t *parent, node_t **node, const char *path, u64 args);
+int vfs_read(node_t *this, void *buf, size_t siz, size_t offset);
+int vfs_write(node_t *this, void *buf, size_t siz, size_t offset);
+int vfs_close(node_t *this);
+int vfs_remove(node_t *this);
+int vfs_truncate(node_t *this, size_t offset);
+int vfs_release(node_t *this);
+int vfs_readdir(node_t *this, node_t **res, size_t idx);
 
 #include <textos/dev.h>
 
-extern int vfs_mknod (char *path, devst_t *dev);
+int vfs_mknod(char *path, devst_t *dev);
 
-extern node_t *vfs_test (node_t *start, char *path, node_t **last, char **lastpath);
+node_t *vfs_test(node_t *start, char *path, node_t **last, char **lastpath);
 
-extern void vfs_initops (fs_opts_t *opts);
+void vfs_initops(fs_opts_t *opts);
 
 int vfs_mount(node_t *dir, node_t *root);
-
 int vfs_mount_to(char *path, node_t *root);
-
 int vfs_umount(node_t *dir);
 
 #endif

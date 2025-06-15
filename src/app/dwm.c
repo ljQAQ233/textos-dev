@@ -1,6 +1,7 @@
-#include <app/api.h>
-#include <lvgl/lvgl.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <lvgl/lvgl.h>
 
 #pragma lib("lvgl/lvgl.o")
 

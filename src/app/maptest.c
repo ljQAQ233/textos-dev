@@ -1,6 +1,8 @@
-#include <app/api.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <stdint.h>
 #include <string.h>
+#include <sys/mman.h>
 
 int main()
 {
@@ -12,7 +14,7 @@ int main()
     }
 
     size_t sz = 1 << 20;
-    u32 *fb = mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+    uint32_t *fb = mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
     for (int i = 0 ; i < sz / 4 ; i++) {
         fb[i] = 0x0066ccff;
     }

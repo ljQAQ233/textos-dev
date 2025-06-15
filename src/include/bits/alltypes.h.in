@@ -1,0 +1,60 @@
+/*
+ * sed -f utils/mkalltypes.sed %
+ */
+
+#include <arch.h>
+
+__typeaka int64_t;
+__typeaka int32_t;
+__typeaka int16_t;
+__typeaka int8_t;
+
+__typeaka uint64_t;
+__typeaka uint32_t;
+__typeaka uint16_t;
+__typeaka uint8_t;
+
+__typeaka char8;
+__typeaka char16;
+
+__typeaka intptr_t;
+__typeaka intmax_t;
+__typeaka uintptr_t;
+__typeaka uintmax_t;
+
+__typeaka size_t;
+__typeaka ssize_t;
+
+__typeaka max_align_t;
+
+#ifndef __cplusplus
+__typeaka wchar_t;
+#endif
+
+__typedef int key_t;
+__typedef int pid_t;
+__typedef unsigned id_t;
+__typedef unsigned uid_t;
+__typedef unsigned gid_t;
+__typedef unsigned mode_t;
+__typedef unsigned nlink_t;
+__typedef __int64_t off_t;
+__typedef __int64_t ino_t;
+__typedef __int64_t dev_t;
+__typedef __int64_t blksize_t;
+__typedef __int64_t blkcnt_t;
+__typedef __uint64_t fsblkcnt_t;
+__typedef __uint64_t fsfilcnt_t;
+
+__typedef __int64_t time_t;
+__typedef __int64_t clock_t;
+__typedef int clockid_t;
+__typedef __int64_t suseconds_t;
+__typedef __uint32_t useconds_t;
+
+__typedef unsigned socklen_t;
+__typedef unsigned short sa_family_t;
+
+__typedef __uint64_t sigset_t;
+
+__struct iovec { void *iov_base; __size_t iov_len; };

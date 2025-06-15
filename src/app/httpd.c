@@ -3,12 +3,15 @@
  *   - repo - https://github.com/ljQAQ233/tiny-httpd
  */
 
-#include <app/api.h>
-#include <app/inet.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <fcntl.h>
 #include <string.h>
 #include <malloc.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 /*
  * __________ 100%
@@ -52,6 +55,8 @@ void pbar_init(struct pbar *bar, int total, int rowsz, int nshow)
     bar->nshow = nshow;
     render(bar);
 }
+
+#define MIN(A,B) (((A) < (B)) ? (A) : (B))
 
 void pbar_jump(struct pbar *bar, int jmp)
 {
@@ -298,13 +303,13 @@ int slook(char *path, int *sz)
         return -1;
 
     // redirect
-    if (S_ISDIR(sb.mode))
+    if (S_ISDIR(sb.st_mode))
     {
         strcat(path, "/index.html");
         return slook(path, sz);
     }
 
-    *sz = sb.siz;
+    *sz = sb.st_size;
     return 0;
 }
 
@@ -359,10 +364,10 @@ int tiny_main(int port)
     if (sr < 0)
         goto die;
 
-    sockaddr_in_t addr = {
-        .family = AF_INET,
-        .addr = 0,
-        .port = htons(port),
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_addr = 0,
+        .sin_port = htons(port),
     };
 
     if (bind(sr, (void *)&addr, sizeof(addr)) < 0)

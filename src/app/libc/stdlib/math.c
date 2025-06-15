@@ -1,4 +1,3 @@
-
 double sin(double x)
 {
     asm volatile(

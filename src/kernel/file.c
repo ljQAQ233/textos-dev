@@ -29,25 +29,6 @@ int file_get(int *new, file_t **file)
     return *new = fd;
 }
 
-// device number
-
-static uint get_major(long x)
-{
-    return (uint)(((x >> 32) & 0xfffff000) | ((x >> 8) & 0xfff));
-}
-
-static uint get_minor(long x)
-{
-    return (uint)(((x >> 12) & 0xffffff00) | (x & 0xff));
-}
-
-static long make_dev(uint x, uint y)
-{
-    return (long)
-       ((x & 0xfffff000ULL) << 32) | ((x & 0xfffULL) << 8) |
-       ((y & 0xffffff00ULL) << 12) | ((y & 0xffULL));
-}
-
 // TODO: flgs
 static inline u64 parse_args(int x)
 {
@@ -233,7 +214,7 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
         d = *(devst_t **)node->sys;
 
     sb->siz = node->siz;
-    sb->dev = make_dev(d->major, d->minor);
+    sb->dev = makedev(d->major, d->minor);
     sb->mode = mode;
 
     return 0;
@@ -312,9 +293,9 @@ __SYSCALL_DEFINE1(int, pipe, int *, fds)
 
 __SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)
 {
-    uint major = get_major(dev);
-    uint minor = get_minor(dev);
-    devst_t *d = dev_lookup_nr(major, minor);
+    uint ma = major(dev);
+    uint mi = minor(dev);
+    devst_t *d = dev_lookup_nr(ma, mi);
     return vfs_mknod(path, d);
 }
 

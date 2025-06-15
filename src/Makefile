@@ -7,7 +7,7 @@ include config/image.mk
 
 include config/udk.mk
 
-all: _boot kernel app image
+all: include/bits/alltypes.h _boot kernel app image
 
 include config/qemu.mk
 

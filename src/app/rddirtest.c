@@ -2,9 +2,10 @@
  * a brief and rude test for `__seekdir`
  * print the entries of a dir reversely
  */
-#include <app/api.h>
 #include <stdio.h>
+#include <fcntl.h>
 #include <assert.h>
+#include <sys/dir.h>
 
 char b[4096];
 

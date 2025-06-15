@@ -1,7 +1,12 @@
-#include <app/api.h>
-#include <app/sys.h>
-
+#include <stddef.h>
+#include <signal.h>
 #include <stdarg.h>
+#include <unistd.h>
+#include <sys/dir.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/utsname.h>
+#include <sys/syscall.h>
 
 extern int errno;
 
@@ -47,9 +52,11 @@ int execve(char *path, char *const argv[], char *const envp[])
     return syscall(SYS_execve, path, argv, envp);
 }
 
+__attribute((noreturn))
 void _exit(int stat)
 {
     syscall(SYS_exit, stat);
+    __builtin_unreachable();
 }
 
 int wait4(int pid, int *stat, int opt, void *rusage)
@@ -74,9 +81,9 @@ void __restorer()
         );
 }
 
-sighandler_t signal(int signum, sighandler_t handler)
+void (*signal(int signum, void (*handler)(int)))(int)
 {
-    sigaction_t act = {
+    struct sigaction act = {
         .sa_handler = handler,
         .sa_flags = SA_RESTART,
         .sa_mask = 0,
@@ -86,9 +93,9 @@ sighandler_t signal(int signum, sighandler_t handler)
     return old.sa_handler;
 }
 
-int sigaction(int signum, const sigaction_t *act, sigaction_t *oldact)
+int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
-    sigaction_t __act = {
+    struct sigaction __act = {
         .sa_handler = act->sa_handler,
         .sa_flags = act->sa_flags | SA_RESTORER,
         .sa_mask = act->sa_mask,
@@ -112,7 +119,7 @@ int raise(int sig)
     return kill(getpid(), sig);
 }
 
-int uname(utsname_t *name)
+int uname(struct utsname *name)
 {
     return syscall(SYS_uname, name);
 }
@@ -147,7 +154,7 @@ int close(int fd)
     return syscall(SYS_close, fd);
 }
 
-int stat(char *path, stat_t *sb)
+int stat(char *path, struct stat *sb)
 {
     return syscall(SYS_stat, path, sb);
 }
@@ -167,9 +174,9 @@ int dup(int fd)
     return syscall(SYS_dup, fd);
 }
 
-int dup2(int old, int new)
+int dup2(int oldfd, int newfd)
 {
-    return syscall(SYS_dup2, old, new);
+    return syscall(SYS_dup2, oldfd, newfd);
 }
 
 int pipe(int fds[2])
@@ -177,7 +184,7 @@ int pipe(int fds[2])
     return syscall(SYS_pipe, fds);
 }
 
-int mknod(char *path, int mode, long dev)
+int mknod(char *path, mode_t mode, dev_t dev)
 {
     return syscall(SYS_mknod, path, mode, dev);
 }
@@ -202,7 +209,7 @@ int chdir(char *path)
     return syscall(SYS_chdir, path);
 }
 
-int mkdir(char *path, int mode)
+int mkdir(char *path, mode_t mode)
 {
     return syscall(SYS_mkdir, path, mode);
 }
@@ -217,7 +224,7 @@ int socket(int domain, int type, int proto)
     return syscall(SYS_socket, domain, type, proto);
 }
 
-int bind(int fd, sockaddr_t *addr, size_t len)
+int bind(int fd, struct sockaddr *addr, socklen_t len)
 {
     return syscall(SYS_bind, fd, addr, len);
 }
@@ -227,12 +234,12 @@ int listen(int fd, int backlog)
     return syscall(SYS_listen, fd, backlog);
 }
 
-int accept(int fd, sockaddr_t *addr, size_t *len)
+int accept(int fd, struct sockaddr *addr, socklen_t *len)
 {
     return syscall(SYS_accept, fd, addr, len);
 }
 
-int connect(int fd, sockaddr_t *addr, size_t len)
+int connect(int fd, struct sockaddr *addr, socklen_t len)
 {
     return syscall(SYS_connect, fd, addr, len);
 }
@@ -242,32 +249,32 @@ int shutdown(int fd, int how)
     return syscall(SYS_shutdown, fd, how);
 }
 
-int getsockname(int fd, sockaddr_t *addr, size_t len)
+int getsockname(int fd, struct sockaddr *addr, socklen_t len)
 {
     return syscall(SYS_getsockname, fd, addr, len);
 }
 
-int getpeername(int fd, sockaddr_t *addr, size_t len)
+int getpeername(int fd, struct sockaddr *addr, socklen_t len)
 {
     return syscall(SYS_getpeername, fd, addr, len);
 }
 
-ssize_t sendmsg(int fd, msghdr_t *msg, u32 flags)
+ssize_t sendmsg(int fd, struct msghdr *msg, int flags)
 {
     return syscall(SYS_sendmsg, fd, msg, flags);
 }
 
-ssize_t recvmsg(int fd, msghdr_t *msg, u32 flags)
+ssize_t recvmsg(int fd, struct msghdr *msg, int flags)
 {
     return syscall(SYS_recvmsg, fd, msg, flags);
 }
 
-ssize_t sendto(int fd, void *buf, size_t len, int flags, sockaddr_t *dst, size_t dlen)
+ssize_t sendto(int fd, void *buf, size_t len, int flags, struct sockaddr *dst, socklen_t dlen)
 {
     return syscall(SYS_sendto, fd, buf, len, flags, dst, dlen);
 }
 
-ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size_t slen)
+ssize_t recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *src, socklen_t slen)
 {
     return syscall(SYS_recvfrom, fd, buf, len, flags, src, slen);
 }
@@ -282,7 +289,7 @@ ssize_t recv(int fd, void *buf, size_t len, int flags)
     return recvfrom(fd, buf, len, flags, NULL, 0);
 }
 
-void *mmap(void *addr, size_t len, int prot, int flgs, int fd, size_t off)
+void *mmap(void *addr, size_t len, int prot, int flgs, int fd, off_t off)
 {
     return (void *)syscall(SYS_mmap, addr, len, prot, flgs, fd, off);
 }
@@ -297,12 +304,12 @@ int munmap(void *addr, size_t len)
     return syscall(SYS_munmap, addr, len);
 }
 
-int getpid()
+pid_t getpid()
 {
     return syscall(SYS_getpid);
 }
 
-int getppid()
+pid_t getppid()
 {
     return syscall(SYS_getppid);
 }

@@ -67,6 +67,36 @@ typedef struct
     list_t list;
 } devstp_t;
 
+/*
+ * device number
+ * it may be a bit strange. in original unix systems, dev_t is a 16-bit unsigned integer :
+ * dev_t [1] = (major << 8) | minor, and later extended to a 32-bit one whose structure
+ * is : dev_t [2] = (major << 20) | minor, when musl libc provides the version shown subsquently. [3]
+ * [3] is not applied to some filesystems like ext2 whose dev number field is 32-bit. so kernel
+ * would use new_decode_dev to convert a uint to quadword dev_t, and use new_encode_dev inversely
+ */
+static inline unsigned major(dev_t x)
+{
+    return (unsigned)(((x >> 32) & 0xfffff000) | ((x >> 8) & 0xfff));
+}
+
+static inline unsigned minor(dev_t x)
+{
+    return (unsigned)(((x >> 12) & 0xffffff00) | (x & 0xff));
+}
+
+static inline dev_t makedev(unsigned x, unsigned y)
+{
+    return (dev_t)
+       ((x & 0xfffff000ULL) << 32) | ((x & 0xfffULL) << 8) |
+       ((y & 0xffffff00ULL) << 12) | ((y & 0xffULL));
+}
+
+static inline dev_t makedev_for(devst_t *d)
+{
+    return makedev(d->major, d->minor);
+}
+
 devst_t *dev_new();
 void __dev_register(devstp_t *pri);
 void dev_register(devst_t *prt, devst_t *dev);

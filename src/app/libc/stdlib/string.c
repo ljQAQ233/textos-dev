@@ -1,5 +1,11 @@
+#include <stdint.h>
 #include <string.h>
 #include <malloc.h>
+
+typedef uint8_t u8;
+
+#define max(A,B) (((A) > (B)) ? (A) : (B))
+#define min(A,B) (((A) < (B)) ? (A) : (B))
 
 /*
  * The `strlen()` function calculates the 
@@ -153,8 +159,8 @@ char *strdup(const char *str)
  */
 char *strndup(const char *str, size_t n)
 {
-    size_t cpy = MIN(strlen(str) + 1, n);  // num of characters to copy
-    size_t bfs = MAX(strlen(str) + 1, n);  // real buffer size
+    size_t cpy = min(strlen(str) + 1, n);  // num of characters to copy
+    size_t bfs = max(strlen(str) + 1, n);  // real buffer size
 
     char *p = malloc(bfs);
     if (p == NULL)
@@ -220,8 +226,6 @@ void *memcpy(void *dest, const void *src, size_t n)
 
     return dest;
 }
-
-#include <assert.h>
 
 extern char *__get_errstr(int nr);
 

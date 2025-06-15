@@ -1,18 +1,19 @@
-#include <app/api.h>
-
 #include <stdio.h>
+#include <fcntl.h>
+#include <sys/dir.h>
+#include <sys/stat.h>
 
 char b[4096];
 
 int ls(char *path)
 {
-    stat_t sb;
+    struct stat sb;
     if (stat(path, &sb) < 0) {
         perror("ls");
         return 1;
     }
 
-    if (S_ISDIR(sb.mode)) {
+    if (S_ISDIR(sb.st_mode)) {
         int fd = open(path, O_DIRECTORY);
         if (fd < 0) {
             perror("ls");

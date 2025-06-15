@@ -1,14 +1,14 @@
 // Linux port of xv6-riscv shell (no libc)
 // 这一份是我从 jyy 的网站上下载的
 
-#include <app/sys.h>
-#include <app/api.h>
-
 #include <stdio.h>
+#include <fcntl.h>
 #include <assert.h>
 #include <string.h>
 #include <stdarg.h>
 #include <malloc.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 // EXEC:   ls
 // REDIR:  ls > a.txt

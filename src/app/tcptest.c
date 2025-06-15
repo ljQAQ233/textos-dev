@@ -10,8 +10,9 @@
  *       - `python test/tcp/tcp-dack.py`
  *           - you will see textos piggybacks the ACK on outgoing data segment when no timeout occurs
 */
-#include <app/api.h>
-#include <app/inet.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <stdio.h>
 
 char tx_buf[] = "test data!";
@@ -23,11 +24,11 @@ char rx_buf[128];
 
 int main(int argc, char const *argv[])
 {
-    sockaddr_in_t addr = {
-        .family = AF_INET,
-        .port = htons(8080),
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(8080),
     };
-    inet_aton("192.168.2.1", &addr.addr);
+    inet_aton("192.168.2.1", &addr.sin_addr.s_addr);
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0)
@@ -36,7 +37,7 @@ int main(int argc, char const *argv[])
         return 1;
     }
 
-    if (connect(fd, (sockaddr_t *)&addr, sizeof(addr)) < 0)
+    if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
         perror(NULL);
         return 1;

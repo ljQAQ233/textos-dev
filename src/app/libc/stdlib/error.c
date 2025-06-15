@@ -1,4 +1,3 @@
-
 /* __thread */ int errno;
 
 #include <errno.h>
@@ -11,7 +10,7 @@ typedef struct {
 #define E(x, y) { .nr = x, .str = y },
 
 static strerr_t msg[] = {
-    #include <app/errstr.h>
+    #include <bits/errstr.h>
 };
 
 static const char msg_def[] = "Unknown error";
