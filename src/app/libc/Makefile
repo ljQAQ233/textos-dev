@@ -1,5 +1,6 @@
 TARG := libc.o
 SRCS := \
+  dir.c \
   base/asm.c \
   base/crt0.c \
   stdlib/io.c \

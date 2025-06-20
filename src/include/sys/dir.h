@@ -7,13 +7,16 @@ __BEGIN_DECLS
 
 /* textos-specified */
 
+#define __NEED_ino_t
 #define __NEED_size_t
 #define __NEED_ssize_t
 #include <bits/alltypes.h>
 
-typedef struct dirent
+typedef struct
 {
     int idx;
+    int type;
+    ino_t ino;
     size_t siz;
     size_t len;
     char name[];

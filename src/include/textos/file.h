@@ -22,6 +22,8 @@ int file_get(int *new, file_t **file);
 typedef struct dirent
 {
     int idx;
+    int type;
+    ino_t ino;
     size_t siz;
     size_t len;
     char name[];
