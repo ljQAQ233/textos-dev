@@ -19,6 +19,7 @@ enum
  */
 #define FS_GAIN    (1ull << 32) // ignore checks for dir / file, ignoring EISDIR / ENOTDIR
 #define FS_GAINMNT (1ull << 33) // open dir mounted to, not root dir of mountpoint
+#define FS_MKNOD   (1ull << 34) // mknod operation, used by physical fs. may be ignored
 
 struct node;
 typedef struct node node_t;
@@ -115,7 +116,7 @@ int vfs_readdir(node_t *this, node_t **res, size_t idx);
 
 #include <textos/dev.h>
 
-int vfs_mknod(char *path, devst_t *dev);
+int vfs_mknod(char *path, dev_t dev, int mode);
 
 node_t *vfs_test(node_t *start, char *path, node_t **last, char **lastpath);
 

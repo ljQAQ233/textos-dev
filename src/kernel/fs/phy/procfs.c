@@ -236,6 +236,9 @@ fs_opts_t __procfs_op;
 
 static node_t *procfs_nodeget(proc_entry_t *ent)
 {
+    unsigned ma = __procfs_super.dev->major;
+    unsigned mi = __procfs_super.dev->minor;
+
     node_t *node = malloc(sizeof(node_t));
     node->name = strdup(ent->name);
     node->mode = ent->mode;
@@ -247,6 +250,8 @@ static node_t *procfs_nodeget(proc_entry_t *ent)
     node->parent = NULL;
     node->child = NULL;
     node->next = NULL;
+    node->dev = makedev(ma, mi);
+    node->rdev = NODEV;
     node->sys = &__procfs_super;
     node->systype = 0;
     node->idx = 0;

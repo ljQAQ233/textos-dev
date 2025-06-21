@@ -279,10 +279,11 @@ __SYSCALL_DEFINE1(int, pipe, int *, fds)
 
 __SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)
 {
-    uint ma = major(dev);
-    uint mi = minor(dev);
-    devst_t *d = dev_lookup_nr(ma, mi);
-    return vfs_mknod(path, d);
+    if (!S_ISCHR(mode)
+     && !S_ISBLK(mode)
+     && !S_ISFIFO(mode))
+        return -EINVAL;
+    return vfs_mknod(path, mode, dev);
 }
 
 __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)

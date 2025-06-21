@@ -1481,6 +1481,8 @@ static node_t *_fat32_open(node_t *dir, char *path)
         chd->pdata = lkp;
 
         chd->opts = dir->opts;
+        chd->dev = dir->dev;
+        chd->rdev = NODEV;
         chd->sys = dir->sys;
         chd->systype = dir->systype;
         chd_insert(dir, chd);
@@ -1678,6 +1680,7 @@ FS_INITIALIZER(__fs_init_fat32)
     n->siz = 0;
     n->parent = n;
     n->child = n->next = NULL;
+    n->dev = n->rdev = NODEV; // set externally
     n->sys = f;
     n->systype = FS_FAT32;
     n->pdata = r;

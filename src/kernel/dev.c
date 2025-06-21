@@ -45,7 +45,15 @@ static void initnod(devst_t *dev)
         sprintf(path, "/dev/net/%s", dev->name);
     else
         sprintf(path, "/dev/%s", dev->name);
-    vfs_mknod(path, dev);
+
+    int mt = 0;
+    switch (dev->type) {
+        case DEV_CHAR: mt = S_IFCHR; break;
+        case DEV_BLK: mt = S_IFBLK; break;
+        case DEV_NET: mt = S_IFSOCK; break;
+        default: break;
+    }
+    vfs_mknod(path, makedev(dev->major, dev->minor), 0744 | mt);
 
     DEBUGK(K_SYNC, "init dev at %s\n", path);
 

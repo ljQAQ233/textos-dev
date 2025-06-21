@@ -268,16 +268,22 @@ fini:
 
 extern fs_opts_t __vfs_devop;
 
-int vfs_mknod (char *path, devst_t *dev)
+int vfs_mknod (char *path, dev_t dev, int mode)
 {
     int ret;
+    if (!S_ISCHR(mode)
+     && !S_ISBLK(mode)
+     && !S_ISFIFO(mode))
+        return -EINVAL;
     
     node_t *node;
-    ret = vfs_open(NULL, &node, path, O_CREAT, 0);
+    ret = vfs_open(NULL, &node, path, FS_MKNOD | O_CREAT, mode);
     if (ret < 0)
         return ret;
-    node->pdata = dev;
-    // node->attr |= NA_DEV;
+    unsigned ma = major(dev);
+    unsigned mi = minor(dev);
+    node->rdev = dev;
+    node->pdata = dev_lookup_nr(ma, mi);
     node->opts = &__vfs_devop;
 
     return ret;
@@ -364,14 +370,15 @@ static void _init_partitions (devst_t *hd, mbr_t *rec)
                     );
 
             // set header info
-            if (root)
-            {
-                struct pub *pub;
-                pub = root->sys;
-                pub->root = root;
-                pub->dev = hd;
-                pub->devp = devp;
-            }
+            struct pub *pub;
+            pub = root->sys;
+            pub->root = root;
+            pub->dev = hd;
+            pub->devp = devp;
+
+            // set dev_t
+            root->dev = makedev(devp->major, devp->minor);
+            root->rdev = NODEV;
         }
 
         printk (" - partition %u -> %s\n", i, type);

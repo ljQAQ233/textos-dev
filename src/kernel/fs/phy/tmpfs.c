@@ -67,6 +67,9 @@ fs_opts_t __tmpfs_op;
 
 static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
 {
+    unsigned ma = ent->super->dev->major;
+    unsigned mi = ent->super->dev->minor;
+
     node_t *node = malloc(sizeof(node_t));
     node->name = strdup(ent->name);
     node->mode = ent->mode;
@@ -78,6 +81,8 @@ static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
     node->parent = NULL;
     node->child = NULL;
     node->next = NULL;
+    node->dev = makedev(ma, mi);
+    node->rdev = NODEV;
     node->sys = ent->super;
     node->systype = 0;
     node->idx = ent->ino;

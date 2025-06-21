@@ -97,6 +97,8 @@ static inline dev_t makedev_for(devst_t *d)
     return makedev(d->major, d->minor);
 }
 
+#define NODEV 0
+
 devst_t *dev_new();
 void __dev_register(devstp_t *pri);
 void dev_register(devst_t *prt, devst_t *dev);
