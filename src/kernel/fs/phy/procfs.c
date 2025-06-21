@@ -243,6 +243,7 @@ static node_t *procfs_nodeget(proc_entry_t *ent)
     node->name = strdup(ent->name);
     node->mode = ent->mode;
     node->siz = 0;
+    node->ino = ent->ino;
     node->atime = arch_time_now();
     node->mtime = arch_time_now();
     node->ctime = arch_time_now();
@@ -254,7 +255,6 @@ static node_t *procfs_nodeget(proc_entry_t *ent)
     node->rdev = NODEV;
     node->sys = &__procfs_super;
     node->systype = 0;
-    node->idx = 0;
     node->pdata = ent;
     node->mount = NULL;
     node->opts = &__procfs_op;
@@ -339,7 +339,7 @@ static int procfs_readdir(node_t *node, dirctx_t *ctx)
     if (ctx->pos == 1)
     {
         if (proc_is_root(dir))
-            goto_if(!procfs_dir_emit(ctx, "..", 2, node->parent->idx, S_IFDIR), end);
+            goto_if(!procfs_dir_emit(ctx, "..", 2, node->parent->ino, S_IFDIR), end);
         else
             goto_if(!procfs_dir_emit(ctx, "..", 2, dir->parent->ino, dir->parent->mode), end);
     }

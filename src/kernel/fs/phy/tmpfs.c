@@ -74,6 +74,7 @@ static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
     node->name = strdup(ent->name);
     node->mode = ent->mode;
     node->siz = ent->filsz;
+    node->ino = ent->ino;
     node->atime = arch_time_now();
     node->mtime = arch_time_now();
     node->ctime = arch_time_now();
@@ -85,7 +86,6 @@ static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
     node->rdev = NODEV;
     node->sys = ent->super;
     node->systype = 0;
-    node->idx = ent->ino;
     node->pdata = ent;
     node->mount = NULL;
     node->opts = &__tmpfs_op;
@@ -320,12 +320,12 @@ static int tmpfs_readdir(node_t *node, dirctx_t *ctx)
 
     // HACK
     if (ctx->pos == 0) {
-        if (!__dir_emit(ctx, ".", 1, node->idx, S_IFDIR))
+        if (!__dir_emit(ctx, ".", 1, node->ino, S_IFDIR))
             goto end;
         ctx->pos++;
     }
     if (ctx->pos == 1) {
-        if (!__dir_emit(ctx, "..", 2, node->parent->idx, S_IFDIR))
+        if (!__dir_emit(ctx, "..", 2, node->parent->ino, S_IFDIR))
             goto end;
         ctx->pos++;
     }

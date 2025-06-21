@@ -56,6 +56,7 @@ struct node
 
     u64 attr;
     u64 siz;     // Zero for dir
+    ino_t ino;
     mode_t mode;
     time_t atime;
     time_t mtime;
@@ -72,7 +73,6 @@ struct node
     dev_t rdev;
     void *sys;
     int systype;
-    addr_t idx;
     void *pdata;
     void *mount;
 

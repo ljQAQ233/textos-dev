@@ -456,6 +456,14 @@ static void cache_init(lookup_t *lkp)
     list_init(&cache->lru);
 }
 
+static inline ino_t inoget(lookup_t *lkp)
+{
+    // maximum cluster size is 32KB - Version 1.03, December 6, 2000
+    //  => 0 < index of dirent < 1024
+    entlct_t *lct = CR(lkp->link.next, entlct_t, link);
+    return ((u64)lct->clst << 10) | lct->idx;
+}
+
 static lookup_t *lkp_prt(lookup_t *lkp)
 {
     node_t *n = lkp->node;
@@ -892,6 +900,7 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
         lkp = NULL;
     } else {
         lkp->f = f;
+        lkp->node->ino = inoget(lkp);
         cache_init(lkp);
     }
     return lkp;
@@ -1021,6 +1030,7 @@ static void lookup_byctx(dirctx_t *ctx)
 
                 // generate node
                 lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
+                lkp->node->ino = inoget(lkp);
                 if (__dir_emit_node(ctx, lkp->node))
                 {
                     ctx->eidx = eidx+1;
@@ -1468,6 +1478,7 @@ static node_t *create(node_t *prt, char *name, int mode)
         stack_fini(init);
     }
 
+    chd->ino = inoget(lkp);
     return chd;
 }
 
@@ -1677,6 +1688,7 @@ FS_INITIALIZER(__fs_init_fat32)
 
     n->name = "/";
     n->mode = S_IFDIR | MODE_DIR;
+    n->ino = 1;
     n->siz = 0;
     n->parent = n;
     n->child = n->next = NULL;

@@ -116,6 +116,8 @@ bool __dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned t
 
     dir_t *dir = ctx->buf;
     dir->idx = ctx->pos;
+    dir->type = type;
+    dir->ino = ino;
     dir->siz = siz;
     dir->len = len;
     strcpy(dir->name, name);
@@ -127,7 +129,24 @@ bool __dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned t
 
 bool __dir_emit_node(dirctx_t *ctx, node_t *chd)
 {
-    return __dir_emit(ctx, chd->name, strlen(chd->name), 0, 0);
+    int type = 0;
+    if (S_ISREG(chd->mode))
+        type = DT_REG;
+    else if (S_ISDIR(chd->mode))
+        type = DT_DIR;
+    else if (S_ISLNK(chd->mode))
+        type = DT_LNK;
+    else if (S_ISCHR(chd->mode))
+        type = DT_CHR;
+    else if (S_ISBLK(chd->mode))
+        type = DT_BLK;
+    else if (S_ISFIFO(chd->mode))
+        type = DT_FIFO;
+    else if (S_ISSOCK(chd->mode))
+        type = DT_SOCK;
+    else
+        type = DT_UNKNOWN;
+    return __dir_emit(ctx, chd->name, strlen(chd->name), chd->ino, type);
 }
 
 __SYSCALL_DEFINE2(int, seekdir, int, fd, size_t *, pos)
@@ -192,7 +211,7 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
         return ret;
 
     sb->st_dev = node->dev;
-    sb->st_ino = node->idx;
+    sb->st_ino = node->ino;
     sb->st_nlink = 1;
     sb->st_mode = node->mode;
     sb->st_uid = 0; // TODO
