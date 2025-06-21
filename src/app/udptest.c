@@ -35,7 +35,8 @@ int main(int argc, char const *argv[])
     }
 
     struct sockaddr_in src;
-    if (recvfrom(fd, rx_buf, sizeof(rx_buf), 0, (void *)&src, sizeof(src)) < 0)
+    socklen_t socklen = sizeof(src);
+    if (recvfrom(fd, rx_buf, sizeof(rx_buf), 0, (void *)&src, &socklen) < 0)
     {
         perror("recvfrom");
         return 1;

@@ -136,7 +136,8 @@ int main(int argc, char *argv[])
     }
 
     struct sockaddr_in from;
-    ssize_t rb = recvfrom(fd, rx, sizeof(rx), 0, (void *)&from, sizeof(from));
+    socklen_t socklen = sizeof(from);
+    ssize_t rb = recvfrom(fd, rx, sizeof(rx), 0, (void *)&from, &socklen);
     if (rb < 0)
     {
         perror("recvfrom");

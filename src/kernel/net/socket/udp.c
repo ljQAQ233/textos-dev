@@ -63,10 +63,12 @@ static int udp_socket(socket_t *s)
     return 0;
 }
 
-static int udp_bind(socket_t *s, sockaddr_t *addr, size_t len)
+static int udp_bind(socket_t *s, sockaddr_t *addr, socklen_t len)
 {
     if (!addr)
         return -EDESTADDRREQ;
+    if (len <= sizeof(sockaddr_in_t))
+        return -EINVAL;
 
     udp_t *u = UDP(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
@@ -90,7 +92,7 @@ static int udp_bind(socket_t *s, sockaddr_t *addr, size_t len)
     return 0;
 }
 
-static int udp_connect(socket_t *s, sockaddr_t *addr, size_t len)
+static int udp_connect(socket_t *s, sockaddr_t *addr, socklen_t len)
 {
     udp_t *u = UDP(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
@@ -99,23 +101,27 @@ static int udp_connect(socket_t *s, sockaddr_t *addr, size_t len)
     return 0;
 }
 
-static int udp_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
+static int udp_getsockname(socket_t *s, sockaddr_t *addr, socklen_t *len)
 {
     udp_t *u = UDP(s->pri);
-    sockaddr_in_t *in = (sockaddr_in_t *)addr;
-    ip_addr_copy(in->addr, u->laddr);
-    in->family = AF_INET;
-    in->port = htons(u->lport);
+    sockaddr_in_t in;
+    ip_addr_copy(in.addr, u->laddr);
+    in.family = AF_INET;
+    in.port = htons(u->lport);
+    *len = MIN(*len, sizeof(in));
+    memcpy(addr, &in, *len);
     return 0;
 }
 
-static int udp_getpeername(socket_t *s, sockaddr_t *addr, size_t len)
+static int udp_getpeername(socket_t *s, sockaddr_t *addr, socklen_t *len)
 {
     udp_t *u = UDP(s->pri);
-    sockaddr_in_t *in = (sockaddr_in_t *)addr;
-    ip_addr_copy(in->addr, u->raddr);
-    in->family = AF_INET;
-    in->port = htons(u->rport);
+    sockaddr_in_t in;
+    ip_addr_copy(in.addr, u->raddr);
+    in.family = AF_INET;
+    in.port = htons(u->rport);
+    *len = MIN(*len, sizeof(in));
+    memcpy(addr, &in, *len);
     return 0;
 }
 

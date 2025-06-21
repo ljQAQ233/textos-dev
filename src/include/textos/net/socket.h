@@ -58,13 +58,13 @@ typedef struct
 typedef struct
 {
     int (*socket)(socket_t *s);
-    int (*bind)(socket_t *s, sockaddr_t *addr, size_t len);
+    int (*bind)(socket_t *s, sockaddr_t *addr, socklen_t len);
     int (*listen)(socket_t *s, int backlog);
-    int (*accept)(socket_t *s, sockaddr_t *addr, size_t *len);
-    int (*connect)(socket_t *s, sockaddr_t *addr, size_t len);
+    int (*accept)(socket_t *s, sockaddr_t *addr, socklen_t *len);
+    int (*connect)(socket_t *s, sockaddr_t *addr, socklen_t len);
     int (*shutdown)(socket_t *s, int how);
-    int (*getsockname)(socket_t *s, sockaddr_t *addr, size_t len);
-    int (*getpeername)(socket_t *s, sockaddr_t *addr, size_t len);
+    int (*getsockname)(socket_t *s, sockaddr_t *addr, socklen_t *len);
+    int (*getpeername)(socket_t *s, sockaddr_t *addr, socklen_t *len);
     ssize_t (*sendmsg)(socket_t *s, msghdr_t *msg, int flags);
     ssize_t (*recvmsg)(socket_t *s, msghdr_t *msg, int flags);
 } sockop_t;
@@ -90,10 +90,10 @@ socket_t *socket_get(int fd);
 
 int socket(int domain, int type, int proto);
 
-int bind(int fd, sockaddr_t *addr, size_t len);
-int connect(int fd, sockaddr_t *addr, size_t len);
+int bind(int fd, sockaddr_t *addr, socklen_t len);
+int connect(int fd, sockaddr_t *addr, socklen_t len);
 int listen(int fd, int backlog);
-int accept(int fd, sockaddr_t *addr, size_t *len);
+int accept(int fd, sockaddr_t *addr, socklen_t *len);
 
 #define SHUT_RD 0
 #define SHUT_WR 1
@@ -101,14 +101,14 @@ int accept(int fd, sockaddr_t *addr, size_t *len);
 
 int shutdown(int fd, int how);
 
-int getsockname(int fd, sockaddr_t *addr, size_t len);
-int getpeername(int fd, sockaddr_t *addr, size_t len);
+int getsockname(int fd, sockaddr_t *addr, socklen_t *len);
+int getpeername(int fd, sockaddr_t *addr, socklen_t *len);
 
 ssize_t sendmsg(int fd, msghdr_t *msg, int flags);
 ssize_t recvmsg(int fd, msghdr_t *msg, int flags);
 
-ssize_t sendto(int fd, void *buf, size_t len, int flags, sockaddr_t *dst, size_t dlen);
-ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, size_t slen);
+ssize_t sendto(int fd, void *buf, size_t len, int flags, sockaddr_t *dst, socklen_t dlen);
+ssize_t recvfrom(int fd, void *buf, size_t len, int flags, sockaddr_t *src, socklen_t *slen);
 
 #define IFNAMSIZ 16
 

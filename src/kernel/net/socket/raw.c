@@ -50,7 +50,7 @@ static int raw_socket(socket_t *s)
     return 0;
 }
 
-static int raw_bind(socket_t *s, sockaddr_t *addr, size_t len)
+static int raw_bind(socket_t *s, sockaddr_t *addr, socklen_t len)
 {
     if (!addr)
         return -EDESTADDRREQ;
@@ -67,7 +67,7 @@ static int raw_bind(socket_t *s, sockaddr_t *addr, size_t len)
 }
 
 
-static int raw_connect(socket_t *s, sockaddr_t *addr, size_t len)
+static int raw_connect(socket_t *s, sockaddr_t *addr, socklen_t len)
 {
     raw_t *r = RAW(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
@@ -75,23 +75,27 @@ static int raw_connect(socket_t *s, sockaddr_t *addr, size_t len)
     return 0;
 }
 
-static int raw_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
+static int raw_getsockname(socket_t *s, sockaddr_t *addr, socklen_t *len)
 {
     raw_t *r = RAW(s->pri);
-    sockaddr_in_t *in = (sockaddr_in_t *)addr;
-    ip_addr_copy(in->addr, r->laddr);
-    in->family = AF_INET;
-    in->port = 0;
+    sockaddr_in_t in;
+    ip_addr_copy(in.addr, r->laddr);
+    in.family = AF_INET;
+    in.port = 0;
+    *len = MIN(*len, sizeof(in));
+    memcpy(addr, &in, *len);
     return 0;
 }
 
-static int raw_getpeername(socket_t *s, sockaddr_t *addr, size_t len)
+static int raw_getpeername(socket_t *s, sockaddr_t *addr, socklen_t *len)
 {
     raw_t *r = RAW(s->pri);
-    sockaddr_in_t *in = (sockaddr_in_t *)addr;
-    ip_addr_copy(in->addr, r->raddr);
-    in->family = AF_INET;
-    in->port = 0;
+    sockaddr_in_t in;
+    ip_addr_copy(in.addr, r->raddr);
+    in.family = AF_INET;
+    in.port = 0;
+    *len = MIN(*len, sizeof(in));
+    memcpy(addr, &in, *len);
     return 0;
 }
 

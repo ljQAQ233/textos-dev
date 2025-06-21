@@ -153,7 +153,7 @@ static int tcp_socket(socket_t *s)
     return 0;
 }
 
-static int tcp_bind(socket_t *s, sockaddr_t *addr, size_t len)
+static int tcp_bind(socket_t *s, sockaddr_t *addr, socklen_t len)
 {
     if (!addr)
         return -EDESTADDRREQ;
@@ -205,7 +205,7 @@ static int tcp_listen(socket_t *s, int backlog)
 #include <irq.h>
 
 // nonblock mode unsupported
-static int tcp_accept(socket_t *s, sockaddr_t *addr, size_t *len)
+static int tcp_accept(socket_t *s, sockaddr_t *addr, socklen_t *len)
 {
     tcp_t *t = TCP(s->pri);
     tcp_t *conn;
@@ -254,11 +254,13 @@ static int tcp_accept(socket_t *s, sockaddr_t *addr, size_t *len)
     return fd;
 }
 
-static int tcp_connect(socket_t *s, sockaddr_t *addr, size_t len)
+static int tcp_connect(socket_t *s, sockaddr_t *addr, socklen_t len)
 {
     tcp_t *t = TCP(s->pri);
     // connected
     if (t->rport)
+        return -EINVAL;
+    if (len < sizeof(sockaddr_in_t))
         return -EINVAL;
 
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
@@ -305,12 +307,12 @@ static int tcp_shutdown(socket_t *s, int how)
     return 0;
 }
 
-static int tcp_getsockname(socket_t *s, sockaddr_t *addr, size_t len)
+static int tcp_getsockname(socket_t *s, sockaddr_t *addr, socklen_t *len)
 {
 
 }
 
-static int tcp_getpeername(socket_t *s, sockaddr_t *addr, size_t len)
+static int tcp_getpeername(socket_t *s, sockaddr_t *addr, socklen_t *len)
 {
 
 }

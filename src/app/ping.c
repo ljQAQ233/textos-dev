@@ -72,7 +72,8 @@ int main(int argc, char const *argv[])
         if (ret < 0)
             goto die;
 
-        ret = recvfrom(fd, rx_buf, sizeof(rx_buf), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+        socklen_t socklen = sizeof(struct sockaddr_in);
+        ret = recvfrom(fd, rx_buf, sizeof(rx_buf), 0, (struct sockaddr *)&addr, &socklen);
         if (ret < 0)
             goto die;
 

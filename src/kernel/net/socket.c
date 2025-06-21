@@ -86,7 +86,7 @@ __SYSCALL_DEFINE3(int, socket, int, domain, int, type, int, proto)
     return socket_makefd(socket);
 }
 
-__SYSCALL_DEFINE3(int, bind, int, fd, sockaddr_t *, addr, size_t, len)
+__SYSCALL_DEFINE3(int, bind, int, fd, sockaddr_t *, addr, socklen_t, len)
 {
     socket_t *s = socket_get(fd);
     return s->op->bind(s, addr, len);
@@ -98,13 +98,13 @@ __SYSCALL_DEFINE2(int, listen, int, fd, int, backlog)
     return s->op->listen(s, backlog);
 }
 
-__SYSCALL_DEFINE3(int, accept, int, fd, sockaddr_t *, addr, size_t *, len)
+__SYSCALL_DEFINE3(int, accept, int, fd, sockaddr_t *, addr, socklen_t *, len)
 {
     socket_t *s = socket_get(fd);
     return s->op->accept(s, addr, len);
 }
 
-__SYSCALL_DEFINE3(int, connect, int, fd, sockaddr_t *, addr, size_t, len)
+__SYSCALL_DEFINE3(int, connect, int, fd, sockaddr_t *, addr, socklen_t, len)
 {
     socket_t *s = socket_get(fd);
     return s->op->connect(s, addr, len);
@@ -116,13 +116,13 @@ __SYSCALL_DEFINE2(int, shutdown, int, fd, int, how)
     return s->op->shutdown(s, how);
 }
 
-__SYSCALL_DEFINE3(int, getsockname, int, fd, sockaddr_t *, addr, size_t, len)
+__SYSCALL_DEFINE3(int, getsockname, int, fd, sockaddr_t *, addr, socklen_t *, len)
 {
     socket_t *s = socket_get(fd);
     return s->op->getsockname(s, addr, len);
 }
 
-__SYSCALL_DEFINE3(int, getpeername, int, fd, sockaddr_t *, addr, size_t, len)
+__SYSCALL_DEFINE3(int, getpeername, int, fd, sockaddr_t *, addr, socklen_t *, len)
 {
     socket_t *s = socket_get(fd);
     return s->op->getpeername(s, addr, len);
@@ -142,7 +142,7 @@ __SYSCALL_DEFINE3(ssize_t, recvmsg, int, fd, msghdr_t *, msg, int, flags)
 
 __SYSCALL_DEFINE6(ssize_t, sendto,
     int, fd, void *, buf, size_t, len,
-    int, flags, sockaddr_t *, dst, size_t, dlen)
+    int, flags, sockaddr_t *, dst, socklen_t, dlen)
 {
     msghdr_t msg = {
         .name = dst,
@@ -159,11 +159,11 @@ __SYSCALL_DEFINE6(ssize_t, sendto,
 
 __SYSCALL_DEFINE6(ssize_t, recvfrom,
     int, fd, void *, buf, size_t, len,
-    int, flags, sockaddr_t *, src, size_t, slen)
+    int, flags, sockaddr_t *, src, socklen_t *, slen)
 {
     msghdr_t msg = {
         .name = src,
-        .namelen = slen,
+        .namelen = *slen,
         .iov = &(iovec_t) {
             .base = buf,
             .len = len,
@@ -171,7 +171,9 @@ __SYSCALL_DEFINE6(ssize_t, recvfrom,
         .iovlen = 1,
     };
 
-    return recvmsg(fd, &msg, flags);
+    int ret = recvmsg(fd, &msg, flags);
+    *slen = msg.namelen;
+    return ret;
 }
 
 extern void sock_raw_init();

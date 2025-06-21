@@ -263,12 +263,12 @@ int shutdown(int fd, int how)
     return syscall(SYS_shutdown, fd, how);
 }
 
-int getsockname(int fd, struct sockaddr *addr, socklen_t len)
+int getsockname(int fd, struct sockaddr *addr, socklen_t *len)
 {
     return syscall(SYS_getsockname, fd, addr, len);
 }
 
-int getpeername(int fd, struct sockaddr *addr, socklen_t len)
+int getpeername(int fd, struct sockaddr *addr, socklen_t *len)
 {
     return syscall(SYS_getpeername, fd, addr, len);
 }
@@ -288,7 +288,7 @@ ssize_t sendto(int fd, void *buf, size_t len, int flags, struct sockaddr *dst, s
     return syscall(SYS_sendto, fd, buf, len, flags, dst, dlen);
 }
 
-ssize_t recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *src, socklen_t slen)
+ssize_t recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *src, socklen_t *slen)
 {
     return syscall(SYS_recvfrom, fd, buf, len, flags, src, slen);
 }

@@ -55,15 +55,14 @@ int connect(int fd, struct sockaddr *addr, socklen_t len);
 
 int shutdown(int fd, int how);
 
-int getsockname(int fd, struct sockaddr *addr, socklen_t len);
-int getpeername(int fd, struct sockaddr *addr, socklen_t len);
+int getsockname(int fd, struct sockaddr *addr, socklen_t *len);
+int getpeername(int fd, struct sockaddr *addr, socklen_t *len);
 
 ssize_t sendmsg(int fd, struct msghdr *msg, int flags);
 ssize_t recvmsg(int fd, struct msghdr *msg, int flags);
 
-// XXX: recvfrom is wrong
 ssize_t sendto(int fd, void *buf, size_t len, int flags, struct sockaddr *dst, socklen_t dlen);
-ssize_t recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *src, socklen_t slen);
+ssize_t recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *src, socklen_t *slen);
 
 ssize_t send(int fd, void *buf, size_t len, int flags);
 ssize_t recv(int fd, void *buf, size_t len, int flags);
