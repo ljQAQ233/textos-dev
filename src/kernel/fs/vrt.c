@@ -100,6 +100,22 @@ void vfs_initops(fs_opts_t *opts)
     opts->mmap = noopt;
 }
 
+void vfs_regst(node_t *n, node_t *p)
+{
+    n->next = p->child;
+    p->child = n;
+    n->parent = p;
+}
+
+void vfs_unreg(node_t *n)
+{
+    node_t **pp = &n->parent->child;
+    while (*pp && *pp != n)
+        pp = &(*pp)->next;
+    if (*pp == n)
+        *pp = n->next;
+}
+
 static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args, int mode)
 {
     int ret = 0;
@@ -242,20 +258,7 @@ int vfs_release (node_t *this)
 
     /* 除去父目录项的子目录项 */
     if (this->parent)
-    {
-        node_t *curr = this->parent->child;
-        node_t *prev = NULL;
-        while (curr != NULL) {
-            if (curr == this) {
-                if (prev == NULL)
-                    this->parent->child = curr->next;
-                else
-                    prev->next = curr->next;
-            }
-            prev = curr;
-            curr = curr->next;
-        }
-    }
+        vfs_unreg(this);
 
     /* 释放信息 */
     if (this->name)

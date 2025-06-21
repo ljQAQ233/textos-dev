@@ -45,7 +45,7 @@ _UTIL_CMP();
 #define tmpfs_foreach(ent) \
     for (tmpfs_entry_t *ptr = ent ; ptr ; ptr = ptr->next)
 
-tmpfs_entry_t *tmp_ent_find(tmpfs_entry_t *dir, char *name)
+static tmpfs_entry_t *tmp_ent_find(tmpfs_entry_t *dir, char *name)
 {
     tmpfs_foreach(dir->subdir) {
         if (_cmp(ptr->name, name))
@@ -54,13 +54,29 @@ tmpfs_entry_t *tmp_ent_find(tmpfs_entry_t *dir, char *name)
     return NULL;
 }
 
-int tmpfs_ent_count(tmpfs_entry_t *dir)
+static int tmpfs_ent_count(tmpfs_entry_t *dir)
 {
     int count = 0;
     tmpfs_foreach(dir->subdir) {
         count++;
     }
     return count;
+}
+
+static void tmpfs_ent_regst(tmpfs_entry_t *ent, tmpfs_entry_t *prt)
+{
+    ent->next = prt->subdir;
+    prt->subdir = ent;
+    ent->parent = prt;
+}
+
+static void tmpfs_ent_unreg(tmpfs_entry_t *ent)
+{
+    tmpfs_entry_t **pp = &ent->parent->subdir;
+    while (*pp && *pp != ent)
+        pp = &(*pp)->next;
+    if (*pp == ent)
+        *pp = ent->next;
 }
 
 fs_opts_t __tmpfs_op;
@@ -119,18 +135,14 @@ static int tmpfs_open(node_t *parent, char *name, u64 args, int mode, node_t **r
     ent->ino = __tmpfs_ino++;
     ent->mode = mode;
     ent->super = dir->super;
-    ent->parent = dir;
     ent->subdir = NULL;
-    ent->next = dir->subdir;
-    dir->subdir = ent;
     ent->filsz = 0;
     ent->pages.root = NULL;
+    tmpfs_ent_regst(ent, dir);
 
 end:
     node = tmpfs_nodeget(ent);
-    node->parent = parent;
-    node->next = parent->child;
-    parent->child = node;
+    vfs_regst(node, parent);
     *result = node;
     return 0;
 }
@@ -219,12 +231,7 @@ static int tmpfs_remove(node_t *this)
     tmpfs_entry_t *ent = this->pdata;
     if (ent->subdir)
         return -ENOTEMPTY;
-
-    tmpfs_entry_t **pp = &ent->parent->subdir;
-    while (*pp && *pp != ent)
-        pp = &(*pp)->next;
-    if (*pp == ent)
-        *pp = ent->next;
+    tmpfs_ent_unreg(ent);
     free(ent);
     return 0;
 }

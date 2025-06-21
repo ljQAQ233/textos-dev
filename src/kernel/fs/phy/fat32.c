@@ -973,8 +973,6 @@ done:
     return EOF;
 }
 
-static void chd_insert(node_t *prt, node_t *chd);
-
 /*
  * ctx 记录上下文信息, ctx 描述 下一个将被读取的目录项
 */
@@ -1431,13 +1429,6 @@ done:
 static sentry_t dirhead_1 = { ".          ", FA_DIR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static sentry_t dirhead_2 = { "..         ", FA_DIR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-static void chd_insert(node_t *prt, node_t *chd)
-{
-    chd->next = prt->child;
-    prt->child = chd;
-    chd->parent = prt;
-}
-
 static node_t *create(node_t *prt, char *name, int mode)
 {
     node_t *chd = calloc(sizeof(*chd));
@@ -1452,7 +1443,7 @@ static node_t *create(node_t *prt, char *name, int mode)
     chd->sys = prt->sys;
     chd->systype = prt->systype;
     chd->opts = prt->opts;
-    chd_insert(prt, chd);
+    vfs_regst(chd, prt);
 
     unsigned clst = 0;
     if (S_ISDIR(chd->mode))
@@ -1496,7 +1487,7 @@ static node_t *_fat32_open(node_t *dir, char *path)
         chd->rdev = NODEV;
         chd->sys = dir->sys;
         chd->systype = dir->systype;
-        chd_insert(dir, chd);
+        vfs_regst(chd, dir);
     }
 
     return chd;

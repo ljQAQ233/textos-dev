@@ -105,6 +105,9 @@ struct dirctx
     size_t bufents;
 };
 
+void vfs_regst(node_t *n, node_t *p);
+void vfs_unreg(node_t *n);
+
 int vfs_open (node_t *parent, node_t **node, const char *path, u64 args, int mode);
 int vfs_read(node_t *this, void *buf, size_t siz, size_t offset);
 int vfs_write(node_t *this, void *buf, size_t siz, size_t offset);
