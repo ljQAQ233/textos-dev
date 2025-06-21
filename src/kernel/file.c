@@ -183,6 +183,28 @@ __SYSCALL_DEFINE3(ssize_t, read, int, fd, void *, buf, size_t, cnt)
     return ret;
 }
 
+__SYSCALL_DEFINE3(off_t, lseek, int, fd, off_t, off, int, whence)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+    if (S_ISDIR(file->node->mode))
+        return -EISDIR;
+    switch (whence)
+    {
+    case SEEK_SET:
+        file->offset = off;
+        break;
+    case SEEK_CUR:
+        file->offset += off;
+        break;
+    case SEEK_END:
+        file->offset = file->node->siz + off;
+        break;
+    }
+    return file->offset;
+}
+
 __SYSCALL_DEFINE1(int, close, int, fd)
 {
     file_t *file = task_current()->files[fd];

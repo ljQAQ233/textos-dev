@@ -10,6 +10,7 @@ extern void sys_seekdir();
 extern void sys_write();
 extern void sys_open();
 extern void sys_close();
+extern void sys_lseek();
 extern void sys_mmap();
 extern void sys_mprotect();
 extern void sys_munmap();
@@ -58,6 +59,7 @@ void *sys_handlers[] = {
     [SYS_write] = sys_write,
     [SYS_open] = sys_open,
     [SYS_close] = sys_close,
+    [SYS_lseek] = sys_lseek,
     [SYS_mmap] = sys_mmap,
     [SYS_mprotect] = sys_mprotect,
     [SYS_munmap] = sys_munmap,

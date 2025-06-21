@@ -23,6 +23,7 @@ __BEGIN_DECLS
 
 int pipe(int fds[2]);
 int close(int fd);
+off_t lseek(int fd, off_t off, int whence);
 
 int dup(int fd);
 int dup2(int oldfd, int newfd);

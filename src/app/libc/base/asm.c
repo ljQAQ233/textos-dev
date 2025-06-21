@@ -125,11 +125,6 @@ int uname(struct utsname *name)
     return syscall(SYS_uname, name);
 }
 
-ssize_t write(int fd, const void *buf, size_t cnt)
-{
-    return syscall(SYS_write, fd, buf, cnt);
-}
-
 int open(char *path, int flgs, ...)
 {
     int mode = 0;
@@ -146,6 +141,16 @@ int open(char *path, int flgs, ...)
 ssize_t read(int fd, void *buf, size_t cnt)
 {
     return syscall(SYS_read, fd, buf, cnt);
+}
+
+ssize_t write(int fd, const void *buf, size_t cnt)
+{
+    return syscall(SYS_write, fd, buf, cnt);
+}
+
+off_t lseek(int fd, off_t off, int whence)
+{
+    return syscall(SYS_lseek, fd, off, whence);
 }
 
 ssize_t __readdir(int fd, void *buf, size_t mx)

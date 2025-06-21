@@ -7,6 +7,7 @@
     _(open, 2),          \
     _(close, 3),         \
     _(stat, 4),          \
+    _(lseek, 8),         \
     _(mmap, 9),          \
     _(mprotect, 10),     \
     _(munmap, 11),       \

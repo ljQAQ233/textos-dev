@@ -105,8 +105,6 @@ typedef struct stat
 
 extern file_t sysfile[MAXDEF_FILENO];
 
-int open(char *path, int flgs, int mode);
-
 #define O_ACCMODE 0003 // 访问模式掩码
 #define O_RDONLY  00   // 只读
 #define O_WRONLY  01   // 只写
@@ -118,40 +116,14 @@ int open(char *path, int flgs, int mode);
 #define O_APPEND 0010  // 末尾追加
 #define O_DIRECTORY 0200000
 
-ssize_t write(int fd, void *buf, size_t cnt);
-
-ssize_t __readdir(int fd, void *buf, size_t mx);
-
 bool __dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type);
 
 bool __dir_emit_node(dirctx_t *ctx, node_t *chd);
 
-ssize_t read(int fd, void *buf, size_t cnt);
-
-int close(int fd);
-
-int stat(char *path, stat_t *sb);
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 
 #include <textos/ioctl.h>
-
-int ioctl(int fd, int req, void *argp);
-
-int dup(int fd);
-
-int dup2(int old, int new);
-
-int pipe(int fds[2]);
-
-int mknod(char *path, int mode, long dev);
-
-int mount(char *src, char *dst);
-
-int umount2(char *target, int flags);
-
-int chdir(char *path);
-
-int mkdir(char *path, int mode);
-
-int rmdir(char *path);
 
 #endif
