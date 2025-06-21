@@ -41,14 +41,14 @@ static inline u64 parse_args(int x)
     return v;
 }
 
-__SYSCALL_DEFINE2(int, open, char *, path, int, flgs)
+__SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
 {
     node_t *node;
     file_t *file;
     u64 opargs = parse_args(flgs);
     
     int ret;
-    if ((ret = vfs_open(task_current()->pwd, &node, path, opargs)) < 0)
+    if ((ret = vfs_open(task_current()->pwd, &node, path, opargs, mode)) < 0)
         return ret;
 
     int fd;
@@ -199,7 +199,7 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
     int ret;
     node_t *node;
     
-    ret = vfs_open(task_current()->pwd, &node, path, VFS_GAIN);
+    ret = vfs_open(task_current()->pwd, &node, path, VFS_GAIN, 0);
     if (ret < 0)
         return ret;
 
@@ -304,7 +304,7 @@ __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
     int ret;
     node_t *sn, *dn;
 
-    ret = vfs_open(task_current()->pwd, &sn, src, 0);
+    ret = vfs_open(task_current()->pwd, &sn, src, 0, 0);
     if (ret < 0)
         return ret;
 
@@ -318,7 +318,7 @@ __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
     if (dev->subtype != DEV_PART)
         return -EINVAL;
 
-    ret = vfs_open(task_current()->pwd, &dn, dst, VFS_DIR);
+    ret = vfs_open(task_current()->pwd, &dn, dst, VFS_DIR, 0);
     if (ret < 0)
         return ret;
 
@@ -331,7 +331,7 @@ __SYSCALL_DEFINE2(int, umount2, char *, target, int, flags)
     int ret;
     node_t *dn;
 
-    ret = vfs_open(task_current()->pwd, &dn, target, VFS_GAIN | VFS_GAINMNT);
+    ret = vfs_open(task_current()->pwd, &dn, target, VFS_GAIN | VFS_GAINMNT, 0);
     if (ret < 0)
         return ret;
     
@@ -345,7 +345,7 @@ __SYSCALL_DEFINE1(int, chdir, char *, path)
     node_t *node;
     task_t *task = task_current();
 
-    ret = vfs_open(task->pwd, &node, path, VFS_DIR);
+    ret = vfs_open(task->pwd, &node, path, VFS_DIR, 0);
     if (ret < 0)
         return ret;
 
@@ -359,13 +359,13 @@ __SYSCALL_DEFINE2(int, mkdir, char *, path, int, mode)
     node_t *node;
     task_t *task = task_current();
 
-    ret = vfs_open(task->pwd, &node, path, VFS_DIR);
+    ret = vfs_open(task->pwd, &node, path, VFS_DIR, 0);
     if (ret >= 0)
     {
         return -EEXIST;
     }
 
-    ret = vfs_open(task->pwd, &node, path, VFS_DIR | VFS_CREATE);
+    ret = vfs_open(task->pwd, &node, path, VFS_DIR | VFS_CREATE, mode);
     return ret;
 }
 

@@ -85,7 +85,7 @@ typedef struct stat
 
 extern file_t sysfile[MAXDEF_FILENO];
 
-int open(char *path, int flgs);
+int open(char *path, int flgs, int mode);
 
 #define O_ACCMODE 0003 // 访问模式掩码
 #define O_RDONLY  00   // 只读

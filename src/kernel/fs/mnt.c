@@ -21,12 +21,12 @@ int vfs_mount(node_t *dir, node_t *root)
     return 0;
 }
 
-int vfs_mount_to(char *path, node_t *root)
+int vfs_mount_to(char *path, node_t *root, int mode)
 {
     int ret = 0;
     node_t *dir;
 
-    ret = vfs_open(NULL, &dir, path, VFS_DIR | VFS_CREATE);
+    ret = vfs_open(NULL, &dir, path, VFS_DIR | VFS_CREATE, mode);
     if (ret < 0)
         return ret;
 

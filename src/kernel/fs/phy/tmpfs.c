@@ -91,7 +91,7 @@ static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
  * FIXME : name may include '/' or other characters, strip them later!!!
  *         all physical file system interfaces of vrtfs has this bug!!!
  */
-static int tmpfs_open(node_t *parent, char *name, u64 args, node_t **result)
+static int tmpfs_open(node_t *parent, char *name, u64 args, int mode, node_t **result)
 {
     node_t *node = NULL;
     tmpfs_entry_t *dir = parent->pdata;

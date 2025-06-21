@@ -62,8 +62,8 @@ static void initnod(devst_t *dev)
 void dev_initnod()
 {
     node_t *dir;
-    vfs_open(NULL, &dir, "/dev", VFS_CREATE | VFS_DIR);
-    vfs_open(NULL, &dir, "/dev/net", VFS_CREATE | VFS_DIR);
+    vfs_open(NULL, &dir, "/dev", VFS_CREATE | VFS_DIR, 0);
+    vfs_open(NULL, &dir, "/dev/net", VFS_CREATE | VFS_DIR, 0);
 
     list_t *i;
     LIST_FOREACH(i, &root)

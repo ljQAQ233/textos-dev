@@ -29,7 +29,7 @@ int elf_load (char *path, exeinfo_t *exe)
 {
     int ret;
     node_t *elf;
-    if ((ret = vfs_open (NULL, &elf, path, 0)) < 0)
+    if ((ret = vfs_open (NULL, &elf, path, 0, 0)) < 0)
         return ret;
 
     Elf64_Ehdr hdr;

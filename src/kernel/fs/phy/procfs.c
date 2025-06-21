@@ -256,7 +256,7 @@ static node_t *procfs_nodeget(proc_entry_t *ent)
     return node;
 }
 
-static int procfs_open(node_t *parent, char *name, u64 args, node_t **result)
+static int procfs_open(node_t *parent, char *name, u64 args, int mode, node_t **result)
 {
     proc_entry_t *dir = parent->pdata;
     proc_entry_t *chd = proc_ent_find(dir, name);

@@ -100,7 +100,7 @@ void vfs_initops(fs_opts_t *opts)
     opts->mmap = noopt;
 }
 
-static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args)
+static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args, int mode)
 {
     int ret = 0;
     node_t *res;
@@ -115,7 +115,7 @@ static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args)
 
     res = vfs_exist(dir, path);
     if (res == NULL) {
-        ret = dir->opts->open (dir, path, args, &res);
+        ret = dir->opts->open (dir, path, args, mode, &res);
         if (ret < 0) {
             res = NULL;
             goto fini;
@@ -134,7 +134,7 @@ fini:
     return ret;
 }
 
-static int _vfs_walk (node_t *start, node_t **node, char *path, u64 args)
+static int _vfs_walk (node_t *start, node_t **node, char *path, u64 args, int mode)
 {
     /* 为 Open 扫一些障碍! */
     if (!start) start = _fs_root;
@@ -151,11 +151,11 @@ static int _vfs_walk (node_t *start, node_t **node, char *path, u64 args)
         node_t *chd;
         int ret;
         if (!nxt[0]) {
-            ret = _vfs_open(cur, &chd, path, args);
+            ret = _vfs_open(cur, &chd, path, args, mode);
         } else {
             if (~cur->attr & NA_DIR)
                 return -ENOTDIR;
-            ret = _vfs_open(cur, &chd, path, VFS_GAIN);
+            ret = _vfs_open(cur, &chd, path, VFS_GAIN, mode);
         }
 
         if (ret < 0)
@@ -169,12 +169,12 @@ static int _vfs_walk (node_t *start, node_t **node, char *path, u64 args)
     return 0;
 }
 
-int vfs_open (node_t *parent, node_t **node, const char *path, u64 args)
+int vfs_open (node_t *parent, node_t **node, const char *path, u64 args, int mode)
 {
     ASSERTK (!parent || CKDIR(parent));
     DEBUGK(K_FS, "try to open %s\n", path);
 
-    int ret = _vfs_walk (parent, node, (char *)path, args);
+    int ret = _vfs_walk (parent, node, (char *)path, args, mode);
     node_t *opened = *node;
     if (opened && !(args & VFS_GAIN)) {
         if (opened->attr & NA_REG && args & VFS_DIR)
@@ -280,7 +280,7 @@ int vfs_mknod (char *path, devst_t *dev)
     int ret;
     
     node_t *node;
-    ret = vfs_open(NULL, &node, path, VFS_CREATE);
+    ret = vfs_open(NULL, &node, path, VFS_CREATE, 0);
     if (ret < 0)
         return ret;
     node->pdata = dev;
@@ -413,8 +413,8 @@ void fs_init ()
     __kconio_init();
     __vrtdev_init();
 
-    vfs_mount_to("/tmp", __fs_init_tmpfs());
-    vfs_mount_to("/proc", __fs_init_procfs());
+    vfs_mount_to("/tmp", __fs_init_tmpfs(), S_IFDIR | S_IRWXG | S_IRWXU | S_IRWXO);
+    vfs_mount_to("/proc", __fs_init_procfs(), S_IFDIR | S_IRGRP | S_IXGRP | S_IRUSR | S_IXUSR | S_IROTH | S_IXOTH);
 
     printk ("file system initialized!\n");
 }

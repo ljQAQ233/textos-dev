@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/dir.h>
 #include <sys/stat.h>
@@ -129,9 +130,17 @@ ssize_t write(int fd, const void *buf, size_t cnt)
     return syscall(SYS_write, fd, buf, cnt);
 }
 
-int open(char *path, int flgs)
+int open(char *path, int flgs, ...)
 {
-    return syscall(SYS_open, path, flgs);
+    int mode = 0;
+    if (flgs & O_CREAT)
+    {
+        va_list ap;
+        va_start(ap, flgs);
+        mode = va_arg(ap, int);
+        va_end(ap);
+    }
+    return syscall(SYS_open, path, flgs, mode);
 }
 
 ssize_t read(int fd, void *buf, size_t cnt)

@@ -19,6 +19,8 @@ enum
 #define VFS_VRT     0x08
 #define VFS_GAINMNT 0x10
 
+#define FSMODE_NONE 0
+
 struct node;
 typedef struct node node_t;
 
@@ -26,13 +28,14 @@ struct dirctx;
 typedef struct dirctx dirctx_t;
 
 #include <textos/dev.h>
+#include <textos/file.h>
 #include <textos/time.h>
 #include <textos/noopt.h>
 #include <textos/mm/mman.h>
 
 typedef struct
 {
-    int  (*open)(node_t *parent, char *path, u64 args, node_t **result);
+    int  (*open)(node_t *parent, char *path, u64 args, int mode, node_t **result);
     int  (*ioctl)(node_t *this, int req, void *argp);
     int  (*close)(node_t *this);
     int  (*remove)(node_t *this);
@@ -101,7 +104,7 @@ struct dirctx
     size_t bufents;
 };
 
-int vfs_open(node_t *parent, node_t **node, const char *path, u64 args);
+int vfs_open (node_t *parent, node_t **node, const char *path, u64 args, int mode);
 int vfs_read(node_t *this, void *buf, size_t siz, size_t offset);
 int vfs_write(node_t *this, void *buf, size_t siz, size_t offset);
 int vfs_close(node_t *this);
@@ -119,7 +122,7 @@ node_t *vfs_test(node_t *start, char *path, node_t **last, char **lastpath);
 void vfs_initops(fs_opts_t *opts);
 
 int vfs_mount(node_t *dir, node_t *root);
-int vfs_mount_to(char *path, node_t *root);
+int vfs_mount_to(char *path, node_t *root, int mode);
 int vfs_umount(node_t *dir);
 
 #endif
