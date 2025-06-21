@@ -5,8 +5,14 @@
 void dump(char *path, struct stat *sb)
 {
     printf("  File: %s\n", path);
-    printf("  Size: %lu\n", sb->st_size);
-    printf("Device: %u, %u\n", major(sb->st_dev), minor(sb->st_dev));
+    printf("  Size: %-10lu Blocks: %-10ld IO Block: %-6ld\n",
+        sb->st_size, sb->st_blocks, sb->st_blksize);
+    printf("Device: %-3u,%-3u Inode: %-10lu Links: %-3lu\n",
+        major(sb->st_dev), minor(sb->st_dev), sb->st_ino, sb->st_nlink);
+    printf("  Mode: %07o\n", sb->st_mode);
+    printf("Access: %lld\n", sb->st_atime);
+    printf("Modify: %lld\n", sb->st_mtime);
+    printf("Change: %lld\n", sb->st_ctime);
 }
 
 int main(int argc, char const *argv[])

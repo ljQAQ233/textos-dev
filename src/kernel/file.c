@@ -191,16 +191,19 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
     if (ret < 0)
         return ret;
 
-    devst_t *d;
-    if (S_ISCHR(node->mode) || S_ISBLK(node->mode))
-        d = node->pdata;
-    else
-        d = *(devst_t **)node->sys;
-
-    sb->siz = node->siz;
-    sb->dev = node->dev;
-    sb->mode = node->mode;
-
+    sb->st_dev = node->dev;
+    sb->st_ino = node->idx;
+    sb->st_nlink = 1;
+    sb->st_mode = node->mode;
+    sb->st_uid = 0; // TODO
+    sb->st_gid = 0;
+    sb->st_rdev = node->rdev;
+    sb->st_size = node->siz;
+    sb->st_blksize = -1; // TODO
+    sb->st_blocks = -1;
+    sb->st_atime = node->atime;
+    sb->st_mtime = node->mtime;
+    sb->st_ctime = node->ctime;
     return 0;
 }
 
