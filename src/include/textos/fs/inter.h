@@ -63,8 +63,4 @@ typedef struct _packed
         return true;                                      \
     }
 
-#define CKDIR(n) ((n)->attr & NA_DIR)
-
-#define CKFILE(n) (~((n)->attr) & NA_DIR)
-
 extern void noopt_handler();

@@ -16,7 +16,7 @@ int vfs_mount(node_t *dir, node_t *root)
     mount_t *mnt = dir->mount;
     stack_push(&mnt->chd, dir->child);
     dir->child = root;
-    dir->attr |= NA_MNT;
+    dir->attr |= FSA_MNT;
     root->parent = dir->parent;
     return 0;
 }
@@ -26,7 +26,7 @@ int vfs_mount_to(char *path, node_t *root, int mode)
     int ret = 0;
     node_t *dir;
 
-    ret = vfs_open(NULL, &dir, path, VFS_DIR | VFS_CREATE, mode);
+    ret = vfs_open(NULL, &dir, path, O_DIRECTORY | O_CREAT, mode);
     if (ret < 0)
         return ret;
 
@@ -41,7 +41,7 @@ int vfs_umount(node_t *dir)
     dir->child = stack_top(&mnt->chd),
                  stack_pop(&mnt->chd);
     if (stack_siz(&mnt->chd) == 0)
-        dir->attr &= ~NA_MNT;
+        dir->attr &= ~FSA_MNT;
 
     return 0;
 }

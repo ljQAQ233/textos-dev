@@ -122,9 +122,9 @@ static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args, int mode
         }
     }
 
-    if (res->attr & NA_MNT)
+    if (res->attr & FSA_MNT)
     {
-        if (~args & VFS_GAINMNT)
+        if (~args & FS_GAINMNT)
             res = res->child;
     }
 
@@ -153,9 +153,9 @@ static int _vfs_walk (node_t *start, node_t **node, char *path, u64 args, int mo
         if (!nxt[0]) {
             ret = _vfs_open(cur, &chd, path, args, mode);
         } else {
-            if (~cur->attr & NA_DIR)
+            if (!S_ISDIR(cur->mode))
                 return -ENOTDIR;
-            ret = _vfs_open(cur, &chd, path, VFS_GAIN, mode);
+            ret = _vfs_open(cur, &chd, path, FS_GAIN, mode);
         }
 
         if (ret < 0)
@@ -171,15 +171,14 @@ static int _vfs_walk (node_t *start, node_t **node, char *path, u64 args, int mo
 
 int vfs_open (node_t *parent, node_t **node, const char *path, u64 args, int mode)
 {
-    ASSERTK (!parent || CKDIR(parent));
     DEBUGK(K_FS, "try to open %s\n", path);
 
     int ret = _vfs_walk (parent, node, (char *)path, args, mode);
     node_t *opened = *node;
-    if (opened && !(args & VFS_GAIN)) {
-        if (opened->attr & NA_REG && args & VFS_DIR)
+    if (opened && !(args & FS_GAIN)) {
+        if (!S_ISDIR(opened->mode) && args & O_DIRECTORY)
             ret = -ENOTDIR;
-        else if (opened->attr & NA_DIR && ~args & VFS_DIR)
+        else if (S_ISDIR(opened->mode) && ~args & O_DIRECTORY)
             ret = -EISDIR;
     }
     if (ret < 0)
@@ -190,8 +189,6 @@ int vfs_open (node_t *parent, node_t **node, const char *path, u64 args, int mod
 
 int vfs_read (node_t *this, void *buffer, size_t siz, size_t offset)
 {
-    ASSERTK (CKFILE(this));
-
     int ret = this->opts->read (this, buffer, siz, offset);
     if (ret < 0)
         DEBUGK(K_FS, "failed to read %s - ret : %d\n", this->name, ret);
@@ -201,8 +198,6 @@ int vfs_read (node_t *this, void *buffer, size_t siz, size_t offset)
     
 int vfs_write (node_t *this, void *buffer, size_t siz, size_t offset)
 {
-    ASSERTK (CKFILE(this));
-
     int ret = this->opts->write (this, buffer, siz, offset);
     if (ret < 0)
         DEBUGK(K_FS, "failed to write %s - ret : %d\n", this->name, ret);
@@ -229,8 +224,6 @@ int vfs_remove (node_t *this)
 
 int vfs_truncate (node_t *this, size_t offset)
 {
-    ASSERTK (CKFILE(this));
-
     int ret = this->opts->truncate (this, offset);
     if (ret < 0)
         DEBUGK(K_FS, "failed to truncate %s - ret : %d\n", this->name, ret);
@@ -243,7 +236,7 @@ int vfs_truncate (node_t *this, size_t offset)
  */
 int vfs_release (node_t *this)
 {
-    if (this->attr & NA_DIR)
+    if (S_ISDIR(this->mode))
         while (this->child)
             vfs_release (this->child);
 
@@ -280,11 +273,11 @@ int vfs_mknod (char *path, devst_t *dev)
     int ret;
     
     node_t *node;
-    ret = vfs_open(NULL, &node, path, VFS_CREATE, 0);
+    ret = vfs_open(NULL, &node, path, O_CREAT, 0);
     if (ret < 0)
         return ret;
     node->pdata = dev;
-    node->attr |= NA_DEV;
+    // node->attr |= NA_DEV;
     node->opts = &__vfs_devop;
 
     return ret;
@@ -292,7 +285,7 @@ int vfs_mknod (char *path, devst_t *dev)
 
 static inline void _vfs_listnode (node_t *node, int level)
 {
-    if (node->attr & NA_DIR) {
+    if (S_ISDIR(node->mode)) {
         printk ("%*q- %s\n", level, ' ', node->name);
         for (node_t *p = node->child ; p != NULL ; p = p->next) {
             _vfs_listnode (p, level + 1);

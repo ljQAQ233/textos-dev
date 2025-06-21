@@ -19,7 +19,17 @@ typedef struct {
 int fd_get();
 int file_get(int *new, file_t **file);
 
-typedef struct dirent
+#define DT_UNKNOWN 0
+#define DT_FIFO 1
+#define DT_CHR 2
+#define DT_DIR 4
+#define DT_BLK 6
+#define DT_REG 8
+#define DT_LNK 10
+#define DT_SOCK 12
+#define DT_WHT 14
+
+typedef struct
 {
     int idx;
     int type;
@@ -101,16 +111,6 @@ int open(char *path, int flgs, int mode);
 ssize_t write(int fd, void *buf, size_t cnt);
 
 ssize_t __readdir(int fd, void *buf, size_t mx);
-
-#define DT_UNKNOWN 0
-#define DT_FIFO 1
-#define DT_CHR 2
-#define DT_DIR 4
-#define DT_BLK 6
-#define DT_REG 8
-#define DT_LNK 10
-#define DT_SOCK 12
-#define DT_WHT 14
 
 bool __dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type);
 

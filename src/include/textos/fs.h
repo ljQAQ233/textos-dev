@@ -7,19 +7,18 @@ enum
     FS_END,
 };
 
-#define NA_DIR  (1 << 0)
-#define NA_REG  (1 << 1)
-#define NA_VRT  (1 << 2)
-#define NA_DEV  (1 << 3)
-#define NA_MNT  (1 << 4)
+/*
+ * vfs attributes
+ */
+#define FSA_MNT (1 << 0)
 
-#define VFS_CREATE  0x01
-#define VFS_DIR     0x02
-#define VFS_GAIN    0x04
-#define VFS_VRT     0x08
-#define VFS_GAINMNT 0x10
-
-#define FSMODE_NONE 0
+/*
+ * structure of open flgs:
+ *   - bits 0 ~ 31 - posix / system specified flags passed from user space
+ *   - bits 32 ~ 63 - used by vfs, specifying special operations e.g. ignore errors
+ */
+#define FS_GAIN    (1ull << 32) // ignore checks for dir / file, ignoring EISDIR / ENOTDIR
+#define FS_GAINMNT (1ull << 33) // open dir mounted to, not root dir of mountpoint
 
 struct node;
 typedef struct node node_t;
@@ -56,6 +55,7 @@ struct node
 
     u64 attr;
     u64 siz;     // Zero for dir
+    mode_t mode;
     time_t atime;
     time_t mtime;
     time_t ctime;

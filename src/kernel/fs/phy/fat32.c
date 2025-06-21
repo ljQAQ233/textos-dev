@@ -7,6 +7,12 @@
 
 #include <string.h>
 
+/*
+ * fat32's mode fields are no longer valid after a shutdown, mode is held by vfs
+ * to make sure elf to able to be executed, MODE_REG is set to "rwxr--r--"
+ */
+#define MODE_DIR 0755
+#define MODE_REG 0744
 #define EOC 0x0FFFFFFF
 // end-of-cluster marker
 #define is_eoc(val) (0x0FFFFFF8 <= val && val <= 0x0FFFFFFF) 
@@ -572,9 +578,9 @@ static node_t *analyse_entry(stack_t *stk, unsigned *clst)
     n->siz = main->filesz;
     n->attr = 0;
     if (main->attr & FA_DIR)
-        n->attr |= NA_DIR;
+        n->mode |= S_IFDIR | MODE_DIR;
     else if (main->attr & FA_ARCHIVE)
-        n->attr |= NA_REG;
+        n->mode |= S_IFREG | MODE_REG;
 
     size_t cnt = stack_siz(stk) - 1;
     // only has a main entry (short entry)
@@ -738,7 +744,7 @@ make:
     memcpy(sent->name, _name, 8);
     memcpy(sent->name + 8, _ext, 3);
     sent->filesz = target->siz;
-    sent->attr = target->attr & NA_REG ? FA_ARCHIVE : FA_DIR;
+    sent->attr = S_ISDIR(target->mode) ? FA_DIR : FA_ARCHIVE;
 
     if (lkp) {
         unsigned clst = lkp->clst;
@@ -1422,14 +1428,14 @@ static void chd_insert(node_t *prt, node_t *chd)
     chd->parent = prt;
 }
 
-static node_t *create(node_t *prt, char *name, int attr)
+static node_t *create(node_t *prt, char *name, int mode)
 {
     node_t *chd = calloc(sizeof(*chd));
     lookup_t *lkp = malloc(sizeof(*lkp));
     lookup_t *lkpp = prt->pdata;
 
     chd->name = strdup(name);
-    chd->attr = attr;
+    chd->mode = mode;
     chd->siz = 0;
     chd->pdata = lkp;
 
@@ -1439,7 +1445,7 @@ static node_t *create(node_t *prt, char *name, int attr)
     chd_insert(prt, chd);
 
     unsigned clst = 0;
-    if (chd->attr & NA_DIR)
+    if (S_ISDIR(chd->mode))
         clst = alloc_clst(chd->sys);
 
     lkp->f = prt->sys;
@@ -1453,7 +1459,7 @@ static node_t *create(node_t *prt, char *name, int attr)
     lookup_save0(lkp, stk);
 
     // 目录开头需要一些预设 entry, 比如 `.` `..`
-    if (chd->attr & NA_DIR)
+    if (S_ISDIR(chd->mode))
     {
         stack_t *init = stack_init(NULL);
         stack_push(init, &dirhead_2);
@@ -1492,7 +1498,7 @@ static int fat32_open(node_t *parent, char *path, u64 args, int mode, node_t **r
     if (opened)
         goto end;
 
-    if (args & VFS_CREATE)
+    if (args & O_CREAT)
     {
         /*
          * 按照习惯, 默认只能在一个已经存在的目录下创建新的节点,
@@ -1503,12 +1509,12 @@ static int fat32_open(node_t *parent, char *path, u64 args, int mode, node_t **r
             goto end;
         }
 
-        int attr = 0;
-        if (args & VFS_DIR)
-            attr |= NA_DIR;
+        mode &= S_IFMT;
+        if (args & O_DIRECTORY)
+            mode |= S_IFDIR;
         else
-            attr |= NA_REG;
-        opened = create(parent, path, attr);
+            mode |= S_IFREG;
+        opened = create(parent, path, mode);
     }
     else
     {
@@ -1668,7 +1674,7 @@ FS_INITIALIZER(__fs_init_fat32)
     r->clst = sec2clst(f, root_sec);
 
     n->name = "/";
-    n->attr = NA_DIR;
+    n->mode = S_IFDIR | MODE_DIR;
     n->siz = 0;
     n->parent = n;
     n->child = n->next = NULL;

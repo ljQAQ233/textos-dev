@@ -69,7 +69,7 @@ static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
 {
     node_t *node = malloc(sizeof(node_t));
     node->name = strdup(ent->name);
-    node->attr = S_ISDIR(ent->mode) ? NA_DIR : NA_REG;
+    node->mode = ent->mode;
     node->siz = ent->filsz;
     node->atime = arch_time_now();
     node->mtime = arch_time_now();
@@ -99,15 +99,20 @@ static int tmpfs_open(node_t *parent, char *name, u64 args, int mode, node_t **r
     if (ent != NULL)
         goto end;
 
-    if (~args & VFS_CREATE) {
+    if (~args & O_CREAT) {
         *result = NULL;
         return -ENOENT;
     }
 
+    if (args & O_DIRECTORY)
+        mode |= S_IFDIR;
+    else
+        mode |= S_IFREG;
+
     ent = malloc(sizeof(tmpfs_entry_t));
     ent->name = strdup(name);
     ent->ino = __tmpfs_ino++;
-    ent->mode = args & VFS_DIR ? S_IFDIR : S_IFREG;
+    ent->mode = mode;
     ent->super = dir->super;
     ent->parent = dir;
     ent->subdir = NULL;

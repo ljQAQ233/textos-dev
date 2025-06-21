@@ -29,26 +29,14 @@ int file_get(int *new, file_t **file)
     return *new = fd;
 }
 
-// TODO: flgs
-static inline u64 parse_args(int x)
-{
-    int v = 0;
-    if (x & O_CREAT)
-        v |= VFS_CREATE;
-    if (x & O_DIRECTORY)
-        v |= VFS_DIR;
-
-    return v;
-}
-
 __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
 {
     node_t *node;
     file_t *file;
-    u64 opargs = parse_args(flgs);
+    mode &= 0777;
     
     int ret;
-    if ((ret = vfs_open(task_current()->pwd, &node, path, opargs, mode)) < 0)
+    if ((ret = vfs_open(task_current()->pwd, &node, path, flgs, mode)) < 0)
         return ret;
 
     int fd;
@@ -199,23 +187,19 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
     int ret;
     node_t *node;
     
-    ret = vfs_open(task_current()->pwd, &node, path, VFS_GAIN, 0);
+    ret = vfs_open(task_current()->pwd, &node, path, FS_GAIN, 0);
     if (ret < 0)
         return ret;
 
-    int mode = 0;
-    if (node->attr & NA_DIR)
-        mode |= S_IFDIR;
-
     devst_t *d;
-    if (node->attr & NA_DEV)
+    if (S_ISCHR(node->mode) || S_ISBLK(node->mode))
         d = node->pdata;
     else
         d = *(devst_t **)node->sys;
 
     sb->siz = node->siz;
-    sb->dev = makedev(d->major, d->minor);
-    sb->mode = mode;
+    sb->dev = node->dev;
+    sb->mode = node->mode;
 
     return 0;
 }
@@ -227,7 +211,9 @@ __SYSCALL_DEFINE3(int, ioctl, int, fd, int, req, void *, argp)
         return -EBADF;
     
     node_t *node = file->node;
-    if (node->attr & NA_DEV)
+    if (S_ISCHR(node->mode)
+     || S_ISBLK(node->mode)
+     || S_ISSOCK(node->mode))
     {
         devst_t *dev = node->pdata;
         return dev->ioctl(dev, req, argp);
@@ -308,7 +294,7 @@ __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
     if (ret < 0)
         return ret;
 
-    if (!(sn->attr & NA_DEV))
+    if (!S_ISBLK(sn->mode))
         return -ENOBLK;
 
     devst_t *dev = sn->pdata;
@@ -318,7 +304,7 @@ __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
     if (dev->subtype != DEV_PART)
         return -EINVAL;
 
-    ret = vfs_open(task_current()->pwd, &dn, dst, VFS_DIR, 0);
+    ret = vfs_open(task_current()->pwd, &dn, dst, O_DIRECTORY, 0);
     if (ret < 0)
         return ret;
 
@@ -331,7 +317,7 @@ __SYSCALL_DEFINE2(int, umount2, char *, target, int, flags)
     int ret;
     node_t *dn;
 
-    ret = vfs_open(task_current()->pwd, &dn, target, VFS_GAIN | VFS_GAINMNT, 0);
+    ret = vfs_open(task_current()->pwd, &dn, target, FS_GAIN | FS_GAINMNT, 0);
     if (ret < 0)
         return ret;
     
@@ -345,7 +331,7 @@ __SYSCALL_DEFINE1(int, chdir, char *, path)
     node_t *node;
     task_t *task = task_current();
 
-    ret = vfs_open(task->pwd, &node, path, VFS_DIR, 0);
+    ret = vfs_open(task->pwd, &node, path, O_DIRECTORY, 0);
     if (ret < 0)
         return ret;
 
@@ -358,14 +344,15 @@ __SYSCALL_DEFINE2(int, mkdir, char *, path, int, mode)
     int ret;
     node_t *node;
     task_t *task = task_current();
+    mode &= 0777;
 
-    ret = vfs_open(task->pwd, &node, path, VFS_DIR, 0);
+    ret = vfs_open(task->pwd, &node, path, O_DIRECTORY, 0);
     if (ret >= 0)
     {
         return -EEXIST;
     }
 
-    ret = vfs_open(task->pwd, &node, path, VFS_DIR | VFS_CREATE, mode);
+    ret = vfs_open(task->pwd, &node, path, O_DIRECTORY | O_CREAT, mode);
     return ret;
 }
 

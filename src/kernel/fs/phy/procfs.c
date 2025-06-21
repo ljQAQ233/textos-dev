@@ -238,7 +238,7 @@ static node_t *procfs_nodeget(proc_entry_t *ent)
 {
     node_t *node = malloc(sizeof(node_t));
     node->name = strdup(ent->name);
-    node->attr = S_ISDIR(ent->mode) ? NA_DIR : NA_REG;
+    node->mode = ent->mode;
     node->siz = 0;
     node->atime = arch_time_now();
     node->mtime = arch_time_now();
