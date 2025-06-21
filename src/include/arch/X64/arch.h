@@ -35,4 +35,7 @@ typedef struct {
 
 typedef int __wchar_t;
 
+// endian
+#define __BYTE_ORDER 1234
+
 #endif
