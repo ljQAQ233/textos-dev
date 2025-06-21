@@ -136,6 +136,17 @@ static void cr()
     con.cur_x = 0;
 }
 
+#define round_up(x, n) (((x) + (n) - 1) / (n) * (n))
+
+// 水平制表符 tab
+static void ht()
+{
+    con.cur_x = round_up(con.cur_x, TABWID);
+    if (con.cur_x >= con.row)
+        if (con.cur_y++ >= con.col)
+            full();
+}
+
 // 回车
 static void lf()
 {
@@ -175,7 +186,7 @@ static void nor(char c)
     {
         case '\0': COMMIT();
         case '\a': COMMIT();
-        case '\t': COMMIT();
+        case '\t': COMMIT(ht());
         case '\n': COMMIT(lf());
         case '\v': COMMIT(lf());
         case '\f': COMMIT(ff());

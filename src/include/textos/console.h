@@ -19,6 +19,8 @@ enum
 #define FG_DEF 0x00ffffff
 #define BG_DEF 0x00000000
 
+#define TABWID 8
+
 struct con
 {
     u32 hor;    /* HorizontalResolution */

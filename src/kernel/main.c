@@ -93,6 +93,9 @@ static void __init_proc()
     dev_initnod();
 
     printk("\033[30;47mThis is black text on a white background\033[0m\n");
+    printk("A tab\ttab~\n");
+    printk("QwQ\tCiallo~\n");
+    printk("Kawaii\twatashi~\n");
 
     char buf[5] = "test";
     
