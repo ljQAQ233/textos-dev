@@ -420,3 +420,12 @@ __SYSCALL_DEFINE1(int, rmdir, char *, path)
 {
     return -EPERM;
 }
+
+__SYSCALL_DEFINE2(char *, getcwd, char *, buf, size_t, size)
+{
+    size_t sz = size;
+    int ret = vfs_getpath(task_current()->pwd, buf, &sz);
+    if (ret < 0)
+        return (char *)(intptr_t)ret;
+    return buf;
+}

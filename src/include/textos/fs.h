@@ -108,6 +108,17 @@ void vfs_regst(node_t *n, node_t *p);
 void vfs_unreg(node_t *n);
 node_t *vfs_getprt(node_t *n);
 
+/**
+ * @brief get null-terminated absolute path of n
+ * 
+ * @param n    node
+ * @param buf  buffer
+ * @param size on input, the size of buffer passed into
+ *             on output, size is the minimum size needed to store the path
+ * @return int size (including '\0') written to buf or an errno
+ */
+int vfs_getpath(node_t *n, char *buf, size_t *size);
+
 int vfs_open (node_t *parent, node_t **node, const char *path, u64 args, int mode);
 int vfs_read(node_t *this, void *buf, size_t siz, size_t offset);
 int vfs_write(node_t *this, void *buf, size_t siz, size_t offset);
@@ -135,7 +146,7 @@ int vfs_umount(node_t *dir);
 bool vfs_ismount(node_t *n);
 
 /**
- * @brief is n a root of a fs? (excluding vfs' root)
+ * @brief is n a mounted root of a fs? (excluding vfs' root)
  */
 bool vfs_isaroot(node_t *n);
 

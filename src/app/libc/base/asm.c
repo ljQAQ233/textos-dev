@@ -233,6 +233,12 @@ int rmdir(char *path)
     return syscall(SYS_rmdir, path);
 }
 
+char *getcwd(char *buf, size_t size)
+{
+    // syscall_ret will handle errno
+    return (char *)syscall(SYS_getcwd, buf, size);
+}
+
 int socket(int domain, int type, int proto)
 {
     return syscall(SYS_socket, domain, type, proto);

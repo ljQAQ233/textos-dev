@@ -34,6 +34,7 @@
     _(wait4, 61),        \
     _(kill, 62),         \
     _(uname, 63),        \
+    _(getcwd, 79),       \
     _(chdir, 80),        \
     _(mkdir, 83),        \
     _(rmdir, 84),        \

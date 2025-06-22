@@ -35,7 +35,7 @@ int mkdir(char *path, mode_t mode);
 int rmdir(char *path);
 int chdir(char *path);
 int fchdir(int fd); // TODO
-char *getcwd(char *buf, size_t size); // TODO
+char *getcwd(char *buf, size_t size);
 
 pid_t fork();
 int execve(char *path, char *const argv[], char *const envp[]);
