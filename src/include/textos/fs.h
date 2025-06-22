@@ -39,14 +39,11 @@ typedef struct
     int  (*ioctl)(node_t *this, int req, void *argp);
     int  (*close)(node_t *this);
     int  (*remove)(node_t *this);
-    /* 文件操作 */
     int  (*read)(node_t *this, void *buf, size_t siz, size_t offset);
     int  (*write)(node_t *this, void *buf, size_t siz, size_t offset);
     int  (*truncate)(node_t *this, size_t offset);
-    /* 文件夹操作 */
     int  (*readdir)(node_t *this, dirctx_t *ctx);
     int  (*seekdir)(node_t *this, dirctx_t *ctx, size_t *pos);
-    /* 文件映射 */
     void *(*mmap)(node_t *this, vm_region_t *vm);
 } fs_opts_t;
 
@@ -55,29 +52,31 @@ struct node
     char *name;
 
     u64 attr;
-    u64 siz;     // Zero for dir
+    u64 siz;
     ino_t ino;
     mode_t mode;
     time_t atime;
     time_t mtime;
     time_t ctime;
+    
+    dev_t dev;
+    dev_t rdev;
 
-    // unused
-    node_t *root;
+    /*
+     * a dir with FSA_MNT uses it to store history directory entries which
+     * is attached to this node. Actually a stack in implementation,
+     * mount overlay as known
+     */
+    void *mount;
+
+    void *sys;
+    int systype;
+    void *pdata;
+    fs_opts_t *opts;
 
     node_t *parent;
     node_t *child;
     node_t *next;
-
-    dev_t dev;
-    dev_t rdev;
-    void *sys;
-    int systype;
-    void *pdata;
-    void *mount;
-
-    /* Interfaces */
-    fs_opts_t *opts;
 };
 
 enum
@@ -107,6 +106,7 @@ struct dirctx
 
 void vfs_regst(node_t *n, node_t *p);
 void vfs_unreg(node_t *n);
+node_t *vfs_getprt(node_t *n);
 
 int vfs_open (node_t *parent, node_t **node, const char *path, u64 args, int mode);
 int vfs_read(node_t *this, void *buf, size_t siz, size_t offset);
@@ -128,5 +128,15 @@ void vfs_initops(fs_opts_t *opts);
 int vfs_mount(node_t *dir, node_t *root);
 int vfs_mount_to(char *path, node_t *root, int mode);
 int vfs_umount(node_t *dir);
+
+/**
+ * @brief is n a mount point whose `child` is a fs root?
+ */
+bool vfs_ismount(node_t *n);
+
+/**
+ * @brief is n a root of a fs? (excluding vfs' root)
+ */
+bool vfs_isaroot(node_t *n);
 
 #endif

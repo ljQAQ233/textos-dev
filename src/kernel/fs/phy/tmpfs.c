@@ -94,7 +94,6 @@ static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
     node->atime = arch_time_now();
     node->mtime = arch_time_now();
     node->ctime = arch_time_now();
-    node->root = NULL;
     node->parent = NULL;
     node->child = NULL;
     node->next = NULL;
@@ -325,21 +324,22 @@ static int tmpfs_readdir(node_t *node, dirctx_t *ctx)
     if (ctx->stat == ctx_end)
         return EOF;
 
-    // HACK
-    if (ctx->pos == 0) {
-        if (!__dir_emit(ctx, ".", 1, node->ino, S_IFDIR))
+    if (ctx->pos == 0)
+    {
+        if (!dir_emit_dot(ctx))
             goto end;
         ctx->pos++;
     }
-    if (ctx->pos == 1) {
-        if (!__dir_emit(ctx, "..", 2, node->parent->ino, S_IFDIR))
+    if (ctx->pos == 1)
+    {
+        if (!dir_emit_dotdot(ctx))
             goto end;
         ctx->pos++;
     }
     
     tmpfs_entry_t *dir = node->pdata;
     tmpfs_foreach(dir->subdir) {
-        if (!__dir_emit(ctx, ptr->name, strlen(ptr->name), ptr->ino, ptr->mode & S_IFMT))
+        if (!dir_emit(ctx, ptr->name, strlen(ptr->name), ptr->ino, dir_get_type(ptr->mode)))
             goto end;
         ctx->pos++;
     }

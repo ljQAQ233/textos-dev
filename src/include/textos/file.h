@@ -116,9 +116,11 @@ extern file_t sysfile[MAXDEF_FILENO];
 #define O_APPEND 0010  // 末尾追加
 #define O_DIRECTORY 0200000
 
-bool __dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type);
-
-bool __dir_emit_node(dirctx_t *ctx, node_t *chd);
+unsigned dir_get_type(mode_t mode);
+bool dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type);
+bool dir_emit_node(dirctx_t *ctx, node_t *chd);
+bool dir_emit_dot(dirctx_t *ctx);
+bool dir_emit_dotdot(dirctx_t *ctx);
 
 #define SEEK_SET 0
 #define SEEK_CUR 1

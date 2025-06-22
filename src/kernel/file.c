@@ -108,7 +108,7 @@ __SYSCALL_DEFINE3(ssize_t, readdir, int, fd, void *, buf, size_t, mx)
  * @param ino    unused yet
  * @param type   unused yet
  */
-bool __dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type)
+bool dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type)
 {
     size_t siz = sizeof(dir_t) + len + 1;
     if (ctx->bufused + siz > ctx->bufmx)
@@ -124,29 +124,44 @@ bool __dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned t
 
     ctx->bufused += siz;
     ctx->buf += siz;
-    return ctx->bufused != ctx->bufmx;
+    return true;
 }
 
-bool __dir_emit_node(dirctx_t *ctx, node_t *chd)
+unsigned dir_get_type(mode_t mode)
 {
-    int type = 0;
-    if (S_ISREG(chd->mode))
-        type = DT_REG;
-    else if (S_ISDIR(chd->mode))
-        type = DT_DIR;
-    else if (S_ISLNK(chd->mode))
-        type = DT_LNK;
-    else if (S_ISCHR(chd->mode))
-        type = DT_CHR;
-    else if (S_ISBLK(chd->mode))
-        type = DT_BLK;
-    else if (S_ISFIFO(chd->mode))
-        type = DT_FIFO;
-    else if (S_ISSOCK(chd->mode))
-        type = DT_SOCK;
+    if (S_ISREG(mode))
+        return DT_REG;
+    else if (S_ISDIR(mode))
+        return DT_DIR;
+    else if (S_ISLNK(mode))
+        return DT_LNK;
+    else if (S_ISCHR(mode))
+        return DT_CHR;
+    else if (S_ISBLK(mode))
+        return DT_BLK;
+    else if (S_ISFIFO(mode))
+        return DT_FIFO;
+    else if (S_ISSOCK(mode))
+        return DT_SOCK;
     else
-        type = DT_UNKNOWN;
-    return __dir_emit(ctx, chd->name, strlen(chd->name), chd->ino, type);
+        return DT_UNKNOWN;
+}
+
+bool dir_emit_node(dirctx_t *ctx, node_t *n)
+{
+    int type = dir_get_type(n->mode);
+    return dir_emit(ctx, n->name, strlen(n->name), n->ino, type);
+}
+
+bool dir_emit_dot(dirctx_t *ctx)
+{
+    return dir_emit(ctx, ".", 1, ctx->node->ino, dir_get_type(ctx->node->mode));
+}
+
+bool dir_emit_dotdot(dirctx_t *ctx)
+{
+    node_t *prt = vfs_getprt(ctx->node);
+    return dir_emit(ctx, "..", 2, prt->ino, dir_get_type(prt->mode));
 }
 
 __SYSCALL_DEFINE2(int, seekdir, int, fd, size_t *, pos)

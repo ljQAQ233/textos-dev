@@ -1029,7 +1029,7 @@ static void lookup_byctx(dirctx_t *ctx)
                 // generate node
                 lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
                 lkp->node->ino = inoget(lkp);
-                if (__dir_emit_node(ctx, lkp->node))
+                if (dir_emit_node(ctx, lkp->node))
                 {
                     ctx->eidx = eidx+1;
                     ctx->bidx = sec0 + isec;
@@ -1677,7 +1677,7 @@ FS_INITIALIZER(__fs_init_fat32)
     r->node = n;
     r->clst = sec2clst(f, root_sec);
 
-    n->name = "/";
+    n->name = "fat32";
     n->mode = S_IFDIR | MODE_DIR;
     n->ino = 1;
     n->siz = 0;

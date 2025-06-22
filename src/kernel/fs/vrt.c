@@ -116,6 +116,14 @@ void vfs_unreg(node_t *n)
         *pp = n->next;
 }
 
+node_t *vfs_getprt(node_t *n)
+{
+    n = n->parent;
+    if (vfs_ismount(n))
+        n = n->parent;
+    return n;
+}
+
 static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args, int mode)
 {
     int ret = 0;
@@ -125,7 +133,7 @@ static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args, int mode
         res = dir;
         goto fini;
     } else if (_cmp(path, "..")) {
-        res = dir->parent;
+        res = vfs_getprt(dir);
         goto fini;
     }
 
@@ -138,7 +146,7 @@ static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args, int mode
         }
     }
 
-    if (res->attr & FSA_MNT)
+    if (vfs_ismount(res))
     {
         if (~args & FS_GAINMNT)
             res = res->child;

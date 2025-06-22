@@ -64,7 +64,7 @@ static proc_opts_t def_op;
 
 bool procfs_dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type)
 {
-    if (__dir_emit(ctx, name, len, ino, type))
+    if (dir_emit(ctx, name, len, ino, type))
     {
         ctx->pos++;
         return true;
@@ -74,7 +74,7 @@ bool procfs_dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsig
 
 static bool procfs_dir_emit_ent(dirctx_t *ctx, proc_entry_t *ent)
 {
-    if (__dir_emit(ctx, ent->name, strlen(ent->name), 0, ent->mode))
+    if (dir_emit(ctx, ent->name, strlen(ent->name), 0, dir_get_type(ent->mode)))
     {
         ctx->pos++;
         return true;
@@ -247,7 +247,6 @@ static node_t *procfs_nodeget(proc_entry_t *ent)
     node->atime = arch_time_now();
     node->mtime = arch_time_now();
     node->ctime = arch_time_now();
-    node->root = NULL;
     node->parent = NULL;
     node->child = NULL;
     node->next = NULL;
@@ -273,9 +272,7 @@ static int procfs_open(node_t *parent, char *name, u64 args, int mode, node_t **
     }
 
     node_t *node = procfs_nodeget(chd);
-    node->parent = parent;
-    node->next = parent->next;
-    parent->next = node;
+    vfs_regst(node, parent);
     *result = node;
     return 0;
 }
@@ -332,16 +329,16 @@ static int procfs_readdir(node_t *node, dirctx_t *ctx)
 
     proc_entry_t *dir = node->pdata;
     // .
-    if (ctx->pos == 0) {
-        goto_if(!procfs_dir_emit(ctx, ".", 1, dir->ino, dir->mode), end);
+    if (ctx->pos == 0)
+    {
+        goto_if(!dir_emit_dot(ctx), end);
+        ctx->pos++;
     }
     // ..
     if (ctx->pos == 1)
     {
-        if (proc_is_root(dir))
-            goto_if(!procfs_dir_emit(ctx, "..", 2, node->parent->ino, S_IFDIR), end);
-        else
-            goto_if(!procfs_dir_emit(ctx, "..", 2, dir->parent->ino, dir->parent->mode), end);
+        goto_if(!dir_emit_dotdot(ctx), end);
+        ctx->pos++;
     }
 
     // subdir
