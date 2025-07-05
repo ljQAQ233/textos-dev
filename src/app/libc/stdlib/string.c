@@ -118,7 +118,7 @@ char *strncpy(char *dest, const char *src, size_t n)
 */
 int strncmp(const char* str1, const char *str2, size_t n)
 {
-    while (*str1 && *str2 && *str1 == *str2) {
+    while (*str1 && *str2 && *str1 == *str2 && n) {
         str1++;
         str2++;
         n--;
