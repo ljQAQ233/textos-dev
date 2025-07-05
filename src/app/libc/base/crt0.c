@@ -6,7 +6,7 @@ int main(int argc, const char *argv[], const char *envp[])
     return 0;
 }
 
-const char **__envp;
+extern const char **__environ;
 
 void start0(long *args)
 {
@@ -14,7 +14,7 @@ void start0(long *args)
     const char **argv = (void *)&args[1];
     const char **envp = (void *)&args[1+argc+1];
 
-    __envp = envp;
+    __environ = envp;
 
     _exit(main(argc, argv, envp));
 

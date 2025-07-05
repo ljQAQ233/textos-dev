@@ -4,6 +4,7 @@ SRCS := \
   base/asm.c \
   base/crt0.c \
   stdlib/io.c \
+  stdlib/env.c \
   stdlib/exit.c \
   stdlib/error.c \
   stdlib/string.c \
