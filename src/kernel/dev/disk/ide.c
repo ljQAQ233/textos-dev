@@ -81,6 +81,8 @@ static ide_t ide[4];
 #define CMD_RDMA  0xC8 // lba 28
 #define CMD_WDMA  0xCA // lba 28 
 
+#if CONFIG_IDE_USE_INTR
+
 /* TODO: Lock device */
 
 __INTR_HANDLER(ide_handler)
@@ -97,6 +99,8 @@ __INTR_HANDLER(ide_handler)
     task_unblock(stat->wait);
     stat->wait = -1;
 }
+
+#endif
 
 static void read_sector(u16 port, u16 *data)
 {
@@ -118,13 +122,28 @@ static void write_sector(u16 port, u16 *data)
         );
 }
 
-void ide_select(ide_t *pri, u32 lba, u8 cnt)
+static void ide_select(ide_t *pri, u32 lba, u8 cnt)
 {
     outb(pri->iobase + R_DEV,  SET_DEV(pri->dev) | (lba >> 24)); // 选择设备并发送 LBA 的高4位
     outb(pri->iobase + R_SECC, cnt);                // 扇区数目
     outb(pri->iobase + R_LBAL, lba & 0xFF);         // LBA 0_7
     outb(pri->iobase + R_LBAM, (lba >> 8) & 0xFF);  // LBA 8_15
     outb(pri->iobase + R_LBAH, (lba >> 16) & 0xFF); // LBA 16_23
+}
+
+static void ide_waitrw(ide_t *pri)
+{
+    while (inb(pri->iobase + R_SCMD) & STAT_BSY) ;
+}
+
+static void ide_block(ide_t *pri)
+{
+#if CONFIG_IDE_USE_INTR
+    pri->channel->wait = task_current()->pid;
+    task_block();
+#else
+    ide_waitrw(pri);
+#endif
 }
 
 #define R_BMCMD  0
@@ -142,7 +161,7 @@ void ide_select(ide_t *pri, u32 lba, u8 cnt)
 
 #include <textos/assert.h>
 
-void ide_setdma(ide_t *pri, void *buf, u8 cmd, uint len)
+static void ide_setdma(ide_t *pri, void *buf, u8 cmd, uint len)
 {
     /*
      * 缓冲区在物理空间上必须是连续的,
@@ -166,7 +185,7 @@ void ide_setdma(ide_t *pri, void *buf, u8 cmd, uint len)
     outb(pri->bmbase + R_BMSTAT, status); // set
 }
 
-void ide_rundma(ide_t *pri, u8 rw)
+static void ide_rundma(ide_t *pri, u8 rw)
 {
     outb(pri->iobase + R_SCMD, rw);
 
@@ -174,7 +193,7 @@ void ide_rundma(ide_t *pri, u8 rw)
     outb(pri->bmbase + R_BMCMD, bmcmd | CMD_BMSTART);
 }
 
-void ide_enddma(ide_t *pri)
+static void ide_enddma(ide_t *pri)
 {
     u8 bmcmd = inb(pri->bmbase + R_BMCMD);
     outb(pri->bmbase + R_BMCMD, bmcmd & ~CMD_BMSTART);
@@ -184,42 +203,35 @@ void ide_enddma(ide_t *pri)
     outb(pri->bmbase + R_BMSTAT, status); // set
 }
 
-void ide_runpio(ide_t *pri, u8 rw)
+static void ide_runpio(ide_t *pri, u8 rw)
 {
     outb(pri->iobase + R_SCMD, rw);
 }
 
-void ide_dma_read(devst_t *dev, u32 lba, void *data, u8 cnt)
+static void ide_dma_read(devst_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
     ide_t *pri = dev->pdata;
-    
     lba &= 0xFFFFFFF;
+    ide_waitrw(pri);
     
-    while (inb(pri->iobase + R_SCMD) & STAT_BSY) ;
-
     ide_setdma(pri, data, CMD_BMREAD, cnt * SECT_SIZ);
     ide_select(pri, lba, cnt);
     ide_rundma(pri, CMD_RDMA);
-
-    pri->channel->wait = task_current()->pid;
-    task_block();
-
+    ide_block(pri);
     ide_enddma(pri);
     
     UNINTR_AREA_END();
 }
 
-void ide_dma_write(devst_t *dev, u32 lba, void *data, u8 cnt)
+static void ide_dma_write(devst_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
     ide_t *pri = dev->pdata;
-
     lba &= 0xFFFFFFF;
-    
-    while (inb(R_SCMD + pri->iobase) & STAT_BSY) ;
+    ide_waitrw(pri);
 
     ide_setdma(pri, data, CMD_BMWRITE, cnt * SECT_SIZ);
     ide_select(pri, lba, cnt);
@@ -228,38 +240,33 @@ void ide_dma_write(devst_t *dev, u32 lba, void *data, u8 cnt)
     UNINTR_AREA_END();
 }
 
-void ide_pio_read(devst_t *dev, u32 lba, void *data, u8 cnt)
+static void ide_pio_read(devst_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
     ide_t *pri = dev->pdata;
-    
     lba &= 0xFFFFFFF;
-    
-    while (inb(pri->iobase + R_SCMD) & STAT_BSY) ;
+    ide_waitrw(pri);
 
     ide_select(pri, lba, cnt);
     ide_runpio(pri, CMD_READ);
 
-    pri->channel->wait = task_current()->pid;
-    task_block();
+    ide_block(pri);
     for (int i = 0 ; i < cnt ; i++) {
-        read_sector (pri->iobase, data);
+        read_sector(pri->iobase, data);
         data += SECT_SIZ;
     }
     
     UNINTR_AREA_END();
 }
 
-void ide_pio_write(devst_t *dev, u32 lba, void *data, u8 cnt)
+static void ide_pio_write(devst_t *dev, u32 lba, void *data, u8 cnt)
 {
     UNINTR_AREA_START();
 
     ide_t *pri = dev->pdata;
-
     lba &= 0xFFFFFFF;
-    
-    while (inb(R_SCMD + pri->iobase) & STAT_BSY) ;
+    ide_waitrw(pri);
 
     ide_select(pri, lba, cnt);
     ide_runpio(pri, CMD_WRITE);
@@ -267,9 +274,7 @@ void ide_pio_write(devst_t *dev, u32 lba, void *data, u8 cnt)
     for (int i = 0 ; i < cnt ; i++) {
         write_sector(pri->iobase, data);
         data += SECT_SIZ;
-
-        pri->channel->wait = task_current()->pid;
-        task_block();
+        ide_block(pri);
     }
     
     UNINTR_AREA_END();
@@ -278,7 +283,7 @@ void ide_pio_write(devst_t *dev, u32 lba, void *data, u8 cnt)
 #include <textos/args.h>
 #include <textos/klib/vsprintf.h>
 
-void ide_mkname(devst_t *dev, char res[32], int nr)
+static void ide_mkname(devst_t *dev, char res[32], int nr)
 {
     sprintf(res, "%s%d", dev->name, nr);
 }
@@ -327,8 +332,11 @@ static char *ideid[] = {
     "hdd",
 };
 
-void init(int x, u16 bmbase)
+static void init(int x, u16 bmbase)
 {
+#if CONFIG_IDE_NO_DMA
+    bmbase = 0;
+#endif
     bool dma = bmbase != 0;
     ide_t *pri = &ide[x];
 
@@ -392,9 +400,10 @@ void ide_init()
 
     outb(0x3F6, 0);
 
+#if CONFIG_IDE_USE_INTR
     intr_register(INT_PRIDISK, ide_handler);
     intr_register(INT_SECDISK, ide_handler);
     ioapic_rteset(IRQ_PRIDISK, _IOAPIC_RTE(INT_PRIDISK));
     ioapic_rteset(IRQ_SECDISK, _IOAPIC_RTE(INT_SECDISK));
+#endif
 }
-

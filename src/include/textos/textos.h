@@ -39,4 +39,7 @@
 
 #define istk_pages 4
 
+#define CONFIG_IDE_NO_DMA   0
+#define CONFIG_IDE_USE_INTR 0
+
 #endif
