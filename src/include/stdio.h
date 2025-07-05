@@ -8,19 +8,19 @@ __BEGIN_DECLS
 #include <stdarg.h>
 #include <bits/null.h>
 
-int putchar(int c);
+int putchar(int __c);
 
-int puts(char *s);
+int puts(char *__s);
 
-int printf(char *format, ...);
+int printf(char *__format, ...);
 
-int sprintf(char *buffer, const char *format, ...);
+int sprintf(char *__buffer, const char *__format, ...);
 
-int dprintf(int fd, char *format, ...);
+int dprintf(int __fd, char *__format, ...);
 
-int vsprintf(char *buffer, const char *format, va_list args);
+int vsprintf(char *__buffer, const char *__format, va_list __args);
 
-void perror(const char *s);
+void perror(const char *__s);
 
 __END_DECLS
 

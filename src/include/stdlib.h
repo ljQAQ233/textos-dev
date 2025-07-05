@@ -7,15 +7,27 @@ __BEGIN_DECLS
 
 #include <bits/null.h>
 
-void _Exit(int status);
+int abs(int __x);
+long labs(long __x);
+long long llabs(long long __x);
 
-void exit(int status);
+typedef struct { int quot, rem; } div_t;
+typedef struct { long quot, rem; } ldiv_t;
+typedef struct { long long quot, rem; } lldiv_t;
+
+div_t div(int __num, int __den);
+ldiv_t ldiv(long __num, long __den);
+lldiv_t lldiv(long long __num, long long __den);
+
+void _Exit(int __status);
+
+void exit(int __status);
 
 // environ
-int setenv(const char *name, const char *value, int overwrite);
-int putenv(char *str);
-int unsetenv(const char *name);
-char *getenv(const char *name);
+int setenv(const char *__name, const char *__value, int __overwrite);
+int putenv(char *__str);
+int unsetenv(const char *__name);
+char *getenv(const char *__name);
 
 __END_DECLS
 

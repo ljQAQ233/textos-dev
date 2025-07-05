@@ -8,9 +8,9 @@ __BEGIN_DECLS
 #define __NEED_size_t
 #include <bits/alltypes.h>
 
-void *malloc(size_t siz);
+void *malloc(size_t __siz);
 
-void free(void *ptr);
+void free(void *__ptr);
 
 __END_DECLS
 

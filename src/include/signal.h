@@ -9,17 +9,17 @@ __BEGIN_DECLS
 #define __NEED_sigset_t
 #include <bits/alltypes.h>
 
-int sigemptyset(sigset_t *set);
-int sigfillset(sigset_t *set);
-int sigaddset(sigset_t *set, int signum);
-int sigdelset(sigset_t *set, int signum);
-int sigismember(const sigset_t *set, int signum);
+int sigemptyset(sigset_t *__set);
+int sigfillset(sigset_t *__set);
+int sigaddset(sigset_t *__set, int __signum);
+int sigdelset(sigset_t *__set, int __signum);
+int sigismember(const sigset_t *__set, int __signum);
 
 #define SIG_ERR  ((void (*)(int))-1)// 注册失败
 #define SIG_DFL ((void (*)(int))0)  // 默认处理
 #define SIG_IGN ((void (*)(int))1)  // 忽略信号
 
-void (*signal(int signum, void (*handler)(int)))(int);
+void (*signal(int __signum, void (*__handler)(int)))(int);
 
 #define SA_NOCLDSTOP  1          // TODO 只关心子进程结束
 #define SA_NOCLDWAIT  2          // TODO 不产生僵尸进程, 内核直接回收
@@ -40,16 +40,16 @@ struct sigaction {
 	void (*sa_restorer)(void);
 };
 
-int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+int sigaction(int __signum, const struct sigaction *__act, struct sigaction *__oldact);
 
 #define SIG_BLOCK     0
 #define SIG_UNBLOCK   1
 #define SIG_SETMASK   2
 
-int sigprocmask(int how, const sigset_t *set, sigset_t *oset);
+int sigprocmask(int __how, const sigset_t *__set, sigset_t *__oset);
 
-int kill(pid_t pid, int sig);
-int raise(int sig);
+int kill(pid_t __pid, int __sig);
+int raise(int __sig);
 
 #include <bits/signal.h>
 

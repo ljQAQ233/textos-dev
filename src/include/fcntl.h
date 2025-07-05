@@ -22,7 +22,7 @@ __BEGIN_DECLS
 #define O_APPEND 0010  // 末尾追加
 #define O_DIRECTORY 0200000
 
-int open(char *path, int flgs, ...);
+int open(char *__path, int __flgs, ...);
 
 #include <bits/perm.h>
 

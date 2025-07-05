@@ -3,6 +3,8 @@ SRCS := \
   dir.c \
   base/asm.c \
   base/crt0.c \
+  stdlib/abs.c \
+  stdlib/div.c \
   stdlib/io.c \
   stdlib/env.c \
   stdlib/exit.c \

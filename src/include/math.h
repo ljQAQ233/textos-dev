@@ -19,10 +19,10 @@ __BEGIN_DECLS
 #define M_SQRT2         1.41421356237309504880  /* sqrt(2) */
 #define M_SQRT1_2       0.70710678118654752440  /* 1/sqrt(2) */
 
-double sin(double x);
-double cos(double x);
-double tan(double x);
-double atan2(double y, double x);
+double sin(double __x);
+double cos(double __x);
+double tan(double __x);
+double atan2(double __y, double __x);
 
 __END_DECLS
 

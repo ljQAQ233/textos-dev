@@ -39,20 +39,20 @@ typedef struct __dirstream
     struct dirent cur;
 } DIR;
 
-DIR *opendir(char *dirname);
-DIR *fdopendir(int fd);
-int closedir(DIR *dirp);
+DIR *opendir(char *__dirname);
+DIR *fdopendir(int __fd);
+int closedir(DIR *__dirp);
 
-struct dirent *readdir(DIR *dirp);
-void rewinddir(DIR *dirp);
-long telldir(DIR *dirp);
-void seekdir(DIR *dirp, long loc);
+struct dirent *readdir(DIR *__dirp);
+void rewinddir(DIR *__dirp);
+long telldir(DIR *__dirp);
+void seekdir(DIR *__dirp, long __loc);
 
 /*
  * It leads to a link error
  */
 __attribute__((deprecated("readdir_r is deprecated, use readdir instead")))
-int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
+int readdir_r(DIR *__dirp, struct dirent *__entry, struct dirent **__result);
 
 __END_DECLS
 

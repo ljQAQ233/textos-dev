@@ -9,14 +9,14 @@ __BEGIN_DECLS
 #define __NEED_uint32_t
 #include <bits/alltypes.h>
 
-int inet_aton(const char *s, uint32_t *in);
+int inet_aton(const char *__s, uint32_t *__in);
 
-char *inet_ntoa(uint32_t in);
+char *inet_ntoa(uint32_t __in);
 
-uint16_t htons(uint16_t h);
-uint16_t ntohs(uint16_t h);
-uint32_t htonl(uint32_t h);
-uint32_t ntohl(uint32_t h);
+uint16_t htons(uint16_t __h);
+uint16_t ntohs(uint16_t __h);
+uint32_t htonl(uint32_t __h);
+uint32_t ntohl(uint32_t __h);
 
 __END_DECLS
 

@@ -21,25 +21,25 @@ __BEGIN_DECLS
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
-int pipe(int fds[2]);
-int close(int fd);
-off_t lseek(int fd, off_t off, int whence);
+int pipe(int __fds[2]);
+int close(int __fd);
+off_t lseek(int __fd, off_t __off, int __whence);
 
-int dup(int fd);
-int dup2(int oldfd, int newfd);
+int dup(int __fd);
+int dup2(int __oldfd, int __newfd);
 
-ssize_t read(int fd, void *buf, size_t cnt);
-ssize_t write(int fd, const void *buf, size_t cnt);
+ssize_t read(int __fd, void *__buf, size_t __cnt);
+ssize_t write(int __fd, const void *__buf, size_t __cnt);
 
-int mkdir(char *path, mode_t mode);
-int rmdir(char *path);
-int chdir(char *path);
-int fchdir(int fd); // TODO
-char *getcwd(char *buf, size_t size);
+int mkdir(char *__path, mode_t __mode);
+int rmdir(char *__path);
+int chdir(char *__path);
+int fchdir(int __fd); // TODO
+char *getcwd(char *__buf, size_t __size);
 
 pid_t fork();
-int execve(char *path, char *const argv[], char *const envp[]);
-_Noreturn void _exit(int stat);
+int execve(char *__path, char *const __argv[], char *const __envp[]);
+_Noreturn void _exit(int __stat);
 
 pid_t getpid();
 pid_t getppid();

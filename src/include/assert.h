@@ -5,7 +5,12 @@
 
 __BEGIN_DECLS
 
-_Noreturn void __assert_fail(const char *expr, const char *file, int line, const char *func);
+_Noreturn void __assert_fail(
+    const char *__expr,
+    const char *__file,
+    int __line,
+    const char *__func
+    );
 
 #ifdef NDEBUG
 #define	assert(x) (void)0

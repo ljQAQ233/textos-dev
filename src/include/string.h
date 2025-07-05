@@ -14,74 +14,74 @@ __BEGIN_DECLS
   length of the string pointed to by `str`,
   excluding the terminating null byte ('\0')
 */
-size_t strlen(const char *str);
+size_t strlen(const char *__str);
 
 /*
   The `strcpy()` function copies the string
   pointed to by `src`, including the terminating
   null byte ('\0')
 */
-char *strcpy(char *dest, const char *src);
+char *strcpy(char *__dest, const char *__src);
 
 /* Limited by `n`, is similar to `strcpy()` */
-char *strncpy(char *dest, const char *src, size_t n);
+char *strncpy(char *__dest, const char *__src, size_t __n);
 
 /* The `strcmp()` function compares the two strings `str1` and `str2` */
-int strcmp(const char* str1,const char *str2);
+int strcmp(const char* __str1,const char *__str2);
 
 /*
   The `strncmp()` function is similar to `strcmp()`, except it
   compares only the first (at most) n bytes of `str1` and `str2`
 */
-int strncmp(const char* str1, const char *str2, size_t n);
+int strncmp(const char* __str1, const char *__str2, size_t __n);
 
-char *strcat(char* dest, const char* src);
+char *strcat(char* __dest, const char* __src);
 
 /*
   The `strchr()` function returns a pointer to the first
   occurrence of the character `c` in the string `str`
 */
-char *strchr(const char *str, int c);
+char *strchr(const char *__str, int __c);
 
-char *strchrnul(const char *str, int c);
+char *strchrnul(const char *__str, int __c);
 
-char *strstr(const char *haystack, const char *needle);
+char *strstr(const char *__haystack, const char *__needle);
 
 /*
   The `strnchr()` function returns a pointer to the first
   occurrence of the character `c` in the string `str`, count down from `n`
 */
-char *strnchr(const char *str, int c, size_t n);
+char *strnchr(const char *__str, int __c, size_t __n);
 
 /* duplicate a string */
-char *strdup(const char *str);
+char *strdup(const char *__str);
 
 /* duplicate a string, limited by `n` */
-char *strndup(const char *str, size_t n);
+char *strndup(const char *__str, size_t __n);
 
 /* 
   The `memset()` function  fills  the first `n` bytes of the
   memory area pointed to by `str` with the constant byte `c`
 */
-void *memset(void *dest, int c, size_t n);
+void *memset(void *__dest, int __c, size_t __n);
 
 /* Compare memory areas (`n` bytes) */
-int memcmp(const void *ptr1, const void *ptr2, size_t n);
+int memcmp(const void *__ptr1, const void *__ptr2, size_t __n);
 
 /*
   returns a pointer to the first occurrence of the uchar `c`
   in the space start from `ptr`. If the pointer finder holds
   run out of range, return NULL
 */
-void *memchr(const void *ptr, int c, size_t n);
+void *memchr(const void *__ptr, int __c, size_t __n);
 
 /*
   The `memcpy()` function  copies `n`  bytes
   from memory area `src` to memory area `dest`
 */
-void *memcpy(void *dest, const void *src, size_t n);
+void *memcpy(void *__dest, const void *__src, size_t __n);
 
-char *strerror(int errnum);
+char *strerror(int __errnum);
 
 // TODO : Other functions in string.h
 
