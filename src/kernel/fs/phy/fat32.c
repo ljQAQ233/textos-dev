@@ -1535,7 +1535,7 @@ static int fat32_open(node_t *parent, char *path, u64 args, int mode, node_t **r
             goto end;
         }
 
-        mode &= S_IFMT;
+        mode &= ~S_IFMT;
         if (args & O_DIRECTORY)
             mode |= S_IFDIR;
         else
