@@ -17,17 +17,12 @@ typedef struct tmpfs_page
     rbnode_t node;
 } tmpfs_page_t;
 
-typedef struct tmpfs_super
-{
-    devst_t *dev;
-} tmpfs_super_t;
-
 typedef struct tmpfs_entry
 {
     char *name;
     u64 ino;
     int mode;
-    struct tmpfs_super *super;
+    superblk_t *super;
     struct tmpfs_entry *parent;
     struct tmpfs_entry *subdir;
     struct tmpfs_entry *next;
@@ -99,9 +94,8 @@ static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
     node->next = NULL;
     node->dev = makedev(ma, mi);
     node->rdev = NODEV;
-    node->sys = ent->super;
-    node->systype = 0;
     node->pdata = ent;
+    node->sb = ent->super;
     node->mount = NULL;
     node->opts = &__tmpfs_op;
     return node;
@@ -311,7 +305,7 @@ static int tmpfs_truncate(node_t *this, size_t len)
 
 static inline void init_ctx(dirctx_t *ctx, node_t *dir)
 {
-    ctx->sys = dir->sys;
+    ctx->sb = dir->sb;
     ctx->node = dir;
     ctx->pos = 0;
     ctx->stat = ctx_pre;
@@ -381,19 +375,24 @@ static void *tmpfs_mmap(node_t *this, vm_region_t *vm)
 node_t *__fs_init_tmpfs()
 {
     devst_t *anony = dev_new();
-    tmpfs_super_t *super = malloc(sizeof(tmpfs_super_t));
     dev_register_anony(anony);
-    super->dev = anony;
+    superblk_t *sb = malloc(sizeof(superblk_t));
+    sb->blksz = PAGE_SIZ;
+    sb->dev = anony;
+    sb->root = NULL;
+    sb->op = &__tmpfs_op;
+    sb->sbi = NULL;
 
     tmpfs_entry_t *root = malloc(sizeof(tmpfs_entry_t));
     root->name = "";
     root->ino = __tmpfs_ino++;
     root->mode = S_IFDIR | 0555;
-    root->super = super;
+    root->super = sb;
     root->parent = NULL;
     root->subdir = NULL;
     root->next = NULL;
-    return tmpfs_nodeget(root);
+
+    return sb->root = tmpfs_nodeget(root);
 }
 
 fs_opts_t __tmpfs_op = {

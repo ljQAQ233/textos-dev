@@ -83,7 +83,7 @@ static bool procfs_dir_emit_ent(dirctx_t *ctx, proc_entry_t *ent)
 }
 
 static u64 __procfs_ino = 1;
-static proc_super_t __procfs_super;
+static superblk_t __procfs_super;
 static proc_entry_t __procfs_root;
 
 #define proc_foreach(ent) \
@@ -252,9 +252,8 @@ static node_t *procfs_nodeget(proc_entry_t *ent)
     node->next = NULL;
     node->dev = makedev(ma, mi);
     node->rdev = NODEV;
-    node->sys = &__procfs_super;
-    node->systype = 0;
     node->pdata = ent;
+    node->sb = &__procfs_super;
     node->mount = NULL;
     node->opts = &__procfs_op;
     return node;
@@ -314,7 +313,7 @@ int procfs_write(node_t *this, void *buf, size_t siz, size_t offset)
 
 static inline void init_ctx(dirctx_t *ctx, node_t *dir)
 {
-    ctx->sys = dir->sys;
+    ctx->sb = dir->sb;
     ctx->node = dir;
     ctx->pos = 0;
     ctx->bidx = 0;
@@ -623,7 +622,12 @@ node_t *__fs_init_procfs()
 {
     devst_t *anony = dev_new();
     dev_register_anony(anony);
-    __procfs_super.dev = anony;
+    superblk_t *sb = &__procfs_super;
+    sb->blksz = PAGE_SIZ;
+    sb->dev = anony;
+    sb->root = NULL;
+    sb->op = &__procfs_op;
+    sb->sbi = NULL;
 
     proc_entry_t *root = &__procfs_root;
     root->name = "/proc";
@@ -640,7 +644,7 @@ node_t *__fs_init_procfs()
     proc_create("cpuinfo",     S_IRUSR | S_IRGRP | S_IROTH, NULL, &def_op);
     proc_create("filesystems", S_IRUSR | S_IRGRP | S_IROTH, NULL, &def_op);
 
-    return procfs_nodeget(root);
+    return sb->root = procfs_nodeget(root);
 }
 
 fs_opts_t __procfs_op = {

@@ -745,7 +745,7 @@ make:
     }
     free(name);
 
-    fat_sbi_t *f = target->sys;
+    fat_sbi_t *f = target->sb->sbi;
     sentry_t *sent = calloc(sizeof(sentry_t));
     memcpy(sent->name, _name, 8);
     memcpy(sent->name + 8, _ext, 3);
@@ -922,7 +922,7 @@ static int lookup_skctx(dirctx_t *ctx, size_t *pos)
             return 0;
     }
 
-    fat_sbi_t *sbi = ctx->sys;
+    fat_sbi_t *sbi = ctx->sb->sbi;
     unsigned curr = sec2clst(sbi, ctx->bidx);
     unsigned eidx = ctx->eidx;
     unsigned soff = ctx->bidx % sbi->sec_perclst;
@@ -990,7 +990,7 @@ static void lookup_byctx(dirctx_t *ctx)
     stack_set(&lkp->ents, free, NULL);
     list_init(&lkp->link);
 
-    fat_sbi_t *sbi = ctx->sys;
+    fat_sbi_t *sbi = ctx->sb->sbi;
     bool wind = false;
     unsigned curr = sec2clst(sbi, ctx->bidx);
     unsigned eidx = ctx->eidx;
@@ -1344,7 +1344,7 @@ done:
 
 static size_t node_expand(node_t *this, size_t siz)
 {
-    fat_sbi_t *sbi = this->sys;
+    fat_sbi_t *sbi = this->sb->sbi;
     if (align_up(this->siz, sbi->clst_siz) >= siz)
         return siz;
 
@@ -1365,7 +1365,7 @@ static void node_update(node_t *this)
 
 static int byte_rd(node_t *n, void *buf, size_t rdsiz, size_t off)
 {
-    fat_sbi_t *sbi = n->sys;
+    fat_sbi_t *sbi = n->sb->sbi;
     if (rdsiz == 0)
         return 0;
     if (off >= n->siz)
@@ -1412,7 +1412,7 @@ done:
 
 static int byte_wr(node_t *n, void *buf, size_t wrsiz, size_t off)
 {
-    fat_sbi_t *sbi = n->sys;
+    fat_sbi_t *sbi = n->sb->sbi;
     lookup_t *lkp = n->pdata;
     unsigned stsz = sbi->sec_siz;
     unsigned curr = cache_search(lkp, off);
@@ -1463,16 +1463,16 @@ static node_t *create(node_t *prt, char *name, int mode)
     chd->siz = 0;
     chd->pdata = lkp;
 
-    chd->sys = prt->sys;
-    chd->systype = prt->systype;
+    chd->dev = prt->dev;
+    chd->sb = prt->sb;
     chd->opts = prt->opts;
     vfs_regst(chd, prt);
 
     unsigned clst = 0;
     if (S_ISDIR(chd->mode))
-        clst = alloc_clst(chd->sys);
+        clst = alloc_clst(chd->sb->sbi);
 
-    lkp->sbi = prt->sys;
+    lkp->sbi = prt->sb->sbi;
     lkp->clst = clst;
     lkp->node = chd;
     list_init(&lkp->link);
@@ -1508,8 +1508,7 @@ static node_t *_fat32_open(node_t *dir, char *path)
         chd->opts = dir->opts;
         chd->dev = dir->dev;
         chd->rdev = NODEV;
-        chd->sys = dir->sys;
-        chd->systype = dir->systype;
+        chd->sb = dir->sb;
         vfs_regst(chd, dir);
     }
 
@@ -1571,7 +1570,7 @@ static int fat32_remove(node_t *this)
     lookup_t *lkp = lookup_entry(prt, this->name);
     lookup_savex(lkp);
     // 释放数据区
-    data_relse(this->sys, lkp->clst, 0, false);
+    data_relse(this->sb->sbi, lkp->clst, 0, false);
     return fat32_close(this);
 }
 
@@ -1606,7 +1605,7 @@ static int fat32_truncate(node_t *this, size_t len)
         this->siz = node_expand(this, len);
     else
     {
-        fat_sbi_t *sbi = this->sys;
+        fat_sbi_t *sbi = this->sb->sbi;
         /* 当 Offset == 0 时, 释放掉所有簇 */
         bool all = (bool)(len == 0);
         lookup_t *lkp = this->pdata;
@@ -1628,10 +1627,10 @@ static int fat32_truncate(node_t *this, size_t len)
 static inline void init_ctx(dirctx_t *ctx, node_t *dir)
 {
     lookup_t *lkp = dir->pdata;
-    ctx->sys = dir->sys;
+    ctx->sb = dir->sb;
     ctx->node = dir;
     ctx->pos = 0;
-    ctx->bidx = clst2sec(ctx->sys, lkp->clst);
+    ctx->bidx = clst2sec(ctx->sb->sbi, lkp->clst);
     ctx->eidx = 0;
     ctx->stat = ctx_pre;
 }
@@ -1727,10 +1726,9 @@ superblk_t *__fs_init_fat32(devst_t *dev)
     node->child = node->next = NULL;
     node->dev = makedev(dev->major, dev->minor);
     node->rdev = NODEV;
-    node->sys = sbi;
-    node->systype = FS_FAT32;
     node->pdata = root;
     node->mount = NULL;
+    node->sb = sb;
     node->opts = &__fat32_opts;
 
     return sb;

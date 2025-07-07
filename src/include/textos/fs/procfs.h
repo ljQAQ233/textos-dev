@@ -34,11 +34,6 @@ typedef struct proc_entry
     void *pdata;
 } proc_entry_t;
 
-typedef struct proc_super
-{
-    devst_t *dev;
-} proc_super_t;
-
 proc_entry_t *proc_create(char *name, int mode, proc_entry_t *prt, proc_opts_t *op);
 
 proc_entry_t *proc_mkdir(char *name, proc_entry_t *prt, proc_opts_t *op);

@@ -70,8 +70,6 @@ struct node
      */
     void *mount;
 
-    void *sys;
-    int systype;
     void *pdata;
     superblk_t *sb;
     fs_opts_t *opts;
@@ -83,6 +81,7 @@ struct node
 
 struct superblk
 {
+    int fstype;
     blksize_t blksz;
     devst_t *dev;
     node_t *root;
@@ -99,7 +98,7 @@ enum
 
 struct dirctx
 {
-    void *sys;
+    superblk_t *sb;
     node_t *node;
     int stat;
     size_t pos;
