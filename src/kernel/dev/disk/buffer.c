@@ -1,33 +1,47 @@
-
-// disk buffer
-// rbtree : todo
-// simple LRU (Least Recently Used)
+/**
+ * @brief blockdev buffer
+ * 
+ * rbtree : todo
+ * simple LRU (Least Recently Used)
+ */
 
 #include <irq.h>
 #include <textos/mm.h>
 #include <textos/mm/vmm.h>
 #include <textos/dev/buffer.h>
+#include <textos/klib/htable.h>
 
-static list_t all;
+htable_define(all, 32);
+
 static list_t fre;
 static list_t lru;
 
 static lock_t lkall;
 
+static inline htkey_t hash(devst_t *dev, int idx)
+{
+    return dev->major ^ idx;
+} 
+
 static buffer_t *find_all(devst_t *dev, int idx)
 {
-    buffer_t *c;
-
-    list_t *p;
-    LIST_FOREACH(p, &all)
+    buffer_t *b;
+    hlist_node_t *p;
+    htkey_t key = hash(dev, idx);
+    HTABLE_FOREACH(p, &all, key)
     {
-        c = CR(p, buffer_t, all);
-        if (c->dev == dev && c->idx == idx)
-            return c;
+        b = CR(p, buffer_t, node);
+        if (b->dev == dev && b->idx == idx)
+            return b;
     }
     return NULL;
 }
 
+/**
+ * @brief add some available pages into free list
+ * 
+ * @param bsiz must be a power of 2
+ */
 static void fill_fre(size_t bsiz)
 {
     void *vp;
@@ -46,13 +60,13 @@ static void fill_fre(size_t bsiz)
         n->siz = bsiz;
         n->blk = vp + i * n->siz;
         n->phy = pp + i * n->siz;
-        list_insert(&fre, &n->all);
+        list_insert(&fre, &n->list);
     }
 }
 
 static void mark_fre(buffer_t *b)
 {
-    list_insert(&fre, &b->all);
+    list_insert(&fre, &b->list);
 }
 
 #include <textos/panic.h>
@@ -62,38 +76,50 @@ static buffer_t *find_fre(size_t bsiz)
     if (list_empty(&fre))
         fill_fre(bsiz);
 
+    buffer_t *r = NULL;
     list_t *ptr;
     LIST_FOREACH(ptr, &fre)
     {
-        buffer_t *b = CR(ptr, buffer_t, all);
+        buffer_t *b = CR(ptr, buffer_t, list);
         if (b->siz == bsiz)
         {
+            r = b;
             list_remove(ptr);
-            return b;
+            break;
         }
     }
 
-    __builtin_unreachable();
+    if (r == NULL)
+    {
+        fill_fre(bsiz);
+        r = find_fre(bsiz);
+    }
+    return r;
 }
 
 // read a block and use exclusively
-buffer_t *bread(devst_t *dev, size_t idx)
+buffer_t *bread(devst_t *dev, blksize_t siz, blkno_t idx)
 {
     buffer_t *b;
     lock_acquire(&lkall);
 
-    size_t bsiz = 512;
     b = find_all(dev, idx);
     if (b == NULL)
     {
-        b = find_fre(bsiz);
+        b = find_fre(siz);
         b->dev = dev;
         b->idx = idx;
         b->dirty = false;
-        list_insert(&all, &b->all);
         lock_init(&b->lock);
 
-        dev->bread(dev, idx, b->blk, 1);
+        /* siz >= bsiz */
+        int bsiz;
+        dev->ioctl(dev, BLKSSZGET, &bsiz);
+        int scale = siz / bsiz;
+        dev->bread(dev, idx * scale, b->blk, siz / bsiz);
+
+        htkey_t key = hash(dev, idx);
+        htable_add(&all, &b->node, key);
     }
 
     lock_acquire(&b->lock);
@@ -113,7 +139,10 @@ void bwrite(buffer_t *b)
         return;
 
     devst_t *dev = b->dev;
-    dev->bwrite(dev, b->idx, b->blk, 1);
+    int bsiz;
+    dev->ioctl(dev, BLKSSZGET, &bsiz);
+    int scale = b->siz / bsiz;
+    dev->bwrite(dev, b->idx * scale, b->blk, b->siz / bsiz);
 }
 
 // allow others to access the block
@@ -125,7 +154,6 @@ void brelse(buffer_t *b)
 
 void buffer_init()
 {
-    list_init(&all);
     list_init(&fre);
     lock_init(&lkall);
     DEBUGK(K_INIT, "buffer initialized!\n");

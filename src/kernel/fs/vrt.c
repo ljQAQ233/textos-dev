@@ -12,9 +12,9 @@
    用来注册文件系统, 在这里列出的文件系统, 是系统支持的
 */
 typedef struct {
-    char      *name;
-    u8        id;
-    void      *(*init)(devst_t *hd, mbr_t *mbr, part_t *pentry);
+    char *name;
+    int id;
+    superblk_t *(*init)(devst_t *hd);
 } regstr_t;
 
 static node_t *_fs_root = NULL;
@@ -349,6 +349,7 @@ int vfs_mknod (char *path, dev_t dev, int mode)
         return ret;
     unsigned ma = major(dev);
     unsigned mi = minor(dev);
+    node->mode = mode;
     node->rdev = dev;
     node->pdata = dev_lookup_nr(ma, mi);
     node->opts = &__vfs_devop;
@@ -378,7 +379,7 @@ void __vfs_listnode (node_t *start)
 
 #include <textos/dev.h>
 
-extern FS_INITIALIZER ( __fs_init_fat32);
+extern FS_INITIALIZER(__fs_init_fat32);
 
 // clang-format off
 
@@ -418,34 +419,23 @@ static void _init_partitions (devst_t *hd, mbr_t *rec)
 
         char *type = "none";
         node_t *root = NULL;
-        devst_t *devp;
+        superblk_t *sb = NULL;
+        devst_t *dev = register_part(hd, nr++,
+                ptr->relative,
+                ptr->total, root
+                );
 
         for (regstr_t *look = regstr; look->id != 0 ; look++) {
             if (look->id != ptr->sysid)
                 continue;
-            root = look->init(hd, rec, ptr);
-            if (!root)
+            sb = look->init(dev);
+            if (!sb)
                 break;
+            root = sb->root;
+            dev->pdata = root;
             type = look->name;
-
             if (!__vfs_rootset(root))
                 ; // is not root
-
-            devp = register_part(hd, nr++,
-                    ptr->relative,
-                    ptr->total, root
-                    );
-
-            // set header info
-            struct pub *pub;
-            pub = root->sys;
-            pub->root = root;
-            pub->dev = hd;
-            pub->devp = devp;
-
-            // set dev_t
-            root->dev = makedev(devp->major, devp->minor);
-            root->rdev = NODEV;
         }
 
         printk (" - partition %u -> %s\n", i, type);

@@ -281,7 +281,22 @@ static void ide_pio_write(devst_t *dev, u32 lba, void *data, u8 cnt)
 }
 
 #include <textos/args.h>
+#include <textos/errno.h>
 #include <textos/klib/vsprintf.h>
+
+static int ide_ioctl(devst_t *dev, int req, void *argp)
+{
+    ide_t *pri = dev->pdata;
+    switch (req)
+    {
+    case BLKSSZGET:
+        *((int *)argp) = 512;
+        break;
+    default:
+        return -EINVAL;
+    }
+    return 0;
+}
 
 static void ide_mkname(devst_t *dev, char res[32], int nr)
 {
@@ -371,6 +386,7 @@ static void init(int x, u16 bmbase)
         dev->bread = (void *)ide_pio_read;
         dev->bwrite = (void *)ide_pio_write;
     }
+    dev->ioctl = (void *)ide_ioctl;
     dev->mkname = (void *)ide_mkname;
     dev->pdata = pri;
     dev_register(NULL, dev);

@@ -22,10 +22,11 @@ enum
 #define FS_MKNOD   (1ull << 34) // mknod operation, used by physical fs. may be ignored
 
 struct node;
-typedef struct node node_t;
-
 struct dirctx;
+struct superblk;
+typedef struct node node_t;
 typedef struct dirctx dirctx_t;
+typedef struct superblk superblk_t;
 
 #include <textos/dev.h>
 #include <textos/file.h>
@@ -72,11 +73,21 @@ struct node
     void *sys;
     int systype;
     void *pdata;
+    superblk_t *sb;
     fs_opts_t *opts;
 
     node_t *parent;
     node_t *child;
     node_t *next;
+};
+
+struct superblk
+{
+    blksize_t blksz;
+    devst_t *dev;
+    node_t *root;
+    fs_opts_t *op;
+    void *sbi;
 };
 
 enum

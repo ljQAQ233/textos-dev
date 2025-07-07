@@ -64,3 +64,6 @@
 
 #define SIOCDEVPRIVATE     0x89F0
 #define SIOCPROTOPRIVATE   0x89E0
+
+// block
+#define BLKSSZGET          0x1268

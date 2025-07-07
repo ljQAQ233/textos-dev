@@ -21,7 +21,8 @@ static int dev_read(node_t *this, void *buf, size_t siz, size_t offset)
     if (dev->type == DEV_CHAR)
         return dev->read(dev, buf, siz);
 
-    int blksiz = 512;
+    int blksiz;
+    dev->ioctl(dev, BLKSSZGET, &blksiz);
     int blk = offset / blksiz;
     int off = offset % blksiz;
 
@@ -31,7 +32,7 @@ static int dev_read(node_t *this, void *buf, size_t siz, size_t offset)
     // 对于最后一个块, 可能不会完全读取, 所以取最小 siz
     buffer_t *b;
     for (int rem = siz ; rem ; blk++) {
-        b = bread(dev, blk);
+        b = bread(dev, blksiz, blk);
 
         int cpy = MIN(off != 0 ? blksiz - off : blksiz, rem);
         memcpy(buf, b->blk + off, cpy);
@@ -49,13 +50,14 @@ static int dev_write(node_t *this, void *buf, size_t siz, size_t offset)
     if (dev->type == DEV_CHAR)
         return dev->write(dev, buf, siz);
 
-    int blksiz = 512;
+    int blksiz;
+    dev->ioctl(dev, BLKSSZGET, &blksiz);
     int blk = offset / blksiz;
     int off = offset % blksiz;
 
     buffer_t *b;
     for (int rem = siz ; rem ; blk++) {
-        b = bread(dev, blk);
+        b = bread(dev, blksiz, blk);
 
         int cpy = MIN(off != 0 ? blksiz - off : blksiz, rem);
         memcpy(b->blk + off, buf, cpy);

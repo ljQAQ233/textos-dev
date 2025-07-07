@@ -1,11 +1,10 @@
-#include <textos/mm.h>
 #include <textos/fs.h>
-#include <textos/fs/inter.h>
+#include <textos/mm.h>
 #include <textos/errno.h>
+#include <textos/fs/inter.h>
 #include <textos/klib/time.h>
 #include <textos/dev/buffer.h>
-
-#include <string.h>
+#include <textos/klib/string.h>
 
 /*
  * fat32's mode fields are no longer valid after a shutdown, mode is held by vfs
@@ -133,51 +132,51 @@ STATIC_ASSERT(sizeof(lentry_t) == 32, "wrong size");
 
 typedef struct
 {
-    devst_t *dev;
-    devst_t *devp;
-    node_t *root;
+    superblk_t *sb;         // vfs super block
+    unsigned sec_siz;       // the size of a sector
+    unsigned fat_siz;       // the size of fat table
+    unsigned clst_siz;      // the size of a cluster
+    unsigned fat_entsz;     // the size of a fat entry
+    unsigned fat_entpersec; // how many fat entries in a sector?
+    unsigned fat_sec;       // fat table sector nr
+    unsigned data_sec;      // an area after fat table
+    unsigned root_sec;      // root sector number
+    unsigned sec_perclst;   // how many sectors make up a cluster?
+    unsigned fil_persec;    // how many file entries in a sector?
+    unsigned fil_perclst;   // how many file entries in a cluster?
+} fat_sbi_t;
 
-    unsigned sec_siz;
-    unsigned fat_siz;
-    unsigned clst_siz;
-    unsigned fat_entsz;
-    unsigned fat_sec;
-    unsigned data_sec;
-    unsigned root_sec;
-    unsigned sec_perclst;
-} sys_t;
-
-static inline unsigned clst2sec(sys_t *f, unsigned clst)
+static inline unsigned clst2sec(fat_sbi_t *sbi, unsigned clst)
 {
-    return (clst - 2) * f->sec_perclst + f->data_sec;
+    return (clst - 2) * sbi->sec_perclst + sbi->data_sec;
 }
 
-static inline unsigned sec2clst(sys_t *f, unsigned sec)
+static inline unsigned sec2clst(fat_sbi_t *sbi, unsigned sec)
 {
-    return (sec - f->data_sec) / f->sec_perclst + 2;
+    return (sec - sbi->data_sec) / sbi->sec_perclst + 2;
 }
 
-static inline unsigned clst2fat(sys_t *f, unsigned clst)
+static inline unsigned clst2fat(fat_sbi_t *sbi, unsigned clst)
 {
-    return f->fat_sec + (clst * 4) / 512;
+    return sbi->fat_sec + (clst * sbi->fat_entsz) / sbi->sec_siz;
 }
 
-static inline unsigned get_next(sys_t *f, unsigned clst)
+static inline unsigned get_next(fat_sbi_t *sbi, unsigned clst)
 {
-    unsigned idx = clst2fat(f, clst);
-    buffer_t *blk = bread(f->dev, idx);
+    unsigned idx = clst2fat(sbi, clst);
+    buffer_t *blk = bread(sbi->sb->dev, sbi->sec_siz, idx);
     unsigned *tab = blk->blk;
-    unsigned next = tab[clst % 128];
+    unsigned next = tab[clst % sbi->fat_entpersec];
     brelse(blk);
     return next;
 }
 
-static inline unsigned get_next_til(sys_t *f, unsigned from, unsigned delta)
+static inline unsigned get_next_til(fat_sbi_t *sbi, unsigned from, unsigned delta)
 {
     unsigned clst = from;
     while (delta-- > 0)
     {
-        clst = get_next(f, clst);
+        clst = get_next(sbi, clst);
     }
     return clst;
 }
@@ -212,45 +211,35 @@ static inline void entry_erase(sentry_t *e)
 }
 
 static inline u8 get_cksum(char *sent) 
-{ 
+{
     u8 sum = 0;
     u8 *ptr = (u8 *)sent;
     for (short len = 11 ; len != 0 ; len--) {
         // the operation is an unsigned char rotate right
         sum = ((sum & 1) ? 0x80 : 0) + (sum >> 1) + *ptr++;
     }
-    return sum; 
+    return sum;
 }
 
-static inline unsigned align_up(unsigned x, unsigned y)
+static unsigned alloc_clst(fat_sbi_t *sbi)
 {
-    return y * (((long)x + y - 1) / y);
-}
-
-static unsigned alloc_clst(sys_t *f)
-{
-    unsigned res = 0;
-    unsigned cur = sec2clst(f, f->data_sec);
-    for ( ; ; )
+    for (unsigned curr = sec2clst(sbi, sbi->data_sec) ; ; )
     {
-        buffer_t *idxblk = bread(f->dev, clst2fat(f, cur));
-        unsigned *idxes = idxblk->blk;
-
-        for (int i = cur % 128 ; i < 128 ; i++, cur++)
+        buffer_t *blk = sb_bread(sbi->sb, clst2fat(sbi, curr));
+        unsigned *tab = blk->blk;
+        for (int i = curr % sbi->fat_entpersec ; i < sbi->fat_entpersec ; i++, curr++)
         {
-            if (idxes[i] == 0) {
-                idxes[i] = EOC;
-                res = cur;
-                bdirty(idxblk, true);
-                brelse(idxblk);
-                goto done;
+            if (tab[i] == 0)
+            {
+                tab[i] = EOC;
+                bdirty(blk, true);
+                brelse(blk);
+                return curr;
             }
         }
-        brelse(idxblk);
+        brelse(blk);
     }
-
-done:
-    return res;
+    return 0;
 }
 
 // lookup op
@@ -261,17 +250,20 @@ _UTIL_NEXT();
 #include <textos/klib/list.h>
 #include <textos/klib/stack.h>
 
+/**
+ * @brief tells where the entry is
+ */
 typedef struct
 {
-    unsigned clst;
-    unsigned idx;
-    list_t link;
+    unsigned sec;  // sector number
+    unsigned idx;  // entry index in this sec
+    list_t link;   // links to lookup_t::link
 } entlct_t;
 
-#define lct_add(list, c, i)                           \
+#define lct_add(list, s, i)                        \
         do {                                          \
             entlct_t *l = malloc(sizeof(*l));         \
-            l->clst = c;                              \
+            l->sec = s;                               \
             l->idx = i;                               \
             list_insert_after((list), &l->link);      \
         } while (false);
@@ -286,7 +278,8 @@ typedef struct
             }                                          \
         } while (false);                               \
 
-typedef struct {
+typedef struct
+{
     u32 pos;
     u32 clst;
     list_t link;
@@ -314,7 +307,7 @@ typedef struct
 
 typedef struct
 {
-    sys_t *f;
+    fat_sbi_t *sbi;
     unsigned clst;
     node_t *node;
     stack_t ents; // entries
@@ -386,7 +379,7 @@ static u32 cache_search(lookup_t *lkp, u32 pos)
     // return get_next_til(lkp->f, lkp->clst, pos / 512);
     cache_t *cache = &lkp->cache;
     u32 pos_clst;
-    u32 pos_rela = pos / lkp->f->clst_siz; // 相对文件开头的扇区数
+    u32 pos_rela = pos / lkp->sbi->clst_siz; // 相对文件开头的扇区数
 
     list_t *iter;
     u32 dist = -1;
@@ -394,7 +387,7 @@ static u32 cache_search(lookup_t *lkp, u32 pos)
     LIST_FOREACH(iter, &cache->lru)
     {
         lru_t *lru = CR(iter, lru_t, link);
-        u32 lru_rela = lru->pos / lkp->f->clst_siz;
+        u32 lru_rela = lru->pos / lkp->sbi->clst_siz;
         if (lru_rela <= pos_rela)
         {
             if (dist > pos_rela - lru_rela)
@@ -428,17 +421,17 @@ static u32 cache_search(lookup_t *lkp, u32 pos)
                 break;
             idx++;
             jmp_adjust(lkp, &idx);
-            cache->jmp[idx] = cur_clst = get_next_til(lkp->f, cur_clst, cache->unitclst);
+            cache->jmp[idx] = cur_clst = get_next_til(lkp->sbi, cur_clst, cache->unitclst);
             cur_rela += cache->unitclst;
         }
         dist = pos_rela - cur_rela;
-        pos_clst = get_next_til(lkp->f, cur_clst, dist);
+        pos_clst = get_next_til(lkp->sbi, cur_clst, dist);
         lru_record(lkp, pos, pos_clst);
     }
     else
     {
         lru_refresh(lkp, srch);
-        pos_clst = get_next_til(lkp->f, srch->clst, dist);
+        pos_clst = get_next_til(lkp->sbi, srch->clst, dist);
     }
 
     return pos_clst;
@@ -448,7 +441,7 @@ static void cache_init(lookup_t *lkp)
 {
     cache_t *cache = &lkp->cache;
     cache->maxpos = 0;
-    cache->unit = lkp->f->clst_siz;
+    cache->unit = lkp->sbi->clst_siz;
     cache->unitclst = 1;
     memset(cache->jmp, 0, sizeof(cache->jmp));
     cache->jmp[0] = lkp->clst;
@@ -458,16 +451,20 @@ static void cache_init(lookup_t *lkp)
 
 static inline ino_t inoget(lookup_t *lkp)
 {
-    // maximum cluster size is 32KB - Version 1.03, December 6, 2000
-    //  => 0 < index of dirent < 1024
+    /*
+     * lkp may have no data clusters, but it must have a file entry
+     * according to the doc Version 1.03, December 6, 2000, sector size must take on
+     * values : 512, 1024, 2048 or 4096 if maximum compatibility with old implementations
+     * is desired, only the value 512 should be used => 0 < index of dirent in a sector < 128
+     */
     entlct_t *lct = CR(lkp->link.next, entlct_t, link);
-    return ((u64)lct->clst << 10) | lct->idx;
+    return ((u64)lct->sec << 7) | lct->idx;
 }
 
 static lookup_t *lkp_prt(lookup_t *lkp)
 {
     node_t *n = lkp->node;
-    if (lkp->f->root == n)
+    if (n->sb->root == n)
         return lkp;
     return n->parent->pdata;
 }
@@ -627,6 +624,7 @@ static node_t *analyse_entry(stack_t *stk, unsigned *clst)
 
 #define to_upper(c) ('a' <= c && c <= 'z' ? c - 32 : c)
 #define to_lower(c) ('A' <= c && c <= 'Z' ? c + 32 : c)
+#define align_up(x, y) ((y) * (((long)(x) + (y) - 1) / (y)))
 
 /*
  * 生成 目录项 的栈
@@ -747,7 +745,7 @@ make:
     }
     free(name);
 
-    sys_t *f = target->sys;
+    fat_sbi_t *f = target->sys;
     sentry_t *sent = calloc(sizeof(sentry_t));
     memcpy(sent->name, _name, 8);
     memcpy(sent->name + 8, _ext, 3);
@@ -814,6 +812,12 @@ make:
           - 只是在物理文件系统层面的初始化 -> 不会参与 节点 有关虚拟文件系统部分的初始化
       - vfs 环境 (所处的文件系统信息) -> f
 */
+
+static inline buffer_t *cl_bread(fat_sbi_t *sbi, unsigned clst, unsigned off)
+{
+    return sb_bread(sbi->sb, clst2sec(sbi, clst) + off);
+}
+
 static lookup_t *lookup_entry(lookup_t *prt, char *name)
 {
     lookup_t *lkp = malloc(sizeof(*lkp));
@@ -821,17 +825,17 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
     stack_set(&lkp->ents, free, NULL);
     list_init(&lkp->link);
 
-    sys_t *f = prt->f;
+    fat_sbi_t *sbi = prt->sbi;
     bool wind = false;
     unsigned curr = prt->clst;
     while (true)
     {
-        unsigned sec0 = clst2sec(f, curr);
-        for (int isec = 0 ; isec < f->sec_perclst ; isec++) {
-            buffer_t *blk = bread(f->dev, sec0 + isec);
+        for (uint soff = 0 ; soff < sbi->sec_perclst ; soff++)
+        { 
+            buffer_t *blk = cl_bread(sbi, curr, soff);
             sentry_t *ents = blk->blk;
 
-            for (int i = 0 ; i < 16 ; i++)
+            for (int i = 0 ; i < sbi->fil_persec ; i++)
             {
                 // name[0] == 0xe5 -> free entry
                 if (is_free(&ents[i]))
@@ -842,11 +846,11 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
                     goto lkp_end;
                 }
 
-                lct_add(&lkp->link, curr, i);
+                lct_add(&lkp->link, blk->idx, i);
                 if (ents[i].attr & FA_LONG)
                 {
                     lentry_t *lent = (lentry_t *)&ents[i],
-                             *prev = (lentry_t *)stack_top(&lkp->ents);
+                                *prev = (lentry_t *)stack_top(&lkp->ents);
                     stack_push(&lkp->ents, entry_dup(&ents[i]));
                     if (prev && lent->cksum_short != prev->cksum_short)
                         DEBUGK(K_WARN, "cksum isn't unique\n");
@@ -888,7 +892,7 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
             brelse(blk);
         }
 
-        curr = get_next(f, curr);
+        curr = get_next(sbi, curr);
 
         // reaches the end
         if (is_eoc(curr) || wind)
@@ -899,7 +903,7 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
         free(lkp);
         lkp = NULL;
     } else {
-        lkp->f = f;
+        lkp->sbi = sbi;
         lkp->node->ino = inoget(lkp);
         cache_init(lkp);
     }
@@ -918,18 +922,19 @@ static int lookup_skctx(dirctx_t *ctx, size_t *pos)
             return 0;
     }
 
-    sys_t *f = ctx->sys;
-    unsigned curr = sec2clst(ctx->sys, ctx->bidx);
+    fat_sbi_t *sbi = ctx->sys;
+    unsigned curr = sec2clst(sbi, ctx->bidx);
     unsigned eidx = ctx->eidx;
+    unsigned soff = ctx->bidx % sbi->sec_perclst;
     bool wind = false;
     while (true)
     {
-        unsigned sec0 = clst2sec(f, curr);
-        for (int isec = 0 ; isec < f->sec_perclst ; isec++) {
-            buffer_t *buf = bread(f->dev, sec0 + isec);
-            sentry_t *ents = buf->blk;
+        for ( ; soff < sbi->sec_perclst ; soff++)
+        {
+            buffer_t *blk = cl_bread(sbi, curr, soff);
+            sentry_t *ents = blk->blk;
 
-            for ( ; eidx < f->clst_siz / 32 ; eidx++)
+            for ( ; eidx < sbi->fil_persec ; eidx++)
             {
                 if (is_free(&ents[eidx]))
                     continue;
@@ -941,7 +946,7 @@ static int lookup_skctx(dirctx_t *ctx, size_t *pos)
                     continue;
                 else {
                     ctx->eidx = eidx+1;
-                    ctx->bidx = sec0 + isec;
+                    ctx->bidx = blk->idx;
                     ctx->pos += 1;
                     if (ctx->pos == *pos)
                         goto lkp_end;
@@ -953,15 +958,16 @@ static int lookup_skctx(dirctx_t *ctx, size_t *pos)
                 wind = true;
                 break;
             }
-            brelse(buf);
-
+            brelse(blk);
             if (wind)
                 goto done;
             eidx = 0;
         }
+        soff = 0;
 
-        curr = get_next(f, curr);
-        if (is_eoc(curr)) {
+        curr = get_next(sbi, curr);
+        if (is_eoc(curr))
+        {
             ctx->stat = ctx_inv;
             goto done;
         }
@@ -984,29 +990,30 @@ static void lookup_byctx(dirctx_t *ctx)
     stack_set(&lkp->ents, free, NULL);
     list_init(&lkp->link);
 
-    sys_t *f = ctx->sys;
+    fat_sbi_t *sbi = ctx->sys;
     bool wind = false;
-    unsigned curr = sec2clst(f, ctx->bidx);
+    unsigned curr = sec2clst(sbi, ctx->bidx);
     unsigned eidx = ctx->eidx;
+    unsigned soff = ctx->bidx % sbi->sec_perclst;
     while (true)
     {
-        unsigned sec0 = clst2sec(f, curr);
-        for (int isec = 0 ; isec < f->sec_perclst ; isec++) {
-            buffer_t *buf = bread(f->dev, sec0 + isec);
-            sentry_t *ents = buf->blk;
+        for ( ; soff < sbi->sec_perclst ; soff++)
+        {
+            buffer_t *blk = cl_bread(sbi, curr, soff);
+            sentry_t *ents = blk->blk;
 
-            for ( ; eidx < f->clst_siz / 32 ; eidx++)
+            for ( ; eidx < sbi->fil_persec ; eidx++)
             {
                 if (is_free(&ents[eidx]))
                     continue;
                 if (is_none(&ents[eidx]))
                     goto lkp_end;
 
-                lct_add(&lkp->link, curr, eidx);
+                lct_add(&lkp->link, blk->idx, eidx);
                 if (ents[eidx].attr & FA_LONG)
                 {
                     lentry_t *lent = (lentry_t *)&ents[eidx],
-                             *prev = (lentry_t *)stack_top(&lkp->ents);
+                                *prev = (lentry_t *)stack_top(&lkp->ents);
                     stack_push(&lkp->ents, entry_dup(&ents[eidx]));
                     if (prev && lent->cksum_short != prev->cksum_short)
                         DEBUGK(K_WARN, "cksum isn't unique\n");
@@ -1032,7 +1039,7 @@ static void lookup_byctx(dirctx_t *ctx)
                 if (dir_emit_node(ctx, lkp->node))
                 {
                     ctx->eidx = eidx+1;
-                    ctx->bidx = sec0 + isec;
+                    ctx->bidx = blk->idx;
                     ctx->pos += 1;
                     vfs_release(lkp->node);
                     lkp->node = NULL;
@@ -1045,32 +1052,32 @@ static void lookup_byctx(dirctx_t *ctx)
                 wind = true;
                 break;
             }
-            brelse(buf);
-
+            brelse(blk);
             if (wind)
                 goto done;
             eidx = 0;
         }
 
-        curr = get_next(f, curr);
+        curr = get_next(sbi, curr);
         if (is_eoc(curr)) {
             ASSERTK(lkp->node == NULL);
             goto done;
         }
+        soff = 0;
     }
 
 done:
     free(lkp);
 }
 
-static size_t data_expand2(sys_t *f, unsigned *start, size_t cnt, bool append);
+static size_t expand_to(fat_sbi_t *f, unsigned *start, size_t cnt, bool append);
 
 /* 根据 stk 来申请, 结果保存到 lkp 的 list 中 */
 static void lookup_alloc(lookup_t *prt, lookup_t *lkp, stack_t *stk)
 {
-    sys_t *f = prt->f;
+    fat_sbi_t *sbi = prt->sbi;
     u32 curr = prt->clst;
-    size_t start_idx = 0, curr_idx  = 0;
+    size_t start_idx = 0, curr_idx = 0;
     size_t cnt = stack_siz(stk);
     stack_init(&lkp->ents);
     list_init(&lkp->link);
@@ -1078,37 +1085,37 @@ static void lookup_alloc(lookup_t *prt, lookup_t *lkp, stack_t *stk)
     bool hit = false;
     while (true)
     {
-        unsigned sec0 = clst2sec(f, curr);
-        for (int isec = 0 ; isec < f->sec_perclst ; isec++) {
-            buffer_t *blk = bread(f->dev, sec0 + isec);
+        for (uint soff = 0 ; soff < sbi->sec_perclst ; soff++)
+        {
+            buffer_t *blk = cl_bread(sbi, curr, soff);
             sentry_t *ents = blk->blk;
 
-            for (int i = 0 ; i < 16 ; i++, curr_idx++)
+            for (uint i = 0 ; i < sbi->fil_persec ; i++, curr_idx++)
             {
-                if (!is_unused(&ents[i])) {
+                if (!is_unused(&ents[i]))
+                {
                     start_idx = curr_idx + 1;
                     lct_clr(&lkp->link);
                     continue;
                 }
 
-                lct_add(&lkp->link, curr, i);
-                if (curr_idx - start_idx + 1 == cnt) {
+                lct_add(&lkp->link, blk->idx, i);
+                if (curr_idx - start_idx + 1 == cnt)
+                {
                     hit = true;
                     break;
                 }
             }
             brelse(blk);
         }
-
-        curr = get_next(f, curr);
-
-        // reaches the end
-        if (is_eoc(curr))
+        curr = get_next(sbi, curr);
+        if (hit || is_eoc(curr))
             break;
     }
     
-    if (!hit) {
-        data_expand2(f, &prt->clst, 1, true);
+    if (!hit)
+    {
+        expand_to(sbi, &prt->clst, 1, true);
         lookup_alloc(prt, lkp, stk);
     }
 }
@@ -1118,7 +1125,7 @@ static void lookup_save0(lookup_t *ori, stack_t *stk)
 {
     ASSERTK(&ori->ents != stk);
 
-    sys_t *f = ori->f;
+    fat_sbi_t *sbi = ori->sbi;
     list_t *ptr;
     list_t *head = &ori->link;
     stacki_t *iter = stacki(stk, iter);
@@ -1127,10 +1134,10 @@ static void lookup_save0(lookup_t *ori, stack_t *stk)
     LIST_FOREACH_REV(ptr, head)
     {
         entlct_t *lct = CR(ptr, entlct_t, link);
-        buffer_t *blk = bread(f->dev, clst2sec(f, lct->clst));
+        buffer_t *blk = sb_bread(sbi->sb, lct->sec);
         sentry_t *ents = blk->blk;
 
-        ASSERTK(lct->idx < 16);
+        ASSERTK(lct->idx < sbi->fil_persec);
         void *entry =
             stacki_data(iter);
             stacki_next(iter);
@@ -1147,29 +1154,30 @@ static void lookup_save0(lookup_t *ori, stack_t *stk)
 // 将 prt 目录下的项删除, 并替换为 chd 描述的
 static void lookup_save1(lookup_t *prt, stack_t *chd)
 {
-    sys_t *f = prt->f;
-    unsigned curr = prt->clst;
+    fat_sbi_t *sbi = prt->sbi;
     stacki_t *iter = stacki(chd, iter);
-    while (true)
+    for (unsigned curr = prt->clst ; ; )
     {
-        buffer_t *blk = bread(f->dev, clst2sec(f, curr));
-        sentry_t *ents = blk->blk;
-
-        for (int i = 0 ; i < 16 ; i++)
+        for (uint soff = 0 ; soff < sbi->sec_perclst ; soff++)
         {
-            if (!stacki_none(iter)) {
-                void *entry =
-                    stacki_data(iter);
-                    stacki_next(iter);
-                memcpy(&ents[i], entry, sizeof(sentry_t));
-            } else {
-                memset(&ents[i], 0, sizeof(sentry_t));
-            }
-        }
+            buffer_t *blk = cl_bread(sbi, curr, soff);
+            sentry_t *ents = blk->blk;
 
-        curr = get_next(f, curr);
-        bdirty(blk, true);
-        brelse(blk);
+            for (uint i = 0 ; i < sbi->fil_persec ; i++)
+            {
+                if (!stacki_none(iter)) {
+                    void *entry =
+                        stacki_data(iter);
+                        stacki_next(iter);
+                    memcpy(&ents[i], entry, sizeof(sentry_t));
+                } else {
+                    memset(&ents[i], 0, sizeof(sentry_t));
+                }
+            }
+            bdirty(blk, true);
+            brelse(blk);
+        }
+        curr = get_next(sbi, curr);
         if (is_eoc(curr))
             break;
     }
@@ -1177,10 +1185,12 @@ static void lookup_save1(lookup_t *prt, stack_t *chd)
     stack_move(chd, &prt->ents);
 }
 
-/* erase ents which `ori`'s list describes */
+/**
+ * @brief erase entries of ori. ori->list holds a list of entries ori has.
+ */
 static void lookup_savex(lookup_t *ori)
 {
-    sys_t *f = ori->f;
+    fat_sbi_t *sbi = ori->sbi;
     list_t *ptr;
     list_t *head = &ori->link;
 
@@ -1188,12 +1198,10 @@ static void lookup_savex(lookup_t *ori)
     LIST_FOREACH_REV(ptr, head)
     {
         entlct_t *lct = CR(ptr, entlct_t, link);
-        buffer_t *blk = bread(f->dev, clst2sec(f, lct->clst));
+        buffer_t *blk = sb_bread(sbi->sb, lct->sec);
         sentry_t *ents = blk->blk;
-
-        ASSERTK(lct->idx < 16);
+        ASSERTK(lct->idx < sbi->fil_persec);
         entry_erase(&ents[lct->idx]);
-        
         bdirty(blk, true);
         brelse(blk);
     }
@@ -1204,9 +1212,12 @@ static void lookup_update(lookup_t *lkp, stack_t *stk)
 {
     ASSERTK(&lkp->ents != stk);
 
-    if (stack_siz(&lkp->ents) == stack_siz(stk)) {
+    if (stack_siz(&lkp->ents) == stack_siz(stk))
+    {
         lookup_save0(lkp, stk);
-    } else {
+    }
+    else
+    {
         lookup_savex(lkp);
         lookup_t *prt = lkp_prt(lkp);
         lookup_alloc(prt, lkp, stk);
@@ -1225,49 +1236,49 @@ static inline unsigned fat_erase(unsigned *tabent, unsigned stat)
 // - true - 数据块
 // - false - 数据块一个不剩
 // cut == 0 仅当 start 为文件开头, 且释放所有数据块时
-static void data_relse(sys_t *sys, unsigned start, unsigned skip, bool cut)
+static void data_relse(fat_sbi_t *sbi, unsigned start, unsigned skip, bool cut)
 {
     unsigned curr = start;
     unsigned stat = cut ? 0 : EOC;
     bool wind = false;
     while (!wind)
     {
-        buffer_t *idxblk = bread(sys->dev, clst2fat(sys, curr));
-        unsigned *idxes = idxblk->blk;
-
+        buffer_t *blk = sb_bread(sbi->sb, clst2fat(sbi, curr));
+        unsigned *tab = blk->blk;
         if (skip)
             skip--;
-        else {
-            curr = fat_erase(&idxes[curr % 128], stat);
+        else
+        {
+            curr = fat_erase(&tab[curr % 128], stat);
             if (is_eoc(curr))
                 wind = true;
         }
-
-        bdirty(idxblk, true);
-        brelse(idxblk);
+        bdirty(blk, true);
+        brelse(blk);
     }
 }
 
 // 在原有的基础上拓宽/拓宽到 cnt 个扇区
-static size_t data_expand2(sys_t *f, unsigned *start, size_t cnt, bool append)
+static size_t expand_to(fat_sbi_t *sbi, unsigned *start, size_t cnt, bool append)
 {
-    if (*start == 0) {
-        *start = alloc_clst(f);
+    if (*start == 0)
+    {
+        *start = alloc_clst(sbi);
         if (--cnt == 0)
             goto done;
     }
 
-    ASSERTK(clst2sec(f, *start) >= f->data_sec);
+    ASSERTK(clst2sec(sbi, *start) >= sbi->data_sec);
 
     buffer_t *curblk;
     unsigned *icur, *iend;
     unsigned curr = *start, end;
     while (true)
     {
-        curblk = bread(f->dev, clst2fat(f, curr));
+        curblk = sb_bread(sbi->sb, clst2fat(sbi, curr));
         icur = curblk->blk;
 
-        u32 next = icur[curr % 128];
+        u32 next = icur[curr % sbi->fat_entpersec];
         if (is_eoc(next))
             break;
         else
@@ -1284,23 +1295,31 @@ static size_t data_expand2(sys_t *f, unsigned *start, size_t cnt, bool append)
     for ( ; ; curr++)
     {
         // next sector of FAT1
-        if (curr % 128 == 0) {
+        if (curr % sbi->fat_entpersec == 0)
+        {
             bdirty(curblk, true);
             brelse(curblk);
-            curblk = bread(f->dev, clst2fat(f, curr));
+            curblk = sb_bread(sbi->sb, clst2fat(sbi, curr));
             icur = curblk->blk;
         }
 
-        // free data sector to use
-        if (!icur[curr % 128]) {
-            // zero the free sector
-            buffer_t *zero = bread(f->dev, clst2sec(f, curr));
-            memset(zero->blk, 0, 512);
-            bdirty(zero, true);
-            brelse(zero);
+        if (!icur[curr % sbi->fat_entpersec])
+        {
+            /*
+             * FAT[x] is 0 => cluster x is free
+             * zero the free cluster
+             */
+            for (uint soff = 0 ; soff < sbi->sec_perclst ; soff++)
+            {
+                buffer_t *zero = cl_bread(sbi, curr, soff);
+                memset(zero->blk, 0, sbi->sec_siz);
+                bdirty(zero, true);
+                brelse(zero);
+            }
 
-            iend[end % 128] = curr;
-            if (iend != icur) {
+            iend[end % sbi->fat_entpersec] = curr;
+            if (iend != icur)
+            {
                 // 这个空闲项已经作为一个节点链接到上一个索引,
                 // 也就是上一个结尾, 此时的结尾应该被更新
                 iend = icur;
@@ -1310,8 +1329,9 @@ static size_t data_expand2(sys_t *f, unsigned *start, size_t cnt, bool append)
             cnt -= 1;
         }
 
-        if (cnt == 0) {
-            iend[end % 128] = EOC;
+        if (cnt == 0)
+        {
+            iend[end % sbi->fat_entpersec] = EOC;
             bdirty(curblk, true);
             brelse(curblk);
             break;
@@ -1324,13 +1344,13 @@ done:
 
 static size_t node_expand(node_t *this, size_t siz)
 {
-    if (align_up(this->siz, 512) >= siz)
+    fat_sbi_t *sbi = this->sys;
+    if (align_up(this->siz, sbi->clst_siz) >= siz)
         return siz;
 
-    sys_t *f = this->sys;
     lookup_t *lkp = this->pdata;
-    size_t cnt = DIV_ROUND_UP(siz, 512);
-    size_t res = data_expand2(f, &lkp->clst, cnt, false) * 512;
+    size_t cnt = DIV_ROUND_UP(siz, sbi->clst_siz);
+    size_t res = expand_to(sbi, &lkp->clst, cnt, false);
     ASSERTK(res == 0);
 
     return siz;
@@ -1345,24 +1365,26 @@ static void node_update(node_t *this)
 
 static int byte_rd(node_t *n, void *buf, size_t rdsiz, size_t off)
 {
-    sys_t *f = n->sys;
+    fat_sbi_t *sbi = n->sys;
     if (rdsiz == 0)
         return 0;
     if (off >= n->siz)
         return EOF;
 
     lookup_t *lkp = n->pdata;
+    unsigned stsz = sbi->sec_siz;
     unsigned curr = cache_search(lkp, off);
-    unsigned skip_byte = off % 512;
+    unsigned soff = (off / stsz) % sbi->sec_perclst;
+    unsigned skip_byte = off % stsz;
     unsigned real = MIN(n->siz, off + rdsiz) - off;
     unsigned rem = real;
     while (true)
     {
-        unsigned sec0 = clst2sec(f, curr);
-        for (int isec = 0 ; isec < f->sec_perclst ; isec++)
+        for ( ; soff < sbi->sec_perclst ; soff++)
         {
-            buffer_t *tmp = bread(f->dev, sec0 + isec);
-            size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
+            //TODO
+            buffer_t *tmp = cl_bread(sbi, curr, soff);
+            size_t cpysiz = MIN(rem, skip_byte != 0 ? stsz - skip_byte : MIN(rem, stsz));
             memcpy(buf, tmp->blk + skip_byte, cpysiz);
             brelse(tmp);
             skip_byte = 0;
@@ -1370,13 +1392,13 @@ static int byte_rd(node_t *n, void *buf, size_t rdsiz, size_t off)
             buf += cpysiz;
             off += cpysiz;
             rem -= cpysiz;
-            if (rem == 0)
+            if (!rem)
                 goto done;
         }
-        
-        curr = get_next(f, curr);
+        curr = get_next(sbi, curr);
         if (is_eoc(curr))
             break;
+        soff = 0;
     }
 
     // if (!is_eoc(curr))
@@ -1390,18 +1412,19 @@ done:
 
 static int byte_wr(node_t *n, void *buf, size_t wrsiz, size_t off)
 {
-    sys_t *f = n->sys;
+    fat_sbi_t *sbi = n->sys;
     lookup_t *lkp = n->pdata;
+    unsigned stsz = sbi->sec_siz;
     unsigned curr = cache_search(lkp, off);
-    unsigned skip_byte = off % 512;
+    unsigned soff = (off / stsz) % sbi->sec_perclst;
+    unsigned skip_byte = off % stsz;
     unsigned rem = wrsiz;
-    for (size_t s = 0 ;  ; )
+    while (true)
     {
-        unsigned sec0 = clst2sec(f, curr);
-        for (int isec = 0 ; isec < f->sec_perclst ; isec++, s++)
+        for ( ; soff < sbi->sec_perclst ; soff++)
         {
-            buffer_t *ori = bread(f->dev, sec0 + isec);
-            size_t cpysiz = MIN(rem, skip_byte != 0 ? 512 - skip_byte : MIN(rem, 512));
+            buffer_t *ori = cl_bread(sbi, curr, soff);
+            size_t cpysiz = MIN(rem, skip_byte != 0 ? stsz - skip_byte : MIN(rem, stsz));
             memcpy(ori->blk + skip_byte, buf, cpysiz);
             bdirty(ori, true);
             brelse(ori);
@@ -1409,13 +1432,13 @@ static int byte_wr(node_t *n, void *buf, size_t wrsiz, size_t off)
 
             buf += cpysiz;
             rem -= cpysiz;
-            if (rem == 0)
+            if (!rem)
                 goto done;
         }
-
-        curr = get_next(f, curr);
+        curr = get_next(sbi, curr);
         if (is_eoc(curr))
             break;
+        soff = 0;
     }
 
     n->atime = arch_time_now();
@@ -1449,7 +1472,7 @@ static node_t *create(node_t *prt, char *name, int mode)
     if (S_ISDIR(chd->mode))
         clst = alloc_clst(chd->sys);
 
-    lkp->f = prt->sys;
+    lkp->sbi = prt->sys;
     lkp->clst = clst;
     lkp->node = chd;
     list_init(&lkp->link);
@@ -1581,14 +1604,15 @@ static int fat32_truncate(node_t *this, size_t len)
 
     if (len > this->siz)
         this->siz = node_expand(this, len);
-    else {
-        sys_t *f = this->sys;
+    else
+    {
+        fat_sbi_t *sbi = this->sys;
         /* 当 Offset == 0 时, 释放掉所有簇 */
         bool all = (bool)(len == 0);
         lookup_t *lkp = this->pdata;
         unsigned clst = lkp->clst;
-        unsigned skip = DIV_ROUND_UP(len, 512);
-        data_relse(f, clst, skip, all);
+        unsigned skip = DIV_ROUND_UP(len, sbi->clst_siz);
+        data_relse(sbi, clst, skip, all);
         this->siz = len;
     }
     node_update(this);
@@ -1596,13 +1620,18 @@ static int fat32_truncate(node_t *this, size_t len)
     return 0;
 }
 
+/*
+ * for fat:
+ *  - bidx is the sector number
+ *  - eidx is the entry's offset from the sector start
+ */
 static inline void init_ctx(dirctx_t *ctx, node_t *dir)
 {
     lookup_t *lkp = dir->pdata;
     ctx->sys = dir->sys;
     ctx->node = dir;
     ctx->pos = 0;
-    ctx->bidx = clst2sec(dir->sys, lkp->clst);
+    ctx->bidx = clst2sec(ctx->sys, lkp->clst);
     ctx->eidx = 0;
     ctx->stat = ctx_pre;
 }
@@ -1633,9 +1662,9 @@ static int fat32_seekdir(node_t *dir, dirctx_t *ctx, size_t *pos)
 
 fs_opts_t __fat32_opts;
 
-FS_INITIALIZER(__fs_init_fat32)
+superblk_t *__fs_init_fat32(devst_t *dev)
 {
-    buffer_t *recblk = bread(hd, pentry->relative);
+    buffer_t *recblk = bread(dev, 512, 0);
     record_t *rec = recblk->blk;
 
     if (rec->endsym != 0xAA55)
@@ -1647,9 +1676,12 @@ FS_INITIALIZER(__fs_init_fat32)
     if (rec->ent_num != 0)
         goto fail;
 
+    /*
+     * a cluster is regarded as a data block unit.
+     */
     unsigned fat_siz = rec->fat_siz32;
-    unsigned fat_sec = pentry->relative + rec->rev_num;
-    unsigned data_sec = fat_sec + rec->fat_num * fat_siz; 
+    unsigned fat_sec = rec->rev_num;
+    unsigned data_sec = fat_sec + rec->fat_num * fat_siz;
     unsigned root_sec = (rec->root_clst - 2) * rec->sec_perclst + data_sec;
     DEBUGK(K_INIT,
            "fat32 -> tab : %#x (%u,%u) , first_data_sec : %#x , root_sec : %#x "
@@ -1657,52 +1689,65 @@ FS_INITIALIZER(__fs_init_fat32)
            fat_sec, rec->fat_num, fat_siz, data_sec, root_sec,
            rec->sec_perclst);
 
-    sys_t *f = malloc(sizeof(*f));
-    node_t *n = malloc(sizeof(*n));
-    lookup_t *r = malloc(sizeof(*r));
-    f->dev = NULL;
-    f->devp = NULL;
-    f->root = n;
+    superblk_t *sb = malloc(sizeof(*sb));
+    fat_sbi_t *sbi = malloc(sizeof(*sbi));
+    node_t *node = malloc(sizeof(*node));
+    lookup_t *root = malloc(sizeof(*root));
+    sb->blksz = rec->sec_siz;
+    sb->dev = dev;
+    sb->root = node;
+    sb->op = &__fat32_opts;
+    sb->sbi = sbi;
 
-    f->sec_siz = 512;
-    f->fat_siz = fat_siz;
-    f->clst_siz = rec->sec_perclst * 512;
-    f->fat_entsz = 4;
-    f->fat_sec = fat_sec;
-    f->data_sec = data_sec;
-    f->root_sec = root_sec;
-    f->sec_perclst = rec->sec_perclst;
+    sbi->sb = sb;
+    sbi->sec_siz = rec->sec_siz;
+    sbi->fat_siz = fat_siz;
+    sbi->clst_siz = rec->sec_perclst * rec->sec_siz;
+    sbi->fat_entsz = 4;
+    sbi->fat_entpersec = sbi->sec_siz / sbi->fat_entsz;
+    sbi->fat_sec = fat_sec;
+    sbi->data_sec = data_sec;
+    sbi->root_sec = root_sec;
+    sbi->sec_perclst = rec->sec_perclst;
+    sbi->fil_persec = sbi->sec_siz / 32;
+    sbi->fil_perclst = sbi->clst_siz / 32;
 
-    r->f = f;
-    r->node = n;
-    r->clst = sec2clst(f, root_sec);
+    root->sbi = sbi;
+    root->node = node;
+    root->clst = sec2clst(sbi, root_sec);
 
-    n->name = "fat32";
-    n->mode = S_IFDIR | MODE_DIR;
-    n->ino = 1;
-    n->siz = 0;
-    n->parent = n;
-    n->child = n->next = NULL;
-    n->dev = n->rdev = NODEV; // set externally
-    n->sys = f;
-    n->systype = FS_FAT32;
-    n->pdata = r;
-    n->mount = NULL;
-    n->opts = &__fat32_opts;
+    node->name = "/";
+    node->mode = S_IFDIR | MODE_DIR;
+    node->atime = arch_time_now();
+    node->mtime = arch_time_now();
+    node->ctime = arch_time_now();
+    node->ino = 1;
+    node->siz = 0;
+    node->parent = node;
+    node->child = node->next = NULL;
+    node->dev = makedev(dev->major, dev->minor);
+    node->rdev = NODEV;
+    node->sys = sbi;
+    node->systype = FS_FAT32;
+    node->pdata = root;
+    node->mount = NULL;
+    node->opts = &__fat32_opts;
 
-    return n;
+    return sb;
 
 fail:
     return NULL;
 }
 
 fs_opts_t __fat32_opts = {
-    .open = fat32_open,
-    .close = fat32_close,
-    .remove = fat32_remove,
-    .read = fat32_read,
-    .write = fat32_write,
-    .truncate = fat32_truncate,
-    .readdir = fat32_readdir,
-    .seekdir = fat32_seekdir,
+    fat32_open,
+    noopt,
+    fat32_close,
+    fat32_remove,
+    fat32_read,
+    fat32_write,
+    fat32_truncate,
+    fat32_readdir,
+    fat32_seekdir,
+    noopt,
 };

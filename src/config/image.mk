@@ -36,7 +36,7 @@ $(IMG):
 	
 	sudo losetup -P $(LOOP) $(IMG)
 	sudo mkfs.fat -F 32 -s 1 $(LOOP)p1
-	sudo mkfs.fat -F 32 -s 1 $(LOOP)p2
+	sudo mkfs.fat -F 32 -s 4 $(LOOP)p2
 	
 	sudo mount $(LOOP)p1 $(MNT1)
 	sudo mount $(LOOP)p2 $(MNT2)

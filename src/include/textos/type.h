@@ -69,4 +69,6 @@ typedef uint64_t uintn_t;
 typedef uint8_t   bool;
 typedef uintptr_t addr_t;
 
+typedef uint32_t blkno_t;
+
 #endif
