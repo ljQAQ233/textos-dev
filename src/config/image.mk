@@ -28,6 +28,7 @@ MNT1:=$(OUTPUT)/image/$(notdir ${LOOP})p1
 MNT2:=$(OUTPUT)/image/$(notdir ${LOOP})p2
 
 $(IMG):
+ifneq (${IMAGE_NEW},false)
 	mkdir -p $(MNT1)
 	mkdir -p $(MNT2)
 	
@@ -61,3 +62,5 @@ $(IMG):
 	sudo chmod a+rw $(MNT1)
 	sudo chmod a+rw $(MNT2)
 	sudo rm -rf $(OUTPUT)/image
+
+endif

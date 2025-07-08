@@ -649,6 +649,7 @@ node_t *__fs_init_procfs()
 
 fs_opts_t __procfs_op = {
     procfs_open,
+    noopt,
     procfs_ioctl,
     procfs_close,
     noopt,

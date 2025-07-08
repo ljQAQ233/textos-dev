@@ -84,6 +84,12 @@ root 的 inode number 是 1
 1. 分配 inode
 2. 分配 zones (可选)
 
+# 创建节点
+
+- ok - `S_IFCHR`
+- ok - `S_IFBLK`
+- no - `S_IFIFO`
+
 # 关于间接块
 
 zone[7] -> u16[1024 / 2] ib (indirect block)

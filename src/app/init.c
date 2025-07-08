@@ -1,5 +1,8 @@
 #include <stddef.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/mount.h>
+#include <sys/sysmacros.h>
 
 void _start()
 {
@@ -10,6 +13,14 @@ void _start()
         "PWD=/",
         NULL,
     };
+
+    // test code
+    mkdir("/mnt", 0777);
+    mount("/dev/hda1", "/mnt");
+    mkdir("/mnt/dev", 0777);
+    mknod("/mnt/dev/null", S_IFCHR | 0666, makedev(1, 3));
+    mknod("/mnt/dev/zero", S_IFCHR | 0666, makedev(1, 5));
+    mknod("/mnt/dev/full", S_IFCHR | 0666, makedev(1, 7));
 
     execve("/bin/sh", argv, envp);
     write(1, "execve failed!\n", 17);

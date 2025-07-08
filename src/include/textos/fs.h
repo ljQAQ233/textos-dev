@@ -20,7 +20,6 @@ enum
  */
 #define FS_GAIN    (1ull << 32) // ignore checks for dir / file, ignoring EISDIR / ENOTDIR
 #define FS_GAINMNT (1ull << 33) // open dir mounted to, not root dir of mountpoint
-#define FS_MKNOD   (1ull << 34) // mknod operation, used by physical fs. may be ignored
 
 struct node;
 struct dirctx;
@@ -38,6 +37,12 @@ typedef struct superblk superblk_t;
 typedef struct
 {
     int  (*open)(node_t *parent, char *path, u64 args, int mode, node_t **result);
+    /*
+     * some fs do not support device node. here we create an empty file and bind
+     * it with a device only in memory (vfs node_t::rdev). it is certain that
+     * `name` is not exist (filtered by vfs before)
+     */
+    int  (*mknod)(node_t *parent, char *name, dev_t rdev, int mode, node_t **result);
     int  (*ioctl)(node_t *this, int req, void *argp);
     int  (*close)(node_t *this);
     int  (*remove)(node_t *this);

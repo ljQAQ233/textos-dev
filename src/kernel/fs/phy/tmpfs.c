@@ -22,6 +22,7 @@ typedef struct tmpfs_entry
     char *name;
     u64 ino;
     int mode;
+    dev_t rdev;
     superblk_t *super;
     struct tmpfs_entry *parent;
     struct tmpfs_entry *subdir;
@@ -93,7 +94,7 @@ static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
     node->child = NULL;
     node->next = NULL;
     node->dev = makedev(ma, mi);
-    node->rdev = NODEV;
+    node->rdev = ent->rdev;
     node->pdata = ent;
     node->sb = ent->super;
     node->mount = NULL;
@@ -135,6 +136,26 @@ static int tmpfs_open(node_t *parent, char *name, u64 args, int mode, node_t **r
 
 end:
     node = tmpfs_nodeget(ent);
+    vfs_regst(node, parent);
+    *result = node;
+    return 0;
+}
+
+int tmpfs_mknod(node_t *parent, char *name, dev_t rdev, int mode, node_t **result)
+{
+    tmpfs_entry_t *dir = parent->pdata;
+    tmpfs_entry_t *ent = malloc(sizeof(tmpfs_entry_t));
+    ent->name = strdup(name);
+    ent->ino = __tmpfs_ino++;
+    ent->mode = mode;
+    ent->rdev = rdev;
+    ent->super = dir->super;
+    ent->subdir = NULL;
+    ent->filsz = 0;
+    ent->pages.root = NULL;
+    tmpfs_ent_regst(ent, dir);
+    
+    node_t *node = tmpfs_nodeget(ent);
     vfs_regst(node, parent);
     *result = node;
     return 0;
@@ -397,6 +418,7 @@ node_t *__fs_init_tmpfs()
 
 fs_opts_t __tmpfs_op = {
     tmpfs_open,
+    tmpfs_mknod,
     tmpfs_ioctl,
     tmpfs_close,
     tmpfs_remove,

@@ -17,6 +17,7 @@
 #define ENOSPC       28  // No space left on device
 #define ERANGE       34  // Result not representable
 #define ENAMETOOLONG 36  // Filename too long
+#define ENOSYS       38  // Function not implemented
 #define ENOTEMPTY    39  // Directory not empty
 #define EDESTADDRREQ 89  // Destination address required
 #define EADDRINUSE   98  // Address in use

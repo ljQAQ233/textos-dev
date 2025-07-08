@@ -1554,6 +1554,25 @@ end:
     return ret;
 }
 
+/*
+ * fat does not support device node. here we create an empty file and bind
+ * it with a device only in memory (vfs node_t::rdev).
+ */
+static int fat32_mknod(node_t *parent, char *name, dev_t rdev, int mode, node_t **result)
+{
+#if !CONFIG_FAT_SIMU_DEV
+    return -ENOSYS;
+#endif
+    node_t *node;
+    int ret = fat32_open(parent, name, O_CREAT, MODE_REG, &node);
+    if (ret < 0)
+        return ret;
+    node->mode = mode;
+    node->rdev = rdev;
+    *result = node;
+    return 0;
+}
+
 static int fat32_close(node_t *this)
 {
     lookup_t *lkp = this->pdata;
@@ -1566,7 +1585,7 @@ static int fat32_close(node_t *this)
 
 static int fat32_remove(node_t *this)
 {
-    lookup_t *prt = this->pdata;
+    lookup_t *prt = this->parent->pdata;
     lookup_t *lkp = lookup_entry(prt, this->name);
     lookup_savex(lkp);
     // 释放数据区
@@ -1739,6 +1758,7 @@ fail:
 
 fs_opts_t __fat32_opts = {
     fat32_open,
+    fat32_mknod,
     noopt,
     fat32_close,
     fat32_remove,

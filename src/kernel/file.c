@@ -353,7 +353,7 @@ __SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)
      && !S_ISBLK(mode)
      && !S_ISFIFO(mode))
         return -EINVAL;
-    return vfs_mknod(path, mode, dev);
+    return vfs_mknod(path, dev, mode);
 }
 
 __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
@@ -368,7 +368,11 @@ __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
     if (!S_ISBLK(sn->mode))
         return -ENOBLK;
 
-    devst_t *dev = sn->pdata;
+    uint ma = major(sn->rdev);
+    uint mi = minor(sn->rdev);
+    devst_t *dev = dev_lookup_nr(ma, mi);
+    if (!dev)
+        return -ENOBLK;
     if (dev->type != DEV_BLK)
         return -ENOBLK;
 

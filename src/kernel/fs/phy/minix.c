@@ -429,9 +429,7 @@ static int minix_open(node_t *parent, char *name, u64 args, int mode, node_t **r
             if (ino == 0)
                 goto nospace;
             if (minix_eddir(parent, filname, ino) < 0)
-            {
                 goto nospace;
-            }
             mi = minix_iget(sb, ino);
             mi->mode = mode;
             mi->uid = 0;
@@ -439,14 +437,13 @@ static int minix_open(node_t *parent, char *name, u64 args, int mode, node_t **r
             mi->mtime = arch_time_now();
             mi->gid = 0;
             mi->nlinks = 1;
+            memset(mi->zone, 0, sizeof(mi->zone));
             if (args & O_DIRECTORY)
             {
                 mi->size = 2 * sizeof(minix_direct_t);
                 mi->mode |= S_IFDIR;
                 if (minix_setupdir(sb, mi->zone, ino, parent->ino) < 0)
-                {
                     goto nospace;
-                }
             }
             else
                 mi->mode |= S_IFREG;
@@ -455,6 +452,43 @@ static int minix_open(node_t *parent, char *name, u64 args, int mode, node_t **r
         else
             return -ENOENT;
     }
+
+    node_t *node = minix_nodeget(sb, mi, ino, filname);
+    vfs_regst(node, parent);
+    *result = node;
+    return 0;
+
+nospace:
+    if (ino)
+        minix_ifree(sb, ino);
+    if (mi)
+        free(mi);
+    return -ENOSPC;
+}
+
+static int minix_mknod(node_t *parent, char *name, dev_t rdev, int mode, node_t **result)
+{
+    char filname[15];
+    if (minix_namel(filname, name) < 0)
+        return -ENAMETOOLONG;
+
+    superblk_t *sb = parent->sb;
+    minix_inode_t *mi = NULL;
+    u16 ino = minix_ialloc(sb);
+    if (ino == 0)
+        goto nospace;
+    if (minix_eddir(parent, filname, ino) < 0)
+        goto nospace;
+    mi = minix_iget(sb, ino);
+    mi->mode = mode;
+    mi->uid = 0;
+    mi->size = 0;
+    mi->mtime = arch_time_now();
+    mi->gid = 0;
+    mi->nlinks = 1;
+    memset(mi->zone, 0, sizeof(mi->zone));
+    mi->zone[0] = minix_dev_make(rdev);
+    minix_isync(sb, mi, ino);
 
     node_t *node = minix_nodeget(sb, mi, ino, filname);
     vfs_regst(node, parent);
@@ -708,6 +742,7 @@ fail:
 
 fs_opts_t __minix1_op = {
     minix_open,
+    minix_mknod,
     minix_ioctl,
     minix_close,
     minix_remove,

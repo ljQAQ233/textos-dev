@@ -1,6 +1,7 @@
 #include <textos/fs.h>
 #include <textos/mm.h>
 #include <textos/dev.h>
+#include <textos/errno.h>
 #include <textos/klib/stack.h>
 #include <textos/dev/buffer.h>
 
@@ -9,15 +10,26 @@
 
 fs_opts_t __vfs_devop;
 
+static inline devst_t *dev_extract(node_t *node)
+{
+    uint ma = major(node->rdev);
+    uint mi = minor(node->rdev);
+    return dev_lookup_nr(ma, mi);
+}
+
 static int dev_ioctl(node_t *this, int req, void *argp)
 {
-    devst_t *dev = this->pdata;
+    devst_t *dev = dev_extract(this);
+    if (!dev)
+        return -EINVAL;
     return dev->ioctl(dev, req, argp);
 }
 
 static int dev_read(node_t *this, void *buf, size_t siz, size_t offset)
 {
-    devst_t *dev = this->pdata;
+    devst_t *dev = dev_extract(this);
+    if (!dev)
+        return -EINVAL;
     if (dev->type == DEV_CHAR)
         return dev->read(dev, buf, siz);
 
@@ -46,7 +58,9 @@ static int dev_read(node_t *this, void *buf, size_t siz, size_t offset)
 
 static int dev_write(node_t *this, void *buf, size_t siz, size_t offset)
 {
-    devst_t *dev = this->pdata;
+    devst_t *dev = dev_extract(this);
+    if (!dev)
+        return -EINVAL;
     if (dev->type == DEV_CHAR)
         return dev->write(dev, buf, siz);
 
@@ -77,7 +91,9 @@ static int dev_close(node_t *this)
 
 static void *dev_mmap(node_t *this, vm_region_t *vm)
 {
-    devst_t *dev = this->pdata;
+    devst_t *dev = dev_extract(this);
+    if (!dev)
+        return MRET(-EINVAL);
     return dev->mmap(dev, vm);
 }
 

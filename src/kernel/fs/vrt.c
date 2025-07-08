@@ -214,56 +214,65 @@ fini:
     return ret;
 }
 
-static int _vfs_walk (node_t *start, node_t **node, char *path, u64 args, int mode)
+static int vfs_walkd(node_t *start, node_t **node, char **path, u64 args, int mode)
 {
-    /* 为 Open 扫一些障碍! */
-    if (!start) start = _fs_root;
-    if (path[0] == '/') start = _fs_root;
-    while (*path == '/') path++;
-
+    char *p = *path;
+    if (!start)
+        start = _fs_root;
+    if (p[0] == '/')
+        start = _fs_root;
+    while (*p == '/')
+        p++;
+    int ret = 0;
     node_t *cur = start;
     for ( ; ; )
     {
-        if (!path[0])
-            break;
-
-        char *nxt = _next(path);
+        char *nxt = _next(p);
         node_t *chd;
-        int ret;
-        if (!nxt[0]) {
-            ret = _vfs_open(cur, &chd, path, args, mode);
-        } else {
-            if (!S_ISDIR(cur->mode))
-                return -ENOTDIR;
-            ret = _vfs_open(cur, &chd, path, FS_GAIN, mode);
+        if (!nxt[0])
+            break;
+        if (!S_ISDIR(cur->mode))
+        {
+            ret = -ENOTDIR;
+            goto end;
         }
-
+        ret = _vfs_open(cur, &chd, p, FS_GAIN, mode);
         if (ret < 0)
-            return ret;
+            goto end;
         
         cur = chd;
-        path = nxt;
+        p = nxt;
     }
 
+end:
+    *path = p;
     *node = cur;
     return 0;
 }
 
 int vfs_open (node_t *parent, node_t **node, const char *path, u64 args, int mode)
 {
-    DEBUGK(K_FS, "try to open %s\n", path);
+    int ret = 0;
+    char *p = (char *)path;
+    node_t *dir = NULL;
+    node_t *res = NULL;
+    ret = vfs_walkd(parent, &dir, &p, FS_GAIN, mode);
+    if (ret < 0)
+        goto end;
+    ret = _vfs_open(dir, &res, p, args, mode);
+    if (ret < 0)
+        goto end;
+    *node = res;
 
-    int ret = _vfs_walk (parent, node, (char *)path, args, mode);
-    node_t *opened = *node;
-    if (opened && !(args & FS_GAIN)) {
-        if (!S_ISDIR(opened->mode) && args & O_DIRECTORY)
+    if (res && !(args & FS_GAIN))
+    {
+        if (!S_ISDIR(res->mode) && args & O_DIRECTORY)
             ret = -ENOTDIR;
-        else if (S_ISDIR(opened->mode) && ~args & O_DIRECTORY)
+        else if (S_ISDIR(res->mode) && ~args & O_DIRECTORY)
             ret = -EISDIR;
     }
-    if (ret < 0)
-        DEBUGK(K_FS, "failed to open %s (%#x) - ret : %d\n", path, args, ret);
-
+end:
+    DEBUGK(K_FS, "open %s = %d\n", path, ret);
     return ret;
 }
 
@@ -296,7 +305,7 @@ int vfs_close (node_t *this)
 
 int vfs_remove (node_t *this)
 {
-    int ret = this->opts->remove (this);
+    int ret = this->parent->opts->remove (this);
     if (ret < 0)
         DEBUGK(K_FS, "failed to remove %s - ret : %d\n", this->name, ret);
     return ret;
@@ -335,25 +344,32 @@ fini:
 
 extern fs_opts_t __vfs_devop;
 
-int vfs_mknod (char *path, dev_t dev, int mode)
+/*
+ * vfs_mknod will replace the original fs_ops_t with __vfs_devop. so if there's a remove op.
+ * use its parent's instead. TODO. if dev is a network device it also mknods, the precondition
+ * is that it is called by the kernel... instead of mknod syscall!
+ */
+int vfs_mknod(char *path, dev_t dev, int mode)
 {
     int ret;
     if (!S_ISCHR(mode)
      && !S_ISBLK(mode)
-     && !S_ISFIFO(mode))
+     && !S_ISFIFO(mode)
+     && !S_ISSOCK(mode))
         return -EINVAL;
     
-    node_t *node;
-    ret = vfs_open(NULL, &node, path, FS_MKNOD | O_CREAT, mode);
+    node_t *nod;
+    node_t *dir;
+    ret = vfs_walkd(NULL, &dir, &path, 0, 0);
     if (ret < 0)
         return ret;
-    unsigned ma = major(dev);
-    unsigned mi = minor(dev);
-    node->mode = mode;
-    node->rdev = dev;
-    node->pdata = dev_lookup_nr(ma, mi);
-    node->opts = &__vfs_devop;
-
+    ret = vfs_open(dir, &dir, path, 0, 0);
+    if (ret >= 0)
+        return -EEXIST;
+    ret = dir->opts->mknod(dir, path, dev, mode, &nod);
+    if (ret < 0)
+        return ret;
+    nod->opts = &__vfs_devop;
     return ret;
 }
 
