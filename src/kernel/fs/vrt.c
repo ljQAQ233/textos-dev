@@ -379,7 +379,8 @@ void __vfs_listnode (node_t *start)
 
 #include <textos/dev.h>
 
-extern FS_INITIALIZER(__fs_init_fat32);
+extern superblk_t *__fs_init_fat32(devst_t *dev);
+extern superblk_t *__fs_init_minix(devst_t *dev);
 
 // clang-format off
 
@@ -388,6 +389,11 @@ static regstr_t regstr[] = {
         .name = "fat32",
         .id = 0xc,
         .init = __fs_init_fat32
+    },
+    [FS_MINIX1] = {
+        .name = "minix1",
+        .id = 0x81,
+        .init = __fs_init_minix
     },
     {
         .name = "endsym",

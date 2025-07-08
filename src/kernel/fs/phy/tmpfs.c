@@ -256,7 +256,7 @@ static int tmpfs_read(node_t *this, void *buf, size_t siz, size_t offset)
     return siz - rem;
 }
 
-int tmpfs_write(node_t *this, void *buf, size_t siz, size_t offset)
+static int tmpfs_write(node_t *this, void *buf, size_t siz, size_t offset)
 {
     tmpfs_entry_t *ent = this->pdata;
     size_t maxpos = siz + offset;

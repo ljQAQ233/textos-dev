@@ -2,9 +2,6 @@
 
 #include <textos/dev.h>
 
-#define FS_INITIALIZER(name) \
-        superblk_t *name(devst_t *hd)
-
 typedef struct _packed
 {
     u8   bootable         ; // Bootable (Active) -> 0x80

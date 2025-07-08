@@ -8,13 +8,15 @@ bitmap_t *bitmap_init(bitmap_t *bmp, void *buf, size_t siz)
 {
     ASSERTK(siz != 0 && siz != -1);
 
-    if (!buf && !(buf = malloc(siz)))   
+    if (!buf && !(buf = malloc(siz)))
+    {
+        memset(buf, 0, siz / mpembs);
         return NULL;
+    }
     
     if (!bmp && !(bmp = malloc(sizeof(bitmap_t))))
         return NULL;
 
-    memset(buf, 0, siz / mpemsz);
     bmp->map = buf;
     bmp->siz = siz;
     return bmp;
@@ -82,5 +84,5 @@ void bitmap_reset(bitmap_t *bmp, size_t i)
 
 void bitmap_clear(bitmap_t *bmp)
 {
-    memset(bmp->map, 0, bmp->siz / mpemsz);
+    memset(bmp->map, 0, bmp->siz / mpembs);
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 // do not change it!
-#define mpunit u32
+#define mpunit u8
 #define mpfull (mpunit)-1
 #define mpemsz sizeof(mpunit)
 #define mpembs (mpemsz * 8)

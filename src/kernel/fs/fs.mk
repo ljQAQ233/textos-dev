@@ -9,4 +9,4 @@ SRCS += fs/phy/tmpfs.c
 SRCS += fs/phy/procfs.c
 
 SRCS += fs/phy/fat32.c
-
+SRCS += fs/phy/minix.c

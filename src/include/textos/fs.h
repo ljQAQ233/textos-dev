@@ -4,6 +4,7 @@
 enum
 {
     FS_FAT32,
+    FS_MINIX1,
     FS_END,
 };
 
