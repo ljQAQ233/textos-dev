@@ -33,11 +33,22 @@ __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
 {
     node_t *node;
     file_t *file;
+    size_t off = 0;
     mode &= 0777;
     
     int ret;
     if ((ret = vfs_open(task_current()->pwd, &node, path, flgs, mode)) < 0)
         return ret;
+
+    if (flgs & (O_WRONLY | O_RDWR))
+    {
+        if (flgs & O_TRUNC)
+            vfs_truncate(node, 0);
+        if (flgs & O_APPEND)
+            off = node->siz;
+    }
+    else if (flgs & O_APPEND)
+        return -EINVAL;
 
     int fd;
     if (file_get(&fd, &file) < 0)
@@ -51,7 +62,7 @@ __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
     }
 
     file->refer = 1;
-    file->offset = 0;
+    file->offset = off;
     file->node = node;
     file->dirctx = dirctx;
     file->flgs = flgs;
