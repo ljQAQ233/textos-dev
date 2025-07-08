@@ -1,11 +1,11 @@
 #include <cpu.h>
 #include <textos/task.h>
-#include <textos/mm/vmm.h>
-#include <textos/mm/pvpage.h>
+#include <textos/errno.h>
 #include <textos/panic.h>
 #include <textos/assert.h>
-
-#include <string.h>
+#include <textos/mm/vmm.h>
+#include <textos/mm/pvpage.h>
+#include <textos/klib/string.h>
 
 #define TASK_MAX  16
 #define TASK_PAGE (1)
@@ -41,6 +41,8 @@ static task_t *_task_create (int args)
         map_flgs |= PE_US;
     tsk = vmm_allocpages (TASK_PAGE, map_flgs);
     tsk->pid = pid;
+    tsk->ruid = tsk->euid = tsk->suid = 0;
+    tsk->rgid = tsk->egid = tsk->sgid = 0;
 
     table[pid] = tsk;
 
@@ -208,6 +210,13 @@ int task_fork()
 
     // signals
     fork_sig(prt, chd);
+
+    chd->ruid = prt->ruid;
+    chd->euid = prt->euid;
+    chd->suid = prt->suid;
+    chd->rgid = prt->rgid;
+    chd->egid = prt->egid;
+    chd->sgid = prt->sgid;
 
     chd->tick = prt->tick;
     chd->curr = prt->curr;
@@ -417,12 +426,109 @@ __SYSCALL_DEFINE4(int, wait4, int, pid, int *, stat, int, opt, void *, rusage)
     return task_wait(pid, stat, opt, rusage);
 }
 
-__SYSCALL_DEFINE0(int, getpid)
+__SYSCALL_DEFINE0(uid_t, getuid)
+{
+    return task_current()->ruid;
+}
+
+__SYSCALL_DEFINE0(gid_t, getgid)
+{
+    return task_current()->rgid;
+}
+
+__SYSCALL_DEFINE0(uid_t, geteuid)
+{
+    return task_current()->euid;
+}
+
+__SYSCALL_DEFINE0(gid_t, getegid)
+{
+    return task_current()->egid;
+}
+
+__SYSCALL_DEFINE1(int, setuid, uid_t, uid)
+{
+    task_t *tsk = task_current();
+    if (tsk->euid == 0)
+    {
+        tsk->ruid = tsk->euid = tsk->suid = uid;
+    }
+    else
+    {
+        if (uid == tsk->ruid || uid == tsk->suid)
+            tsk->euid = uid;
+        else
+            return -EPERM;
+    }
+    return 0;
+}
+
+__SYSCALL_DEFINE1(int, setgid, gid_t, gid)
+{
+    task_t *tsk = task_current();
+    if (tsk->egid == 0)
+    {
+        tsk->rgid = tsk->egid = tsk->sgid = gid;
+    }
+    else
+    {
+        if (gid == tsk->rgid || gid == tsk->sgid)
+            tsk->egid = gid;
+        else
+            return -EPERM;
+    }
+    return 0;
+}
+
+__SYSCALL_DEFINE2(int, setreuid, uid_t, ruid, uid_t, euid)
+{
+    task_t *tsk = task_current();
+    /*
+     * A process with appropriate privileges can set either id to any value.
+     * Other processes can only set the effective user id if the euid argument
+     * is equal to either the real, effective, or saved user id of the process.
+     * POSIX doesn't specify whether the later can change ruid, here we disallow it.
+     */
+    if (tsk->euid != 0)
+    {
+        if (ruid != -1)
+            return -EPERM;
+        if (euid != -1 && euid != tsk->ruid && euid != tsk->euid && euid != tsk->suid)
+            return -EPERM;
+    }
+    if (ruid != -1) tsk->ruid = ruid;
+    if (euid != -1) tsk->euid = euid;
+    return 0;
+}
+
+__SYSCALL_DEFINE2(int, setregid, gid_t, rgid, gid_t, egid)
+{
+    task_t *tsk = task_current();
+    /*
+     * Unlike ruid, a non-privileged proc can not set its gid at will.
+     * However, there are two exceptions:
+     *   - rgid can be set to sgid
+     *   - egid can be set to sgid / rgid
+     * Keep this syscall atomic!!!
+     */
+    if (tsk->egid != 0)
+    {
+        if (rgid != -1 && rgid != tsk->sgid)
+                return -EPERM;
+        if (egid != -1 && egid != tsk->sgid && egid != tsk->rgid)
+                return -EPERM;
+    }
+    if (rgid != -1) tsk->rgid = rgid;
+    if (egid != -1) tsk->egid = egid;
+    return 0;
+}
+
+__SYSCALL_DEFINE0(pid_t, getpid)
 {
     return task_current()->pid;
 }
 
-__SYSCALL_DEFINE0(int, getppid)
+__SYSCALL_DEFINE0(pid_t, getppid)
 {
     return task_current()->ppid;
 }

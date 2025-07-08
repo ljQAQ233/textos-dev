@@ -324,6 +324,46 @@ int munmap(void *addr, size_t len)
     return syscall(SYS_munmap, addr, len);
 }
 
+int getuid()
+{
+    return syscall(SYS_getuid);
+}
+
+int getgid()
+{
+    return syscall(SYS_getgid);
+}
+
+int geteuid()
+{
+    return syscall(SYS_geteuid);
+}
+
+int getegid()
+{
+    return syscall(SYS_getegid);
+}
+
+int setuid(uid_t uid)
+{
+    return syscall(SYS_setuid, uid);
+}
+
+int setgid(gid_t gid)
+{
+    return syscall(SYS_setgid, gid);
+}
+
+int setreuid(uid_t ruid, uid_t euid)
+{
+    return syscall(SYS_setreuid, ruid, euid);
+}
+
+int setregid(gid_t rgid, gid_t egid)
+{
+    return syscall(SYS_setregid, rgid, egid);
+}
+
 pid_t getpid()
 {
     return syscall(SYS_getpid);

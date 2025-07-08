@@ -41,6 +41,15 @@ pid_t fork();
 int execve(char *__path, char *const __argv[], char *const __envp[]);
 _Noreturn void _exit(int __stat);
 
+int getuid();
+int getgid();
+int geteuid();
+int getegid();
+int setuid(uid_t __uid);
+int setgid(gid_t __gid);
+int setreuid(uid_t __ruid, uid_t __euid);
+int setregid(gid_t __rgid, gid_t __egid);
+
 pid_t getpid();
 pid_t getppid();
 

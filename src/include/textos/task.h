@@ -5,7 +5,8 @@
 
 #include <intr.h>
 
-typedef struct {
+typedef struct
+{
     u64  r15;
     u64  r14;
     u64  r13;
@@ -21,13 +22,20 @@ typedef struct {
 
 #define MAX_FILE 16
 
-typedef struct _Task {
+typedef struct task
+{
     addr_t istk; // tss
     task_frame_t *frame;
     intr_frame_t *iframe;
     intr_frame_t *sframe;
     addr_t oldsp;
     
+    uid_t ruid; // real uid
+    uid_t euid; // effective uid
+    uid_t suid; // saved set-uid
+    gid_t rgid; // real gid
+    gid_t egid; // effective gid
+    gid_t sgid; // saved set-gid
     int pid;
     int ppid;
     int stat;
@@ -39,7 +47,8 @@ typedef struct _Task {
     node_t *pwd;
     file_t *files[MAX_FILE];
 
-    struct {
+    struct
+    {
         int args;
         void *main;
         void *rbp;

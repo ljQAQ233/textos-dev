@@ -38,6 +38,14 @@ extern void sys_uname();
 extern void sys_test();
 extern void sys_poweroff();
 extern void sys_yield();
+extern void sys_getuid();
+extern void sys_getgid();
+extern void sys_geteuid();
+extern void sys_getegid();
+extern void sys_setuid();
+extern void sys_setgid();
+extern void sys_setreuid();
+extern void sys_setregid();
 extern void sys_getpid();
 extern void sys_getppid();
 
@@ -88,6 +96,14 @@ void *sys_handlers[] = {
     [SYS_test] = sys_test,
     [SYS_poweroff] = sys_poweroff,
     [SYS_yield] = sys_yield,
+    [SYS_getuid] = sys_getuid,
+    [SYS_getgid] = sys_getgid,
+    [SYS_geteuid] = sys_geteuid,
+    [SYS_getegid] = sys_getegid,
+    [SYS_setuid] = sys_setuid,
+    [SYS_setgid] = sys_setgid,
+    [SYS_setreuid] = sys_setreuid,
+    [SYS_setregid] = sys_setregid,
     [SYS_getpid] = sys_getpid,
     [SYS_getppid] = sys_getppid,
     

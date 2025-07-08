@@ -41,7 +41,15 @@
     _(chdir, 80),        \
     _(mkdir, 83),        \
     _(rmdir, 84),        \
+    _(getuid, 102),      \
+    _(getgid, 104),      \
+    _(setuid, 105),      \
+    _(setgid, 106),      \
+    _(geteuid, 107),     \
+    _(getegid, 108),     \
     _(getppid, 110),     \
+    _(setreuid, 113),    \
+    _(setregid, 114),    \
     _(mknod, 133),       \
     _(mount, 165),       \
     _(umount2, 166),     \
