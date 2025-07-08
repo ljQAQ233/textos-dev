@@ -22,6 +22,18 @@ size_t strlen(const char *str)
 }
 
 /*
+ * POSIX.1-2008
+ */
+size_t strnlen(const char *str, size_t maxlen)
+{
+    size_t i = 0;
+    
+    while (str && i < maxlen && *str++)
+        i++;
+    return i;
+}
+
+/*
  * `strcpy()` copies the string pointed to by `src`,
  * including the terminating null byte ('\0')
 */
@@ -104,8 +116,8 @@ char *strstr(const char *haystack, const char *needle)
 char *strncpy(char *dest, const char *src, size_t n)
 {
     char *p = dest;
-    while (*src && n--)
-        *p++ = *src++;
+    while (*src && n)
+        *p++ = *src++, n--;
     while (n--)
         *p++ = '\0'; // put '\0'
 
@@ -159,14 +171,13 @@ char *strdup(const char *str)
  */
 char *strndup(const char *str, size_t n)
 {
-    size_t cpy = min(strlen(str) + 1, n);  // num of characters to copy
-    size_t bfs = max(strlen(str) + 1, n);  // real buffer size
-
-    char *p = malloc(bfs);
-    if (p == NULL)
+    size_t len = strnlen(str, n);
+    char *p = malloc(len + 1);
+    if (!p)
         return NULL;
-    
-    return memcpy(p, str, cpy);
+    memcpy(p, str, len);
+    p[len] = '\0';
+    return p;
 }
 
 /*

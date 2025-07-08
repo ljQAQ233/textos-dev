@@ -16,6 +16,8 @@ __BEGIN_DECLS
 */
 size_t strlen(const char *__str);
 
+size_t strnlen(const char *str, size_t maxlen);
+
 /*
   The `strcpy()` function copies the string
   pointed to by `src`, including the terminating
