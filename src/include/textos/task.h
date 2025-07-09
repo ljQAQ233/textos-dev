@@ -36,6 +36,7 @@ typedef struct task
     gid_t rgid; // real gid
     gid_t egid; // effective gid
     gid_t sgid; // saved set-gid
+    gid_t *supgids;
     int pid;
     int ppid;
     int stat;

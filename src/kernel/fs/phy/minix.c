@@ -507,6 +507,32 @@ static int minix_ioctl(node_t *this, int req, void *argp)
 {
 }
 
+static int minix_chown(node_t *this, uid_t owner, gid_t group, bool ap)
+{
+    vfs_m_chown(this, owner, group, ap);
+    superblk_t *sb = this->sb;
+    minix_inode_t *mi = this->pdata;
+    mi->uid = owner;
+    mi->gid = group;
+    minix_isync(sb, mi, this->ino);
+    return 0;
+}
+
+static int minix_chmod(node_t *this, mode_t mode, bool clrsgid)
+{
+    /*
+     * The mode passed to VFS has already been masked to exclude bits unsupported by Minix v1.
+     */
+    mode &= 0777;
+    vfs_m_chmod(this, mode, clrsgid);
+    superblk_t *sb = this->sb;
+    minix_inode_t *mi = this->pdata;
+    mi->mode &= ~0777;
+    mi->mode |= mode;
+    minix_isync(sb, mi, this->ino);
+    return 0;
+}
+
 static int minix_close(node_t *this)
 {
     return 0;
@@ -743,13 +769,15 @@ fail:
 fs_opts_t __minix1_op = {
     minix_open,
     minix_mknod,
-    minix_ioctl,
-    minix_close,
+    minix_chown,
+    minix_chmod,
     minix_remove,
+    minix_readdir,
+    minix_seekdir,
     minix_read,
     minix_write,
     minix_truncate,
-    minix_readdir,
-    minix_seekdir,
     minix_mmap,
+    minix_ioctl,
+    minix_close,
 };

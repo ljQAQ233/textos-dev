@@ -2,13 +2,10 @@
 #include <textos/mm.h>
 #include <textos/dev.h>
 #include <textos/errno.h>
-#include <textos/klib/stack.h>
+#include <textos/fs/inter.h>
 #include <textos/dev/buffer.h>
-
-
-#include <string.h>
-
-fs_opts_t __vfs_devop;
+#include <textos/klib/stack.h>
+#include <textos/klib/string.h>
 
 static inline devst_t *dev_extract(node_t *node)
 {
@@ -97,12 +94,18 @@ static void *dev_mmap(node_t *this, vm_region_t *vm)
     return dev->mmap(dev, vm);
 }
 
-void __vrtdev_init()
-{
-    vfs_initops(&__vfs_devop);
-    __vfs_devop.ioctl = (void *)dev_ioctl;
-    __vfs_devop.read = (void *)dev_read;
-    __vfs_devop.write = (void *)dev_write;
-    __vfs_devop.close = (void *)dev_close;
-    __vfs_devop.mmap = (void *)dev_mmap;
-}
+fs_opts_t __vfs_dev_op = {
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    dev_read,
+    dev_write,
+    NULL,
+    dev_mmap,
+    dev_ioctl,
+    dev_close,
+};

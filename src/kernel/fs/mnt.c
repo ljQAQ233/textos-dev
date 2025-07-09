@@ -42,7 +42,7 @@ int vfs_mount_to(char *path, node_t *root, int mode)
     int ret = 0;
     node_t *dir;
 
-    ret = vfs_open(NULL, &dir, path, O_DIRECTORY | O_CREAT, mode);
+    ret = vfs_open(NULL, path, O_DIRECTORY | O_CREAT, mode, &dir);
     if (ret < 0)
         return ret;
 

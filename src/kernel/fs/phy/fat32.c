@@ -1560,7 +1560,7 @@ end:
  */
 static int fat32_mknod(node_t *parent, char *name, dev_t rdev, int mode, node_t **result)
 {
-#if !CONFIG_FAT_SIMU_DEV
+#if !CONFIG_FAT_SIMU_UNIX
     return -ENOSYS;
 #endif
     node_t *node;
@@ -1571,6 +1571,22 @@ static int fat32_mknod(node_t *parent, char *name, dev_t rdev, int mode, node_t 
     node->rdev = rdev;
     *result = node;
     return 0;
+}
+
+static int fat32_chown(node_t *this, uid_t owner, gid_t group, bool ap)
+{
+#if !CONFIG_FAT_SIMU_UNIX
+    return -ENOSYS;
+#endif
+    return vfs_m_chown(this, owner, group, ap);
+}
+
+static int fat32_chmod(node_t *this, mode_t mode, bool clrsgid)
+{
+#if !CONFIG_FAT_SIMU_UNIX
+    return -ENOSYS;
+#endif
+    return vfs_m_chmod(this, mode, clrsgid);
 }
 
 static int fat32_close(node_t *this)
@@ -1759,13 +1775,15 @@ fail:
 fs_opts_t __fat32_opts = {
     fat32_open,
     fat32_mknod,
-    noopt,
-    fat32_close,
+    fat32_chown,
+    fat32_chmod,
     fat32_remove,
+    fat32_readdir,
+    fat32_seekdir,
     fat32_read,
     fat32_write,
     fat32_truncate,
-    fat32_readdir,
-    fat32_seekdir,
     noopt,
+    noopt,
+    fat32_close,
 };

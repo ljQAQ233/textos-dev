@@ -7,6 +7,8 @@
 #define EBADF        9   // Bad file descriptor
 #define ENOEXEC      8   // Exec format error
 #define ENOMEM       12  // No memory to allocate
+#define EACCES       13  // Permission denied
+#define EFAULT       14  // Bad address
 #define ENOBLK       15  // File is not block device
 #define EEXIST       17  // File already exists
 #define	ENOTDIR      20  // Not a directory

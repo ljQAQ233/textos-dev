@@ -16,6 +16,10 @@ extern void sys_mprotect();
 extern void sys_munmap();
 extern void sys_stat();
 extern void sys_ioctl();
+extern void sys_chown();
+extern void sys_fchown();
+extern void sys_chmod();
+extern void sys_fchmod();
 extern void sys_dup();
 extern void sys_dup2();
 extern void sys_pipe();
@@ -46,6 +50,8 @@ extern void sys_setuid();
 extern void sys_setgid();
 extern void sys_setreuid();
 extern void sys_setregid();
+extern void sys_getgroups();
+extern void sys_setgroups();
 extern void sys_getpid();
 extern void sys_getppid();
 
@@ -74,6 +80,10 @@ void *sys_handlers[] = {
     [SYS_munmap] = sys_munmap,
     [SYS_stat] = sys_stat,
     [SYS_ioctl] = sys_ioctl,
+    [SYS_chown] = sys_chown,
+    [SYS_fchown] = sys_fchown,
+    [SYS_chmod] = sys_chmod,
+    [SYS_fchmod] = sys_fchmod,
     [SYS_dup] = sys_dup,
     [SYS_dup2] = sys_dup2,
     [SYS_pipe] = sys_pipe,
@@ -104,6 +114,8 @@ void *sys_handlers[] = {
     [SYS_setgid] = sys_setgid,
     [SYS_setreuid] = sys_setreuid,
     [SYS_setregid] = sys_setregid,
+    [SYS_getgroups] = sys_getgroups,
+    [SYS_setgroups] = sys_setgroups,
     [SYS_getpid] = sys_getpid,
     [SYS_getppid] = sys_getppid,
     

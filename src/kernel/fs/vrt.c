@@ -11,7 +11,8 @@
 /*
    用来注册文件系统, 在这里列出的文件系统, 是系统支持的
 */
-typedef struct {
+typedef struct
+{
     char *name;
     int id;
     superblk_t *(*init)(devst_t *hd);
@@ -19,63 +20,15 @@ typedef struct {
 
 static node_t *_fs_root = NULL;
 
-bool __vfs_rootset (node_t *root)
+bool __vfs_rootset(node_t *root)
 {
     if (!_fs_root)
         _fs_root = root;
     return _fs_root == root;
 }
 
+_UTIL_CMP();
 _UTIL_NEXT();
-
-static bool _cmp (char *A, char *B)
-{
-    size_t lenA = MIN (strlen(A), strchr (A, '/') - A);
-    size_t lenB = MIN (strlen(B), strchr (B, '/') - B);
-
-    if (lenA != lenB)
-        return false;
-
-    for (size_t i = 0 ; i < lenB ; i++)
-        if (A[i] != B[i])
-            return false;
-
-    return true;
-}
-
-node_t *vfs_test (node_t *start, char *path, node_t **node_last, char **path_last)
-{
-    node_t *res = NULL,
-           *curr = start;
-
-    for ( ; ; ) {
-        for (node_t *ptr = curr->child ;  ; ptr = ptr->next) {
-            if (!ptr)
-                goto fini;
-
-            if (_cmp(ptr->name, path)) {
-                char *nxt = _next(path);
-                if (nxt[0] == 0) {
-                    res = ptr;
-                    goto fini;
-                }
-                path = nxt;
-                curr = ptr;
-                break;
-            } else {
-                continue;
-            }
-        }
-    }
-
-fini:
-    if (node_last)
-        *node_last = curr;
-    if (path_last)
-        *path_last = path;
-    
-    return res;
-}
 
 node_t *vfs_exist(node_t *dir, char *path)
 {
@@ -87,17 +40,21 @@ node_t *vfs_exist(node_t *dir, char *path)
     return NULL;
 }
 
-void vfs_initops(fs_opts_t *opts)
+void vfs_initops(fs_opts_t *op)
 {
-    opts->open = noopt;
-    opts->ioctl = noopt;
-    opts->close = noopt;
-    opts->remove = noopt;
-    opts->read = noopt;
-    opts->write = noopt;
-    opts->truncate = noopt;
-    opts->readdir = noopt;
-    opts->mmap = noopt;
+    op->open = noopt;
+    op->mknod = noopt;
+    op->ioctl = noopt;
+    op->chown = noopt;
+    op->chmod = noopt;
+    op->close = noopt;
+    op->remove = noopt;
+    op->read = noopt;
+    op->write = noopt;
+    op->truncate = noopt;
+    op->readdir = noopt;
+    op->seekdir = noopt;
+    op->mmap = noopt;
 }
 
 void vfs_regst(node_t *n, node_t *p)
@@ -180,7 +137,7 @@ int vfs_getpath(node_t *n, char *buf, size_t *size)
     return 0;
 }
 
-static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args, int mode)
+static int _vfs_open(node_t *dir, node_t **node, char *path, u64 args, int mode)
 {
     int ret = 0;
     node_t *res;
@@ -195,7 +152,7 @@ static int _vfs_open (node_t *dir, node_t **node, char *path, u64 args, int mode
 
     res = vfs_exist(dir, path);
     if (res == NULL) {
-        ret = dir->opts->open (dir, path, args, mode, &res);
+        ret = dir->sb->op->open (dir, path, args, mode, &res);
         if (ret < 0) {
             res = NULL;
             goto fini;
@@ -214,7 +171,7 @@ fini:
     return ret;
 }
 
-static int vfs_walkd(node_t *start, node_t **node, char **path, u64 args, int mode)
+static int vfs_walkd(node_t *start, char **path, node_t **node)
 {
     char *p = *path;
     if (!start)
@@ -236,7 +193,9 @@ static int vfs_walkd(node_t *start, node_t **node, char **path, u64 args, int mo
             ret = -ENOTDIR;
             goto end;
         }
-        ret = _vfs_open(cur, &chd, p, FS_GAIN, mode);
+        if ((ret = vfs_permission(cur, MAY_EXEC)) < 0)
+            goto end;
+        ret = _vfs_open(cur, &chd, p, FS_GAIN, 0);
         if (ret < 0)
             goto end;
         
@@ -250,13 +209,13 @@ end:
     return 0;
 }
 
-int vfs_open (node_t *parent, node_t **node, const char *path, u64 args, int mode)
+int vfs_open(node_t *parent, const char *path, u64 args, int mode, node_t **node)
 {
     int ret = 0;
     char *p = (char *)path;
     node_t *dir = NULL;
     node_t *res = NULL;
-    ret = vfs_walkd(parent, &dir, &p, FS_GAIN, mode);
+    ret = vfs_walkd(parent, &p, &dir);
     if (ret < 0)
         goto end;
     ret = _vfs_open(dir, &res, p, args, mode);
@@ -276,48 +235,120 @@ end:
     return ret;
 }
 
-int vfs_read (node_t *this, void *buffer, size_t siz, size_t offset)
+int vfs_read(node_t *this, void *buffer, size_t siz, size_t offset)
 {
-    int ret = this->opts->read (this, buffer, siz, offset);
-    if (ret < 0)
-        DEBUGK(K_FS, "failed to read %s - ret : %d\n", this->name, ret);
-
-    return ret;
+    return this->opts->read(this, buffer, siz, offset);
 }
     
-int vfs_write (node_t *this, void *buffer, size_t siz, size_t offset)
+int vfs_write(node_t *this, void *buffer, size_t siz, size_t offset)
 {
-    int ret = this->opts->write (this, buffer, siz, offset);
-    if (ret < 0)
-        DEBUGK(K_FS, "failed to write %s - ret : %d\n", this->name, ret);
-
-    return ret;
+    return this->opts->write(this, buffer, siz, offset);
 }
 
-int vfs_close (node_t *this)
+int vfs_close(node_t *this)
 {
-    int ret = this->opts->close (this);
-    if (ret < 0)
-        DEBUGK(K_FS, "failed to close %s - ret : %d\n", this->name, ret);
-
-    return ret;
+    return this->opts->close(this);
 }
 
-int vfs_remove (node_t *this)
+int vfs_truncate(node_t *this, size_t offset)
 {
-    int ret = this->parent->opts->remove (this);
-    if (ret < 0)
-        DEBUGK(K_FS, "failed to remove %s - ret : %d\n", this->name, ret);
-    return ret;
+    return this->opts->truncate(this, offset);
 }
 
-int vfs_truncate (node_t *this, size_t offset)
+int vfs_remove(node_t *this)
 {
-    int ret = this->opts->truncate (this, offset);
-    if (ret < 0)
-        DEBUGK(K_FS, "failed to truncate %s - ret : %d\n", this->name, ret);
-    return ret;
+    return this->opts->remove(this);
 }
+
+#include <textos/task.h>
+
+int vfs_permission(node_t *n, int want)
+{
+    task_t *tsk = task_current();
+    mode_t bits = n->mode;
+    if (tsk->euid == n->uid)
+        bits >>= 6;
+    else if (tsk->egid == n->gid)
+        bits >>= 3;
+    else
+        bits >>= 0;
+
+    if ((want & MAY_READ) && !(bits & 4))
+        return -EACCES;
+    if ((want & MAY_WRITE) && !(bits & 2))
+        return -EACCES;
+    if ((want & MAY_EXEC) && !(bits & 1))
+        return -EACCES;
+    return 0;
+}
+        
+static bool insgrp(task_t *tsk, gid_t gid)
+{
+    for (gid_t *sg = tsk->supgids ; *sg != -1 ; sg++)
+        if (gid == *sg)
+            return true;
+    return false;
+}
+
+int vfs_chown(node_t *file, uid_t owner, gid_t group)
+{
+    task_t *tsk = task_current();
+
+    /*
+     * Only processes with euid equals to the file->uid or procsses with appropriate
+     * privilege can change the ownership of that file. If _POSIX_CHOWN_RESTRICTED is in effect:
+     *   - only privileged proc can change ownership
+     *   - file->uid == tsk->euid, and group is equal to the callers' egid or one of its supplementary gids.
+     * we keep _POSIX_CHOWN_RESTRICTED enabled.
+     */
+    bool ochg = owner != -1 && owner != file->uid;
+    bool gchg = group != -1 && group != file->gid;
+    if (tsk->euid != 0)
+    {
+        if (ochg)
+        {
+            // _POSIX_CHOWN_RESTRICTED
+            return -EPERM;
+        }
+
+        if (gchg && tsk->egid != group && !insgrp(tsk, group))
+            return -EPERM;
+    }
+
+    if (ochg || gchg)
+    {
+        // handle -1
+        if (!ochg) owner = file->uid;
+        if (!gchg) group = file->gid;
+        int ret = file->sb->op->chown(file, owner, group, tsk->euid == 0);
+        if (ret < 0)
+            return ret;
+    }
+    return 0;
+}
+
+int vfs_chmod(node_t *file, mode_t mode)
+{
+    task_t *tsk = task_current();
+    mode &= 07777;
+
+    if (tsk->euid != 0 && tsk->euid != file->uid)
+        return -EPERM;
+    /*
+     * For security: S_ISGID bit is preserved only if privileged or the gid of this file
+     * is in the process's supplementary group list.
+     */
+    bool clr = true;
+    if (tsk->euid == 0)
+        clr = false;
+    else if (insgrp(tsk, file->gid))
+        clr = false;
+    int ret = file->sb->op->chmod(file, mode, clr);
+    if (ret < 0)
+        return ret;
+    return 0;
+}
+
 
 /*
  * FIXME: do not use this after a close directly!!! page fault may happen
@@ -342,11 +373,9 @@ fini:
     return 0;
 }
 
-extern fs_opts_t __vfs_devop;
-
+extern fs_opts_t __vfs_dev_op;
 /*
- * vfs_mknod will replace the original fs_ops_t with __vfs_devop. so if there's a remove op.
- * use its parent's instead. TODO. if dev is a network device it also mknods, the precondition
+ * if dev is a network device it also mknods, the precondition
  * is that it is called by the kernel... instead of mknod syscall!
  */
 int vfs_mknod(char *path, dev_t dev, int mode)
@@ -360,16 +389,16 @@ int vfs_mknod(char *path, dev_t dev, int mode)
     
     node_t *nod;
     node_t *dir;
-    ret = vfs_walkd(NULL, &dir, &path, 0, 0);
+    ret = vfs_walkd(NULL, &path, &dir);
     if (ret < 0)
         return ret;
-    ret = vfs_open(dir, &dir, path, 0, 0);
+    ret = vfs_open(dir, path, 0, 0, &dir);
     if (ret >= 0)
         return -EEXIST;
-    ret = dir->opts->mknod(dir, path, dev, mode, &nod);
+    ret = dir->sb->op->mknod(dir, path, dev, mode, &nod);
     if (ret < 0)
         return ret;
-    nod->opts = &__vfs_devop;
+    nod->opts = &__vfs_dev_op;
     return ret;
 }
 
@@ -419,12 +448,6 @@ static regstr_t regstr[] = {
 };
 
 // clang-format on
-
-struct pub {
-    devst_t *dev;
-    devst_t *devp;
-    node_t *root;
-};
 
 #include <textos/args.h>
 #include <textos/klib/vsprintf.h>
@@ -490,7 +513,6 @@ void fs_init ()
     // abstract
     __pipe_init();
     __kconio_init();
-    __vrtdev_init();
 
     vfs_mount_to("/tmp", __fs_init_tmpfs(), S_IFDIR | S_IRWXG | S_IRWXU | S_IRWXO);
     vfs_mount_to("/proc", __fs_init_procfs(), S_IFDIR | S_IRGRP | S_IXGRP | S_IRUSR | S_IXUSR | S_IROTH | S_IXOTH);

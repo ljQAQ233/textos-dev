@@ -31,6 +31,9 @@ int dup2(int __oldfd, int __newfd);
 ssize_t read(int __fd, void *__buf, size_t __cnt);
 ssize_t write(int __fd, const void *__buf, size_t __cnt);
 
+int chown(char *__path, uid_t __owner, gid_t __group);
+int fchown(int __fd, uid_t __owner, gid_t __group);
+
 int mkdir(char *__path, mode_t __mode);
 int rmdir(char *__path);
 int chdir(char *__path);
@@ -49,6 +52,8 @@ int setuid(uid_t __uid);
 int setgid(gid_t __gid);
 int setreuid(uid_t __ruid, uid_t __euid);
 int setregid(gid_t __rgid, gid_t __egid);
+int getgroups(int size, gid_t *list);
+int setgroups(int size, gid_t *list); // non-posix
 
 pid_t getpid();
 pid_t getppid();

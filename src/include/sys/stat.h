@@ -53,6 +53,9 @@ int stat(char *path, struct stat *sb);
 int mkdir(char *path, mode_t mode);
 int mknod(char *path, mode_t mode, dev_t dev);
 
+int chmod(char *path, mode_t mode);
+int fchmod(int fd, mode_t mode);
+
 __END_DECLS
 
 #endif

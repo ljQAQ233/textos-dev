@@ -1,5 +1,7 @@
 /*
  * /tmp is simple
+ * TODO: tmpfs doesn't need its own tmpfs_entry. use vfs's instead!!!
+ *       the precondition is that we complete reference count.
  */
 
 #include <textos/fs.h>
@@ -235,6 +237,16 @@ static int tmpfs_ioctl(node_t *this, int req, void *argp)
     return 0;
 }
 
+static int tmpfs_chown(node_t *this, uid_t owner, gid_t group, bool ap)
+{
+    return vfs_m_chown(this, owner, group, ap);
+}
+
+static int tmpfs_chmod(node_t *this, mode_t mode, bool clrsgid)
+{
+    return vfs_m_chmod(this, mode, clrsgid);
+}
+
 static int tmpfs_close(node_t *this)
 {
     return 0;
@@ -419,13 +431,15 @@ node_t *__fs_init_tmpfs()
 fs_opts_t __tmpfs_op = {
     tmpfs_open,
     tmpfs_mknod,
-    tmpfs_ioctl,
-    tmpfs_close,
+    tmpfs_chown,
+    tmpfs_chmod,
     tmpfs_remove,
+    tmpfs_readdir,
+    tmpfs_seekdir,
     tmpfs_read,
     tmpfs_write,
     tmpfs_truncate,
-    tmpfs_readdir,
-    tmpfs_seekdir,
     tmpfs_mmap,
+    tmpfs_ioctl,
+    tmpfs_close,
 };

@@ -56,11 +56,15 @@ static int socket_write(node_t *this, void *buf, size_t siz, size_t offset)
 fs_opts_t __socket_opts = {
     noopt,
     noopt,
-    socket_ioctl,
-    socket_close,
+    noopt,
+    noopt,
+    noopt,
+    noopt,
     noopt,
     socket_read,
     socket_write,
     noopt,
     noopt,
+    socket_ioctl,
+    socket_close,
 };

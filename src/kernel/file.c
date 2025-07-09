@@ -37,9 +37,30 @@ __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
     mode &= 0777;
     
     int ret;
-    if ((ret = vfs_open(task_current()->pwd, &node, path, flgs, mode)) < 0)
+    if ((ret = vfs_open(task_current()->pwd, path, flgs, mode, &node)) < 0)
         return ret;
 
+    int want;
+    switch (flgs & O_ACCMODE)
+    {
+    case O_RDONLY:
+        want = MAY_READ;
+        break;
+    case O_WRONLY:
+        want = MAY_WRITE;
+        break;
+    case O_RDWR:
+        want = MAY_READ | MAY_WRITE;
+        break;
+    default: break;
+    }
+    if ((ret = vfs_permission(node, want)) < 0)
+        return ret;
+
+    int fd;
+    if (file_get(&fd, &file) < 0)
+        return -EMFILE;
+    
     if (flgs & (O_WRONLY | O_RDWR))
     {
         if (flgs & O_TRUNC)
@@ -49,10 +70,6 @@ __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
     }
     else if (flgs & O_APPEND)
         return -EINVAL;
-
-    int fd;
-    if (file_get(&fd, &file) < 0)
-        return -EMFILE;
 
     dirctx_t *dirctx = NULL;
     if (flgs & O_DIRECTORY)
@@ -254,7 +271,7 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
     int ret;
     node_t *node;
     
-    ret = vfs_open(task_current()->pwd, &node, path, FS_GAIN, 0);
+    ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node);
     if (ret < 0)
         return ret;
 
@@ -356,12 +373,68 @@ __SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)
     return vfs_mknod(path, dev, mode);
 }
 
+__SYSCALL_DEFINE3(int, chown, char *, path, uid_t, owner, gid_t, group)
+{
+    int ret;
+    node_t *node;
+
+    ret = vfs_open(task_current()->pwd, path, 0, 0, &node);
+    if (ret < 0)
+        return ret;
+    
+    ret = vfs_chown(node, owner, group);
+    if (ret < 0)
+        return ret;
+    return ret;
+}
+
+__SYSCALL_DEFINE3(int, fchown, int, fd, uid_t, owner, gid_t, group)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+
+    int ret = vfs_chown(file->node, owner, group);
+    if (ret < 0)
+        return ret;
+    return ret;
+}
+
+__SYSCALL_DEFINE2(int, chmod, char *, path, mode_t, mode)
+{
+    int ret;
+    node_t *node;
+
+    ret = vfs_open(task_current()->pwd, path, 0, 0, &node);
+    if (ret < 0)
+        return ret;
+    
+    mode &= 07777;
+    ret = vfs_chmod(node, mode);
+    if (ret < 0)
+        return ret;
+    return ret;
+}
+
+__SYSCALL_DEFINE2(int, fchmod, int, fd, mode_t, mode)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+
+    mode &= 07777;
+    int ret = vfs_chmod(file->node, mode);
+    if (ret < 0)
+        return ret;
+    return ret;
+}
+
 __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
 {
     int ret;
     node_t *sn, *dn;
 
-    ret = vfs_open(task_current()->pwd, &sn, src, 0, 0);
+    ret = vfs_open(task_current()->pwd, src, 0, 0, &sn);
     if (ret < 0)
         return ret;
 
@@ -379,7 +452,7 @@ __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
     if (dev->subtype != DEV_PART)
         return -EINVAL;
 
-    ret = vfs_open(task_current()->pwd, &dn, dst, O_DIRECTORY, 0);
+    ret = vfs_open(task_current()->pwd, dst, O_DIRECTORY, 0, &dn);
     if (ret < 0)
         return ret;
 
@@ -392,7 +465,7 @@ __SYSCALL_DEFINE2(int, umount2, char *, target, int, flags)
     int ret;
     node_t *dn;
 
-    ret = vfs_open(task_current()->pwd, &dn, target, FS_GAIN | FS_GAINMNT, 0);
+    ret = vfs_open(task_current()->pwd, target, FS_GAIN | FS_GAINMNT, 0, &dn);
     if (ret < 0)
         return ret;
     
@@ -406,7 +479,7 @@ __SYSCALL_DEFINE1(int, chdir, char *, path)
     node_t *node;
     task_t *task = task_current();
 
-    ret = vfs_open(task->pwd, &node, path, O_DIRECTORY, 0);
+    ret = vfs_open(task->pwd, path, O_DIRECTORY, 0, &node);
     if (ret < 0)
         return ret;
 
@@ -421,13 +494,13 @@ __SYSCALL_DEFINE2(int, mkdir, char *, path, int, mode)
     task_t *task = task_current();
     mode &= 0777;
 
-    ret = vfs_open(task->pwd, &node, path, O_DIRECTORY, 0);
+    ret = vfs_open(task->pwd, path, O_DIRECTORY, 0, &node);
     if (ret >= 0)
     {
         return -EEXIST;
     }
 
-    ret = vfs_open(task->pwd, &node, path, O_DIRECTORY | O_CREAT, mode);
+    ret = vfs_open(task->pwd, path, O_DIRECTORY | O_CREAT, mode, &node);
     return ret;
 }
 

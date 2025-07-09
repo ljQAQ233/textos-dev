@@ -183,6 +183,26 @@ int ioctl(int fd, int req, ...)
     return syscall(SYS_ioctl, fd, req, argp);
 }
 
+int chown(char *path, uid_t owner, gid_t group)
+{
+    return syscall(SYS_chown, path, owner, group);
+}
+
+int fchown(int fd, uid_t owner, gid_t group)
+{
+    return syscall(SYS_fchown, fd, owner, group);
+}
+
+int chmod(char *path, mode_t mode)
+{
+    return syscall(SYS_chmod, path, mode);
+}
+
+int fchmod(int fd, mode_t mode)
+{
+    return syscall(SYS_fchmod, fd, mode);
+}
+
 int dup(int fd)
 {
     return syscall(SYS_dup, fd);
@@ -362,6 +382,16 @@ int setreuid(uid_t ruid, uid_t euid)
 int setregid(gid_t rgid, gid_t egid)
 {
     return syscall(SYS_setregid, rgid, egid);
+}
+
+int getgroups(int size, gid_t *list)
+{
+    return syscall(SYS_getgroups, size, list);
+}
+
+int setgroups(int size, gid_t *list)
+{
+    return syscall(SYS_setgroups, size, list);
 }
 
 pid_t getpid()

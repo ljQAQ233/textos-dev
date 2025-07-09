@@ -43,6 +43,7 @@ static task_t *_task_create (int args)
     tsk->pid = pid;
     tsk->ruid = tsk->euid = tsk->suid = 0;
     tsk->rgid = tsk->egid = tsk->sgid = 0;
+    tsk->supgids = NULL;
 
     table[pid] = tsk;
 
@@ -186,6 +187,29 @@ static int fork_sig(task_t *prt, task_t *chd)
     return 0;
 }
 
+static int fork_uid(task_t *prt, task_t *chd)
+{
+    chd->ruid = prt->ruid;
+    chd->euid = prt->euid;
+    chd->suid = prt->suid;
+    chd->rgid = prt->rgid;
+    chd->egid = prt->egid;
+    chd->sgid = prt->sgid;
+    chd->supgids = NULL;
+
+    if (prt->supgids)
+    {
+        int ss = 0;
+        while (prt->supgids[ss] != -1)
+            ss++;
+        chd->supgids = malloc((ss + 1) * sizeof(gid_t));
+        chd->supgids[ss] = -1;
+        for (int i = 0 ; i < ss ; i++)
+            chd->supgids[i] = prt->supgids[i];
+    }
+    return 0;
+}
+
 #include <irq.h>
 #include <textos/syscall.h>
 
@@ -211,12 +235,8 @@ int task_fork()
     // signals
     fork_sig(prt, chd);
 
-    chd->ruid = prt->ruid;
-    chd->euid = prt->euid;
-    chd->suid = prt->suid;
-    chd->rgid = prt->rgid;
-    chd->egid = prt->egid;
-    chd->sgid = prt->sgid;
+    // uids
+    fork_uid(prt, chd);
 
     chd->tick = prt->tick;
     chd->curr = prt->curr;
@@ -520,6 +540,50 @@ __SYSCALL_DEFINE2(int, setregid, gid_t, rgid, gid_t, egid)
     }
     if (rgid != -1) tsk->rgid = rgid;
     if (egid != -1) tsk->egid = egid;
+    return 0;
+}
+
+__SYSCALL_DEFINE2(int, getgroups, int, size, gid_t *, list)
+{
+    task_t *tsk = task_current();
+    int ss = 0;
+    if (tsk->supgids)
+        while (tsk->supgids[ss] != -1)
+            ss++;
+    if (!list && !size)
+        return ss;
+    else if (!list)
+        return -EFAULT;
+    else if (size < ss)
+        return -EINVAL;
+    for (int i = 0 ; i < ss ; i++)
+        list[i] = tsk->supgids[i];
+    return ss;
+}
+
+__SYSCALL_DEFINE2(int, setgroups, int, size, gid_t *, list)
+{
+    task_t *tsk = task_current();
+    if (!size)
+        return getgroups(0, NULL);
+    if (size < 0)
+        return -EINVAL;
+    if (!list)
+        return -EFAULT;
+    if (tsk->euid != 0)
+        return -EPERM;
+    if (tsk->supgids)
+    {
+        free(tsk->supgids);
+        tsk->supgids = NULL;
+    }
+    for (int i = 0 ; i < size ; i++)
+        if (list[i] == -1)
+            return -EINVAL;
+    tsk->supgids = malloc(sizeof(gid_t) * (size + 1));
+    tsk->supgids[size] = -1;
+    for (int i = 0 ; i < size ; i++)
+        tsk->supgids[i] = list[i];
     return 0;
 }
 

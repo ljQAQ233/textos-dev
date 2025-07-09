@@ -36,6 +36,9 @@ typedef struct superblk superblk_t;
 
 typedef struct
 {
+    /*
+     * dir entry operations
+     */
     int  (*open)(node_t *parent, char *path, u64 args, int mode, node_t **result);
     /*
      * some fs do not support device node. here we create an empty file and bind
@@ -43,15 +46,26 @@ typedef struct
      * `name` is not exist (filtered by vfs before)
      */
     int  (*mknod)(node_t *parent, char *name, dev_t rdev, int mode, node_t **result);
-    int  (*ioctl)(node_t *this, int req, void *argp);
-    int  (*close)(node_t *this);
+    /*
+     * vfs layer handles -1, physical fs gets final uid/gid only. physical fs must update
+     * both node's or on-disk inode's ctime, uid/gid and clear SUID bit and SGID bit
+     * according to `ap` (appropriate privilege) flag after a successful modification.
+     */
+    int  (*chown)(node_t *this, uid_t owner, gid_t group, bool ap);
+    int  (*chmod)(node_t *this, mode_t mode, bool clrsgid);
     int  (*remove)(node_t *this);
+    int  (*readdir)(node_t *this, dirctx_t *ctx);
+    int  (*seekdir)(node_t *this, dirctx_t *ctx, size_t *pos);
+
+    /*
+     * file operations
+     */
     int  (*read)(node_t *this, void *buf, size_t siz, size_t offset);
     int  (*write)(node_t *this, void *buf, size_t siz, size_t offset);
     int  (*truncate)(node_t *this, size_t offset);
-    int  (*readdir)(node_t *this, dirctx_t *ctx);
-    int  (*seekdir)(node_t *this, dirctx_t *ctx, size_t *pos);
     void *(*mmap)(node_t *this, vm_region_t *vm);
+    int  (*ioctl)(node_t *this, int req, void *argp);
+    int  (*close)(node_t *this);
 } fs_opts_t;
 
 struct node
@@ -61,6 +75,8 @@ struct node
     u64 attr;
     u64 siz;
     ino_t ino;
+    uid_t uid;
+    gid_t gid;
     mode_t mode;
     time_t atime;
     time_t mtime;
@@ -135,12 +151,20 @@ node_t *vfs_getprt(node_t *n);
  */
 int vfs_getpath(node_t *n, char *buf, size_t *size);
 
-int vfs_open (node_t *parent, node_t **node, const char *path, u64 args, int mode);
+#define MAY_READ  (1 << 0)
+#define MAY_WRITE (1 << 1)
+#define MAY_EXEC  (1 << 2)
+
+int vfs_permission(node_t *n, int want);
+
+int vfs_open(node_t *parent, const char *path, u64 args, int mode, node_t **result);
 int vfs_read(node_t *this, void *buf, size_t siz, size_t offset);
 int vfs_write(node_t *this, void *buf, size_t siz, size_t offset);
 int vfs_close(node_t *this);
 int vfs_remove(node_t *this);
 int vfs_truncate(node_t *this, size_t offset);
+int vfs_chown(node_t *file, uid_t owner, gid_t group);
+int vfs_chmod(node_t *file, mode_t mode);
 int vfs_release(node_t *this);
 int vfs_readdir(node_t *this, node_t **res, size_t idx);
 

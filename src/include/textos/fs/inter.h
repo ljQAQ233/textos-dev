@@ -61,3 +61,27 @@ typedef struct _packed
     }
 
 extern void noopt_handler();
+
+/*
+ * vfs in-memory node operations used by physical file systems
+ */
+static int vfs_m_chown(node_t *this, uid_t owner, gid_t group, bool ap)
+{
+    if (!ap && S_ISREG(this->mode))
+        if (this->mode & (S_IXUSR | S_IXGRP | S_IXOTH))
+            this->mode &= ~(S_ISUID | S_ISGID);
+    this->uid = owner;
+    this->gid = group;
+    this->ctime = arch_time_now();
+    return 0;
+}
+
+static int vfs_m_chmod(node_t *this, mode_t mode, bool clrsgid)
+{
+    this->mode &= ~07777;
+    this->mode |= mode & 07777;
+    if (clrsgid)
+        this->mode &= ~S_IXGRP;
+    this->ctime = arch_time_now();
+    return 0;
+}
