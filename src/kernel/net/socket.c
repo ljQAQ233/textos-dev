@@ -19,7 +19,7 @@ int socket_makefd(socket_t *socket)
     int fd;
     file_t *file;
     node_t *sockn;
-    if (file_get(&fd, &file) < 0)
+    if (file_get(&fd, &file, 0) < 0)
         return fd;
     
     sockn = malloc(sizeof(node_t));

@@ -152,7 +152,7 @@ static int _vfs_open(node_t *dir, node_t **node, char *path, u64 args, int mode)
 
     res = vfs_exist(dir, path);
     if (res == NULL) {
-        ret = dir->sb->op->open (dir, path, args, mode, &res);
+        ret = dir->sb->op->open(dir, path, args, mode, &res);
         if (ret < 0) {
             res = NULL;
             goto fini;
@@ -221,16 +221,32 @@ int vfs_open(node_t *parent, const char *path, u64 args, int mode, node_t **node
     ret = _vfs_open(dir, &res, p, args, mode);
     if (ret < 0)
         goto end;
-    *node = res;
-
     if (res && !(args & FS_GAIN))
     {
+        int want;
+        switch (args & O_ACCMODE)
+        {
+        case O_RDONLY:
+            want = MAY_READ;
+            break;
+        case O_WRONLY:
+            want = MAY_WRITE;
+            break;
+        case O_RDWR:
+            want = MAY_READ | MAY_WRITE;
+            break;
+        default: break;
+        }
+        if ((ret = vfs_permission(res, want)) < 0)
+            goto end;
         if (!S_ISDIR(res->mode) && args & O_DIRECTORY)
             ret = -ENOTDIR;
         else if (S_ISDIR(res->mode) && ~args & O_DIRECTORY)
             ret = -EISDIR;
     }
 end:
+    if (!ret)
+        *node = res;
     DEBUGK(K_FS, "open %s = %d\n", path, ret);
     return ret;
 }

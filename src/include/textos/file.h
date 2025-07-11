@@ -7,17 +7,19 @@
 #define S_PIPE_R 0x01  // rx
 #define S_PIPE_W 0x02  // tx
 
-typedef struct {
+typedef struct
+{
     size_t offset;
     node_t *node;
     dirctx_t *dirctx;
     int flgs;
+    int fdfl;
     int spec;
     int refer;
 } file_t;
 
-int fd_get();
-int file_get(int *new, file_t **file);
+int fd_get(int min);
+int file_get(int *new, file_t **file, int min);
 
 #define DT_UNKNOWN 0
 #define DT_FIFO 1
@@ -115,6 +117,36 @@ extern file_t sysfile[MAXDEF_FILENO];
 #define O_TRUNC  01000 // 截断
 #define O_APPEND 0010  // 末尾追加
 #define O_DIRECTORY 0200000
+
+#define F_RDLCK 0
+#define F_WRLCK 1
+#define F_UNLCK 2
+
+typedef struct flock
+{
+    short l_type;
+    short l_whence;
+    off_t l_start;
+    off_t l_len;
+    pid_t l_pid;
+} flock_t;
+
+#define F_DUPFD  0
+#define F_GETFD  1
+#define F_SETFD  2
+#define F_GETFL  3
+#define F_SETFL  4
+
+#define F_GETLK  5
+#define F_SETLK  6
+#define F_SETLKW 7
+
+#define F_SETOWN 8
+#define F_GETOWN 9
+#define F_SETSIG 10
+#define F_GETSIG 11
+
+#define FD_CLOEXEC 1
 
 unsigned dir_get_type(mode_t mode);
 bool dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type);

@@ -138,6 +138,15 @@ int open(char *path, int flgs, ...)
     return syscall(SYS_open, path, flgs, mode);
 }
 
+int fcntl(int fd, int cmd, ...)
+{
+    va_list ap;
+    va_start(ap, cmd);
+    int arg = va_arg(ap, int);
+    va_end(ap);
+    return syscall(SYS_fcntl, fd, cmd, arg);
+}
+
 ssize_t read(int fd, void *buf, size_t cnt)
 {
     return syscall(SYS_read, fd, buf, cnt);

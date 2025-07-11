@@ -9,6 +9,7 @@ extern void sys_readdir();
 extern void sys_seekdir();
 extern void sys_write();
 extern void sys_open();
+extern void sys_fcntl();
 extern void sys_close();
 extern void sys_lseek();
 extern void sys_mmap();
@@ -73,6 +74,7 @@ void *sys_handlers[] = {
     [SYS_seekdir] = sys_seekdir,
     [SYS_write] = sys_write,
     [SYS_open] = sys_open,
+    [SYS_fcntl] = sys_fcntl,
     [SYS_close] = sys_close,
     [SYS_lseek] = sys_lseek,
     [SYS_mmap] = sys_mmap,

@@ -7,10 +7,10 @@
 
 #include <textos/mm.h>
 
-int fd_get()
+int fd_get(int min)
 {
     file_t **ft = task_current()->files;
-    for (int i = 0 ; i < MAX_FILE ; i++)
+    for (int i = min ; i < MAX_FILE ; i++)
     {
         if (!ft[i])
             return i;
@@ -18,10 +18,10 @@ int fd_get()
     return -EMFILE;
 }
 
-int file_get(int *new, file_t **file)
+int file_get(int *new, file_t **file, int min)
 {
     file_t **ft = task_current()->files;
-    int fd = fd_get();
+    int fd = fd_get(min);
     if (!(ft[fd] = malloc(sizeof(file_t))))
         return -ENOMEM;
 
@@ -40,33 +40,14 @@ __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
     if ((ret = vfs_open(task_current()->pwd, path, flgs, mode, &node)) < 0)
         return ret;
 
-    int want;
-    switch (flgs & O_ACCMODE)
-    {
-    case O_RDONLY:
-        want = MAY_READ;
-        break;
-    case O_WRONLY:
-        want = MAY_WRITE;
-        break;
-    case O_RDWR:
-        want = MAY_READ | MAY_WRITE;
-        break;
-    default: break;
-    }
-    if ((ret = vfs_permission(node, want)) < 0)
-        return ret;
-
     int fd;
-    if (file_get(&fd, &file) < 0)
+    if (file_get(&fd, &file, 0) < 0)
         return -EMFILE;
     
     if (flgs & (O_WRONLY | O_RDWR))
     {
         if (flgs & O_TRUNC)
             vfs_truncate(node, 0);
-        if (flgs & O_APPEND)
-            off = node->siz;
     }
     else if (flgs & O_APPEND)
         return -EINVAL;
@@ -88,6 +69,83 @@ fail:
     return fd;
 }
 
+int dup2(int old, int new);
+
+__SYSCALL_DEFINE3(int, fcntl, int, fd, int, cmd, long, arg)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+
+    switch (cmd)
+    {
+    case F_DUPFD:
+        {
+            int newfd;
+            int ret = file_get(&newfd, &file, arg);
+            if (ret < 0)
+                return fd;
+            return dup2(fd, newfd);
+        }
+    case F_GETFD:
+        {
+            return file->fdfl;
+        }
+    case F_SETFD:
+        {
+            int fdfl = (int)arg;
+            file->fdfl = fdfl;
+            return 0;
+        }
+    case F_GETFL:
+        {
+            return file->flgs;
+        }
+    case F_SETFL:
+        {
+            int flgs = (int)arg;
+            int mask = O_APPEND | 0;
+            file->flgs &= ~mask;
+            file->flgs |= flgs;
+            return 0;
+        }
+    case F_GETLK:
+    case F_SETLK:
+    case F_SETLKW:
+    case F_SETOWN:
+    case F_GETOWN:
+    case F_SETSIG:
+    case F_GETSIG:
+        return -ENOSYS;
+    }
+    return -EINVAL;
+}
+
+/*
+ * NOTE: actually the dev file uses the op of the
+ *       filesystem in which it locates.
+ */
+__SYSCALL_DEFINE3(ssize_t, read, int, fd, void *, buf, size_t, cnt)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+
+    if (file->flgs & O_DIRECTORY)
+        return -EISDIR;
+
+    int accm = file->flgs & O_ACCMODE;
+    if (accm == O_WRONLY)
+        return -EBADF;
+
+    int ret = file->node->opts->read(file->node, buf, cnt, file->offset);
+    if (ret < 0)
+        return ret;
+    
+    file->offset += ret;
+    return ret;
+}
+
 // todo: max size limited
 __SYSCALL_DEFINE3(ssize_t, write, int, fd, void *, buf, size_t, cnt)
 {
@@ -99,7 +157,13 @@ __SYSCALL_DEFINE3(ssize_t, write, int, fd, void *, buf, size_t, cnt)
     if (accm == O_RDONLY)
         return -EBADF;
 
-    int ret = file->node->opts->write(file->node, buf, cnt, file->offset);
+    size_t off;
+    if (file->flgs & O_APPEND)
+        off = file->node->siz;
+    else
+        off = file->offset;
+
+    int ret = file->node->opts->write(file->node, buf, cnt, off);
     if (ret < 0)
         return ret;
     
@@ -201,31 +265,6 @@ __SYSCALL_DEFINE2(int, seekdir, int, fd, size_t *, pos)
     return file->node->opts->seekdir(file->node, file->dirctx, pos);
 }
 
-/*
- * NOTE: actually the dev file uses the op of the
- *       filesystem in which it locates.
- */
-__SYSCALL_DEFINE3(ssize_t, read, int, fd, void *, buf, size_t, cnt)
-{
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
-
-    if (file->flgs & O_DIRECTORY)
-        return readdir(fd, buf, cnt);
-
-    int accm = file->flgs & O_ACCMODE;
-    if (accm == O_WRONLY)
-        return -EBADF;
-
-    int ret = file->node->opts->read(file->node, buf, cnt, file->offset);
-    if (ret < 0)
-        return ret;
-    
-    file->offset += ret;
-    return ret;
-}
-
 __SYSCALL_DEFINE3(off_t, lseek, int, fd, off_t, off, int, whence)
 {
     file_t *file = task_current()->files[fd];
@@ -279,8 +318,8 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
     sb->st_ino = node->ino;
     sb->st_nlink = 1;
     sb->st_mode = node->mode;
-    sb->st_uid = 0; // TODO
-    sb->st_gid = 0;
+    sb->st_uid = node->uid;
+    sb->st_gid = node->gid;
     sb->st_rdev = node->rdev;
     sb->st_size = node->siz;
     sb->st_blksize = -1; // TODO
@@ -330,7 +369,7 @@ __SYSCALL_DEFINE2(int, dup2, int, old, int, new)
 
 __SYSCALL_DEFINE1(int, dup, int, fd)
 {
-    int new = fd_get();
+    int new = fd_get(0);
     if (new < 0)
         return -EMFILE;
 
@@ -341,8 +380,8 @@ __SYSCALL_DEFINE1(int, pipe, int *, fds)
 {
     int fd0, fd1;
     file_t *f0, *f1;
-    ASSERTK(file_get(&fd0, &f0) >= 0);
-    ASSERTK(file_get(&fd1, &f1) >= 0);
+    ASSERTK(file_get(&fd0, &f0, 0) >= 0);
+    ASSERTK(file_get(&fd1, &f1, 0) >= 0);
 
     node_t *n = malloc(sizeof(*n));
     ASSERTK(n != NULL);
