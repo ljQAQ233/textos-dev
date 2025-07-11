@@ -22,7 +22,7 @@ __BEGIN_DECLS
 #define O_APPEND 0010  // 末尾追加
 #define O_DIRECTORY 0200000
 
-int open(char *__path, int __flgs, ...);
+int open(const char *__path, int __flgs, ...);
 
 #define F_RDLCK 0
 #define F_WRLCK 1

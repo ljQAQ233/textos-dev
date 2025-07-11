@@ -125,7 +125,7 @@ int uname(struct utsname *name)
     return syscall(SYS_uname, name);
 }
 
-int open(char *path, int flgs, ...)
+int open(const char *path, int flgs, ...)
 {
     int mode = 0;
     if (flgs & O_CREAT)

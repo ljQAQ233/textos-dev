@@ -3,8 +3,6 @@
 #include <unistd.h>
 #include <string.h>
 
-// nobuffer
-
 int putchar(int c)
 {
     write(STDOUT_FILENO, &c, 1);
