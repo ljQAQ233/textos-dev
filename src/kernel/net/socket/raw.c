@@ -102,8 +102,8 @@ static int raw_getpeername(socket_t *s, sockaddr_t *addr, socklen_t *len)
 static ssize_t raw_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 {
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
-    void *data = msg->iov[0].base;
-    size_t len = msg->iov[0].len;
+    void *data = msg->iov[0].iov_base;
+    size_t len = msg->iov[0].iov_len;
 
     void *payload = mbuf_put(m, len);
     memcpy(payload, data, len);
@@ -149,8 +149,8 @@ static ssize_t raw_recvmsg(socket_t *s, msghdr_t *msg, int flags)
     });
 
     mbuf_t *m = CR(ptr, mbuf_t, list);
-    int len = MIN(msg->iov[0].len, m->len);
-    memcpy(msg->iov[0].base, m->head, len);
+    int len = MIN(msg->iov[0].iov_len, m->len);
+    memcpy(msg->iov[0].iov_base, m->head, len);
     mbuf_free(m);
     return len;
 }

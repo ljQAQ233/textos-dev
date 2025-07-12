@@ -49,6 +49,8 @@
 
 #define __NEED_sigset_t
 
+#define __NEED_struct_iovec
+
 #include <bits/alltypes.h>
 
 typedef int8_t   int8;
@@ -70,5 +72,9 @@ typedef uint8_t   bool;
 typedef uintptr_t addr_t;
 
 typedef uint32_t blkno_t;
+
+#define IOV_MAX 1024
+
+typedef struct iovec iovec_t;
 
 #endif

@@ -354,8 +354,8 @@ static void tcp_makeseg(tcp_t *tcp, void *data, size_t len)
 static ssize_t tcp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 {
     tcp_t *tcp = TCP(s->pri);
-    void *data = msg->iov[0].base;
-    size_t len = msg->iov[0].len;
+    void *data = msg->iov[0].iov_base;
+    size_t len = msg->iov[0].iov_len;
 
     tcp_makeseg(tcp, data, len);
     tcp_do_xmit(tcp);
@@ -371,8 +371,8 @@ static ssize_t tcp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 {
     tcp_t *tcp = TCP(s->pri);
-    void *data = msg->iov[0].base;
-    size_t len = msg->iov[0].len;
+    void *data = msg->iov[0].iov_base;
+    size_t len = msg->iov[0].iov_len;
     size_t mss = tcp->mss;
     ssize_t rem = len;
     bool wind = false;

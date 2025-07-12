@@ -30,8 +30,8 @@ static int socket_read(node_t *this, void *buf, size_t siz, size_t offset)
         .name = NULL,
         .namelen = 0,
         .iov = &(iovec_t) {
-            .base = buf,
-            .len = siz,
+            .iov_base = buf,
+            .iov_len = siz,
         },
         .iovlen = 1,
     };
@@ -44,8 +44,8 @@ static int socket_write(node_t *this, void *buf, size_t siz, size_t offset)
         .name = NULL,
         .namelen = 0,
         .iov = &(iovec_t) {
-            .base = buf,
-            .len = siz,
+            .iov_base = buf,
+            .iov_len = siz,
         },
         .iovlen = 1,
     };

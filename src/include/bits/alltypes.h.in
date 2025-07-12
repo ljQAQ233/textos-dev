@@ -58,6 +58,8 @@ __typedef unsigned short sa_family_t;
 __typedef __uint64_t sigset_t;
 
 __struct iovec { void *iov_base; __size_t iov_len; };
+__struct _IO_FILE { char pad; };
+__typedef struct _IO_FILE FILE;
 
 #define __LITTLE_ENDIAN 1234
 #define __BIG_ENDIAN    4321

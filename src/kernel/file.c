@@ -146,6 +146,50 @@ __SYSCALL_DEFINE3(ssize_t, read, int, fd, void *, buf, size_t, cnt)
     return ret;
 }
 
+__SYSCALL_DEFINE3(ssize_t, readv, int, fd, const iovec_t *, iov, int, iovcnt)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+
+    if (file->flgs & O_DIRECTORY)
+        return -EISDIR;
+    
+    if (!iov || iovcnt < 0 || iovcnt >= IOV_MAX)
+        return -EINVAL;
+
+    int accm = file->flgs & O_ACCMODE;
+    if (accm == O_WRONLY)
+        return -EBADF;
+
+    size_t oldoff = file->offset;
+    ssize_t sum = 0;
+    ssize_t ret = 0;
+    for (int i = 0 ; i < iovcnt ; i++)
+    {
+        if (iov[i].iov_len == 0)
+            continue;
+        if (iov[i].iov_base == NULL)
+        {
+            ret = -EINVAL;
+            goto rollback;
+        }
+        ret = file->node->opts->read(file->node, iov[i].iov_base, iov[i].iov_len, file->offset);
+        if (ret < 0)
+            goto rollback;
+        if (ret == 0)
+            break;
+        sum += ret;
+    }
+    
+    file->offset += sum;
+    return sum;
+
+rollback:
+    file->offset = oldoff;
+    return ret;
+}
+
 // todo: max size limited
 __SYSCALL_DEFINE3(ssize_t, write, int, fd, void *, buf, size_t, cnt)
 {
@@ -168,6 +212,54 @@ __SYSCALL_DEFINE3(ssize_t, write, int, fd, void *, buf, size_t, cnt)
         return ret;
     
     file->offset += ret;
+    return ret;
+}
+
+__SYSCALL_DEFINE3(ssize_t, writev, int, fd, const iovec_t *, iov, int, iovcnt)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+
+    if (file->flgs & O_DIRECTORY)
+        return -EISDIR;
+    
+    if (!iov || iovcnt < 0 || iovcnt >= IOV_MAX)
+        return -EINVAL;
+
+    int accm = file->flgs & O_ACCMODE;
+    if (accm == O_WRONLY)
+        return -EBADF;
+
+    size_t oldoff = file->offset;
+    ssize_t sum = 0;
+    int ret = 0;
+    for (int i = 0 ; i < iovcnt ; i++)
+    {
+        if (iov[i].iov_len == 0)
+            continue;
+        if (iov[i].iov_base == NULL)
+        {
+            ret = -EINVAL;
+            goto rollback;
+        }
+        ret = file->node->opts->write(file->node, iov[i].iov_base, iov[i].iov_len, file->offset);
+        if (ret < 0)
+        {
+            if (ret != -ENOSPC)
+                goto rollback;
+            ret = 0;
+        }
+        if (ret == 0)
+            break;
+        sum += ret;
+    }
+    
+    file->offset += sum;
+    return sum;
+
+rollback:
+    file->offset = oldoff;
     return ret;
 }
 

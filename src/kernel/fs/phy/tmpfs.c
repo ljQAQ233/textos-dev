@@ -267,7 +267,7 @@ static int tmpfs_read(node_t *this, void *buf, size_t siz, size_t offset)
     if (siz == 0)
         return 0;
     if (offset >= this->siz)
-        return EOF;
+        return 0;
     
     // adjust to real size
     siz = MIN(this->siz, offset + siz) - offset;

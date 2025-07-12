@@ -557,7 +557,7 @@ static int minix_remove(node_t *this)
 static int minix_read(node_t *this, void *buf, size_t siz, size_t offset)
 {
     if (offset >= this->siz)
-        return EOF;
+        return 0;
 
     superblk_t *sb = this->sb;
     minix_inode_t *mi = this->pdata;
@@ -587,7 +587,7 @@ static int minix_read(node_t *this, void *buf, size_t siz, size_t offset)
     }
     this->atime = arch_time_now();
 
-    return tot > 0 ? (int)tot : EOF;
+    return tot;
 }
 
 static int minix_write(node_t *this, void *buf, size_t siz, size_t offset)

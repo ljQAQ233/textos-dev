@@ -12,6 +12,8 @@
     _(sigprocmask, 14),  \
     _(sigreturn, 15),    \
     _(ioctl, 16),        \
+    _(readv, 19),        \
+    _(writev, 20),       \
     _(pipe, 22),         \
     _(dup, 32),          \
     _(dup2, 33),         \

@@ -148,8 +148,8 @@ __SYSCALL_DEFINE6(ssize_t, sendto,
         .name = dst,
         .namelen = dlen,
         .iov = &(iovec_t) {
-            .base = buf,
-            .len = len,
+            .iov_base = buf,
+            .iov_len = len,
         },
         .iovlen = 1,
     };
@@ -165,8 +165,8 @@ __SYSCALL_DEFINE6(ssize_t, recvfrom,
         .name = src,
         .namelen = *slen,
         .iov = &(iovec_t) {
-            .base = buf,
-            .len = len,
+            .iov_base = buf,
+            .iov_len = len,
         },
         .iovlen = 1,
     };

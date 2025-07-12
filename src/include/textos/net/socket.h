@@ -43,12 +43,6 @@ enum
 
 typedef struct
 {
-    void *base;
-    size_t len;
-} iovec_t;
-
-typedef struct
-{
     sockaddr_t *name;
     int namelen;
     iovec_t *iov;

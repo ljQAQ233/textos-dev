@@ -1369,7 +1369,7 @@ static int byte_rd(node_t *n, void *buf, size_t rdsiz, size_t off)
     if (rdsiz == 0)
         return 0;
     if (off >= n->siz)
-        return EOF;
+        return 0;
 
     lookup_t *lkp = n->pdata;
     unsigned stsz = sbi->sec_siz;

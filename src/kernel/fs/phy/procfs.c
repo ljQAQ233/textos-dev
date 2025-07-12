@@ -397,7 +397,7 @@ void *procfs_mmap(node_t *this, vm_region_t *vm)
 static size_t proc_submit_buf(void *output, size_t osz, void *buf, size_t bsz, size_t off)
 {
     if (off >= bsz)
-        return EOF;
+        return 0;
     size_t rem = bsz - off;
     if (rem > osz)
         rem = osz;
