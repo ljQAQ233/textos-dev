@@ -390,6 +390,7 @@ static node_t *minix_nodeget(superblk_t *sb, minix_inode_t *mi, u16 ino, char *n
     node->pdata = mi;
     node->sb = sb;
     node->opts = sb->op;
+    node->child = NULL;
     return node;
 }
 
