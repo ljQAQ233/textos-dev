@@ -3,9 +3,10 @@
 int main(int argc, char *argv[], char *envp[])
 {
     for (int i = 1 ; i < argc ; i++) {
-        puts(argv[i]);
-        puts(" ");
+        fputs(argv[i], stdout);
+        if (i != argc - 1)
+            fputs(" ", stdout);
     }
-    puts("\n");
+    fputc('\n', stdout);
     return 0;
 }

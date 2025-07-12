@@ -1,8 +1,7 @@
-#include <stdio.h>
+#include "stdio.h"
 #include <fcntl.h>
 #include <errno.h>
 #include <malloc.h>
-#include "stdio.h"
 
 FILE *__fdopen(int fd)
 {
@@ -10,10 +9,10 @@ FILE *__fdopen(int fd)
     if (!f)
         return NULL;
     
-    f->_f_fd = fd;
-    f->_f_bufsz = BUFSIZ;
-    f->_f_buf = malloc(BUFSIZ);
-    if (!f->_f_bufsz)
+    f->fd = fd;
+    f->bufsz = BUFSIZ;
+    f->buf = malloc(BUFSIZ);
+    if (!f->bufsz)
     {
         free(f);
         return NULL;

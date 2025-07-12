@@ -15,4 +15,7 @@
   #define _Noreturn __attribute__((noreturn))
 #endif
 
+#define __alias(_orig, _alias) \
+  extern __typeof__(_orig) _alias __attribute__((alias(#_orig)))
+
 #endif

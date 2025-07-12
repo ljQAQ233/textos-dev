@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include "stdio.h"
 #include <fcntl.h>
 #include <errno.h>
 
@@ -39,21 +39,4 @@ int __fmode(const char *mode)
     else
         return -EINVAL;
     return flg;
-}
-
-static FILE *ofl_head;
-
-void __ofl_add(FILE *f)
-{
-    f->_f_next = ofl_head;
-    ofl_head = f;
-}
-
-void __ofl_del(FILE *f)
-{
-    FILE **pp = &ofl_head;
-    while (*pp && *pp != f)
-        pp = (FILE **)&((*pp)->_f_next);
-    if (*pp == f)
-        *pp = (*pp)->_f_next;
 }

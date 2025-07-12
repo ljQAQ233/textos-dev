@@ -7,6 +7,7 @@ int main(int argc, const char *argv[], const char *envp[])
 }
 
 extern const char **__environ;
+extern void __init_stdio();
 
 void start0(long *args)
 {
@@ -15,6 +16,7 @@ void start0(long *args)
     const char **envp = (void *)&args[1+argc+1];
 
     __environ = envp;
+    __init_stdio();
 
     _exit(main(argc, argv, envp));
 

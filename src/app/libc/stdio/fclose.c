@@ -1,12 +1,14 @@
-#include <stdio.h>
+#include "stdio.h"
 #include <malloc.h>
 #include <unistd.h>
-#include "stdio.h"
 
-int fclose(FILE *stream)
+int fclose(FILE *f)
 {
-    __ofl_del(stream);
-    close(stream->_f_fd);
-    free(stream);
+    fflush(f);
+    __ofl_del(f);
+    f->close(f);
+    if (f->fl & F_PERM)
+        return 0;
+    free(f);
     return 0;
 }

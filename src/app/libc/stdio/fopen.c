@@ -1,9 +1,8 @@
-#include <stdio.h>
+#include "stdio.h"
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
 #include <malloc.h>
-#include "stdio.h"
 
 FILE *fopen(const char *path, const char *mode)
 {

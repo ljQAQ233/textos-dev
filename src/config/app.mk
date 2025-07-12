@@ -15,7 +15,7 @@ INCLUDE := \
 LIBC := $(APP_OUTPUT)/libc/libc.o
 
 CFLAGS := \
-  -static -nostdlib -nostdinc \
+  -static -nostdlib -nostdinc -g \
   -std=c11 -fshort-wchar -ffreestanding \
   -fno-builtin -fno-stack-check -fno-stack-protector \
   -include $(SRC_DIR)/include/bits/compiler.h \
