@@ -1,5 +1,11 @@
 #include "stdio.h"
 
+/**
+ * @brief flush a stream
+ *   For output streams: flush user-space buffer to file.
+ *   For seekable input streams: discard unread input buffer.
+ *   Stream stays open. If stream is NULL, flush all output streams.
+ */
 int fflush(FILE *f)
 {
     if (f != NULL)

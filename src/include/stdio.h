@@ -12,6 +12,7 @@ __BEGIN_DECLS
 #define EOF ((int)-1)
 #define BUFSIZ 4096
 
+#define __NEED_ssize_t
 #define __NEED_struct__IO_FILE
 #define __NEED_FILE
 #include <bits/alltypes.h>
@@ -26,42 +27,31 @@ extern FILE __stdio_stderr;
 
 int putc(int __c, FILE *__f);
 int putchar(int __c);
-
 int puts(const char *__s);
+int getc(FILE *__f);
+int getchar();
+
+ssize_t getline(char **restrict lineptr, size_t *restrict n, FILE *f);
+ssize_t getdelim(char **restrict __lineptr, size_t *restrict __n, int __delim, FILE *restrict __f);
 
 int printf(char *__format, ...);
-
 int sprintf(char *__buffer, const char *__format, ...);
-
 int dprintf(int __fd, char *__format, ...);
-
 int vsprintf(char *__buffer, const char *__format, va_list __args);
-
 void perror(const char *__s);
 
 FILE *fopen(const char *__path, const char *__mode);
-
 FILE *fdopen(int __fd, const char *__mode);
-
+int fflush(FILE *__f);
 int fclose(FILE *__f);
 
+int fgetc(FILE *__f);
 int fputc(int __c, FILE *__f);
-size_t fwrite(const void *restrict __buf, size_t __size, size_t __nmemb, FILE *restrict __f);
 
-/**
- * @brief writes the string s to stream, without its terminating null byte ('\0').
- * 
- * @return int nonnegative value if scuuess, or EOF on error
- */
+size_t fread(void *restrict __ptr, size_t __size, size_t __nmemb, FILE *restrict __f);
+size_t fwrite(const void *restrict __ptr, size_t __size, size_t __nmemb, FILE *restrict __f);
+
 int fputs(const char *restrict __s, FILE *restrict __f);
-
-/**
- * @brief flush a stream
- *   For output streams: flush user-space buffer to file.
- *   For seekable input streams: discard unread input buffer.
- *   Stream stays open. If stream is NULL, flush all output streams.
- */
-int fflush(FILE *__f);
 
 #define _IOFBF 0
 #define _IOLBF 1

@@ -30,11 +30,11 @@ size_t __fwritex(const unsigned char *restrict buf, size_t len, FILE *restrict f
     return len + i;
 }
 
-size_t fwrite(const void *restrict buf, size_t size, size_t nmemb, FILE *restrict f)
+size_t fwrite(const void *restrict ptr, size_t size, size_t nmemb, FILE *restrict f)
 {
     if (!size || !nmemb)
         return 0;
     size_t l = size * nmemb;
-    size_t i = __fwritex(buf, l, f);
+    size_t i = __fwritex(ptr, l, f);
     return i == l ? nmemb : i / size;
 }

@@ -20,7 +20,7 @@ FILE *fopen(const char *path, const char *mode)
     if (fd < 0)
         return NULL;
 
-    f = __fdopen(fd);
+    f = __fdopen(fd, flgs);
     if (!f)
         close(fd);
     return f;

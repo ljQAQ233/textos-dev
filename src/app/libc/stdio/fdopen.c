@@ -3,15 +3,28 @@
 #include <errno.h>
 #include <malloc.h>
 
-FILE *__fdopen(int fd)
+FILE *__fdopen(int fd, int flgs)
 {
     FILE *f = malloc(sizeof(FILE));
     if (!f)
         return NULL;
+
+    int fl = 0;
+    switch (flgs & O_ACCMODE)
+    {
+    case O_RDONLY: fl |= F_NOWR; break;
+    case O_WRONLY: fl |= F_NORD; break;
+    default: break;
+    }
     
     f->fd = fd;
+    f->fl = fl;
+    f->lbf = '\n';
     f->bufsz = BUFSIZ;
     f->buf = malloc(BUFSIZ);
+    f->read = __stdio_read;
+    f->write = __stdio_write;
+    f->close = __stdio_close;
     if (!f->bufsz)
     {
         free(f);
@@ -35,7 +48,7 @@ FILE *fdopen(int fd, const char *mode)
     int orig = fcntl(fd, F_GETFD);
     if (orig != accm)
         goto inv;
-    return __fdopen(fd);
+    return __fdopen(fd, flgs);
     
 inv:
     errno = EINVAL;

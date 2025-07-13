@@ -30,13 +30,14 @@ struct _IO_FILE
     FILE *next;
 };
 
-FILE *__fdopen(int fd);
+FILE *__fdopen(int fd, int flgs);
 int __fmode(const char *mode);
 
 void __ofl_add(FILE *f);
 void __ofl_del(FILE *f);
 FILE *__ofl_get();
 
+int __toread(FILE *f);
 int __towrite(FILE *f);
 
 size_t __stdio_read(FILE *f, unsigned char *buf, size_t len);

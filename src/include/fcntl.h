@@ -16,10 +16,10 @@ __BEGIN_DECLS
 #define O_WRONLY  01   // 只写
 #define O_RDWR    02   // 读写
 
-#define O_CREAT  0400  // 创建
-#define O_EXCL   02000 // 互斥创建
+#define O_CREAT  0100  // 创建
+#define O_EXCL   0200  // 互斥创建
 #define O_TRUNC  01000 // 截断
-#define O_APPEND 0010  // 末尾追加
+#define O_APPEND 02000 // 末尾追加
 #define O_DIRECTORY 0200000
 
 int open(const char *__path, int __flgs, ...);
