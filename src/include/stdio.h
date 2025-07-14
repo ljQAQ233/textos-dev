@@ -52,6 +52,7 @@ size_t fread(void *restrict __ptr, size_t __size, size_t __nmemb, FILE *restrict
 size_t fwrite(const void *restrict __ptr, size_t __size, size_t __nmemb, FILE *restrict __f);
 
 int fputs(const char *restrict __s, FILE *restrict __f);
+char *fgets(char *restrict __s, int __n, FILE *restrict __f);
 
 #define _IOFBF 0
 #define _IOLBF 1
