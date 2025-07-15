@@ -58,6 +58,10 @@ int setgroups(int size, gid_t *list); // non-posix
 pid_t getpid();
 pid_t getppid();
 
+#if _XOPEN_CRYPT >= 0
+char *crypt(const char *__key, const char *__salt);
+#endif
+
 __END_DECLS
 
 #endif
