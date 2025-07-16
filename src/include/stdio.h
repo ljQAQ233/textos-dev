@@ -44,6 +44,9 @@ FILE *fopen(const char *__path, const char *__mode);
 FILE *fdopen(int __fd, const char *__mode);
 int fflush(FILE *__f);
 int fclose(FILE *__f);
+void clearerr(FILE *__f);
+int feof(FILE *__f);
+int ferror(FILE *__f);
 
 int fgetc(FILE *__f);
 int fputc(int __c, FILE *__f);

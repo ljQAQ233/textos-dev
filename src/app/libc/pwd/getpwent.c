@@ -52,7 +52,7 @@ int __getpwent(struct passwd *pwd, char **ln, size_t *sz, FILE *fp)
         int ll = getline(ln, sz, fp);
         if (ll < 0)
         {
-            if (fp->fl & F_ERR)
+            if (ferror(fp))
                 return PW_ERR;
             return PW_NOENT;
         }

@@ -1,5 +1,5 @@
 #include <pwd.h>
-#include "../stdio/stdio.h"
+#include <stdio.h>
 
 // 内部函数返回值
 #define PW_OK    1
