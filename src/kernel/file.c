@@ -211,7 +211,7 @@ __SYSCALL_DEFINE3(ssize_t, write, int, fd, void *, buf, size_t, cnt)
     if (ret < 0)
         return ret;
     
-    file->offset += ret;
+    file->offset = off + ret;
     return ret;
 }
 

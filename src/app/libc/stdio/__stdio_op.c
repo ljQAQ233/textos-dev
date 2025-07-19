@@ -2,6 +2,11 @@
 #include <unistd.h>
 #include <sys/uio.h>
 
+off_t __stdio_seek(FILE *f, off_t off, int whence)
+{
+    return lseek(f->fd, off, whence);
+}
+
 size_t __stdio_read(FILE *f, unsigned char *buf, size_t len)
 {
     struct iovec iov[2] = {

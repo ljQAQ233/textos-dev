@@ -12,6 +12,7 @@ __BEGIN_DECLS
 #define EOF ((int)-1)
 #define BUFSIZ 4096
 
+#define __NEED_off_t
 #define __NEED_ssize_t
 #define __NEED_struct__IO_FILE
 #define __NEED_FILE
@@ -47,6 +48,8 @@ int fclose(FILE *__f);
 void clearerr(FILE *__f);
 int feof(FILE *__f);
 int ferror(FILE *__f);
+off_t ftello(FILE *f);
+long ftell(FILE *f);
 
 int fgetc(FILE *__f);
 int fputc(int __c, FILE *__f);

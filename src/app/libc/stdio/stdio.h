@@ -9,6 +9,7 @@ struct _IO_FILE;
 #define F_NOWR 4
 #define F_EOF  8
 #define F_ERR  16
+#define F_APP  32
 
 struct _IO_FILE
 {
@@ -18,6 +19,7 @@ struct _IO_FILE
     size_t pos; // TODO
     size_t bufsz;
     void *buf;
+    off_t (*seek)(FILE *f, off_t off, int whence);
     size_t (*read)(FILE *f, unsigned char *buf, size_t len);
     size_t (*write)(FILE *f, const unsigned char *buf, size_t len);
     int (*close)(FILE *f);
@@ -40,6 +42,7 @@ FILE *__ofl_get();
 int __toread(FILE *f);
 int __towrite(FILE *f);
 
+off_t __stdio_seek(FILE *f, off_t off, int whence);
 size_t __stdio_read(FILE *f, unsigned char *buf, size_t len);
 size_t __stdio_write(FILE *f, const unsigned char *buf, size_t len);
 int __stdio_close(FILE *f);

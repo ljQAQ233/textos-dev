@@ -23,6 +23,11 @@ __BEGIN_DECLS
 
 int pipe(int __fds[2]);
 int close(int __fd);
+
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 off_t lseek(int __fd, off_t __off, int __whence);
 
 int dup(int __fd);

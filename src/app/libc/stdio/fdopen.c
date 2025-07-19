@@ -16,6 +16,8 @@ FILE *__fdopen(int fd, int flgs)
     case O_WRONLY: fl |= F_NORD; break;
     default: break;
     }
+    if (flgs & O_APPEND)
+        fl |= F_APP;
     
     f->fd = fd;
     f->fl = fl;
