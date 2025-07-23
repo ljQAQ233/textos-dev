@@ -14,6 +14,7 @@
 #include <textos/ioctl.h>
 #include <textos/klib/string.h>
 #include <textos/dev/tty/tty.h>
+#include <textos/dev/tty/kstoa.h>
 #include <textos/dev/tty/tty_buffer.h>
 
 typedef struct
@@ -27,8 +28,6 @@ typedef struct
     struct termios tio;
     devst_t *output;
 } tty_t;
-
-#include <textos/dev/keys.h>
 
 tty_t tty1;
 
@@ -160,6 +159,10 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
     int cnt = 0;
     for ( ; len ; len--, cnt++, p++)
     {
+        if (*p == '\r' && FC_IFLAG(&tty1, IGNCR))
+            continue;
+        if (*p == '\r' && FC_IFLAG(&tty1, ICRNL))
+            *p = '\n';
         if (FC_LFLAG(tty, ICANON))
         {
             if (cc[VEOF] == *p)
@@ -174,9 +177,7 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
             }
             if ('\n' == *p || cc[VEOL] == *p || cc[VEOL2] == *p)
             {
-                if (FC_LFLAG(tty, ECHO))
-                    opost(tty, '\n');
-                if (FC_LFLAG(tty, ECHONL))
+                if (FC_LFLAG(tty, ECHO) || FC_LFLAG(tty, ECHONL))
                     opost(tty, '\n');
                 tty_buf_putc(&tty1.ibuf, '\n');
                 tdeliver(tty);
@@ -230,14 +231,11 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
     return cnt;
 }
 
-
-void __tty_rx(char c)
+void __tty_rx(keysym_t sym)
 {
-    if (c == '\r' && FC_IFLAG(&tty1, IGNCR))
-        return ;
-    if (c == '\r' && FC_IFLAG(&tty1, ICRNL))
-        c = '\n';
-    tty_feed(&tty1, &c, 1);
+    char buf[16];
+    int len = kstoa(sym, buf);
+    tty_feed(&tty1, buf, len);
 }
 
 int tty_write(devst_t *dev, void *buf, size_t len)

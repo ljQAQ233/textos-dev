@@ -78,4 +78,6 @@ typedef uint32_t blkno_t;
 
 typedef struct iovec iovec_t;
 
+typedef signed int keysym_t;
+
 #endif

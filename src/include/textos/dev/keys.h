@@ -1,0 +1,180 @@
+#pragma once
+
+/*
+ * keysym :
+ *   - bit 0 ~ 15 key code
+ *   - bit 16 ~ 31 metakey states (shift/alt/capslock/...)
+ */
+#define KEYSYM(type, c) (((char)type << 8) | (char)c)
+#define KEYTYP(sym)     (((sym) >> 8) & 0xff)
+#define KEYCHR(sym)     ((sym) & 0xff)
+
+// states
+#define KEY_S_LSHIFT  (1 << 16)
+#define KEY_S_RSHIFT  (1 << 17)
+#define KEY_S_LALT    (1 << 18)
+#define KEY_S_RALT    (1 << 19)
+#define KEY_S_LCTRL   (1 << 20)
+#define KEY_S_RCTRL   (1 << 21)
+#define KEY_S_CAPSLK  (1 << 22)
+#define KEY_S_LSUPER  (1 << 23)
+#define KEY_S_RSUPER  (1 << 24)
+#define KEY_S_APP     (1 << 25)
+#define KEY_S_NUMLK   (1 << 26)
+#define KEY_S_COMPOSE (1 << 27) // not used
+#define KEY_S_WAIT    (1 << 30)
+#define KEY_S_ERROR   (1 << 31)
+#define KEY_S_MASK    (0xffffu << 16)
+#define KEY_S_RETMSK  (KEY_S_WAIT | KEY_S_ERROR)
+
+#define KEY_NONE KEYSYM(0, 0)
+
+// function
+#define KEY_F1  KEYSYM('f', 1)
+#define KEY_F2  KEYSYM('f', 2)
+#define KEY_F3  KEYSYM('f', 3)
+#define KEY_F4  KEYSYM('f', 4)
+#define KEY_F5  KEYSYM('f', 5)
+#define KEY_F6  KEYSYM('f', 6)
+#define KEY_F7  KEYSYM('f', 7)
+#define KEY_F8  KEYSYM('f', 8)
+#define KEY_F9  KEYSYM('f', 9)
+#define KEY_F10 KEYSYM('f', 10)
+#define KEY_F11 KEYSYM('f', 11)
+#define KEY_F12 KEYSYM('f', 12)
+#define KEY_F13 KEYSYM('f', 13)
+#define KEY_F14 KEYSYM('f', 14)
+#define KEY_F15 KEYSYM('f', 15)
+#define KEY_F16 KEYSYM('f', 16)
+#define KEY_F17 KEYSYM('f', 17)
+#define KEY_F18 KEYSYM('f', 18)
+#define KEY_F19 KEYSYM('f', 19)
+#define KEY_F20 KEYSYM('f', 20)
+#define KEY_F21 KEYSYM('f', 21)
+#define KEY_F22 KEYSYM('f', 22)
+#define KEY_F23 KEYSYM('f', 23)
+#define KEY_F24 KEYSYM('f', 24)
+#define KEY_F25 KEYSYM('f', 25)
+#define KEY_F26 KEYSYM('f', 26)
+#define KEY_F27 KEYSYM('f', 27)
+#define KEY_F28 KEYSYM('f', 28)
+#define KEY_F29 KEYSYM('f', 29)
+#define KEY_F30 KEYSYM('f', 30)
+#define KEY_F31 KEYSYM('f', 31)
+#define KEY_F32 KEYSYM('f', 32)
+#define KEY_F33 KEYSYM('f', 33)
+#define KEY_F34 KEYSYM('f', 34)
+#define KEY_F35 KEYSYM('f', 35)
+
+#define KEY_PAGEUP   KEYSYM('f', 'u')  // page up
+#define KEY_PAGEDOWN KEYSYM('f', 'd')  // page down
+#define KEY_HOME     KEYSYM('f', 'h')  // home
+#define KEY_END      KEYSYM('f', 'e')  // end
+#define KEY_INSERT   KEYSYM('f', 'i')  // insert
+#define KEY_DELETE   KEYSYM('f', '.')  // delete
+#define KEY_POWER    KEYSYM('f', 'p')
+#define KEY_PRTSCR   KEYSYM('f', 254)
+#define KEY_PAUSE    KEYSYM('f', 255)
+
+// multimedia
+#define KEY_NEXT_TRACK  KEYSYM('e', 1)
+#define KEY_PREV_TRACK  KEYSYM('e', 2)
+#define KEY_MUTE        KEYSYM('e', 3)
+#define KEY_CALC        KEYSYM('e', 4)
+#define KEY_PLAY        KEYSYM('e', 5)
+#define KEY_STOP        KEYSYM('e', 6)
+#define KEY_VOL_DOWN    KEYSYM('e', 7)
+#define KEY_VOL_UP      KEYSYM('e', 8)
+#define KEY_WWW_HOME    KEYSYM('e', 9)
+#define KEY_WWW_SEARCH  KEYSYM('e', 10)
+#define KEY_WWW_FAVOR   KEYSYM('e', 11)
+#define KEY_WWW_REFRESH KEYSYM('e', 12)
+#define KEY_WWW_STOP    KEYSYM('e', 13)
+#define KEY_WWW_FORWARD KEYSYM('e', 14)
+#define KEY_WWW_BACK    KEYSYM('e', 15)
+#define KEY_MY_COMPUTER KEYSYM('e', 16)
+#define KEY_EMAIL       KEYSYM('e', 17)
+#define KEY_SELECT      KEYSYM('e', 18)
+
+// arrow
+#define KEY_LEFT  KEYSYM('a', 'l') // arrow left
+#define KEY_RIGHT KEYSYM('a', 'r') // arrow right
+#define KEY_UP    KEYSYM('a', 'u') // arrow up
+#define KEY_DOWN  KEYSYM('a', 'd') // arrow down
+
+// switched by shift
+#define KEY_A KEYSYM('s', 'a')
+#define KEY_B KEYSYM('s', 'b')
+#define KEY_C KEYSYM('s', 'c')
+#define KEY_D KEYSYM('s', 'd')
+#define KEY_E KEYSYM('s', 'e')
+#define KEY_F KEYSYM('s', 'f')
+#define KEY_G KEYSYM('s', 'g')
+#define KEY_H KEYSYM('s', 'h')
+#define KEY_I KEYSYM('s', 'i')
+#define KEY_J KEYSYM('s', 'j')
+#define KEY_K KEYSYM('s', 'k')
+#define KEY_L KEYSYM('s', 'l')
+#define KEY_M KEYSYM('s', 'm')
+#define KEY_N KEYSYM('s', 'n')
+#define KEY_O KEYSYM('s', 'o')
+#define KEY_P KEYSYM('s', 'p')
+#define KEY_Q KEYSYM('s', 'q')
+#define KEY_R KEYSYM('s', 'r')
+#define KEY_S KEYSYM('s', 's')
+#define KEY_T KEYSYM('s', 't')
+#define KEY_U KEYSYM('s', 'u')
+#define KEY_V KEYSYM('s', 'v')
+#define KEY_W KEYSYM('s', 'w')
+#define KEY_X KEYSYM('s', 'x')
+#define KEY_Y KEYSYM('s', 'y')
+#define KEY_Z KEYSYM('s', 'z')
+
+#define KEY_0 KEYSYM('s', '0')
+#define KEY_1 KEYSYM('s', '1')
+#define KEY_2 KEYSYM('s', '2')
+#define KEY_3 KEYSYM('s', '3')
+#define KEY_4 KEYSYM('s', '4')
+#define KEY_5 KEYSYM('s', '5')
+#define KEY_6 KEYSYM('s', '6')
+#define KEY_7 KEYSYM('s', '7')
+#define KEY_8 KEYSYM('s', '8')
+#define KEY_9 KEYSYM('s', '9')
+
+#define KEY_GRAVE      KEYSYM('s', '`')
+#define KEY_MINUS      KEYSYM('s', '-')
+#define KEY_EQUAL      KEYSYM('s', '=')
+#define KEY_LBRACKET   KEYSYM('s', '[')
+#define KEY_RBRACKET   KEYSYM('s', ']')
+#define KEY_BACKSLASH  KEYSYM('s', '\\')
+#define KEY_SEMICOLON  KEYSYM('s', ';')
+#define KEY_APOSTROPHE KEYSYM('s', '\'')
+#define KEY_COMMA      KEYSYM('s', ',')
+#define KEY_DOT        KEYSYM('s', '.')
+#define KEY_SLASH      KEYSYM('s', '/')
+
+// directly
+#define KEY_ESC       KEYSYM('d', '\033')
+#define KEY_ENTER     KEYSYM('d', '\n')
+#define KEY_BACKSPACE KEYSYM('d', '\b')
+#define KEY_SPACE     KEYSYM('d', ' ')
+#define KEY_TAB       KEYSYM('d', '\t')
+
+// pad
+#define KEY_KP0 KEYSYM('p', '0')
+#define KEY_KP1 KEYSYM('p', '1')
+#define KEY_KP2 KEYSYM('p', '2')
+#define KEY_KP3 KEYSYM('p', '3')
+#define KEY_KP4 KEYSYM('p', '4')
+#define KEY_KP5 KEYSYM('p', '5')
+#define KEY_KP6 KEYSYM('p', '6')
+#define KEY_KP7 KEYSYM('p', '7')
+#define KEY_KP8 KEYSYM('p', '8')
+#define KEY_KP9 KEYSYM('p', '9')
+#define KEY_KPM KEYSYM('p', '-')
+#define KEY_KPP KEYSYM('p', '+')
+#define KEY_KPD KEYSYM('p', '.')
+#define KEY_KPA KEYSYM('p', '*')
+#define KEY_KPS KEYSYM('p', '/')
+#define KEY_KP_ENTER     KEYSYM('p', '\n')
+#define KEY_KP_BACKSLASH KEYSYM('p', '\\')
