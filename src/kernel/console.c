@@ -8,7 +8,6 @@ static console_t con;
 
 void clrcon()
 {
-    con.cur_x = 0;
     con.cur_y = 0;
     screen_clear();
 }
@@ -27,7 +26,6 @@ static void full()
     if (con.scroll)
     {
         scrln(true);
-        con.cur_x = 0;
         con.cur_y = con.cur_y - 1;
     }
     else
@@ -131,8 +129,6 @@ static void xputc(char c, u32 x, u32 y)
 // 将光标移动到当前行的开头
 static void cr()
 {
-    con.oldxy[0] = con.cur_x;
-    con.oldxy[1] = con.cur_y;
     con.cur_x = 0;
 }
 
@@ -150,26 +146,19 @@ static void ht()
 // 回车
 static void lf()
 {
-    if (con.oldch == '\r')
-    {
-        con.cur_x = con.oldxy[0];
-        con.cur_y = con.oldxy[1];
-    }
-    else
-    {
-        con.cur_x = 0;
-    }
     if (++con.cur_y >= con.col)
         full();
 }
 
-// 在终端中实验是将光标移动到下一行, 而不改变横坐标
+// 翻页
+// 这里在终端中实验是将光标移动到下一行, 而不改变横坐标
 static void ff()
 {
     if (++con.cur_y >= con.col)
         full();
 }
 
+// 退格, NOTE: 记得处理是不是自动换行的情况!!!
 static void bs()
 {
     con.cur_x = MAX(con.cur_x - 1, 0);
@@ -402,20 +391,28 @@ static void moved(int dx, int dy)
     move(con.cur_x + dx, con.cur_y + dy);
 }
 
+static u32 currender(u32 x, u32 y, u32 color, void *private)
+{
+    return color ^= 0x00ffffff;
+}
+
+static void curtoggle()
+{
+    u16 x = con.cur_x * con.font->w;
+    u16 y = con.cur_y * con.font->h;
+    block_transform(x, y, x + con.font->w, y + con.font->h, currender, NULL);
+}
+
+/*
+ * many implementations use REVERSE to make a cursor.
+ * here I use color reverse to achieve it!!!
+ */
 static void curshow(bool show)
 {
-    if (show)
+    if (con.cursor != show)
     {
-        if (con.cursor)
-        {
-            u16 x = con.cur_x * con.font->w;
-            u16 y = con.cur_y * con.font->h;
-            block_put(x, y, x + con.font->w, y + con.font->h, con.fg);
-        }
-    }
-    else
-    {
-        clrch(con.cur_x, con.cur_y);
+        con.cursor = show;
+        curtoggle();
     }
 }
 
@@ -599,7 +596,7 @@ static void cputc(char c)
 {
     switch (con.state)
     {
-    case STATE_NOR: COMMIT(nor(c) ; con.oldch = c);
+    case STATE_NOR: COMMIT(nor(c));
     case STATE_ESC: COMMIT(esc(c));
     case STATE_CSI:
         if (csi(c)) COMMIT();
@@ -618,11 +615,10 @@ static void cputc(char c)
 
 size_t console_write(devst_t *dev, char *s, size_t len)
 {
-    char *p;
-
+    char *p = s;
     curshow(false);
     UNINTR_AREA({
-        for (p = s ; p && *p && len ; p++, len--)
+        for ( ; *p && len ; p++, len--)
             cputc(*p);
     });
     curshow(true);
@@ -662,16 +658,13 @@ void console_init()
     con.bg = BG_DEF;
     con.fg = FG_DEF;
     con.scroll = true;  // 屏满滚屏
-    con.cursor = true;  // 显示光标
+    con.cursor = false; // 开始光标
     con.hidden = false; // 显示字符
     con.underl = false; // 关下划线
     con.strike = false; // 关删除线
-
-    con.oldch = 0;
 
     con.argc = ARG_RESET;
     con.state = STATE_NOR;
     
     __dev_register(&console);
 }
-

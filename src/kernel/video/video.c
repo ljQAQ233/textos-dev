@@ -7,21 +7,28 @@ static addr_t fb_pa;
 
 #include <textos/assert.h>
 
-void pixel_put (
-        u32 x,u32 y,
-        u32 color
-        )
+void pixel_put(u32 x, u32 y, u32 color)
 {
-    if (x >= hor || y >= ver) {
+    // BUG: this shouldn't happend, panic here!!!
+    if (x >= hor || y >= ver)
         return;
-    }
 
     ASSERTK(x + hor * y < fb_siz);
     u32 *pixel = fb + x + hor * y;
     *pixel = color;
 }
 
-void block_put (
+u32 pixel_get(u32 x, u32 y)
+{
+    if (x >= hor || y >= ver)
+        return 0;
+
+    ASSERTK(x + hor * y < fb_siz);
+    u32 *pixel = fb + x + hor * y;
+    return *pixel;
+}
+
+void block_put(
         u32 x,u32 y,
         u32 xe,u32 ye,
         u32 color
@@ -41,10 +48,34 @@ void block_put (
 
     for (u32 i = x ; i < xe && i < hor ; i++)
         for (u32 j = y ; j < ye && j < ver ; j++)
-            pixel_put (i, j, color);
+            pixel_put(i, j, color);
 }
 
-void screen_clear ()
+void block_transform(
+        u32 x,u32 y,
+        u32 xe,u32 ye,
+        gfx_transformer_t handler,
+        void *private
+        )
+{
+    if (x > xe) {
+        u32 tmp = x;
+        x = xe;
+        xe = tmp;
+    }
+
+    if (y > ye) {
+        u32 tmp = y;
+        y = ye;
+        ye = tmp;
+    }
+
+    for (u32 i = x ; i < xe && i < hor ; i++)
+        for (u32 j = y ; j < ye && j < ver ; j++)
+            pixel_put(i, j, handler(i - x, j - y, pixel_get(i, j), private));
+}
+
+void screen_clear()
 {
     u32 i = fb_siz / 4;
     u32 *p = fb;
@@ -86,7 +117,7 @@ void screen_info (u32 *i_hor, u32 *i_ver)
     *i_ver = ver;
 }
 
-void screen_info5 (void **i_buf, addr_t *i_pa, size_t *i_sz, u32 *i_hor, u32 *i_ver)
+void screen_info5(void **i_buf, addr_t *i_pa, size_t *i_sz, u32 *i_hor, u32 *i_ver)
 {
     if (i_buf) *i_buf = fb;
     if (i_pa) *i_pa = fb_pa;
@@ -97,7 +128,7 @@ void screen_info5 (void **i_buf, addr_t *i_pa, size_t *i_sz, u32 *i_hor, u32 *i_
 
 #include <boot.h>
 
-void __video_pre (vconfig_t *v)
+void __video_pre(vconfig_t *v)
 {
     hor = v->hor;
     ver = v->ver;
@@ -108,10 +139,10 @@ void __video_pre (vconfig_t *v)
 
 #include <textos/mm.h>
 
-void __video_tovmm ()
+void __video_tovmm()
 {
     size_t pages = DIV_ROUND_UP(fb_siz, PAGE_SIZ);
-    vmap_map ((u64)fb, __kern_fb_base, pages, PE_RW | PE_P | PTE_G, MAP_4K);
+    vmap_map((u64)fb, __kern_fb_base, pages, PE_RW | PE_P | PTE_G, MAP_4K);
 
     fb_pa = (addr_t)fb;
     fb = (void *)__kern_fb_base;
