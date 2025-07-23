@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
@@ -13,6 +14,10 @@ void _start()
         "PWD=/",
         NULL,
     };
+
+    int fd = open("/dev/tty1", O_RDWR);
+    dup2(fd, 1);
+    dup2(fd, 2);
 
     // test code
     mkdir("/mnt", 0777);

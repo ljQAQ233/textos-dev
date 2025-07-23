@@ -7,6 +7,11 @@ SRCS += dev/dbgcon.c
 SRCS += dev/fbdev.c
 SRCS += dev/keyboard.c
 
+# tty or pts
+SRCS += dev/tty/tty.c
+SRCS += dev/tty/tty_buffer.c
+
+
 SRCS += dev/clock.c
 
 # disk drivers

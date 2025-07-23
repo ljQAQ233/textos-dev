@@ -25,8 +25,6 @@ extern void fpu_init();
 extern void hpet_init();
 extern void ktm_init();
 extern void clock_init();
-
-extern void file_init();
 extern void task_init();
 extern void syscall_init();
 
@@ -55,7 +53,6 @@ void kernel_main ()
     ide_init();
     fpu_init();
     hpet_init();
-
     ktm_init();
     clock_init();
 
@@ -78,16 +75,19 @@ void kernel_main ()
 }
 
 #include <gdt.h>
-#include <textos/user/exec.h>
-#include <textos/panic.h>
 #include <textos/dev.h>
+#include <textos/panic.h>
+#include <textos/user/exec.h>
 
+extern int close(int);
 extern void fs_init();
+extern void tty_init();
 extern void dev_initnod();
 
 static void __init_proc()
 {
     fs_init();
+    tty_init();
     socket_init();
     e1000_init();
     dev_initnod();
@@ -96,9 +96,12 @@ static void __init_proc()
     printk("A tab\ttab~\n");
     printk("QwQ\tCiallo~\n");
     printk("Kawaii\twatashi~\n");
-
-    char buf[5] = "test";
+    printk("Kawaii\r\nwatashi~\n");
     
+    close(0);
+    close(1);
+    close(2);
+
     exeinfo_t exe;
     elf_load("/bin/init", &exe);
 

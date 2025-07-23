@@ -22,6 +22,7 @@ enum sub_type
     DEV_SERIAL, /* Serial port    */
     DEV_DBGCON, /* QEMU debugcon */
     DEV_KNCON,  /* Kernel console */
+    DEV_TTY,
     DEV_IDE,    /* Integrated Drive Electronics */
     DEV_PART,
     DEV_NETIF,

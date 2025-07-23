@@ -67,3 +67,10 @@
 
 // block
 #define BLKSSZGET          0x1268
+
+// Terminal
+#define TCGETS             0x5401
+#define TCSETS             0x5402
+
+#define TIOCSPGRP          0x5410
+#define TIOCGPGRP          0x540f

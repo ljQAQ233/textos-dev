@@ -157,6 +157,8 @@ static char keycode[][2] = {
 /* The temporary solution */
 static int pid = -1;
 
+extern void __tty_rx(char c);
+
 __INTR_HANDLER(keyboard_handler)
 {
     lapic_sendeoi();
@@ -202,14 +204,7 @@ __INTR_HANDLER(keyboard_handler)
     if (caps && 'a' <= keycode[code][0] && keycode[code][0] <= 'z')
         at = !at;
     char chr = keycode[code][at];
-
-    ring_push (&ikey, &chr);
-
-    DEBUGK(K_KBD, "common key - %d%d%d - %c(%d)!\n", shift, ctrl, caps, chr, code);
-
-    if (pid < 0)
-        return;
-    task_unblock (pid);
+    __tty_rx(chr);
 }
 
 static char keyboard_getc()

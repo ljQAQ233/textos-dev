@@ -7,7 +7,7 @@ __BEGIN_DECLS
 
 #include <bits/ioctl.h>
 
-int ioctl(int fd, int req, void *argp);
+int ioctl(int __fd, int __req, ...);
 
 __END_DECLS
 

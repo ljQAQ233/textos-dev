@@ -50,6 +50,7 @@
 #define __NEED_sigset_t
 
 #define __NEED_struct_iovec
+#define __NEED_struct_winsize
 
 #include <bits/alltypes.h>
 
