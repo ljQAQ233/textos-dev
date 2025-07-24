@@ -7,7 +7,6 @@
 #include <textos/mm/pvpage.h>
 #include <textos/klib/string.h>
 
-#define TASK_MAX  16
 #define TASK_PAGE (1)
 #define TASK_SIZ  (PAGE_SIZ * TASK_PAGE)
 
@@ -28,26 +27,26 @@ static int _getfree ()
 }
 
 /* Register tasks into table */
-static task_t *_task_create (int args)
+static task_t *_task_create(int args)
 {
     int pid;
     task_t *tsk;
-
     if ((pid = _getfree()) < 0)
         return NULL;
 
     u16 map_flgs = PE_P | PE_RW;
     if (args & TC_USER)
         map_flgs |= PE_US;
-    tsk = vmm_allocpages (TASK_PAGE, map_flgs);
-    tsk->pid = pid;
+    tsk = vmm_allocpages(TASK_PAGE, map_flgs);
     tsk->ruid = tsk->euid = tsk->suid = 0;
     tsk->rgid = tsk->egid = tsk->sgid = 0;
     tsk->supgids = NULL;
-
-    table[pid] = tsk;
-
-    return tsk;
+    tsk->pid = pid;
+    tsk->sid = 0;
+    tsk->ppid = 0;
+    tsk->pgid = 0;
+    tsk->stat = TASK_INI;
+    return table[pid] = tsk;
 }
 
 #include <gdt.h>
@@ -187,7 +186,7 @@ static int fork_sig(task_t *prt, task_t *chd)
     return 0;
 }
 
-static int fork_uid(task_t *prt, task_t *chd)
+static int fork_id(task_t *prt, task_t *chd)
 {
     chd->ruid = prt->ruid;
     chd->euid = prt->euid;
@@ -207,6 +206,9 @@ static int fork_uid(task_t *prt, task_t *chd)
         for (int i = 0 ; i < ss ; i++)
             chd->supgids[i] = prt->supgids[i];
     }
+
+    chd->sid = prt->sid;
+    chd->pgid = prt->pgid;
     return 0;
 }
 
@@ -235,8 +237,8 @@ int task_fork()
     // signals
     fork_sig(prt, chd);
 
-    // uids
-    fork_uid(prt, chd);
+    // ids
+    fork_id(prt, chd);
 
     chd->tick = prt->tick;
     chd->curr = prt->curr;
@@ -245,6 +247,7 @@ int task_fork()
     chd->stat = TASK_PRE;
 
     chd->init = prt->init;
+    chd->did_exec = false;
 
     return chd->pid; // 父进程返回子进程号
 }
@@ -608,6 +611,92 @@ __SYSCALL_DEFINE2(int, setgroups, int, size, gid_t *, list)
     return 0;
 }
 
+__SYSCALL_DEFINE1(pid_t, getsid, pid_t, pid)
+{
+    task_t *tsk = task_current();
+    if (pid == 0)
+        return tsk->sid;
+    task_t *ptsk = task_get(pid);
+    if (!ptsk)
+        return -ESRCH;
+    if (ptsk->sid != tsk->sid)
+        return -EPERM;
+    return ptsk->sid;
+}
+
+__SYSCALL_DEFINE0(pid_t, setsid)
+{
+    task_t *tsk = task_current();
+    if (tsk->pgid == tsk->pid)
+        return -EPERM;
+    return tsk->sid = tsk->pgid = tsk->pid;
+}
+
+__SYSCALL_DEFINE1(pid_t, getpgid, pid_t, pid)
+{
+    task_t *tsk = task_current();
+    task_t *ptsk;
+    if (pid < 0)
+        return -EINVAL;
+
+    if (pid == 0)
+        pid = (ptsk = tsk)->pid;
+    else
+        ptsk = task_get(pid);
+    
+    if (!ptsk)
+        return -ESRCH;
+    if (ptsk->sid != tsk->sid)
+        return -EPERM;
+    return ptsk->pgid;
+}
+
+__SYSCALL_DEFINE2(int, setpgid, pid_t, pid, pid_t, pgid)
+{
+    /*
+     * To provide tighter security, setpgid() only allows the calling process
+     * to join a process group already in use inside its session or create a
+     * new process group whose process group ID was equal to its process ID.
+     */
+    task_t *tsk = task_current();
+    task_t *ptsk;
+    task_t *ltsk;
+
+    if (pid < 0)
+        return -EINVAL;
+
+    if (pid == 0)
+        pid = (ptsk = tsk)->pid;
+    else
+        ptsk = task_get(pid);
+
+    /*
+     * Is `ptsk` the calling process itself or one of its child process?
+     * Is `ptsk` a leader of a session? -> Forbidden by POSIX.
+     */
+    if (!ptsk)
+        return -ESRCH;
+    if (ptsk->pid != tsk->pid && ptsk->ppid != tsk->pid)
+        return -ESRCH;
+    if (ptsk->pid == ptsk->sid)
+        return -EPERM;
+
+    if (pgid == 0)
+        pgid = (ltsk = tsk)->pid;
+    else
+        ltsk = task_get(pgid);
+
+    if (!ltsk)
+        return -ESRCH;
+    if (ptsk->sid != ltsk->sid)
+        return -EPERM;
+    if (ptsk->did_exec)
+        return -EACCES;
+
+    ptsk->pgid = pgid;
+    return 0;
+}
+
 __SYSCALL_DEFINE0(pid_t, getpid)
 {
     return task_current()->pid;
@@ -666,4 +755,3 @@ void task_init ()
     // task_create (proc_a);
     // task_create (proc_b);
 }
-

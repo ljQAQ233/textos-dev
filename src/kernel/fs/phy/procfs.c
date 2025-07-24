@@ -554,8 +554,6 @@ static proc_opts_t catmeow_op = { .read = meow_read    };
  *  - /proc/<pid>  [dynamic]
  */
 
-extern task_t *table[16];
-
 static int root_open(struct proc_entry *root, char *name, struct proc_entry **res)
 {
     int pid = 0;

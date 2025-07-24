@@ -55,6 +55,10 @@ extern void sys_setreuid();
 extern void sys_setregid();
 extern void sys_getgroups();
 extern void sys_setgroups();
+extern void sys_getsid();
+extern void sys_setsid();
+extern void sys_getpgid();
+extern void sys_setpgid();
 extern void sys_getpid();
 extern void sys_getppid();
 
@@ -122,6 +126,10 @@ void *sys_handlers[] = {
     [SYS_setregid] = sys_setregid,
     [SYS_getgroups] = sys_getgroups,
     [SYS_setgroups] = sys_setgroups,
+    [SYS_getsid] = sys_getsid,
+    [SYS_setsid] = sys_setsid,
+    [SYS_getpgid] = sys_getpgid,
+    [SYS_setpgid] = sys_setpgid,
     [SYS_getpid] = sys_getpid,
     [SYS_getppid] = sys_getppid,
     

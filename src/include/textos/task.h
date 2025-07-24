@@ -38,12 +38,12 @@ typedef struct task
     gid_t sgid; // saved set-gid
     gid_t *supgids;
     int pid;
+    int sid;
     int ppid;
+    int pgid;
     int stat;
     u64 tick;  // default ticks it has
     u64 curr;  // current ticks it has
-    
-    u64 sleep; // sleeping process has been spent currently
 
     node_t *pwd;
     file_t *files[MAX_FILE];
@@ -54,21 +54,22 @@ typedef struct task
         void *main;
         void *rbp;
     } init;
+    bool did_exec;
 
     addr_t pgt;
     addr_t mmap;
+    void *fpu;
 
     int retval;
     int waitpid;
 
+    u64 sleep;
     list_t sleeping;
     list_t waiting;
     int sigcurr;
     sigset_t sigpend;
     sigset_t sigmask;
     sigaction_t sigacts[_NSIG];
-
-    void *fpu;
 } task_t;
 
 #define TASK_DIE  0 // Dead
@@ -77,6 +78,7 @@ typedef struct task
 #define TASK_SLP  3 // Sleep
 #define TASK_BLK  4 // Blocked
 #define TASK_STP  5 // Stoped
+#define TASK_INI  6 // Initializing
 
 void task_schedule ();
 
@@ -104,5 +106,9 @@ void task_unblock (int pid);
 void task_exit(int pid, int val);
 
 int task_wait(int pid, int *stat, int opt, void *rusage);
+
+#define TASK_MAX  16
+
+extern task_t *table[TASK_MAX];
 
 #endif

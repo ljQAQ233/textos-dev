@@ -413,6 +413,26 @@ int setgroups(int size, gid_t *list)
     return syscall(SYS_setgroups, size, list);
 }
 
+pid_t getsid(pid_t pid)
+{
+    return syscall(SYS_getsid, pid);
+}
+
+pid_t setsid()
+{
+    return syscall(SYS_setsid);
+}
+
+pid_t getpgid(pid_t pid)
+{
+    return syscall(SYS_getpgid, pid);
+}
+
+int setpgid(pid_t pid, pid_t pgid)
+{
+    return syscall(SYS_setpgid, pid, pgid);
+}
+
 pid_t getpid()
 {
     return syscall(SYS_getpid);

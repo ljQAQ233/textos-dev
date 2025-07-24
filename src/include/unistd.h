@@ -57,8 +57,13 @@ int setuid(uid_t __uid);
 int setgid(gid_t __gid);
 int setreuid(uid_t __ruid, uid_t __euid);
 int setregid(gid_t __rgid, gid_t __egid);
-int getgroups(int size, gid_t *list);
-int setgroups(int size, gid_t *list); // non-posix
+int getgroups(int __size, gid_t *__list);
+int setgroups(int __size, gid_t *__list); // non-posix
+
+pid_t getsid(pid_t __pid);
+pid_t setsid();
+pid_t getpgid(pid_t __pid);
+int setpgid(pid_t __pid, pid_t __pgid);
 
 pid_t getpid();
 pid_t getppid();

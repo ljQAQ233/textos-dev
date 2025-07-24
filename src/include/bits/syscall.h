@@ -51,11 +51,15 @@
     _(setgid, 106),      \
     _(geteuid, 107),     \
     _(getegid, 108),     \
+    _(setpgid, 109),     \
     _(getppid, 110),     \
+    _(setsid, 112),      \
     _(setreuid, 113),    \
     _(setregid, 114),    \
     _(getgroups, 115),   \
     _(setgroups, 116),   \
+    _(getpgid, 121),     \
+    _(getsid, 124),      \
     _(mknod, 133),       \
     _(mount, 165),       \
     _(umount2, 166),     \

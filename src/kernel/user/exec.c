@@ -116,8 +116,8 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     curr->init.main = info.entry;
     brkarg(argvk);
     brkarg(envpk);
-
-    __asm__ volatile (
+    curr->did_exec = true;
+    __asm__ volatile(
             "push %0 \n" // ss
             "push %1 \n" // rsp
             "pushq $0x200\n" // rflags
