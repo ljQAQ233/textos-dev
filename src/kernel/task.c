@@ -272,12 +272,33 @@ void task_exit(int pid, int val)
 int task_wait(int pid, int *stat, int opt, void *rusage)
 {
     task_t *tsk = task_current();
-    if (pid >= -1) {
-        tsk->waitpid = pid;
-        task_block();
-    } else {
+    if (pid > 0)
+    {
+        if (!table[pid] || table[pid]->ppid != tsk->pid)
+            return -ECHILD;
+    }
+    else if (pid == -1)
+    {
+        int has = 0;
+        for (int i = 0 ; i < TASK_MAX ; i++)
+        {
+            if (table[i] && table[i]->stat != TASK_DIE &&
+                table[i]->ppid == tsk->pid)
+            {
+                has = 1;
+                break;
+            }
+        }
+        if (!has)
+            return -ECHILD;
+    }
+    else
+    {
         PANIC("unsupported pid - %d\n", pid);
     }
+        
+    tsk->waitpid = pid;
+    task_block();
 
     int termd = tsk->waitpid;
     tsk->waitpid = 0;
