@@ -56,10 +56,6 @@ static void sig_term(int sig)
 {
 }
 
-static void sig_cont(int sig)
-{
-}
-
 static void sig_ignore(int sig)
 {
 }
@@ -81,7 +77,7 @@ static sighandler_t sig_def[] = {
     [SIGALRM]   = sig_term,
     [SIGTERM]   = sig_term,
     [SIGCHLD]   = sig_ignore,
-    [SIGCONT]   = sig_cont,
+    [SIGCONT]   = sig_ignore,
     [SIGSTOP]   = NULL,
     [SIGTSTP]   = sig_term,
     [SIGTTIN]   = sig_term,
@@ -110,6 +106,9 @@ void __handle_signal(intr_frame_t *iframe)
         if (!sigismember(sig, i))
             continue;
         sigdelset(sig, i);
+
+        if (i == SIGKILL)
+            task_exit(tsk->pid, ((SIGKILL | 128) << 8) | SIGKILL);
 
         sigaction_t *act = &tsk->sigacts[i-1];
         sighandler_t handler = act->sa_handler;
@@ -245,26 +244,68 @@ __SYSCALL_DEFINE3(int, sigprocmask, int, how, const sigset_t *, set, sigset_t *,
 
 __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
 {
-    if (sig <= 0 || sig >= 32)
+    if (sig < 0 || sig >= _NSIG)
         return -EINVAL;
 
-    task_t *tsk = task_get(pid);
-    if (!tsk)
-        return -ESRCH;
-
-    if (sig == SIGKILL)
+    if (pid <= 0)
     {
-        task_exit(pid, ((SIGKILL | 128) << 8) | SIGKILL);
+        if (pid == 0)
+            pid = -task_current()->pgid;
+        int found = 0;
+        int killed = 0;
+        for (int i = 1 ; i < TASK_MAX ; i++)
+        {
+            if (!table[i] || table[i]->pgid != -pid)
+                continue;
+            found = 1;
+            if (kill(table[i]->pid, sig) < 0)
+                continue;
+            killed = 1;
+        }
+        if (!found)
+            return -ESRCH;
+        if (!killed)
+            return -EPERM;
+        return 0;
     }
 
+    task_t *tsk = task_current();
+    task_t *ptsk = task_get(pid);
+    if (!ptsk)
+        return -ESRCH;
+    if (tsk->euid != 0 &&
+        tsk->euid != ptsk->ruid &&
+        tsk->euid != ptsk->suid &&
+        tsk->ruid != ptsk->ruid &&
+        tsk->ruid != ptsk->suid)
+        return -EPERM;
+    
+    /*
+     * If sig is 0 (the  null  signal), error checking is performed but no signal
+     * is actually sent. The null signal can be used to check the validity of pid.
+     * If sig is SIGKILL, it's necessary to wait for its exit from a syscall, i.e.
+     * release system resources. Handle it in `__handle_signal`!
+     */
+    if (sig == 0)
+        return 0;
     if (sig == SIGSTOP)
     {
-        tsk->stat = TASK_STP;
-        if (tsk == task_current())
+        ptsk->stat = TASK_STP;
+        if (ptsk == tsk)
             task_yield();
+        return 0;
+    }
+    if (sig == SIGKILL)
+    {
+        // TODO: WAKEUP
+        PANIC("NOSYS\n");
+    }
+    if (sig == SIGCONT)
+    {
+        if (ptsk->stat == TASK_STP)
+            ptsk->stat = TASK_PRE;
     }
 
-    sigaddset(&tsk->sigpend, sig);
-
+    sigaddset(&ptsk->sigpend, sig);
     return 0;
 }
