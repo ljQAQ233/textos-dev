@@ -508,8 +508,6 @@ static void _init_partitions (devst_t *hd, mbr_t *rec)
 // todo: fix fat32_truncate
 
 extern void __pipe_init();
-extern void __kconio_init();
-extern void __vrtdev_init();
 extern node_t *__fs_init_tmpfs();
 extern node_t *__fs_init_procfs();
 
@@ -528,7 +526,6 @@ void fs_init ()
 
     // abstract
     __pipe_init();
-    __kconio_init();
 
     vfs_mount_to("/tmp", __fs_init_tmpfs(), S_IFDIR | S_IRWXG | S_IRWXU | S_IRWXO);
     vfs_mount_to("/proc", __fs_init_procfs(), S_IFDIR | S_IRGRP | S_IXGRP | S_IRUSR | S_IXUSR | S_IROTH | S_IXOTH);

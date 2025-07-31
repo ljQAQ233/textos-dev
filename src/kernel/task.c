@@ -135,9 +135,6 @@ task_t *task_create (void *main, int args)
 
     for (int i = 0 ; i < MAX_FILE ; i++)
         tsk->files[i] = NULL;
-    tsk->files[STDIN_FILENO] = &sysfile[STDIN_FILENO];
-    tsk->files[STDOUT_FILENO] = &sysfile[STDOUT_FILENO];
-    tsk->files[STDERR_FILENO] = &sysfile[STDERR_FILENO];
 
     tsk->sigcurr = 0;
     tsk->sigpend = 0;
