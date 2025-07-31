@@ -1,8 +1,5 @@
-#include <textos/textos.h>
-#include <textos/console.h>
 #include <textos/video.h>
-
-#include <textos/dev.h>
+#include <textos/dev/tty/console.h>
 
 static console_t con;
 
@@ -613,7 +610,7 @@ static void cputc(char c)
 
 #include <irq.h>
 
-size_t console_write(devst_t *dev, char *s, size_t len)
+ssize_t console_write(void *io, char *s, size_t len)
 {
     char *p = s;
     curshow(false);
@@ -623,24 +620,8 @@ size_t console_write(devst_t *dev, char *s, size_t len)
     });
     curshow(true);
 
-    return (size_t)(p - s);
+    return (ssize_t)(p - s);
 }
-
-size_t console_read(devst_t *dev, char *buf, size_t len)
-{
-    devst_t *kbd = dev_lookup_type(DEV_KBD, 0);
-    return kbd->read(kbd, buf, len);
-}
-
-static devstp_t console = {
-    .dev = &(devst_t) {
-        .name = "console",
-        .read = (void *)console_read,
-        .write = (void *)console_write,
-        .type = DEV_CHAR,
-        .subtype = DEV_KNCON,
-    }
-};
 
 void console_init()
 {
@@ -665,6 +646,4 @@ void console_init()
 
     con.argc = ARG_RESET;
     con.state = STATE_NOR;
-    
-    __dev_register(&console);
 }

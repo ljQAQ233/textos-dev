@@ -10,6 +10,7 @@ SRCS += dev/fbdev.c
 SRCS += dev/tty/tty.c
 SRCS += dev/tty/tty_buffer.c
 SRCS += dev/tty/kstoa.c
+SRCS += dev/tty/console.c
 
 SRCS += dev/kbd/sc1.c
 SRCS += dev/kbd/atkbd.c

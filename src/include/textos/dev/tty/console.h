@@ -1,5 +1,4 @@
-#ifndef __CONSOLE_H__
-#define __CONSOLE_H__
+#pragma once
 
 #include <textos/video/font.h>
 
@@ -45,5 +44,3 @@ struct con
 };
 
 typedef struct con console_t;
-
-#endif

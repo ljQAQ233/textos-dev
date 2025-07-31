@@ -5,6 +5,24 @@ void tty_buf_init(tty_buf_t *b)
     b->head = b->tail = 0;
 }
 
+int tty_buf_full(tty_buf_t *b)
+{
+    int next = (b->head + 1) % TTY_BUFSIZ;
+    if (next == b->tail)
+        return 1;
+    return 0;
+}
+
+int tty_buf_chrs(tty_buf_t *b)
+{
+    return (b->head - b->tail + TTY_BUFSIZ) % TTY_BUFSIZ;
+}
+
+int tty_buf_rems(tty_buf_t *b)
+{
+    return (b->tail - b->head - 1 + TTY_BUFSIZ) % TTY_BUFSIZ;
+}
+
 int tty_buf_putc(tty_buf_t *b, char c)
 {
     int next = (b->head + 1) % TTY_BUFSIZ;

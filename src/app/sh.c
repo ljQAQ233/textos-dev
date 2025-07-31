@@ -177,8 +177,6 @@ int getcmd(char *buf, int nbuf) {
             *(p++) = ch;
             nbuf--;
         }
-        if (ch)
-            syscall(SYS_write, 1, &ch, 1);
     }
 
     return 0;

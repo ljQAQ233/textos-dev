@@ -1,10 +1,5 @@
-#include <textos/textos.h>
-#include <textos/video.h>
-#include <textos/console.h>
 #include <textos/printk.h>
 #include <textos/task.h>
-
-#include <textos/pwm.h>
 
 extern void console_init();
 extern void gdt_init();
@@ -75,7 +70,6 @@ void kernel_main ()
 }
 
 #include <gdt.h>
-#include <textos/dev.h>
 #include <textos/panic.h>
 #include <textos/user/exec.h>
 

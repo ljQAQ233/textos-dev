@@ -15,19 +15,6 @@
 #include <textos/klib/string.h>
 #include <textos/dev/tty/tty.h>
 #include <textos/dev/tty/kstoa.h>
-#include <textos/dev/tty/tty_buffer.h>
-
-typedef struct
-{
-    int stop;
-    pid_t pgrp;
-    pid_t iwaiter;
-    pid_t owaiter;
-    tty_buf_t ibuf;
-    tty_buf_t obuf;
-    struct termios tio;
-    devst_t *output;
-} tty_t;
 
 tty_t tty1;
 
@@ -37,27 +24,115 @@ tty_t tty1;
 #define FC_CFLAG(t, y) FC((t)->tio.c_cflag, y)
 #define FC_LFLAG(t, y) FC((t)->tio.c_lflag, y)
 
-static size_t tty_fetch_nc(tty_t *tty, char *buf, size_t len, size_t min)
+static void tty_nc_timeout(void *arg)
 {
-    char c;
-    size_t cnt = 0;
-    while (cnt < len)
+    tty_t *tty = (tty_t *)arg;
+    tty_buf_mark(&tty->ibuf, TTY_BF_END);
+    tty->timeout = true;
+    if (tty->iwaiter >= 0)
     {
-        if (tty_buf_getc(&tty->ibuf, &c) < 0)
-            break;
-        *buf++ = (char)c;
-        cnt++;
+        task_unblock(tty->iwaiter);
+        tty->iwaiter = -1;
     }
-    return cnt;
+}
+
+static inline void tflow(tty_t *tty, int stop)
+{
+    if (!FC_IFLAG(tty, IXOFF))
+        return;
+    if (tty->istop == stop)
+        return;
+
+    char c = stop ? 19 : 17;
+    tty->istop = stop;
+    // TODO
+}
+
+/*
+ * Non-canonical mode: restricted by VTIME / VMIN
+ * 
+ * EXAM:
+ *  - [x] VMIN = 0, VTIME = 0
+ *        * Non-blocking read. Returns immediately with any available data,
+ *        * or 0 if no data is present.
+ *  - [x] VMIN > 0, VTIME = 0
+ *        * Blocking read. Waits until at least VMIN bytes are available.
+ *  - [x] VMIN = 0, VTIME > 0
+ *        * Timed read. Waits up to VTIME * 100 ms for any data.
+ *        * Returns immediately if data arrives, or 0 on timeout.
+ *  - [x] VMIN > 0, VTIME > 0
+ *        * Blocks until at least one byte is received.
+ *        * Then starts the timer; if VTIME * 100 ms pass without new data,
+ *        * returns what has been read (even if less than VMIN).
+ *  - [ ] TEST CASES?
+ * HINTS:
+ *  - timeout must trigger a wake-up for the reading process
+ *    * tty_t::timeout == 0 ? => wake up and return!!!
+ * 
+ * ATTENTION:
+ *  - If len < cc[VTIME], then len is the real length to read
+ *  - If buffer has been full and no reads performed, the excess
+ *    part would be dropped (there's only a buffer implemented!)
+ *  - TTY_BF_END would be set only when a timeout occurs
+ *  - Only if VMIN > 0, VTIME > 0, timer would be reset as new data arrives
+ */
+static size_t tty_fetch_nc(tty_t *tty, char *buf, size_t len)
+{
+    cc_t *cc = tty->tio.c_cc;
+    int reset = cc[VTIME] * cc[VMIN];
+    char c;
+    int flag;
+    size_t cnt = 0;
+    tty->reqlen = len;
+    tty->timeout = false;
+
+repeat:
+    /*
+     * is it not timeout? `tty_nc_timeout` has occured?
+    */
+    while (!tty->timeout && tty->reqlen)
+    {
+        flag = tty_buf_getc(&tty->ibuf, &c);
+        if (flag < 0)
+        {
+            if (!reset && cc[VTIME])
+            {
+                ktimer(&tty->timer,
+                    tty_nc_timeout,
+                    tty, cc[VTIME] * 100);
+            }
+            if (cnt >= cc[VMIN])
+            {
+                break;
+            }
+            task_block();
+            continue;
+        }
+        *buf++ = (char)c;
+        cnt++, tty->reqlen--;
+        if (reset && FC(flag, TTY_BF_END))
+            break;
+    }
+    /*
+     * if a timer has been set before and there has been a timeout, it must return
+     * here, otherwise it must repeat it to read again until living up to cc[VMIN].
+     */
+    if (cc[VTIME])
+    {
+        if (tty->timeout)
+            return cnt;
+    }
+    if (!tty->reqlen || cnt >= cc[VMIN])
+        return cnt;
+    goto repeat;
 }
 
 static size_t tty_fetch(tty_t *tty, char *buf, size_t len)
 {
     char c;
     int flag;
-    int end = 0;
     size_t cnt = 0;
-    while (cnt < len && !end)
+    while (cnt < len)
     {
         int flag = tty_buf_getc(&tty->ibuf, &c);
         if (flag < 0)
@@ -66,20 +141,27 @@ static size_t tty_fetch(tty_t *tty, char *buf, size_t len)
             task_block();
             flag = tty_buf_getc(&tty->ibuf, &c);
         }
-        if (FC(flag, TTY_BF_END))
-            end = 1;
         *buf++ = (char)c;
         cnt++;
+        if (FC(flag, TTY_BF_END))
+            break;
     }
     return cnt;
 }
 
 static int tty_read(devst_t *dev, void *buf, size_t len)
 {
+    size_t cnt;
     tty_t *tty = dev->pdata;
     if (FC_LFLAG(tty, ICANON))
-        return tty_fetch(tty, buf, len);
-    return tty_fetch_nc(tty, buf, len, tty->tio.c_cc[VMIN]);
+        cnt = tty_fetch(tty, buf, len);
+    else
+        cnt = tty_fetch_nc(tty, buf, len);
+
+    if (tty_buf_rems(&tty->ibuf) >= TTY_XONSIZ)
+        tflow(tty, 0);
+
+    return cnt;
 }
 
 static inline void tputc(tty_t *tty, char c)
@@ -94,7 +176,23 @@ static inline void tputc(tty_t *tty, char c)
         }
         return ;
     }
-    tty->output->write(tty->output, &c, 1);
+    tty->ios.out(&tty->ios, &c, 1);
+}
+
+static inline void iputc(tty_t *tty, char c)
+{
+    tty_buf_t *b = &tty->ibuf;
+    int rem = tty_buf_rems(b);
+    if (rem)
+    {
+        tty_buf_putc(b, c);
+        /*
+         * If there has already been no space, IXOFF is enabled and this input device
+         * supports software flow control, send XOFF to it.
+         */
+        if (!--rem)
+            tflow(tty, 1);
+    }
 }
 
 #define islower(c) ('a' <= c && c <= 'z')
@@ -131,7 +229,7 @@ static void tstop(tty_t *tty, int st)
      */
     if (!st)
     {
-        tty->output->write(tty->output, tty->obuf.buf, tty->obuf.tail);
+        tty->ios.out(&tty->ios, tty->obuf.buf, tty->obuf.tail);
         tty_buf_kill(&tty->obuf);
         if (tty->owaiter >= 0)
         {
@@ -179,7 +277,7 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
             {
                 if (FC_LFLAG(tty, ECHO) || FC_LFLAG(tty, ECHONL))
                     opost(tty, '\n');
-                tty_buf_putc(&tty1.ibuf, '\n');
+                iputc(tty, '\n');
                 tdeliver(tty);
                 continue;
             }
@@ -225,7 +323,17 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
             tsig(tty, SIGTSTP);
             continue;
         }
-        tty_buf_putc(&tty1.ibuf, *p);
+        iputc(tty, *p);
+        if (!FC_LFLAG(tty, ICANON))
+        {
+            if (cc[VTIME] && cc[VMIN])
+                ktimer(&tty->timer,
+                    tty_nc_timeout, tty,
+                    cc[VTIME] * 100);
+            if ((tty->reqlen && !--tty->reqlen) ||
+                tty_buf_full(&tty->ibuf))
+                task_unblock(tty->iwaiter);
+        }
         opost(tty, *p);
     }
     return cnt;
@@ -275,6 +383,8 @@ int tty_ioctl(devst_t *dev, int req, void *argp)
     return 0;
 }
 
+extern ssize_t console_write(void *io, char *s, size_t len);
+
 static void init_tty(tty_t *tty, char *name)
 {
     tty->stop = 0;
@@ -301,7 +411,11 @@ static void init_tty(tty_t *tty, char *name)
             [VSUSP]    = 0x1A, /* Ctrl+Z */
         },
     };
-    tty->output = dev_lookup_type(DEV_KNCON, 0);
+    tty->ios = (tty_ios_t) {
+        .data = NULL,
+        .in = NULL,
+        .out = console_write,
+    };
     devst_t *dev = dev_new();
     dev->name = name;
     dev->type = DEV_CHAR;
