@@ -21,6 +21,7 @@
     - [x] resolution set
     - [x] elf loader
     - [x] boot arguments
+    - [ ] cmd line args
 
 ---
 
@@ -41,6 +42,10 @@
   - `textos/syscall.h`
 
 - 设备驱动
+  - [ ] event
+    - [x] keyboard
+    - [ ] mouse
+    - [ ] 文件抽象
   - [x] 串口输出 (COM1 ~ COM4)
   - [x] QEMU debugcon
   - [x] 控制台
@@ -70,9 +75,13 @@
   - [x] pipe
   - [x] fat32
   - [ ] minix
+    - [x] minix1
+    - [ ] minix2
+    - [ ] minix3
   - [ ] iso9660
   - [x] procfs
-  - [ ] tmpfs
+  - [x] tmpfs
+  - [ ] qemu_fw_cfg
 
 - 网络接口
   - [x] ethernet
@@ -80,14 +89,22 @@
   - [x] ipv4
   - [x] icmp
   - [x] udp (incompleted)
-  - [ ] tcp (incompleted)
+  - [x] tcp (incompleted)
   - [x] dns (标准库提供 / `app/dns.c`)
+  - [ ] unix socket
   - socket
     - `textos/net/socket.h`
 
+- 图形化
+  - [ ] lvgl
+    - [x] framebuffer
+    - [ ] mouse
+    - [ ] keyboard
+  - [ ] x11
+
 ---
 
-- app 大多可以直接在 linux 上运行 ~~因为我直接把 linux 的 syscall number 搬过来了~~
+- app 大多可以直接在 linux 上运行 ~~因为我直接把 linux 的 syscall number 搬过来了~~ (二进制兼容)
 - app 使用自制的 C library
 
 ## 系统调用
@@ -101,6 +118,7 @@
 - build 构建输出
 - docs 文档
 - src
+   - app            用户程序
    - base           开发资源
    - boot    
      - Edk2         基于EDKII项目改,使用makefile
@@ -194,6 +212,8 @@ VSCode可以配置`includePath`
 - [osdev](https://wiki.osdev.org)
 
 ## 项目
+
+> 原 [预发布仓库](https://github.com/ljQAQ233/textos-pre) 旨在提前原来的 bilibili 同步仓库 (也就是这一个仓库) 进行提交, 已经被 archive, 因为只有这一个仓库会受到大家的点击 (大概是我将连接放在前面的缘故...) -- 2025/08/03
 
 - <https://github.com/stevenbaby/onix>
 - <https://github.com/Minep/lunaix-os>
