@@ -3,22 +3,46 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/syscall.h>
 #include <sys/sysmacros.h>
+
+char *argv[] = {
+    "/bin/sh",
+    NULL,
+};
+
+char *envp[] = {
+    "PWD=/",
+    NULL,
+};
+
+/*
+ * run a shell on every tty
+ *   - tty1
+ *   - ttyS0
+ */
+int exec(char *tty)
+{
+    int fd = open(tty, O_RDWR);
+    if (fd < 0)
+        return -1;
+
+    pid_t pid = fork();
+    if (pid == 0)
+    {
+        dup2(fd, 1);
+        dup2(fd, 2);
+        execve("/bin/sh", argv, envp);
+        write(1, "execve failed!\n", 17);
+        while (1)
+            syscall(SYS_yield);
+    }
+    close(fd);
+    return 0;
+}
 
 void _start()
 {
-    char *argv[] = {
-        NULL,
-    };
-    char *envp[] = {
-        "PWD=/",
-        NULL,
-    };
-
-    int fd = open("/dev/tty1", O_RDWR);
-    dup2(fd, 1);
-    dup2(fd, 2);
-
     // test code
     mkdir("/mnt", 0777);
     mount("/dev/hda1", "/mnt");
@@ -30,7 +54,9 @@ void _start()
     chown("/mnt/dev/null", 0, 0);
     chmod("/mnt/dev/null", 0000);
 
-    execve("/bin/sh", argv, envp);
-    write(1, "execve failed!\n", 17);
-    while(1);
+    exec("/dev/tty1");
+    exec("/dev/ttyS0");
+
+    while (1)
+        syscall(SYS_yield);
 }

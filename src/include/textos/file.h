@@ -19,6 +19,7 @@ typedef struct
 } file_t;
 
 int fd_get(int min);
+int file_put(int fd);
 int file_get(int *new, file_t **file, int min);
 
 #define DT_UNKNOWN 0

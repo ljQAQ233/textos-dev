@@ -169,7 +169,11 @@ static int fork_pgt(task_t *prt, task_t *chd)
 static int fork_fd(task_t *prt, task_t *chd)
 {
     for (int i = 0 ; i < MAX_FILE ; i++)
+    {
         chd->files[i] = prt->files[i];
+        if (chd->files[i])
+            chd->files[i]->refer++;
+    }
     return 0;
 }
 

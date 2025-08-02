@@ -29,6 +29,16 @@ int file_get(int *new, file_t **file, int min)
     return *new = fd;
 }
 
+int file_put(int fd)
+{
+    file_t **ft = task_current()->files;
+    if (!ft[fd])
+        return -EMFILE;
+    free(ft[fd]);
+    ft[fd] = NULL;
+    return 0;
+}
+
 __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
 {
     node_t *node;
@@ -42,7 +52,10 @@ __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
 
     int fd;
     if (file_get(&fd, &file, 0) < 0)
-        return -EMFILE;
+    {
+        ret = -EMFILE;
+        goto fail;
+    }
     
     if (flgs & (O_WRONLY | O_RDWR))
     {
@@ -50,7 +63,10 @@ __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
             vfs_truncate(node, 0);
     }
     else if (flgs & O_APPEND)
-        return -EINVAL;
+    {
+        ret = -EINVAL;
+        goto fail;
+    }
 
     dirctx_t *dirctx = NULL;
     if (flgs & O_DIRECTORY)
@@ -64,9 +80,12 @@ __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
     file->node = node;
     file->dirctx = dirctx;
     file->flgs = flgs;
+    return fd;
 
 fail:
-    return fd;
+    if (fd >= 0)
+        file_put(fd);
+    return ret;
 }
 
 int dup2(int old, int new);
@@ -394,6 +413,7 @@ __SYSCALL_DEFINE1(int, close, int, fd)
     
     free(file);
     task_current()->files[fd] = NULL;
+    dprintk(K_INIT, "task[#%d] close %d\n", task_current()->pid, fd);
     return ret;
 }
 

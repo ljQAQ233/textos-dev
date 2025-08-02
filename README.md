@@ -41,11 +41,14 @@
   - `textos/syscall.h`
 
 - 设备驱动
-  - [x] 串口输出 (COM1)
+  - [x] 串口输出 (COM1 ~ COM4)
   - [x] QEMU debugcon
   - [x] 控制台
     - [x] CSI
   - [ ] tty
+    - [x] simple tty driver
+    - [x] tty1
+    - [x] ttySx
   - [x] RTC 时钟
   - [x] PS/2 键盘
   - [x] IDE 硬盘
