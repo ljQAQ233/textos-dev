@@ -29,9 +29,6 @@ static void __init_proc();
 
 void kernel_main ()
 {
-    serial_init();
-    console_init();
-
     gdt_init();
     idt_init();
 
@@ -43,6 +40,8 @@ void kernel_main ()
     dev_init();
     fbdev_init();
     keyboard_init();
+    serial_init();
+    console_init();
     buffer_init();
     pci_init();
     ide_init();

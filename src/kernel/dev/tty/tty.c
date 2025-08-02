@@ -10,11 +10,13 @@
 #include <textos/task.h>
 #include <textos/errno.h>
 #include <textos/ioctl.h>
+#include <textos/mm/heap.h>
 #include <textos/klib/string.h>
 #include <textos/dev/tty/tty.h>
 #include <textos/dev/tty/kstoa.h>
 
-tty_t tty1;
+tty_t ttys[8];
+tty_t *fgtty;
 
 #define FC(x, y) (((x) & (y)) == (y))
 #define FC_IFLAG(t, y) FC((t)->tio.c_iflag, y)
@@ -174,7 +176,7 @@ static inline void tputc(tty_t *tty, char c)
         }
         return ;
     }
-    tty->ios.out(&tty->ios, &c, 1);
+    tty->out(tty->data, &c, 1);
 }
 
 static inline void iputc(tty_t *tty, char c)
@@ -227,7 +229,7 @@ static void tstop(tty_t *tty, int st)
      */
     if (!st)
     {
-        tty->ios.out(&tty->ios, tty->obuf.buf, tty->obuf.tail);
+        tty->out(tty->data, tty->obuf.buf, tty->obuf.tail);
         tty_buf_kill(&tty->obuf);
         if (tty->owaiter >= 0)
         {
@@ -255,9 +257,9 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
     int cnt = 0;
     for ( ; len ; len--, cnt++, p++)
     {
-        if (*p == '\r' && FC_IFLAG(&tty1, IGNCR))
+        if (*p == '\r' && FC_IFLAG(tty, IGNCR))
             continue;
-        if (*p == '\r' && FC_IFLAG(&tty1, ICRNL))
+        if (*p == '\r' && FC_IFLAG(tty, ICRNL))
             *p = '\n';
         if (FC_LFLAG(tty, ICANON))
         {
@@ -337,14 +339,21 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
     return cnt;
 }
 
-void __tty_rx(keysym_t sym)
+void __tty_rxb(tty_t *tty, char *buf, size_t len)
 {
-    char buf[16];
-    int len = kstoa(sym, buf);
-    tty_feed(&tty1, buf, len);
+    tty_feed(tty, buf, len);
 }
 
-int tty_write(devst_t *dev, void *buf, size_t len)
+void __tty_rx(tty_t *tty, keysym_t sym)
+{
+    char buf[16];
+    if (!tty)
+        tty = fgtty;
+    int len = kstoa(sym, buf);
+    tty_feed(tty, buf, len);
+}
+
+static int tty_write(devst_t *dev, void *buf, size_t len)
 {
     tty_t *tty = dev->pdata;
     cc_t *cc = tty->tio.c_cc;
@@ -355,7 +364,7 @@ int tty_write(devst_t *dev, void *buf, size_t len)
     return cnt;
 }
 
-int tty_ioctl(devst_t *dev, int req, void *argp)
+static int tty_ioctl(devst_t *dev, int req, void *argp)
 {
     tty_t *tty = dev->pdata;
     switch (req)
@@ -376,16 +385,16 @@ int tty_ioctl(devst_t *dev, int req, void *argp)
         tty->pgrp = *(pid_t *)argp;
         break;
     default:
-        return tty->ios.ctl(tty->ios.data, req, argp);
+        return tty->ctl(tty->data, req, argp);
     }
     return 0;
 }
 
-extern int console_ioctl(void *io, int req, void *argp);
-extern ssize_t console_write(void *io, char *s, size_t len);
-
-static void init_tty(tty_t *tty, char *name)
+tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl, tty_iosop_t in, tty_iosop_t out)
 {
+    if (!tty && !(tty = malloc(sizeof(tty_t))))
+        return NULL;
+
     tty->stop = 0;
     tty->pgrp = 0;
     tty->iwaiter = -1;
@@ -410,14 +419,13 @@ static void init_tty(tty_t *tty, char *name)
             [VSUSP]    = 0x1A, /* Ctrl+Z */
         },
     };
-    tty->ios = (tty_ios_t) {
-        .data = NULL,
-        .ctl = console_ioctl,
-        .in = NULL,
-        .out = console_write,
-    };
+    tty->data = data;
+    tty->ctl = ctl;
+    tty->in = in;
+    tty->out = out;
+
     devst_t *dev = dev_new();
-    dev->name = name;
+    dev->name = strdup(name);
     dev->type = DEV_CHAR;
     dev->subtype = DEV_TTY;
     dev->read = tty_read;
@@ -425,9 +433,18 @@ static void init_tty(tty_t *tty, char *name)
     dev->ioctl = tty_ioctl;
     dev->pdata = tty;
     dev_register(NULL, dev);
+    return tty;
 }
+
+extern int console_ioctl(void *io, int req, void *argp);
+extern ssize_t console_write(void *io, char *s, size_t len);
 
 void tty_init()
 {
-    init_tty(&tty1, "tty1");
+    fgtty = tty_register(&ttys[0], "tty1", NULL, NULL, NULL, NULL);
+    fgtty = tty_register(
+        NULL, "tty1", NULL,
+        (void *)console_ioctl,
+        (void *)NULL,
+        (void *)console_write);
 }

@@ -44,7 +44,7 @@
 #define S_PERROR   (1 << 7)
 
 static keysym_t flag = 0;
-extern void __tty_rx(keysym_t sym);
+extern void __tty_rx(void *tty, keysym_t sym);
 
 /*
  * 注意中断发生的时机:
@@ -79,7 +79,7 @@ __INTR_HANDLER(keyboard_handler)
     }
     if (brk)
         return;
-    __tty_rx(sym | flag);
+    __tty_rx(NULL, sym | flag);
 }
 
 void kayboard_light(bool x)

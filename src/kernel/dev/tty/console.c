@@ -615,7 +615,7 @@ ssize_t console_write(void *io, char *s, size_t len)
     char *p = s;
     curshow(false);
     UNINTR_AREA({
-        for ( ; *p && len ; p++, len--)
+        for ( ; len ; p++, len--)
             cputc(*p);
     });
     curshow(true);
@@ -626,7 +626,7 @@ ssize_t console_write(void *io, char *s, size_t len)
 #include <textos/errno.h>
 #include <textos/ioctl.h>
 
-size_t console_ioctl(void *io, int req, void *argp)
+int console_ioctl(void *io, int req, void *argp)
 {
     switch (req)
     {

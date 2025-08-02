@@ -20,6 +20,7 @@
 #define INT_SECDISK 0x23
 
 #define INT_E1000 0x24
+#define INT_SERIAL 0x25
 
 #define INT_SYSCALL  0x80
 #define INT_MSYSCALL 0x81

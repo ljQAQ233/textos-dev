@@ -2,7 +2,6 @@
 SRCS += dev/8259.c
 SRCS += dev/hpet.c
 SRCS += dev/pit.c
-SRCS += dev/serial.c
 SRCS += dev/dbgcon.c
 SRCS += dev/fbdev.c
 
@@ -10,6 +9,7 @@ SRCS += dev/fbdev.c
 SRCS += dev/tty/tty.c
 SRCS += dev/tty/tty_buffer.c
 SRCS += dev/tty/kstoa.c
+SRCS += dev/tty/serial.c
 SRCS += dev/tty/console.c
 
 SRCS += dev/kbd/sc1.c

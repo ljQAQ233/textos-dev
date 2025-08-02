@@ -10,8 +10,7 @@ size_t printk (const char *format, ...)
     va_start(args, format);
 
     size_t i = vsprintf(buf, format, args);
-    devst_t *serial  = dev_lookup_type(DEV_SERIAL, 0);
-    serial->write(serial, buf, -1);
+    dprintk(K_INIT, buf);
 
     va_end(args);
     return i;
