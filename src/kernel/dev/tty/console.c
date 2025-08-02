@@ -623,6 +623,29 @@ ssize_t console_write(void *io, char *s, size_t len)
     return (ssize_t)(p - s);
 }
 
+#include <textos/errno.h>
+#include <textos/ioctl.h>
+
+size_t console_ioctl(void *io, int req, void *argp)
+{
+    switch (req)
+    {
+        case TIOCGWINSZ:
+            {
+                struct winsize *win = argp;
+                win->ws_row = con.row;
+                win->ws_col = con.col;
+                win->ws_xpixel = con.hor;
+                win->ws_ypixel = con.ver;
+                return 0;
+            }
+        case TIOCSWINSZ:
+            return -EPERM;
+        default:
+            return -EINVAL;
+    }
+}
+
 void console_init()
 {
     screen_info(&con.hor, &con.ver);

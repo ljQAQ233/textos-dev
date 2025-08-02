@@ -74,3 +74,5 @@
 
 #define TIOCSPGRP          0x5410
 #define TIOCGPGRP          0x540f
+#define TIOCGWINSZ         0x5413
+#define TIOCSWINSZ         0x5414

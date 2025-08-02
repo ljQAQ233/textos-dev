@@ -2,8 +2,6 @@
  * teletypewriter
  * 
  * HACK: stop
- * TODO: window size
- * TODO: VMIN / VTIME
  * TODO: TCSADRAIN / TCSAFLUSH
  * TODO: linked with kbd
  * TODO: linked with console / get ttys separated (multi-tty)
@@ -378,11 +376,12 @@ int tty_ioctl(devst_t *dev, int req, void *argp)
         tty->pgrp = *(pid_t *)argp;
         break;
     default:
-        return -EINVAL;
+        return tty->ios.ctl(tty->ios.data, req, argp);
     }
     return 0;
 }
 
+extern int console_ioctl(void *io, int req, void *argp);
 extern ssize_t console_write(void *io, char *s, size_t len);
 
 static void init_tty(tty_t *tty, char *name)
@@ -413,6 +412,7 @@ static void init_tty(tty_t *tty, char *name)
     };
     tty->ios = (tty_ios_t) {
         .data = NULL,
+        .ctl = console_ioctl,
         .in = NULL,
         .out = console_write,
     };
