@@ -453,11 +453,14 @@ __SYSCALL_DEFINE3(int, ioctl, int, fd, int, req, void *, argp)
      || S_ISBLK(node->mode)
      || S_ISSOCK(node->mode))
     {
-        devst_t *dev = node->pdata;
+        uint ma = major(node->rdev);
+        uint mi = minor(node->rdev);
+        devst_t *dev = dev_lookup_nr(ma, mi);
+        if (!dev)
+            return -ENODEV;
         return dev->ioctl(dev, req, argp);
     }
-
-    return node->opts->ioctl(node, req, argp);
+    return -EINVAL;
 }
 
 __SYSCALL_DEFINE2(int, dup2, int, old, int, new)

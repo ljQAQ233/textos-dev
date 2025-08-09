@@ -7,12 +7,11 @@
 #include <sys/sysmacros.h>
 
 char *argv[] = {
-    "/bin/sh",
+    "/bin/login",
     NULL,
 };
 
 char *envp[] = {
-    "PWD=/",
     NULL,
 };
 
@@ -32,7 +31,7 @@ int exec(char *tty)
     {
         dup2(fd, 1);
         dup2(fd, 2);
-        execve("/bin/sh", argv, envp);
+        execve(argv[0], argv, envp);
         write(1, "execve failed!\n", 17);
         while (1)
             syscall(SYS_yield);

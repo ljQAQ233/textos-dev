@@ -334,7 +334,8 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
                 tty_buf_full(&tty->ibuf))
                 task_unblock(tty->iwaiter);
         }
-        opost(tty, *p);
+        if (FC_LFLAG(tty, ECHO))
+            opost(tty, *p);
     }
     return cnt;
 }
@@ -441,7 +442,6 @@ extern ssize_t console_write(void *io, char *s, size_t len);
 
 void tty_init()
 {
-    fgtty = tty_register(&ttys[0], "tty1", NULL, NULL, NULL, NULL);
     fgtty = tty_register(
         NULL, "tty1", NULL,
         (void *)console_ioctl,

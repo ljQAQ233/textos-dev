@@ -12,6 +12,7 @@
 #define EFAULT       14  // Bad address
 #define ENOBLK       15  // File is not block device
 #define EEXIST       17  // File already exists
+#define ENODEV       19  // No such device
 #define	ENOTDIR      20  // Not a directory
 #define	EISDIR       21  // Is a directory
 #define	EINVAL       22  // Invalid argument
