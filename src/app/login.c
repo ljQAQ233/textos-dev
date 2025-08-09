@@ -52,9 +52,6 @@ struct passwd *login()
     return NULL;
 }
 
-char *argv[2];
-extern char **__environ;
-
 int main()
 {
     if (gethostname(name, sizeof(name)) < 0)
@@ -73,8 +70,10 @@ int main()
     setuid(pwd->pw_uid);
     chdir(pwd->pw_dir);
 
-    argv[0] = pwd->pw_shell;
-    argv[1] = NULL;
-    execve(argv[0], argv, __environ);
+    char *argv[] = {
+        pwd->pw_shell,
+        NULL,
+    };
+    execvp(argv[0], argv);
     return 1;
 }

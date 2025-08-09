@@ -50,7 +50,7 @@ int fork()
     return syscall(SYS_fork);
 }
 
-int execve(char *path, char *const argv[], char *const envp[])
+int execve(const char *path, char *const argv[], char *const envp[])
 {
     return syscall(SYS_execve, path, argv, envp);
 }

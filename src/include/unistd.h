@@ -46,8 +46,22 @@ int fchdir(int __fd); // TODO
 char *getcwd(char *__buf, size_t __size);
 
 pid_t fork();
-int execve(char *__path, char *const __argv[], char *const __envp[]);
+int execve(const char *__path, char *const __argv[], char *const __envp[]);
 _Noreturn void _exit(int __stat);
+
+/*
+ * exec family suffix:
+ *   * l - list
+ *   * v - vector
+ *   * e - environment
+ *   * p - search in PATH
+ */
+int execl(const char *__path, const char *__arg, ...);
+int execle(const char *__path, const char *__arg, ...);
+int execlp(const char *__file, const char *__arg, ...);
+int execv(const char *__path, char *const __argv[]);
+int execvp(const char *__file, char *const __argv[]);
+int execvpe(const char *__file, char *const __argv[], char *const __envp[]);
 
 int getuid();
 int getgid();
