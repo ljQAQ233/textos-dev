@@ -3,9 +3,13 @@
 #include <string.h>
 #include <stdlib.h>
 
+extern const char *__cs_path;
+
 int execvpe(const char *file, char *const argv[], char *const envp[])
 {
     const char *path = getenv("PATH");
+    if (!path)
+        path = __cs_path;
     size_t l = strlen(path);
     // treat it as an absolute path.
     if (strchr(file, '/'))

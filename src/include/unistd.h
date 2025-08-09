@@ -89,6 +89,10 @@ char *crypt(const char *__key, const char *__salt);
 int gethostname(char *__name, size_t __len);
 int sethostname(const char *__name, size_t __len);
 
+#define _CS_PATH 0
+
+size_t confstr(int name, char *buf, size_t size);
+
 __END_DECLS
 
 #endif
