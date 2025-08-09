@@ -63,6 +63,7 @@
     _(mknod, 133),       \
     _(mount, 165),       \
     _(umount2, 166),     \
+    _(sethostname, 170), \
     _(readdir, 500),     \
     _(poweroff, 501),    \
     _(yield, 502),       \

@@ -72,6 +72,9 @@ pid_t getppid();
 char *crypt(const char *__key, const char *__salt);
 #endif
 
+int gethostname(char *__name, size_t __len);
+int sethostname(const char *__name, size_t __len);
+
 __END_DECLS
 
 #endif

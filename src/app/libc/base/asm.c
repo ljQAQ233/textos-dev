@@ -1,7 +1,9 @@
+#include <errno.h>
+#include <fcntl.h>
 #include <stddef.h>
 #include <signal.h>
 #include <stdarg.h>
-#include <fcntl.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/dir.h>
 #include <sys/stat.h>
@@ -123,6 +125,28 @@ int raise(int sig)
 int uname(struct utsname *name)
 {
     return syscall(SYS_uname, name);
+}
+
+int gethostname(char *name, size_t len)
+{
+    char b[1 << 9];
+    struct utsname *u = (struct utsname *)b;
+    if (uname(u) < 0)
+        return -1;
+    
+    size_t nlen = strlen(u->nodename);
+    if (nlen + 1 > len)
+    {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    memcpy(name, u->nodename, nlen);
+    return 0;
+}
+
+int sethostname(const char *name, size_t len)
+{
+    return syscall(SYS_sethostname, name, len);
 }
 
 int open(const char *path, int flgs, ...)
