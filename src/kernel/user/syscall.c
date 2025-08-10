@@ -42,6 +42,7 @@ extern void sys_sigprocmask();
 extern void sys_sigreturn();
 extern void sys_kill();
 extern void sys_uname();
+extern void sys_sethostname();
 extern void sys_test();
 extern void sys_poweroff();
 extern void sys_yield();
@@ -61,6 +62,7 @@ extern void sys_getpgid();
 extern void sys_setpgid();
 extern void sys_getpid();
 extern void sys_getppid();
+extern void sys_gettimeofday();
 
 extern void sys_socket();
 extern void sys_bind();
@@ -112,6 +114,7 @@ void *sys_handlers[] = {
     [SYS_sigprocmask] = sys_sigprocmask,
     [SYS_sigreturn] = sys_sigreturn,
     [SYS_uname] = sys_uname,
+    [SYS_sethostname] = sys_sethostname,
     [SYS_kill] = sys_kill,
     [SYS_test] = sys_test,
     [SYS_poweroff] = sys_poweroff,
@@ -132,6 +135,7 @@ void *sys_handlers[] = {
     [SYS_setpgid] = sys_setpgid,
     [SYS_getpid] = sys_getpid,
     [SYS_getppid] = sys_getppid,
+    [SYS_gettimeofday] = sys_gettimeofday,
     
     [SYS_socket] = sys_socket,
     [SYS_bind] = sys_bind,

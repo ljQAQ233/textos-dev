@@ -10,6 +10,9 @@ typedef struct {
     u32 year;
 } rtc_tm_t;
 
+time_t arch_time_ran();
 time_t arch_time_now();
+suseconds_t arch_us_ran();
+suseconds_t arch_us_thissec();
 
 #endif

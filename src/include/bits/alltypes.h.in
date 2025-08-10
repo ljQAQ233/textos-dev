@@ -51,6 +51,7 @@ __typedef __int64_t clock_t;
 __typedef int clockid_t;
 __typedef __int64_t suseconds_t;
 __typedef __uint32_t useconds_t;
+__struct timeval { time_t tv_sec; suseconds_t tv_usec; };
 
 __typedef unsigned socklen_t;
 __typedef unsigned short sa_family_t;

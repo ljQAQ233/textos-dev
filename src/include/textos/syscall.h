@@ -48,6 +48,7 @@
     _(fchmod, 91),       \
     _(chown, 92),        \
     _(fchown, 93),       \
+    _(gettimeofday, 96), \
     _(getuid, 102),      \
     _(getgid, 104),      \
     _(setuid, 105),      \
