@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/dir.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/utsname.h>
 #include <sys/syscall.h>
@@ -465,4 +466,9 @@ pid_t getpid()
 pid_t getppid()
 {
     return syscall(SYS_getppid);
+}
+
+int getttimeofday(struct timeval *tp, void *restrict tzp)
+{
+    return syscall(SYS_gettimeofday, tp, tzp);
 }

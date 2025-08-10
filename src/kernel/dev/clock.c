@@ -1,5 +1,6 @@
 /* RTC driver */
 #include <io.h>
+#include <cpu.h>
 #include <string.h>
 #include <textos/printk.h>
 #include <textos/klib/time.h>
@@ -20,7 +21,7 @@
 #define R_CMOS_ADDR 0x70 // the port to address register which will be written or read
 #define R_CMOS_DATA 0x71 // the port to write or read data
 
-static inline u8 read_rtc (u16 reg)
+static inline u8 read_rtc(u16 reg)
 {
     /* Close the NMI with the flag 0x80 */
     outb (R_CMOS_ADDR, reg | (1 << 7));
@@ -28,38 +29,39 @@ static inline u8 read_rtc (u16 reg)
 }
 
 extern time_t __startup_time;
+extern u64 __startup_archtick;
 
 #define DUMP_BCD(bcd) \
     ((bcd >> 4) * 10 + (bcd & 0xF))
 
 #define CENTURY_DEFAULT (21)
 
-void clock_init ()
+void clock_init()
 {
     rtc_tm_t tm;
     memset (&tm, 0, sizeof(tm));
 
     /* 让 CMOS 自己告诉我们它有没有用 BCD */
-    bool BcdMode = !(read_rtc(R_STAT_B) & STAT_NOBCD);
+    bool bcd = !(read_rtc(R_STAT_B) & STAT_NOBCD);
 
     /* 在获取时间时, 尽量把容易改变的放在最后 */
-    u8 Century;
+    u8 century;
     if (false) { // TODO
-        Century = read_rtc (R_CENTURY);
-        if (BcdMode)
-          Century = DUMP_BCD(Century);
+        century = read_rtc(R_CENTURY);
+        if (bcd)
+          century = DUMP_BCD(century);
     } else {
-        Century = CENTURY_DEFAULT;
+        century = CENTURY_DEFAULT;
     } 
 
-    tm.year    = read_rtc (R_YEAR);
-    tm.month   = read_rtc (R_MONTH);
-    tm.day     = read_rtc (R_DAY);
-    tm.hour    = read_rtc (R_HOUR);
-    tm.minute  = read_rtc (R_MINUTE);
-    tm.second  = read_rtc (R_SECOND);
+    tm.year    = read_rtc(R_YEAR);
+    tm.month   = read_rtc(R_MONTH);
+    tm.day     = read_rtc(R_DAY);
+    tm.hour    = read_rtc(R_HOUR);
+    tm.minute  = read_rtc(R_MINUTE);
+    tm.second  = read_rtc(R_SECOND);
     
-    if (BcdMode)
+    if (bcd)
     {
         tm.year    = DUMP_BCD(tm.year);
         tm.month   = DUMP_BCD(tm.month);
@@ -68,12 +70,12 @@ void clock_init ()
         tm.minute  = DUMP_BCD(tm.minute);
         tm.second  = DUMP_BCD(tm.second);
     }
-    tm.year += 100 * (Century - 1);
+    tm.year += 100 * (century - 1);
 
-    u64 stamp = time_stamp (&tm);
+    u64 stamp = time_stamp(&tm);
+    __startup_time = stamp;
+    __startup_archtick = read_tsc();
     printk ("time now -> %u/%u/%u %02u:%02u:%02u (%llu)\n",
            tm.year, tm.month, tm.day,
            tm.hour, tm.minute, tm.second, stamp);
-    __startup_time = stamp;
 }
-
