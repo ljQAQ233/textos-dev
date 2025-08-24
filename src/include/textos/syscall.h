@@ -7,6 +7,7 @@
     _(open, 2),          \
     _(close, 3),         \
     _(stat, 4),          \
+    _(fstat, 5),         \
     _(lseek, 8),         \
     _(mmap, 9),          \
     _(mprotect, 10),     \
@@ -17,6 +18,7 @@
     _(ioctl, 16),        \
     _(readv, 19),        \
     _(writev, 20),       \
+    _(access, 21),       \
     _(pipe, 22),         \
     _(dup, 32),          \
     _(dup2, 33),         \
@@ -68,6 +70,7 @@
     _(mount, 165),       \
     _(umount2, 166),     \
     _(sethostname, 170), \
+    _(time, 201),        \
     _(readdir, 500),     \
     _(poweroff, 501),    \
     _(yield, 502),       \

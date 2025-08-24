@@ -50,6 +50,7 @@ struct stat
 #define UTIME_OMIT 0x3ffffffe
 
 int stat(char *path, struct stat *sb);
+int fstat(int fd, struct stat *sb);
 int mkdir(char *path, mode_t mode);
 int mknod(char *path, mode_t mode, dev_t dev);
 

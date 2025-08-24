@@ -36,6 +36,13 @@ int dup2(int __oldfd, int __newfd);
 ssize_t read(int __fd, void *__buf, size_t __cnt);
 ssize_t write(int __fd, const void *__buf, size_t __cnt);
 
+#define F_OK 0
+#define X_OK 0x01
+#define W_OK 0x02
+#define R_OK 0x04
+
+int access(const char *__path, int __amode);
+
 int chown(char *__path, uid_t __owner, gid_t __group);
 int fchown(int __fd, uid_t __owner, gid_t __group);
 

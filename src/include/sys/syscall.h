@@ -1,5 +1,5 @@
-#ifndef	_SYS_IOCTL_H
-#define	_SYS_IOCTL_H
+#ifndef	_SYS_SYSCALL_H
+#define	_SYS_SYSCALL_H
 
 #include <sys/cdefs.h>
 

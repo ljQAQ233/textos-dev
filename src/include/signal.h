@@ -30,14 +30,14 @@ void (*signal(int __signum, void (*__handler)(int)))(int);
 #define SA_RESETHAND  0x80000000 // 一次性调用, 恢复 handler
 #define SA_RESTORER   0x04000000 // TODO 使用用户提供的 restorer
 
-struct sigaction {
-	union {
-		void (*sa_handler)(int);
-		// void (*sa_sigaction)(int, siginfo_t *, void *);
-	};
-	sigset_t sa_mask;
-	int sa_flags;
-	void (*sa_restorer)(void);
+struct sigaction
+{
+    union {
+        void (*sa_handler)(int);
+    };
+    unsigned long sa_flags;
+    void (*sa_restorer)(void);
+    sigset_t sa_mask;
 };
 
 int sigaction(int __signum, const struct sigaction *__act, struct sigaction *__oldact);
