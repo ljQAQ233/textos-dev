@@ -217,6 +217,11 @@ int stat(char *path, struct stat *sb)
     return syscall(SYS_stat, path, sb);
 }
 
+int fstat(int fd, struct stat *sb)
+{
+    return syscall(SYS_fstat, sb);
+}
+
 int ioctl(int fd, int req, ...)
 {
     va_list args;
@@ -225,6 +230,11 @@ int ioctl(int fd, int req, ...)
     va_end(args);
 
     return syscall(SYS_ioctl, fd, req, argp);
+}
+
+int access(const char *path, int amode)
+{
+    return syscall(SYS_access, path, amode);
 }
 
 int chown(char *path, uid_t owner, gid_t group)
@@ -466,6 +476,11 @@ pid_t getpid()
 pid_t getppid()
 {
     return syscall(SYS_getppid);
+}
+
+time_t time(time_t *tp)
+{
+    return syscall(SYS_time);
 }
 
 int getttimeofday(struct timeval *tp, void *restrict tzp)

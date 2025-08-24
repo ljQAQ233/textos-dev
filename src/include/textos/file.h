@@ -108,6 +108,11 @@ typedef struct stat
 
 extern file_t sysfile[MAXDEF_FILENO];
 
+#define F_OK 0
+#define X_OK 0x01
+#define W_OK 0x02
+#define R_OK 0x04
+
 #define O_ACCMODE 0003 // 访问模式掩码
 #define O_RDONLY  00   // 只读
 #define O_WRONLY  01   // 只写

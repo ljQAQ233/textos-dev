@@ -417,15 +417,8 @@ __SYSCALL_DEFINE1(int, close, int, fd)
     return ret;
 }
 
-__SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb) 
+static void fillsb(node_t *node, stat_t *sb)
 {
-    int ret;
-    node_t *node;
-    
-    ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node);
-    if (ret < 0)
-        return ret;
-
     sb->st_dev = node->dev;
     sb->st_ino = node->ino;
     sb->st_nlink = 1;
@@ -439,7 +432,45 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
     sb->st_atime = node->atime;
     sb->st_mtime = node->mtime;
     sb->st_ctime = node->ctime;
+}
+
+__SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb) 
+{
+    int ret;
+    node_t *node;
+    
+    ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node);
+    if (ret < 0)
+        return ret;
+    fillsb(node, sb);
     return 0;
+}
+
+__SYSCALL_DEFINE2(int, fstat, int, fd, stat_t *, sb)
+{
+    file_t *file = task_current()->files[fd];
+    if (!file)
+        return -EBADF;
+    fillsb(file->node, sb);
+    return 0;
+}
+
+__SYSCALL_DEFINE2(int, access, const char *, path, int, amode)
+{
+    int ret;
+    node_t *node;
+    
+    ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node);
+    if (ret < 0)
+        return ret;
+    if (amode == F_OK)
+        return 0;
+    
+    int want = 0;
+    if (amode & X_OK) want |= MAY_EXEC;
+    if (amode & W_OK) want |= MAY_WRITE;
+    if (amode & R_OK) want |= MAY_READ;
+    return vfs_permission(node, want);
 }
 
 __SYSCALL_DEFINE3(int, ioctl, int, fd, int, req, void *, argp)

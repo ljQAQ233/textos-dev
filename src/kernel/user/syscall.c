@@ -18,7 +18,9 @@ extern void sys_mmap();
 extern void sys_mprotect();
 extern void sys_munmap();
 extern void sys_stat();
+extern void sys_fstat();
 extern void sys_ioctl();
+extern void sys_access();
 extern void sys_chown();
 extern void sys_fchown();
 extern void sys_chmod();
@@ -62,6 +64,7 @@ extern void sys_getpgid();
 extern void sys_setpgid();
 extern void sys_getpid();
 extern void sys_getppid();
+extern void sys_time();
 extern void sys_gettimeofday();
 
 extern void sys_socket();
@@ -91,7 +94,9 @@ void *sys_handlers[] = {
     [SYS_mprotect] = sys_mprotect,
     [SYS_munmap] = sys_munmap,
     [SYS_stat] = sys_stat,
+    [SYS_fstat] = sys_fstat,
     [SYS_ioctl] = sys_ioctl,
+    [SYS_access] = sys_access,
     [SYS_chown] = sys_chown,
     [SYS_fchown] = sys_fchown,
     [SYS_chmod] = sys_chmod,
@@ -135,6 +140,7 @@ void *sys_handlers[] = {
     [SYS_setpgid] = sys_setpgid,
     [SYS_getpid] = sys_getpid,
     [SYS_getppid] = sys_getppid,
+    [SYS_time] = sys_time,
     [SYS_gettimeofday] = sys_gettimeofday,
     
     [SYS_socket] = sys_socket,
