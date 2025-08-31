@@ -7,9 +7,9 @@ __BEGIN_DECLS
 
 /* textos-specified */
 
-int mount(char *src, char *dst);
-int umount(char *target);
-int umount2(char *target, int flags);
+int mount(const char *src, const char *dst);
+int umount(const char *target);
+int umount2(const char *target, int flags);
 
 __END_DECLS
 

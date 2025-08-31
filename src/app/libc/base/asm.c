@@ -212,7 +212,7 @@ int close(int fd)
     return syscall(SYS_close, fd);
 }
 
-int stat(char *path, struct stat *sb)
+int stat(const char *path, struct stat *sb)
 {
     return syscall(SYS_stat, path, sb);
 }
@@ -237,7 +237,7 @@ int access(const char *path, int amode)
     return syscall(SYS_access, path, amode);
 }
 
-int chown(char *path, uid_t owner, gid_t group)
+int chown(const char *path, uid_t owner, gid_t group)
 {
     return syscall(SYS_chown, path, owner, group);
 }
@@ -247,7 +247,7 @@ int fchown(int fd, uid_t owner, gid_t group)
     return syscall(SYS_fchown, fd, owner, group);
 }
 
-int chmod(char *path, mode_t mode)
+int chmod(const char *path, mode_t mode)
 {
     return syscall(SYS_chmod, path, mode);
 }
@@ -272,37 +272,37 @@ int pipe(int fds[2])
     return syscall(SYS_pipe, fds);
 }
 
-int mknod(char *path, mode_t mode, dev_t dev)
+int mknod(const char *path, mode_t mode, dev_t dev)
 {
     return syscall(SYS_mknod, path, mode, dev);
 }
 
-int mount(char *src, char *dst)
+int mount(const char *src, const char *dst)
 {
     return syscall(SYS_mount, src, dst);
 }
 
-int umount2(char *target, int flags)
+int umount2(const char *target, int flags)
 {
     return syscall(SYS_umount2, target, flags);
 }
 
-int umount(char *target)
+int umount(const char *target)
 {
     return umount2(target, 0);
 }
 
-int chdir(char *path)
+int chdir(const char *path)
 {
     return syscall(SYS_chdir, path);
 }
 
-int mkdir(char *path, mode_t mode)
+int mkdir(const char *path, mode_t mode)
 {
     return syscall(SYS_mkdir, path, mode);
 }
 
-int rmdir(char *path)
+int rmdir(const char *path)
 {
     return syscall(SYS_rmdir, path);
 }

@@ -43,12 +43,12 @@ ssize_t write(int __fd, const void *__buf, size_t __cnt);
 
 int access(const char *__path, int __amode);
 
-int chown(char *__path, uid_t __owner, gid_t __group);
+int chown(const char *__path, uid_t __owner, gid_t __group);
 int fchown(int __fd, uid_t __owner, gid_t __group);
 
-int mkdir(char *__path, mode_t __mode);
-int rmdir(char *__path);
-int chdir(char *__path);
+int mkdir(const char *__path, mode_t __mode);
+int rmdir(const char *__path);
+int chdir(const char *__path);
 int fchdir(int __fd); // TODO
 char *getcwd(char *__buf, size_t __size);
 
