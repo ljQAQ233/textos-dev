@@ -49,12 +49,12 @@ struct stat
 #define UTIME_NOW  0x3fffffff
 #define UTIME_OMIT 0x3ffffffe
 
-int stat(char *path, struct stat *sb);
+int stat(const char *path, struct stat *sb);
 int fstat(int fd, struct stat *sb);
-int mkdir(char *path, mode_t mode);
-int mknod(char *path, mode_t mode, dev_t dev);
+int mkdir(const char *path, mode_t mode);
+int mknod(const char *path, mode_t mode, dev_t dev);
 
-int chmod(char *path, mode_t mode);
+int chmod(const char *path, mode_t mode);
 int fchmod(int fd, mode_t mode);
 
 __END_DECLS
