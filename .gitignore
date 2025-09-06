@@ -10,6 +10,7 @@
 *.status_lock
 
 .cache
+.stamp
 
 build/
 src/image/
