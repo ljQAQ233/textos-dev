@@ -20,7 +20,7 @@ clean:
 
 # Make rules and printing formats (top-level)
 
-$(APP_OUTPUT)/%.elf: %.c
+$(APP_OUTPUT)/%.elf: %.c $(MODS:=/.stamp)
 	@mkdir -p $(@D)
 	@$(CC) $(CFLAGS) $< $(LIBC) $(addprefix $(APP_OUTPUT)/,$(shell ${UTILS}/fix_libs.sh $<)) -o $@
 	@echo -e "\033[032m   CC  \033[0m $<"

@@ -13,9 +13,11 @@ $(APP_OUTPUT)/%.c.o: %.c
 ifeq ($(suffix $(TARG)),.o)
 $(TARG): $(OBJS)
 	@$(LD) $(LDFLAGS) $^ -r -o $@
+	@touch .stamp
 else ifeq ($(suffix $(TARG)),.elf)
 $(TARG): $(OBJS)
 	@$(LD) $(LDFLAGS) $^ -o $@
+	@touch .stamp
 else
 	$(warning "unsupported format - ${TARG}")
 endif
