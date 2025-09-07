@@ -18,18 +18,23 @@ struct sym
 {
     char *str;
     void *ptr;
-    struct hlist_node node;
+    struct hlist_node node; // linked to dl::sym
 };
 
 struct dl
 {
-    int fd;
-    void *base;
-    size_t size;
-    uintptr_t *pltgot;
-    struct htable sym;
-    struct hlist_head dep;
-    struct hlist_node node;
+    int fd;      // file fd
+    void *base;  // file mapping
+    size_t size; // size of file
+    void *virt;  // runtime image
+    uintptr_t *pltgot; // GOT entries
+    char *strtab;      // .dynstr
+    void *dynsym;      // .dynsym
+    void *jmprela;     // .rela.plt
+    size_t entsym;     // .dynsym entry size 
+    struct htable sym;      // symbol hash table
+    struct hlist_head dep;  // dependent libs
+    struct hlist_node node; // linked to all / glb
 };
 
 struct dep
@@ -83,6 +88,13 @@ static void *lkpsym(struct dl *dl, const char *str)
         if (strcmp(sym->str, str) == 0)
             return sym->ptr;
     }
+    HLIST_FOREACH(ptr, &dl->dep)
+    {
+        struct dep *dep = X(ptr, struct dep);
+        void *res = lkpsym(dep->dl, str);
+        if (res)
+            return res;
+    }
     return NULL;
 }
 
@@ -107,8 +119,8 @@ static struct dl *byptr(uintptr_t ptr)
         HLIST_FOREACH(p, head[i])
         {
             struct dl *dl = X(p, struct dl);
-            if ((uintptr_t)dl->base <= ptr &&
-                (uintptr_t)dl->base + dl->size > ptr)
+            if ((uintptr_t)dl->virt <= ptr &&
+                (uintptr_t)dl->virt + dl->size > ptr)
                 return dl;
         }
     }
@@ -151,11 +163,23 @@ static inline int dochk(struct dl *dl)
     return 0;
 }
 
-static void *loadlib(const char *path, int flags);
-
-void __ld_resolver()
+void *__ld_resolver(void *dlptr, int reloc)
 {
-    printf("resolver started!!!!\n");
+    struct dl *dl = dlptr;
+    Elf64_Rela *r = dl->jmprela + reloc * sizeof(Elf64_Rela);
+    Elf64_Sym *sym = dl->dynsym + dl->entsym * ELF64_R_SYM(r->r_info);
+    char *name = dl->strtab + sym->st_name;
+    void *val = val = lkpsym(dl, name);
+    if (!val)
+    {
+        exit(1);
+    }
+
+    uintptr_t *p = dl->virt + r->r_offset;
+    val += r->r_addend;
+    *p = (uintptr_t)val;
+    dllog("__ld_resolver(%p, %d) = %s at %p\n", dlptr, reloc, name, val);
+    return val;
 }
 
 static inline int dolkp(struct dl *dl)
@@ -185,11 +209,20 @@ static inline int dolkp(struct dl *dl)
      * handle symbols
      *   - `.dynsym` - DT_DYNSYM
      *   - `.dynstr` - DT_STRTAB
+     *   - `.rela.dyn` - DT_RELA
+     *   - `.rela.plt` - DT_JMPREL
+     *   
+     *   - DT_PLTREL tells the type of plt : REL / RELA
      */
     char *strtab = NULL;
     void *dynsym = NULL;
     void *pltgot = NULL;
-    size_t szsym = 0;
+    void *dynrela = NULL;
+    void *jmprela = NULL;
+    size_t entsym = 0;
+    size_t szrela = 0;
+    size_t entrela = 0;
+    size_t szpltrel = 0;
     Elf64_Dyn *dyn = (Elf64_Dyn *)dmap;
     for ( ; dyn->d_tag != DT_NULL ; dyn++)
     {
@@ -198,10 +231,28 @@ static inline int dolkp(struct dl *dl)
         if (dyn->d_tag == DT_SYMTAB)
             dynsym = map + dyn->d_un.d_ptr;
         if (dyn->d_tag == DT_PLTGOT)
-            pltgot = map + dyn->d_un.d_ptr;
+            pltgot = dl->virt + dyn->d_un.d_ptr;
         if (dyn->d_tag == DT_SYMENT)
-            szsym = dyn->d_un.d_val;
+            entsym = dyn->d_un.d_val;
+        if (dyn->d_tag == DT_RELA)
+            dynrela = map + dyn->d_un.d_ptr;
+        if (dyn->d_tag == DT_RELASZ)
+            szrela = dyn->d_un.d_val;
+        if (dyn->d_tag == DT_RELAENT)
+            entrela = dyn->d_un.d_val;
+        if (dyn->d_tag == DT_PLTREL)
+            dllog("use %d\n", dyn->d_un.d_val);
+        if (dyn->d_tag == DT_JMPREL)
+            jmprela = map + dyn->d_un.d_ptr;
+        if (dyn->d_tag == DT_PLTRELSZ)
+            szpltrel = dyn->d_un.d_val;
     }
+    dllog("symbols:\n");
+    dllog("  strtab at %p\n", strtab);
+    dllog("  dynsym at %p\n", dynsym);
+    dllog("  pltgot at %p\n", pltgot);
+    dllog("  rela.dyn at %p\n", dynrela);
+    dllog("  rela.plt at %p\n", jmprela);
     
     dyn = (Elf64_Dyn *)dmap;
     for ( ; dyn->d_tag != DT_NULL ; dyn++)
@@ -223,19 +274,149 @@ static inline int dolkp(struct dl *dl)
     
     size_t nrsym;
     nrsym = strtab - (char *)dynsym;
-    nrsym /= szsym;
+    nrsym /= entsym;
     for (int i = 1 ; i < nrsym ; i++)
     {
-        Elf64_Sym *sym = dynsym + i * szsym;
-        addsym(dl, strtab + sym->st_name, map + sym->st_value);
+        Elf64_Sym *sym = dynsym + i * entsym;
+        if (!sym->st_value)
+            continue;
+        if (ELF64_ST_BIND(sym->st_info) == STB_GLOBAL ||
+            ELF64_ST_BIND(sym->st_info) == STB_WEAK)
+            addsym(dl, strtab + sym->st_name, dl->virt + sym->st_value);
     }
 
+    /*
+     * init got entries reserved for runtime linker on linux platform.
+     *   - refer to glibc: glibc/sysdeps/x86_64/dl-machine.h
+     */
     if (pltgot)
     {
+        extern void _dl_runtime_resolve();
         dl->pltgot = pltgot;
-        dl->pltgot[0] = (uintptr_t)__ld_resolver;
+        dl->pltgot[1] = (uintptr_t)dl;
+        dl->pltgot[2] = (uintptr_t)_dl_runtime_resolve;
+        dllog("resolver registered\n");
     }
+
+    if (dynrela)
+    {
+        size_t nrrela = szrela / entrela;
+        for (int i = 0 ; i < nrrela ; i++)
+        {
+            Elf64_Rela *r = dynrela + entrela * i;
+            Elf64_Sym *sym = dynsym + entsym * ELF64_R_SYM(r->r_info);
+            uintptr_t *p = dl->virt + r->r_offset;
+            *p = (uintptr_t)dl->virt + sym->st_value + r->r_addend;
+        }
+    }
+    if (jmprela)
+    {
+        // TODO: x86_64 uses RELA only, adapt it to other cases
+        size_t nrpltrel = szpltrel / sizeof(Elf64_Rela);
+        for (int i = 0 ; i < nrpltrel ; i++)
+        {
+            Elf64_Rela *r = jmprela + sizeof(Elf64_Rela) * i;
+            uintptr_t *p = dl->virt + r->r_offset;
+            *p += (uintptr_t)dl->virt;
+        }
+    }
+
+    dl->strtab = strtab;
+    dl->dynsym = dynsym;
+    dl->jmprela = jmprela;
+    dl->entsym = entsym;
+
     return 0;
+}
+
+#define minimum(x, y) ((x) > (y) ? (y) : (x))
+#define align_up(x, y) ((y) * ((x + y - 1) / y))
+#define align_dn(x, y) ((y) * (x / y))
+
+static int domap(struct dl *dl)
+{
+    if ((dl->size = getsz(dl->fd)) == -1) {
+        dlerr("unable to fetch sz");
+        return -1;
+    }
+    if ((dl->base = mmap(
+        NULL, dl->size,
+        PROT_READ,
+        MAP_PRIVATE, dl->fd, 0)) == MAP_FAILED) {
+        dlerr("unable to do mmap");
+        return -1;
+    }
+    void *map = dl->base;
+    Elf64_Ehdr *eh = (Elf64_Ehdr *)map;
+    void *pmap = map + eh->e_phoff;
+
+    /*
+     * determine the range of virtual address.
+     */
+    int lp_segs = 0;
+    int lp_okay = 0;
+    uintptr_t lp_max = 0;
+    uintptr_t lp_min = UINTPTR_MAX;
+    uintptr_t lp_size;
+    for (int i = 0 ; i < eh->e_phnum ; i++)
+    {
+        Elf64_Phdr *ph = pmap + i * eh->e_phentsize;
+        if (ph->p_type == PT_LOAD)
+        {
+            lp_segs++;
+            uintptr_t dptr = align_dn(ph->p_vaddr, ph->p_align);
+            uintptr_t uptr = align_up(ph->p_vaddr + ph->p_offset, ph->p_align);
+            if (dptr < lp_min) lp_min = dptr;
+            if (uptr > lp_max) lp_max = uptr;
+        }
+    }
+    if (lp_segs == 0) {
+        dlerr("no PT_LOAD found");
+        return -1;
+    }
+
+    lp_size = lp_max - lp_min;
+    if ((dl->virt = mmap(
+        NULL, lp_size,
+        PROT_NONE,
+        MAP_ANON | MAP_PRIVATE, -1, 0)) == MAP_FAILED) {
+        dlerr("unable to reserve pages");
+        return -1;
+    }
+
+    dllog("total %d segs\n", lp_segs);
+    dllog("seg range %p ~ %p\n", dl->virt + lp_min, dl->virt + lp_max);
+    for ( ; lp_okay < eh->e_phnum ; lp_okay++)
+    {
+        Elf64_Phdr *ph = pmap + lp_okay * eh->e_phentsize;
+        if (ph->p_type != PT_LOAD)
+            continue;
+        uintptr_t foff = align_dn(ph->p_offset, ph->p_align);
+        uintptr_t moff = align_dn(ph->p_vaddr, ph->p_align);
+        uintptr_t mend = align_up(ph->p_vaddr + ph->p_memsz, ph->p_align);
+        uintptr_t msize = mend - moff;
+        int prot = ((ph->p_flags & PF_R) ? PROT_READ : 0)
+            | ((ph->p_flags & PF_W) ? PROT_WRITE : 0)
+            | ((ph->p_flags & PF_X) ? PROT_EXEC : 0);
+        prot |= PROT_EXEC;
+        if (mmap(dl->virt + moff, msize,
+            prot, MAP_FIXED | MAP_PRIVATE,
+            dl->fd, foff) == MAP_FAILED) {
+            dlerr("PT_LOAD mapping failed");
+            goto err;
+        }
+
+        unsigned *zero = dl->virt + moff + ph->p_filesz;
+        while ((uintptr_t)zero < mend)
+            *zero++ = 0;
+        dllog("  %p -> %p, size = %lx\n", foff, dl->virt + moff, msize);
+    }
+
+    dllog("file mapped to %p\n", dl->base);
+    dllog("virtual base at %p\n", dl->virt);
+    return 0;
+err:
+    return -1;
 }
 
 static void *loadlib(const char *path, int flags)
@@ -260,17 +441,8 @@ static void *loadlib(const char *path, int flags)
     dl->pltgot = NULL;
     htable_init(&dl->sym, 32);
     hlist_init(&dl->dep);
-    if ((dl->size = getsz(fd)) == -1) {
-        dlerr("unable to fetch sz");
+    if (domap(dl) < 0)
         goto err;
-    }
-    if ((dl->base = mmap(
-        NULL, dl->size,
-        PROT_READ | PROT_WRITE | PROT_EXEC,
-        MAP_PRIVATE, fd, 0)) == MAP_FAILED) {
-        dlerr("unable to do mmap");
-        goto err;
-    }
     if (dochk(dl) < 0)
         goto err;
     if (dolkp(dl) < 0)
