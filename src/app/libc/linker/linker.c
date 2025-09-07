@@ -45,14 +45,23 @@ struct dep
 
 #define DLMSG 64
 static int __dllog;
+static int __dllevel;
 static char __dlmsg[DLMSG];
 static struct hlist_head __dlall;
 static struct hlist_head __dlglb;
 
+#define dl_into(x)                  \
+    __dllevel += 1;                 \
+    dllog("--- next level --- \n"); \
+    x;                              \
+    dllog("--- last level --- \n"); \
+    __dllevel -= 1;
 #define dlerr(fmt, arg...) \
     sprintf(__dlmsg, fmt, ##arg)
-#define dllog(fmt, arg...) \
-    if (__dllog) dprintf(2, fmt, ##arg)
+#define dllog(fmt, arg...) if (__dllog) { \
+    for (int _ = 0 ; _ < __dllevel ; _++) \
+        dprintf(2, "  ");                 \
+    dprintf(2, fmt, ##arg); }             \
 
 static uint32_t hash(const char *s0)
 {
@@ -241,7 +250,7 @@ static inline int dolkp(struct dl *dl)
         if (dyn->d_tag == DT_RELAENT)
             entrela = dyn->d_un.d_val;
         if (dyn->d_tag == DT_PLTREL)
-            dllog("use %d\n", dyn->d_un.d_val);
+            dllog("pltrel %d used\n", dyn->d_un.d_val);
         if (dyn->d_tag == DT_JMPREL)
             jmprela = map + dyn->d_un.d_ptr;
         if (dyn->d_tag == DT_PLTRELSZ)
@@ -260,7 +269,7 @@ static inline int dolkp(struct dl *dl)
         if (dyn->d_tag == DT_NEEDED)
         {
             char *lib = strtab + dyn->d_un.d_ptr;
-            void *handle = dlopen(lib, RTLD_LAZY);
+            dl_into(void *handle = dlopen(lib, RTLD_LAZY));
             if (!handle)
             {
                 dlerr("unable to dependent lib %s", lib);
