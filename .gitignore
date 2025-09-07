@@ -22,3 +22,8 @@ src/base/*.vars
 src/config/private.mk
 src/utils/compile_commands.json
 
+test/ldso/ld
+test/ldso/add.so
+test/ldso/dep.so
+src/resource/add.so
+src/resource/dep.so
