@@ -175,7 +175,8 @@ static struct dl *byptr(uintptr_t ptr)
 
 static void *loadlib(const char *path, int flags);
 
-void __init_linker()
+__attribute__((constructor))
+static void __init_linker()
 {
     list_init(&__dlall);
     list_init(&__dlglb);

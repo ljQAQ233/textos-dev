@@ -40,7 +40,8 @@ FILE __stdio_stderr = {
     .close = __stdio_close,
 };
 
-void __init_stdio()
+__attribute__((constructor))
+static void __init_stdio()
 {
     __ofl_add(stdin);
     __ofl_add(stdout);
