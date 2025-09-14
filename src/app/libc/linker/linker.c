@@ -9,6 +9,8 @@
 #include <sys/mman.h>
 #include <textos/user/elf.h>
 typedef uint64_t u64;
+#include <stdbool.h>
+#include <../kernel/klib/list.c>
 #include <../kernel/klib/hlist.c>
 #include <../kernel/klib/htable.c>
 
@@ -23,6 +25,7 @@ struct sym
 
 struct dl
 {
+    int flags;   // RTLD_*
     int fd;      // file fd
     void *base;  // file mapping
     size_t size; // size of file
@@ -32,23 +35,26 @@ struct dl
     void *dynsym;      // .dynsym
     void *jmprela;     // .rela.plt
     size_t entsym;     // .dynsym entry size 
-    struct htable sym;      // symbol hash table
-    struct hlist_head dep;  // dependent libs
-    struct hlist_node node; // linked to all / glb
+    struct htable sym; // symbol hash table
+    struct list dep;   // dependent libs
+    struct list l_all;
+    struct list l_glb;
+    struct list l_pre;
 };
 
 struct dep
 {
     struct dl *dl;
-    struct hlist_node node;
+    struct list node;
 };
 
 #define DLMSG 64
 static int __dllog;
 static int __dllevel;
 static char __dlmsg[DLMSG];
-static struct hlist_head __dlall;
-static struct hlist_head __dlglb;
+static struct list __dlall;
+static struct list __dlglb;
+static struct list __dlpre;
 
 #define dl_into(x)                  \
     __dllevel += 1;                 \
@@ -84,64 +90,127 @@ static void addsym(struct dl *dl, char *str, void *ptr)
     dllog("addsym %s [%p]\n", str, ptr);
 }
 
-#define X(record, type) \
-    ((type *)((void *)(record) - (void *)&((type *)((void *)0))->node))
+#define X(record, type, mb) \
+    ((type *)((void *)(record) - (void *)&((type *)((void *)0))->mb))
 
 static void *lkpsym(struct dl *dl, const char *str)
 {
-    struct hlist_node *ptr;
+    struct list *lptr;
+    struct hlist_node *hptr;
     htkey_t key = hash(str);
-    HTABLE_FOREACH(ptr, &dl->sym, key)
+    HTABLE_FOREACH(hptr, &dl->sym, key)
     {
-        struct sym *sym = X(ptr, struct sym);
+        struct sym *sym = X(hptr, struct sym, node);
         if (strcmp(sym->str, str) == 0)
             return sym->ptr;
     }
-    HLIST_FOREACH(ptr, &dl->dep)
+    LIST_FOREACH(lptr, &dl->dep)
     {
-        struct dep *dep = X(ptr, struct dep);
+        struct dep *dep = X(lptr, struct dep, node);
         void *res = lkpsym(dep->dl, str);
-        if (res)
-            return res;
+        if (res) return res;
     }
     return NULL;
 }
 
-static void regdl(struct dl *dl, int flg)
+static void *lkpglb(const char *str)
 {
-    if (flg & RTLD_GLOBAL)
-        hlist_add(&__dlglb, &dl->node);
-    else
-        hlist_add(&__dlall, &dl->node);
+    struct list *lptr;
+    LIST_FOREACH(lptr, &__dlglb)
+    {
+        struct dl *dl = X(lptr, struct dl, l_glb);
+        void *res = lkpsym(dl, str);
+        if (res) return res;
+    }
+    return NULL;
+}
+
+static void *lkppre(const char *str)
+{
+    struct list *lptr;
+    LIST_FOREACH(lptr, &__dlpre)
+    {
+        struct dl *dl = X(lptr, struct dl, l_pre);
+        void *res = lkpsym(dl, str);
+        if (res) return res;
+    }
+    return NULL;
+}
+
+/*
+ * Find the next occurrence of the desired symbol in the search order after the current
+ * object. The search order is based on the load time; libraries loaded first come first.
+ */
+static void *lkpnxt(struct dl *prv, const char *str)
+{
+    struct dl *last = prv;
+    struct list *lptr;
+    LIST_FOREACH(lptr, &prv->dep)
+    {
+        last = X(lptr, struct dep, node)->dl;
+        void *res = lkpsym(last, str);
+        if (res) return res;
+    }
+    for (lptr = last->l_all.next ; lptr != &__dlall ; lptr = lptr->next)
+    {
+        struct dl *dl = X(lptr, struct dl, l_all);
+        void *res = lkpsym(dl, str);
+        if (res) return res;
+    }
+    return NULL;
 }
 
 static struct dl *byptr(uintptr_t ptr)
 {
-    struct hlist_head *head[] = {
-        &__dlall,
-        &__dlglb,
-        NULL,
-    };
-    for (int i = 0 ; head[i] ; i++)
+    struct list *p;
+    LIST_FOREACH(p, &__dlall)
     {
-        struct hlist_node *p;
-        HLIST_FOREACH(p, head[i])
-        {
-            struct dl *dl = X(p, struct dl);
-            if ((uintptr_t)dl->virt <= ptr &&
-                (uintptr_t)dl->virt + dl->size > ptr)
-                return dl;
-        }
+        struct dl *dl = X(p, struct dl, l_all);
+        if ((uintptr_t)dl->virt <= ptr &&
+            (uintptr_t)dl->virt + dl->size > ptr)
+            return dl;
     }
     return NULL;
 }
 
+static void *loadlib(const char *path, int flags);
+
 void __init_linker()
 {
+    list_init(&__dlall);
+    list_init(&__dlglb);
+    list_init(&__dlpre);
     if (getenv("LD_DEBUG"))
         __dllog = 1;
-    hlist_init(&__dlall);
-    hlist_init(&__dlglb);
+
+    const char *preload = getenv("LD_PRELOAD");
+    if (preload)
+    {
+        const char *p = preload;
+        while (*p)
+        {
+            while (*p == ' ')
+                p++;
+            const char *start = p;
+            while (*p && *p != ':' && *p != ' ')
+                p++;
+            size_t len = p - start;
+            if (len)
+            {
+                char b[256];
+                if (len >= sizeof(b))
+                    len = sizeof(b) - 1;
+                memcpy(b, start, len);
+                b[len] = '\0';
+                struct dl *h = loadlib(b, RTLD_GLOBAL);
+                const char *e = h ? "okay" : dlerror();
+                dllog("-> preload %s : %s\n", b, e);
+                if (h) list_pushback(&__dlpre, &h->l_pre);
+            }
+            while (*p == ':' || *p == ' ')
+                p++;
+        }
+    }
 }
 
 static inline size_t getsz(int fd)
@@ -172,13 +241,15 @@ static inline int dochk(struct dl *dl)
     return 0;
 }
 
+static void *dlsymc(struct dl *h, struct dl *c, const char *str);
+
 void *__ld_resolver(void *dlptr, int reloc)
 {
     struct dl *dl = dlptr;
     Elf64_Rela *r = dl->jmprela + reloc * sizeof(Elf64_Rela);
     Elf64_Sym *sym = dl->dynsym + dl->entsym * ELF64_R_SYM(r->r_info);
     char *name = dl->strtab + sym->st_name;
-    void *val = val = lkpsym(dl, name);
+    void *val = dlsymc(RTLD_DEFAULT, dl, name);
     if (!val)
     {
         exit(1);
@@ -277,7 +348,7 @@ static inline int dolkp(struct dl *dl)
             }
             struct dep *dep = malloc(sizeof(struct dep));
             dep->dl = handle;
-            hlist_add(&dl->dep, &dep->node);
+            list_pushback(&dl->dep, &dep->node);
         }
     }
     
@@ -374,7 +445,7 @@ static int domap(struct dl *dl)
         {
             lp_segs++;
             uintptr_t dptr = align_dn(ph->p_vaddr, ph->p_align);
-            uintptr_t uptr = align_up(ph->p_vaddr + ph->p_offset, ph->p_align);
+            uintptr_t uptr = align_up(ph->p_vaddr + ph->p_memsz, ph->p_align);
             if (dptr < lp_min) lp_min = dptr;
             if (uptr > lp_max) lp_max = uptr;
         }
@@ -407,7 +478,6 @@ static int domap(struct dl *dl)
         int prot = ((ph->p_flags & PF_R) ? PROT_READ : 0)
             | ((ph->p_flags & PF_W) ? PROT_WRITE : 0)
             | ((ph->p_flags & PF_X) ? PROT_EXEC : 0);
-        prot |= PROT_EXEC;
         if (mmap(dl->virt + moff, msize,
             prot, MAP_FIXED | MAP_PRIVATE,
             dl->fd, foff) == MAP_FAILED) {
@@ -415,10 +485,12 @@ static int domap(struct dl *dl)
             goto err;
         }
 
-        unsigned *zero = dl->virt + moff + ph->p_filesz;
-        while ((uintptr_t)zero < mend)
-            *zero++ = 0;
-        dllog("  %p -> %p, size = %lx\n", foff, dl->virt + moff, msize);
+        if (ph->p_memsz > ph->p_filesz && (prot & PROT_WRITE))
+        {
+            char *zero = dl->virt + ph->p_vaddr + ph->p_filesz;
+            memset(zero, 0, ph->p_memsz - ph->p_filesz);
+        }
+        dllog("  %p -> %p, size = %lx, prot = %x\n", foff, dl->virt + moff, msize, prot);
     }
 
     dllog("file mapped to %p\n", dl->base);
@@ -446,10 +518,14 @@ static void *loadlib(const char *path, int flags)
         goto err;
     }
 
+    dl->flags = flags;
     dl->fd = fd;
     dl->pltgot = NULL;
     htable_init(&dl->sym, 32);
-    hlist_init(&dl->dep);
+    list_init(&dl->dep);
+    list_init(&dl->l_all);
+    list_init(&dl->l_glb);
+    list_init(&dl->l_pre);
     if (domap(dl) < 0)
         goto err;
     if (dochk(dl) < 0)
@@ -501,22 +577,51 @@ static char *problib(const char *file)
 
 void *dlopen(const char *file, int flags)
 {
+    struct dl *dl;
     if (strchr(file, '/'))
-        return loadlib(file, flags);
-    
-    char *real = problib(file);
-    if (!real)
+        dl = loadlib(file, flags);
+    else
     {
-        dlerr("unable to find lib %s", file);
-        return NULL;
+        char *real = problib(file);
+        if (!real)
+        {
+            dlerr("unable to find lib %s", file);
+            return NULL;
+        }
+        dl = loadlib(real, flags);
     }
-    return loadlib(real, flags);
+    if (!dl)
+        return NULL;
+    list_pushback(&__dlall, &dl->l_all);
+    if (flags & RTLD_GLOBAL)
+        list_pushback(&__dlglb, &dl->l_glb);
+    return dl;
+}
+
+/*
+ * another version for dlsym. with `caller` provided
+ */
+static void *dlsymc(struct dl *h, struct dl *c, const char *str)
+{
+    if (h == RTLD_NEXT)
+        return c ? lkpnxt(c, str) : NULL;
+    else if (h == RTLD_DEFAULT)
+    {
+        void *res;
+        if ((res = lkppre(str)))
+            return res;
+        if (c && (res = lkpsym(c, str)))
+            return res;
+        return lkpglb(str);
+    }
+    return lkpsym(h, str);
 }
 
 void *dlsym(void *restrict handle, const char *restrict name)
 {
-    struct dl *dl = handle;
-    return lkpsym(dl, name);
+    void *retaddr = __builtin_return_address(0);
+    struct dl *caller = byptr((uintptr_t)retaddr);
+    return dlsymc(handle, caller, name);
 }
 
 char *dlerror()
