@@ -1,5 +1,6 @@
 #ifdef __NEED_linker
 
+#include <elf.h>
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -9,7 +10,6 @@
 #include <fcntl.h>
 #include <malloc.h>
 #include <sys/mman.h>
-#include <textos/user/elf.h>
 typedef uint64_t u64;
 #include <stdbool.h>
 #include <../kernel/klib/list.c>
@@ -32,6 +32,7 @@ struct dl
     void *base;  // file mapping
     size_t size; // size of file
     void *virt;  // runtime image
+    void *entry;
     uintptr_t *pltgot; // GOT entries
     char *strtab;      // .dynstr
     void *dynsym;      // .dynsym
@@ -539,9 +540,10 @@ static int domap(struct dl *dl)
         }
         dllog("  %p -> %p, size = %lx, prot = %x\n", foff, dl->virt + moff, msize, prot);
     }
-
+    dl->entry = dl->virt + eh->e_entry;
     dllog("file mapped to %p\n", dl->base);
     dllog("virtual base at %p\n", dl->virt);
+    dllog("entry point at %p\n", dl->entry);
     return 0;
 err:
     return -1;
