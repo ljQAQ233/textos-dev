@@ -14,41 +14,29 @@ extern fn __init_array_end[];
 extern fn __fini_array_start[];
 extern fn __fini_array_end[];
 
-static void libc_init()
+void __libc_start_init()
 {
     for (fn *f = __init_array_start; f < __init_array_end; f++)
         (*f)();
 }
 
-static void libc_fini()
+void __libc_exit_fini()
 {
     for (fn *f = __fini_array_end - 1; f >= __fini_array_start; f--)
         (*f)();
 }
 
-static void start0(long *args)
+void __libc_start_main(long *args)
 {
     int argc = args[0];
     const char **argv = (void *)&args[1];
     const char **envp = (void *)&args[1+argc+1];
 
     __environ = (char **)envp;
-    libc_init();
+    __libc_start_init();
     int ret = main(argc, argv, envp);
-    libc_fini();
+    __libc_exit_fini();
     _exit(ret);
 
     asm("ud2");
 }
-
-__attribute__((weak))
-__attribute__((naked))
-void _start(long args)
-{
-    asm volatile(
-        "movq %rsp, %rdi\n"
-        "xorq %rbp, %rbp\n"
-        "call start0"
-        );
-}
-

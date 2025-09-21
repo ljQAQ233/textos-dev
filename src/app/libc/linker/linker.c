@@ -1,3 +1,5 @@
+#ifdef __NEED_linker
+
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -55,6 +57,7 @@ static char __dlmsg[DLMSG];
 static struct list __dlall;
 static struct list __dlglb;
 static struct list __dlpre;
+static struct dl *__dlself;
 
 #define dl_into(x)                  \
     __dllevel += 1;                 \
@@ -93,9 +96,8 @@ static void addsym(struct dl *dl, char *str, void *ptr)
 #define X(record, type, mb) \
     ((type *)((void *)(record) - (void *)&((type *)((void *)0))->mb))
 
-static void *lkpsym(struct dl *dl, const char *str)
+static inline void *lkpsym(struct dl *dl, const char *str)
 {
-    struct list *lptr;
     struct hlist_node *hptr;
     htkey_t key = hash(str);
     HTABLE_FOREACH(hptr, &dl->sym, key)
@@ -104,10 +106,21 @@ static void *lkpsym(struct dl *dl, const char *str)
         if (strcmp(sym->str, str) == 0)
             return sym->ptr;
     }
+    return NULL;
+}
+
+// look up symbols recursively
+static void *lkprec(struct dl *dl, const char *str)
+{
+    struct list *lptr;
+    struct hlist_node *hptr;
+    htkey_t key = hash(str);
+    void *res = lkpsym(dl, str);
+    if (res) return res;
     LIST_FOREACH(lptr, &dl->dep)
     {
         struct dep *dep = X(lptr, struct dep, node);
-        void *res = lkpsym(dep->dl, str);
+        res = lkprec(dep->dl, str);
         if (res) return res;
     }
     return NULL;
@@ -119,7 +132,7 @@ static void *lkpglb(const char *str)
     LIST_FOREACH(lptr, &__dlglb)
     {
         struct dl *dl = X(lptr, struct dl, l_glb);
-        void *res = lkpsym(dl, str);
+        void *res = lkprec(dl, str);
         if (res) return res;
     }
     return NULL;
@@ -131,7 +144,7 @@ static void *lkppre(const char *str)
     LIST_FOREACH(lptr, &__dlpre)
     {
         struct dl *dl = X(lptr, struct dl, l_pre);
-        void *res = lkpsym(dl, str);
+        void *res = lkprec(dl, str);
         if (res) return res;
     }
     return NULL;
@@ -148,13 +161,13 @@ static void *lkpnxt(struct dl *prv, const char *str)
     LIST_FOREACH(lptr, &prv->dep)
     {
         last = X(lptr, struct dep, node)->dl;
-        void *res = lkpsym(last, str);
+        void *res = lkprec(last, str);
         if (res) return res;
     }
     for (lptr = last->l_all.next ; lptr != &__dlall ; lptr = lptr->next)
     {
         struct dl *dl = X(lptr, struct dl, l_all);
-        void *res = lkpsym(dl, str);
+        void *res = lkprec(dl, str);
         if (res) return res;
     }
     return NULL;
@@ -173,7 +186,7 @@ static struct dl *byptr(uintptr_t ptr)
     return NULL;
 }
 
-static void *loadlib(const char *path, int flags);
+static void *loadlibp(const char *file, int flags);
 
 __attribute__((constructor))
 static void __init_linker()
@@ -203,7 +216,7 @@ static void __init_linker()
                     len = sizeof(b) - 1;
                 memcpy(b, start, len);
                 b[len] = '\0';
-                struct dl *h = loadlib(b, RTLD_GLOBAL);
+                struct dl *h = loadlibp(b, RTLD_GLOBAL);
                 const char *e = h ? "okay" : dlerror();
                 dllog("-> preload %s : %s\n", b, e);
                 if (h) list_pushback(&__dlpre, &h->l_pre);
@@ -387,7 +400,12 @@ static inline int dolkp(struct dl *dl)
             Elf64_Rela *r = dynrela + entrela * i;
             Elf64_Sym *sym = dynsym + entsym * ELF64_R_SYM(r->r_info);
             uintptr_t *p = dl->virt + r->r_offset;
-            *p = (uintptr_t)dl->virt + sym->st_value + r->r_addend;
+            if (sym->st_shndx)
+                *p = (uintptr_t)dl->virt + sym->st_value + r->r_addend;
+            else {
+                char *name = strtab + sym->st_name;
+                *p = (uintptr_t)dlsymc(RTLD_DEFAULT, dl, name) + r->r_addend;
+            }
         }
     }
     if (jmprela)
@@ -427,6 +445,8 @@ static int domap(struct dl *dl)
         dlerr("unable to do mmap");
         return -1;
     }
+    if (dochk(dl) < 0)
+        return -1;
     void *map = dl->base;
     Elf64_Ehdr *eh = (Elf64_Ehdr *)map;
     void *pmap = map + eh->e_phoff;
@@ -529,8 +549,6 @@ static void *loadlib(const char *path, int flags)
     list_init(&dl->l_pre);
     if (domap(dl) < 0)
         goto err;
-    if (dochk(dl) < 0)
-        goto err;
     if (dolkp(dl) < 0)
         goto err;
 
@@ -544,7 +562,7 @@ err:
     return NULL;
 }
 
-static char *problib(const char *file)
+static void *loadlibp(const char *file, int flags)
 {
     char *env[] = {
         getenv("LD_LIBRARY_PATH"),
@@ -568,8 +586,10 @@ static char *problib(const char *file)
             b[s1] = '/';
             memcpy(b + 1 + s1, file, s2);
             b[s1 + 1 + s2] = '\0';
-            if (access(b, F_OK) >= 0)
-                return strdup(b);
+            if (access(b, F_OK) >= 0) {
+                void *res = loadlib(b, flags);
+                if (res) return res;
+            }
             dllog("probing %s failed\n", b);
         }
     }
@@ -583,13 +603,12 @@ void *dlopen(const char *file, int flags)
         dl = loadlib(file, flags);
     else
     {
-        char *real = problib(file);
-        if (!real)
+        dl = loadlibp(file, flags);
+        if (!dl)
         {
             dlerr("unable to find lib %s", file);
             return NULL;
         }
-        dl = loadlib(real, flags);
     }
     if (!dl)
         return NULL;
@@ -609,13 +628,15 @@ static void *dlsymc(struct dl *h, struct dl *c, const char *str)
     else if (h == RTLD_DEFAULT)
     {
         void *res;
+        if (__dlself && (res = lkpsym(__dlself, str)))
+            return res;
         if ((res = lkppre(str)))
             return res;
-        if (c && (res = lkpsym(c, str)))
+        if (c && (res = lkprec(c, str)))
             return res;
         return lkpglb(str);
     }
-    return lkpsym(h, str);
+    return lkprec(h, str);
 }
 
 void *dlsym(void *restrict handle, const char *restrict name)
@@ -629,3 +650,5 @@ char *dlerror()
 {
     return __dlmsg;
 }
+
+#endif

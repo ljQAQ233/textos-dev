@@ -1,6 +1,7 @@
 /*
  * Lazy binding resolver for x86_64, inspired by glibc
  */
+#ifdef __NEED_linker
 
 extern void *__ld_resolver(void *, int);
 
@@ -43,3 +44,5 @@ void _dl_runtime_resolve()
         "r9", "r11", "memory"
     );
 }
+
+#endif
