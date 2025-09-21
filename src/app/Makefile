@@ -8,7 +8,9 @@ elfs := $(addprefix ${APP_OUTPUT}/,${elfs})
 
 MODS := \
 	libc \
-	lvgl
+	lvgl \
+	test
+# TODO : test does not belong here
 
 app: mods $(elfs)
 
