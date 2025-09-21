@@ -1,4 +1,4 @@
-extern void _exit(int stat);
+#include <stdlib.h>
 
 __attribute__((weak))
 int main(int argc, const char *argv[], const char *envp[])
@@ -7,6 +7,7 @@ int main(int argc, const char *argv[], const char *envp[])
 }
 
 extern char **__environ;
+extern const void **__auxv;
 
 typedef void (*fn)();
 extern fn __init_array_start[];
@@ -42,12 +43,14 @@ void __libc_start_main(long *args)
     int argc = args[0];
     const char **argv = (void *)&args[1];
     const char **envp = (void *)&args[1+argc+1];
+    const void **auxv = (const void **)envp;
+    while (*auxv++);
 
     __environ = (char **)envp;
+    __auxv = auxv;
     __libc_start_init();
     int ret = main(argc, argv, envp);
-    __libc_exit_fini();
-    _exit(ret);
+    exit(ret);
 
     asm("ud2");
 }

@@ -22,7 +22,7 @@ clean:
 
 $(APP_OUTPUT)/%.elf: %.c $(MODS:=/.stamp)
 	@mkdir -p $(@D)
-	@$(CC) $(CFLAGS) $< $(LIBC) $(addprefix $(APP_OUTPUT)/,$(shell ${UTILS}/fix_libs.sh $<)) -o $@ -L$(APP_OUTPUT)/libc -lc -ldl
+	@$(CC) $(CFLAGS) $< -static $(LIBC) $(addprefix $(APP_OUTPUT)/,$(shell ${UTILS}/fix_libs.sh $<)) -o $@ -L$(APP_OUTPUT)/libc -lc -ldl
 	@echo -e "\033[032m   CC  \033[0m $<"
 
 .PHONY: app mods clean
