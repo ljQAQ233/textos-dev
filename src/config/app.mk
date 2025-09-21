@@ -15,14 +15,13 @@ INCLUDE := \
 LIBC := $(APP_OUTPUT)/libc/libc.o
 
 CFLAGS := \
-  -static -nostdlib -nostdinc -g \
+  -nostdlib -nostdinc -g \
   -std=c11 -fshort-wchar -ffreestanding \
   -fno-builtin -fno-stack-check -fno-stack-protector \
   -include $(SRC_DIR)/include/bits/compiler.h \
-  $(addprefix -I,${INCLUDE}) \
+  $(addprefix -I,${INCLUDE})
 
 LDFLAGS := \
-  -static -nostdlib \
+  -nostdlib
 
-export CC LD NASM OBJCOPY LIBC CFLAGS LDFLAGS
-
+export CC LD NASM OBJCOPY INCLUDE LIBC CFLAGS LDFLAGS
