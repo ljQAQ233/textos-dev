@@ -54,9 +54,10 @@ struct dep
 static int __dllog;
 static int __dllevel;
 static char __dlmsg[DLMSG];
-static struct list __dlall;
-static struct list __dlglb;
-static struct list __dlpre;
+static struct list __dlall = LIST_INIT(__dlall);
+static struct list __dlglb = LIST_INIT(__dlglb);
+static struct list __dlpre = LIST_INIT(__dlpre);
+static struct dl __dlhook;
 static struct dl *__dlself;
 
 #define dl_into(x)                  \
@@ -91,6 +92,11 @@ static void addsym(struct dl *dl, char *str, void *ptr)
     htkey_t key = hash(str);
     htable_add(&dl->sym, &sym->node, key);
     dllog("addsym %s [%p]\n", str, ptr);
+}
+
+static void addhook(char *str, void *ptr)
+{
+    addsym(&__dlhook, str, ptr);
 }
 
 #define X(record, type, mb) \
@@ -188,14 +194,23 @@ static struct dl *byptr(uintptr_t ptr)
 
 static void *loadlibp(const char *file, int flags);
 
-__attribute__((constructor))
-static void __init_linker()
+void __init_linker()
 {
-    list_init(&__dlall);
-    list_init(&__dlglb);
-    list_init(&__dlpre);
     if (getenv("LD_DEBUG"))
         __dllog = 1;
+
+    struct dl *h = &__dlhook;
+    h->fd = -1,
+    h->base = 0,
+    h->size = 0,
+    list_init(&h->dep);
+    htable_init(&h->sym, 8);
+    list_pushback(&__dlpre, &h->l_pre);
+
+    addhook("dlclose", NULL);
+    addhook("dlerror", dlerror);
+    addhook("dlopen", dlopen);
+    addhook("dlsym", dlsym);
 
     const char *preload = getenv("LD_PRELOAD");
     if (preload)
@@ -266,6 +281,7 @@ void *__ld_resolver(void *dlptr, int reloc)
     void *val = dlsymc(RTLD_DEFAULT, dl, name);
     if (!val)
     {
+        dllog("couldn't find %s\n", name);
         exit(1);
     }
 
@@ -493,13 +509,15 @@ static int domap(struct dl *dl)
         if (ph->p_type != PT_LOAD)
             continue;
         uintptr_t foff = align_dn(ph->p_offset, ph->p_align);
+        uintptr_t fend = align_up(ph->p_offset + ph->p_filesz, ph->p_align);
+        uintptr_t fsize = fend - foff;
         uintptr_t moff = align_dn(ph->p_vaddr, ph->p_align);
         uintptr_t mend = align_up(ph->p_vaddr + ph->p_memsz, ph->p_align);
         uintptr_t msize = mend - moff;
         int prot = ((ph->p_flags & PF_R) ? PROT_READ : 0)
             | ((ph->p_flags & PF_W) ? PROT_WRITE : 0)
             | ((ph->p_flags & PF_X) ? PROT_EXEC : 0);
-        if (mmap(dl->virt + moff, msize,
+        if (fsize && mmap(dl->virt + moff, fsize,
             prot, MAP_FIXED | MAP_PRIVATE,
             dl->fd, foff) == MAP_FAILED) {
             dlerr("PT_LOAD mapping failed");
@@ -508,6 +526,14 @@ static int domap(struct dl *dl)
 
         if (ph->p_memsz > ph->p_filesz && (prot & PROT_WRITE))
         {
+            uintptr_t diff = msize - fsize;
+            void *rempages = dl->virt + moff + fsize;
+            if (diff && mmap(rempages, diff,
+                PROT_READ | PROT_WRITE | prot,
+                MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) == MAP_FAILED) {
+                    dlerr(".bss mapping failed");
+                    goto err;
+            }
             char *zero = dl->virt + ph->p_vaddr + ph->p_filesz;
             memset(zero, 0, ph->p_memsz - ph->p_filesz);
         }

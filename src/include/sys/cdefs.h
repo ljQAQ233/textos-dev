@@ -17,5 +17,7 @@
 
 #define __alias(_orig, _alias) \
   extern __typeof__(_orig) _alias __attribute__((alias(#_orig)))
+#define __weak_alias(_orig, _alias) \
+  extern __typeof__(_orig) _alias __attribute__((weak, alias(#_orig)))
 
 #endif

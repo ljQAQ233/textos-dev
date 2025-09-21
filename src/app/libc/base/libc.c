@@ -14,8 +14,19 @@ extern fn __init_array_end[];
 extern fn __fini_array_start[];
 extern fn __fini_array_end[];
 
+extern void __init_stdio();
+extern void __init_linker();
+
+#include <sys/cdefs.h>
+static void dummy() { };
+__weak_alias(dummy, __init_stdio);
+__weak_alias(dummy, __init_linker);
+
 void __libc_start_init()
 {
+    __init_stdio();
+    __init_linker();
+
     for (fn *f = __init_array_start; f < __init_array_end; f++)
         (*f)();
 }
