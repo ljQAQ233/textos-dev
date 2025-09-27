@@ -13,6 +13,7 @@
 #include <sys/syscall.h>
 
 extern int errno;
+extern int __is_linux;
 
 // According to the SysV ABI :
 // Returning from the syscall, register %rax contains the result of the system-call. A
@@ -212,13 +213,28 @@ int close(int fd)
     return syscall(SYS_close, fd);
 }
 
+extern int __libc_linux_stat(const char *path, struct stat *sb);
+extern int __libc_linux_fstat(int fd, struct stat *sb);
+extern int __libc_linux_lstat(const char *path, struct stat *sb);
+
 int stat(const char *path, struct stat *sb)
 {
+    if (__is_linux)
+        return __libc_linux_stat(path, sb);
     return syscall(SYS_stat, path, sb);
+}
+
+int lstat(const char *path, struct stat *sb)
+{
+    if (__is_linux)
+        return __libc_linux_lstat(path, sb);
+    return -ENOSYS;
 }
 
 int fstat(int fd, struct stat *sb)
 {
+    if (__is_linux)
+        return __libc_linux_fstat(fd, sb);
     return syscall(SYS_fstat, sb);
 }
 
