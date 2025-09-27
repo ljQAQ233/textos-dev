@@ -12,5 +12,6 @@ $(BUILD)/%: %.c
 	@echo -e "\033[032m   CC  \033[0m $<"
 
 $(BUILD)/dlopen: X += -ldl
+$(BUILD)/dluniq: X += -ldl
 
 .PHONY: all
