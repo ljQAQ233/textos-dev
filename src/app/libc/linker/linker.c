@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <malloc.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 typedef uint64_t u64;
 #include <stdbool.h>
 #include <../kernel/klib/list.c>
@@ -27,7 +28,10 @@ struct sym
 
 struct dl
 {
-    int flags;   // RTLD_*
+    dev_t dev;
+    ino_t ino;
+    char *path;
+    int refcnt;
     int fd;      // file fd
     void *base;  // file mapping
     size_t size; // size of file
@@ -40,6 +44,7 @@ struct dl
     size_t entsym;     // .dynsym entry size 
     struct htable sym; // symbol hash table
     struct list dep;   // dependent libs
+    int flags;         // RTLD_*
     struct list l_all;
     struct list l_glb;
     struct list l_pre;
@@ -188,6 +193,18 @@ static struct dl *byptr(uintptr_t ptr)
         struct dl *dl = X(p, struct dl, l_all);
         if ((uintptr_t)dl->virt <= ptr &&
             (uintptr_t)dl->virt + dl->size > ptr)
+            return dl;
+    }
+    return NULL;
+}
+
+static struct dl *byid(dev_t dev, ino_t ino)
+{
+    struct list *p;
+    LIST_FOREACH(p, &__dlall)
+    {
+        struct dl *dl = X(p, struct dl, l_all);
+        if (dl->dev == dev && dl->ino == ino)
             return dl;
     }
     return NULL;
@@ -584,7 +601,23 @@ static void *loadlib(const char *path, int flags)
     dllog("loadlib(\"%s\", %x)\n", path, flags);
 
     int fd;
+    struct stat sb;
     struct dl *dl = NULL;
+    if (stat(path, &sb) < 0) {
+        if (flags & RTLD_NOLOAD)
+            return NULL;
+        dlerr("stat error");
+        goto err;
+    }
+    dl = byid(sb.st_dev, sb.st_ino);
+    if (dl) {
+        dl->refcnt++;
+        dllog("==> %s already loaded\n", path);
+        return dl;
+    }
+    if (flags & RTLD_NOLOAD)
+        return NULL;
+
     fd = open(path, O_RDONLY);
     if (fd < 0) {
         dlerr("unable to find lib %s", path);
@@ -597,7 +630,10 @@ static void *loadlib(const char *path, int flags)
         goto err;
     }
 
-    dl->flags = flags;
+    dl->dev = sb.st_dev;
+    dl->ino = sb.st_ino;
+    dl->path = strdup(path);
+    dl->refcnt = 1;
     dl->fd = fd;
     dl->pltgot = NULL;
     htable_init(&dl->sym, 32);
@@ -609,7 +645,7 @@ static void *loadlib(const char *path, int flags)
         goto err;
     if (dolkp(dl) < 0)
         goto err;
-    dllog("gdb ->add-symbol-file %s -o %p\n", path, dl->virt);
+    dllog("==> gdb -> add-symbol-file %s -o %p\n", path, dl->virt);
 
     return dl;
 
@@ -671,9 +707,18 @@ void *dlopen(const char *file, int flags)
     }
     if (!dl)
         return NULL;
-    list_pushback(&__dlall, &dl->l_all);
-    if (flags & RTLD_GLOBAL)
+    /*
+     * if refcnt == 1, then it is a new library loaded just now
+     * if it has been already loaded, it might be reloaded with the flag `RTLD_GLOBAL`
+     */
+    if (dl->refcnt == 1) {
+        dl->flags = flags;
+        list_pushback(&__dlall, &dl->l_all);
+    }
+    if ((flags & RTLD_GLOBAL) && !(dl->flags & RTLD_GLOBAL)) {
+        dl->flags |= RTLD_GLOBAL;
         list_pushback(&__dlglb, &dl->l_glb);
+    }
     return dl;
 }
 
