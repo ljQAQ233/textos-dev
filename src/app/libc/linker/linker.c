@@ -364,6 +364,10 @@ static inline int dolkp(struct dl *dl)
     dllog("  pltgot at %p\n", pltgot);
     dllog("  rela.dyn at %p\n", dynrela);
     dllog("  rela.plt at %p\n", jmprela);
+    dl->strtab = strtab;
+    dl->dynsym = dynsym;
+    dl->jmprela = jmprela;
+    dl->entsym = entsym;
     
     dyn = (Elf64_Dyn *)dmap;
     for ( ; dyn->d_tag != DT_NULL ; dyn++)
@@ -381,19 +385,6 @@ static inline int dolkp(struct dl *dl)
             dep->dl = handle;
             list_pushback(&dl->dep, &dep->node);
         }
-    }
-    
-    size_t nrsym;
-    nrsym = strtab - (char *)dynsym;
-    nrsym /= entsym;
-    for (int i = 1 ; i < nrsym ; i++)
-    {
-        Elf64_Sym *sym = dynsym + i * entsym;
-        if (!sym->st_value)
-            continue;
-        if (ELF64_ST_BIND(sym->st_info) == STB_GLOBAL ||
-            ELF64_ST_BIND(sym->st_info) == STB_WEAK)
-            addsym(dl, strtab + sym->st_name, dl->virt + sym->st_value);
     }
 
     /*
@@ -417,11 +408,38 @@ static inline int dolkp(struct dl *dl)
             Elf64_Rela *r = dynrela + entrela * i;
             Elf64_Sym *sym = dynsym + entsym * ELF64_R_SYM(r->r_info);
             uintptr_t *p = dl->virt + r->r_offset;
-            if (sym->st_shndx)
-                *p = (uintptr_t)dl->virt + sym->st_value + r->r_addend;
-            else {
-                char *name = strtab + sym->st_name;
-                *p = (uintptr_t)dlsymc(RTLD_DEFAULT, dl, name) + r->r_addend;
+            switch (ELF64_R_TYPE(r->r_info)) {
+                case R_X86_64_RELATIVE:
+                    *p = (uintptr_t)dl->virt + r->r_addend;
+                    break;
+                case R_X86_64_64:
+                case R_X86_64_GLOB_DAT:
+                case R_X86_64_JUMP_SLOT: {
+                    uintptr_t val;
+                    if (sym->st_shndx) {
+                        val = (uintptr_t)dl->virt + sym->st_value;
+                    } else {
+                        char *name = strtab + sym->st_name;
+                        void *addr = dlsymc(RTLD_DEFAULT, dl, name);
+                        if (!addr) {
+                            dlerr("%s not found\n", name);
+                            return -1;
+                        }
+                        val = (uintptr_t)addr;
+                    }
+                    *p = val + r->r_addend;
+                    break;
+                }
+                case R_X86_64_COPY: {
+                    char *name = strtab + sym->st_name;
+                    void *src = dlsymc(RTLD_DEFAULT, dl, name);
+                    if (!src) {
+                        dlerr("R_COPY %s not found\n", name);
+                        return -1;
+                    }
+                    memcpy(p, src, sym->st_size);
+                    break;
+                }
             }
         }
     }
@@ -436,12 +454,24 @@ static inline int dolkp(struct dl *dl)
             *p += (uintptr_t)dl->virt;
         }
     }
-
-    dl->strtab = strtab;
-    dl->dynsym = dynsym;
-    dl->jmprela = jmprela;
-    dl->entsym = entsym;
-
+    
+    /*
+     * This library's symbols are added to the global symbol table only after this point.
+     * Any dlsym lookups performed before this will not see the library's own symbols.
+     * Therefore, place this registration step at the end to avoid missing or shadowed symbols.
+     */
+    size_t nrsym;
+    nrsym = strtab - (char *)dynsym;
+    nrsym /= entsym;
+    for (int i = 1 ; i < nrsym ; i++)
+    {
+        Elf64_Sym *sym = dynsym + i * entsym;
+        if (!sym->st_value)
+            continue;
+        if (ELF64_ST_BIND(sym->st_info) == STB_GLOBAL ||
+            ELF64_ST_BIND(sym->st_info) == STB_WEAK)
+            addsym(dl, strtab + sym->st_name, dl->virt + sym->st_value);
+    }
     return 0;
 }
 
@@ -579,6 +609,7 @@ static void *loadlib(const char *path, int flags)
         goto err;
     if (dolkp(dl) < 0)
         goto err;
+    dllog("gdb ->add-symbol-file %s -o %p\n", path, dl->virt);
 
     return dl;
 
