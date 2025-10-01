@@ -32,13 +32,19 @@ int puts(const char *__s);
 int getc(FILE *__f);
 int getchar();
 
-ssize_t getline(char **restrict lineptr, size_t *restrict n, FILE *f);
+ssize_t getline(char **restrict __lineptr, size_t *restrict __n, FILE *restrict __f);
 ssize_t getdelim(char **restrict __lineptr, size_t *restrict __n, int __delim, FILE *restrict __f);
 
-int printf(char *__format, ...);
-int sprintf(char *__buffer, const char *__format, ...);
-int dprintf(int __fd, char *__format, ...);
-int vsprintf(char *__buffer, const char *__format, va_list __args);
+int printf(const char *__format, ...);
+int fprintf(FILE *f, const char *format, ...);
+int dprintf(int __fd, const char *__format, ...);
+int sprintf(char *__buf, const char *__format, ...);
+int snprintf(char *__buf, size_t __n, const char *__format, ...);
+int vprintf(const char *__format, va_list __ap);
+int vfprintf(FILE *__f, const char *__format, va_list __ap);
+int vdprintf(int __fd, const char *__format, va_list __ap);
+int vsprintf(char *__buf, const char *__format, va_list __ap);
+int vsnprintf(char *__buf, size_t n, const char *__format, va_list __ap);
 void perror(const char *__s);
 
 FILE *fopen(const char *__path, const char *__mode);
