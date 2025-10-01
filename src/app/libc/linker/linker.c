@@ -1,6 +1,7 @@
 #ifdef __NEED_linker
 
 #include <elf.h>
+#include <link.h>
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -9,6 +10,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <malloc.h>
+#include <assert.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 typedef uint64_t u64;
@@ -28,6 +30,7 @@ struct sym
 
 struct dl
 {
+    int flags;   // RTLD_*
     dev_t dev;
     ino_t ino;
     char *path;
@@ -36,6 +39,13 @@ struct dl
     void *base;  // file mapping
     size_t size; // size of file
     void *virt;  // runtime image
+    void *dynamic;
+    struct list l_all;
+    struct list l_glb;
+    struct list l_pre;
+    /*
+     * initialized by `dolkp`
+     */
     void *entry;
     uintptr_t *pltgot; // GOT entries
     char *strtab;      // .dynstr
@@ -44,10 +54,11 @@ struct dl
     size_t entsym;     // .dynsym entry size 
     struct htable sym; // symbol hash table
     struct list dep;   // dependent libs
-    int flags;         // RTLD_*
-    struct list l_all;
-    struct list l_glb;
-    struct list l_pre;
+    /*
+     * links in `debug` is not used by this ldso but by gdb
+     * members in `debug` is always a reference to those in `struct dl`
+     */
+    struct link_map debug;
 };
 
 struct dep
@@ -63,8 +74,65 @@ static char __dlmsg[DLMSG];
 static struct list __dlall = LIST_INIT(__dlall);
 static struct list __dlglb = LIST_INIT(__dlglb);
 static struct list __dlpre = LIST_INIT(__dlpre);
-static struct dl __dlhook;
-static struct dl *__dlself;
+static struct dl ldso;  // ldso itself
+static struct dl *self; // main program
+
+/*
+ * gdb support
+ */
+#define dbg _r_debug
+struct r_debug _r_debug;
+void _dl_debug_state() { }
+
+static void r_notify(int state)
+{
+    dbg.r_state = state;
+    _dl_debug_state();
+}
+    
+static void r_addlib(struct dl *dl)
+{
+    r_notify(RT_ADD);
+    struct link_map *lm = &dl->debug;
+    lm->l_addr = (ElfW(Addr))dl->virt;
+    lm->l_name = dl->path;
+    lm->l_ld   = dl->dynamic;
+    struct link_map *ptr = &ldso.debug;
+    while (ptr->l_next)
+        ptr = ptr->l_next;
+    ptr->l_next = lm;
+    lm->l_prev = ptr;
+    r_notify(RT_CONSISTENT);
+}
+
+static void r_dellib(struct dl *lib)
+{
+    r_notify(RT_DELETE);
+    struct link_map *lm = &lib->debug;
+    if (lm->l_prev)
+        lm->l_prev->l_next = lm->l_next;
+    if (lm->l_next)
+        lm->l_next->l_prev = lm->l_prev;
+    r_notify(RT_CONSISTENT);
+}
+
+// FIXME: gdb will remove the debugging info of ld.so when the first library is added into r_map
+//        link ldso with static-pie to solve this problem?
+static void r_init()
+{
+    struct link_map *lm = &ldso.debug;
+    lm->l_addr = 0;
+    lm->l_name = "ld.so";
+    lm->l_ld = 0;
+    lm->l_next = lm->l_prev = 0;
+
+    struct r_debug *r = &dbg;
+    r->r_version = 1;
+    r->r_map = lm;
+    r->r_brk = (ElfW(Addr))_dl_debug_state;
+    r->r_ldbase = (Elf64_Addr)0;
+    r_notify(RT_CONSISTENT);
+}
 
 #define dl_into(x)                  \
     __dllevel += 1;                 \
@@ -102,7 +170,7 @@ static void addsym(struct dl *dl, char *str, void *ptr)
 
 static void addhook(char *str, void *ptr)
 {
-    addsym(&__dlhook, str, ptr);
+    addsym(&ldso, str, ptr);
 }
 
 #define X(record, type, mb) \
@@ -217,7 +285,7 @@ void __init_linker()
     if (getenv("LD_DEBUG"))
         __dllog = 1;
 
-    struct dl *h = &__dlhook;
+    struct dl *h = &ldso;
     h->fd = -1,
     h->base = 0,
     h->size = 0,
@@ -229,6 +297,7 @@ void __init_linker()
     addhook("dlerror", dlerror);
     addhook("dlopen", dlopen);
     addhook("dlsym", dlsym);
+    r_init();
 
     const char *preload = getenv("LD_PRELOAD");
     if (preload)
@@ -312,27 +381,9 @@ void *__ld_resolver(void *dlptr, int reloc)
 
 static inline int dolkp(struct dl *dl)
 {
-    /*
-     * save symbol info for looking-up
-     *   - find program header
-     *   - find `PT_DYNAMIC`
-     */
-    void *map = dl->base;
-    Elf64_Ehdr *eh = (Elf64_Ehdr *)map;
-    void *pmap = map + eh->e_phoff;
-    void *dmap = NULL;
-    for (int i = 0 ; i < eh->e_phnum ; i++)
-    {
-        Elf64_Phdr *ph = pmap + i * eh->e_phentsize;
-        if (ph->p_type == PT_DYNAMIC)
-            dmap = map + ph->p_offset;
-    }
-    if (!dmap)
-    {
-        dlerr("can not find .dynmic");
-        return -1;
-    }
-    
+    assert(dl->virt != NULL);
+    assert(dl->dynamic != NULL);
+    void *dmap = dl->dynamic;
     /*
      * handle symbols
      *   - `.dynsym` - DT_DYNSYM
@@ -355,15 +406,15 @@ static inline int dolkp(struct dl *dl)
     for ( ; dyn->d_tag != DT_NULL ; dyn++)
     {
         if (dyn->d_tag == DT_STRTAB)
-            strtab = map + dyn->d_un.d_ptr;
+            strtab = dl->virt + dyn->d_un.d_ptr;
         if (dyn->d_tag == DT_SYMTAB)
-            dynsym = map + dyn->d_un.d_ptr;
+            dynsym = dl->virt + dyn->d_un.d_ptr;
         if (dyn->d_tag == DT_PLTGOT)
             pltgot = dl->virt + dyn->d_un.d_ptr;
         if (dyn->d_tag == DT_SYMENT)
             entsym = dyn->d_un.d_val;
         if (dyn->d_tag == DT_RELA)
-            dynrela = map + dyn->d_un.d_ptr;
+            dynrela = dl->virt + dyn->d_un.d_ptr;
         if (dyn->d_tag == DT_RELASZ)
             szrela = dyn->d_un.d_val;
         if (dyn->d_tag == DT_RELAENT)
@@ -371,9 +422,11 @@ static inline int dolkp(struct dl *dl)
         if (dyn->d_tag == DT_PLTREL)
             dllog("pltrel %d used\n", dyn->d_un.d_val);
         if (dyn->d_tag == DT_JMPREL)
-            jmprela = map + dyn->d_un.d_ptr;
+            jmprela = dl->virt + dyn->d_un.d_ptr;
         if (dyn->d_tag == DT_PLTRELSZ)
             szpltrel = dyn->d_un.d_val;
+        if (dyn->d_tag == DT_DEBUG)
+            dyn->d_un.d_ptr = (uintptr_t)&dbg;
     }
     dllog("symbols:\n");
     dllog("  strtab at %p\n", strtab);
@@ -386,6 +439,7 @@ static inline int dolkp(struct dl *dl)
     dl->jmprela = jmprela;
     dl->entsym = entsym;
     
+    list_init(&dl->dep);
     dyn = (Elf64_Dyn *)dmap;
     for ( ; dyn->d_tag != DT_NULL ; dyn++)
     {
@@ -480,6 +534,7 @@ static inline int dolkp(struct dl *dl)
     size_t nrsym;
     nrsym = strtab - (char *)dynsym;
     nrsym /= entsym;
+    htable_init(&dl->sym, 32);
     for (int i = 1 ; i < nrsym ; i++)
     {
         Elf64_Sym *sym = dynsym + i * entsym;
@@ -591,6 +646,20 @@ static int domap(struct dl *dl)
     dllog("file mapped to %p\n", dl->base);
     dllog("virtual base at %p\n", dl->virt);
     dllog("entry point at %p\n", dl->entry);
+
+    void *dmap = NULL;
+    for (int i = 0 ; i < eh->e_phnum ; i++)
+    {
+        Elf64_Phdr *ph = pmap + i * eh->e_phentsize;
+        if (ph->p_type == PT_DYNAMIC)
+            dmap = dl->virt + ph->p_vaddr;
+    }
+    if (!dmap)
+    {
+        dlerr("can not find .dynmic");
+        goto err;
+    }
+    dl->dynamic = dmap;
     return 0;
 err:
     return -1;
@@ -600,7 +669,7 @@ static void *loadlib(const char *path, int flags)
 {
     dllog("loadlib(\"%s\", %x)\n", path, flags);
 
-    int fd;
+    int fd = -1;
     struct stat sb;
     struct dl *dl = NULL;
     if (stat(path, &sb) < 0) {
@@ -636,8 +705,6 @@ static void *loadlib(const char *path, int flags)
     dl->refcnt = 1;
     dl->fd = fd;
     dl->pltgot = NULL;
-    htable_init(&dl->sym, 32);
-    list_init(&dl->dep);
     list_init(&dl->l_all);
     list_init(&dl->l_glb);
     list_init(&dl->l_pre);
@@ -645,6 +712,7 @@ static void *loadlib(const char *path, int flags)
         goto err;
     if (dolkp(dl) < 0)
         goto err;
+    r_addlib(dl);
     dllog("==> gdb -> add-symbol-file %s -o %p\n", path, dl->virt);
 
     return dl;
@@ -652,7 +720,7 @@ static void *loadlib(const char *path, int flags)
 err:
     if (dl)
         free(dl);
-    if (fd > 0)
+    if (fd >= 0)
         close(fd);
     return NULL;
 }
@@ -702,11 +770,11 @@ void *dlopen(const char *file, int flags)
         if (!dl)
         {
             dlerr("unable to find lib %s", file);
-            return NULL;
+            goto end;
         }
     }
     if (!dl)
-        return NULL;
+        goto end;
     /*
      * if refcnt == 1, then it is a new library loaded just now
      * if it has been already loaded, it might be reloaded with the flag `RTLD_GLOBAL`
@@ -719,6 +787,8 @@ void *dlopen(const char *file, int flags)
         dl->flags |= RTLD_GLOBAL;
         list_pushback(&__dlglb, &dl->l_glb);
     }
+
+end:
     return dl;
 }
 
@@ -732,7 +802,7 @@ static void *dlsymc(struct dl *h, struct dl *c, const char *str)
     else if (h == RTLD_DEFAULT)
     {
         void *res;
-        if (__dlself && (res = lkpsym(__dlself, str)))
+        if (self && (res = lkpsym(self, str)))
             return res;
         if ((res = lkppre(str)))
             return res;
