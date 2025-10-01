@@ -1,7 +1,10 @@
-all: ld add.so
+all: ld ldbase add.so
 
 ld: ld.c
 	gcc -static -nostdlib $^ -o $@
+
+ldbase: ldbase.c
+	gcc $^ -o $@
 
 dep.so: dep.c
 	gcc -shared -nostdlib $^ -o $@ -fPIC
@@ -12,6 +15,6 @@ add.so: add.c dep.so
 	cp $@ ../../src/resource
 
 clean:
-	rm -f ld add.so dep.so
+	rm -f ld ldbase add.so dep.so
 
 .PHONY: clean copy

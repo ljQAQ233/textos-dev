@@ -25,5 +25,6 @@ src/utils/compile_commands.json
 test/ldso/ld
 test/ldso/add.so
 test/ldso/dep.so
+test/ldso/ldbase
 src/resource/add.so
 src/resource/dep.so
