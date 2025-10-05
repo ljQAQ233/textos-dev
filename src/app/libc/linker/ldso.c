@@ -85,7 +85,7 @@ int main(int argc, char *argv[], char *envp[])
         fixaddr() < 0 ||
         dolkp(self) < 0)
     {
-        dprintf(2, "ld.so: \n", dlerror());
+        dprintf(2, "ld.so: %s\n", dlerror());
         return 1;
     }
 
