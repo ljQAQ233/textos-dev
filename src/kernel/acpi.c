@@ -129,7 +129,7 @@ addr_t acpi_map(addr_t pa, size_t num)
 {
     static size_t idx = 0;
     addr_t va = __acpi_pages + PAGE_SIZ * idx;
-    vmap_map(pa, va, num, PE_P | PE_RW, MAP_4K);
+    vmap_map(pa, va, num, PE_P | PE_RW);
     idx += num;
     return va;
 }

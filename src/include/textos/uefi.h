@@ -30,6 +30,12 @@ typedef uintptr_t EFI_VIRTUAL_ADDRESS;
 #define CONST    const  
 #define VOID     void   
 
+/*
+ * uefi specification defines it. uefi does not have virtual memory.
+ * it only manages physical memory directly. So that it could be fixed to 0x1000
+ */
+#define EFI_PAGE_SIZE 4096
+
 #include <uefi_types.h>
 #include <textos/uefi/mm.h>
 #include <textos/uefi/table.h>

@@ -50,12 +50,11 @@ void *ioapic = NULL;
 void __apic_tovmm ()
 {
     // lapic mapping is unused
-    vmap_map ((u64)lapic, __lapic_va, 1, PE_RW | PE_P | PE_PCD | PE_PWT, MAP_4K);
-    vmap_map ((u64)ioapic, __ioapic_va, 1, PE_RW | PE_P | PE_PCD | PE_PWT, MAP_4K);
+    vmap_map((addr_t)lapic, __lapic_va, 1, PE_RW | PE_P | PE_PCD | PE_PWT);
+    vmap_map((addr_t)ioapic, __ioapic_va, 1, PE_RW | PE_P | PE_PCD | PE_PWT);
 
     lapic = (void *)__lapic_va;
     ioapic = (void *)__ioapic_va;
-
 }
 
 extern void task_schedule();

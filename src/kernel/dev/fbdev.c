@@ -34,7 +34,7 @@ static void *fbdev_mmap(devst_t *fb, vm_region_t *vm)
     screen_info5(NULL, &paddr, &fblen, NULL, NULL);
     pgnum = DIV_ROUND_UP(fblen, PAGE_SIZ); // 多此一举
 
-    vmap_map(paddr, vaddr, pgnum, mapflg, MAP_4K);
+    vmap_map(paddr, vaddr, pgnum, mapflg);
     return MRET(vaddr);
 }
 

@@ -18,6 +18,7 @@ typedef struct
 
 #include <textos/file.h>
 #include <textos/signal.h>
+#include <textos/mm/mman.h>
 #include <textos/klib/list.h>
 
 #define MAX_FILE 16
@@ -58,6 +59,7 @@ typedef struct task
 
     addr_t pgt;
     addr_t mmap;
+    vm_space_t *vsp;
     void *fpu;
 
     int retval;

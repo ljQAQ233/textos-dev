@@ -122,8 +122,9 @@ void __uefi_tovmm()
             desc->VirtualStart = vs;
             addr_t ps = desc->PhysicalStart;
             size_t num = desc->NumberOfPages;
+            size_t real = DIV_ROUND_UP(num * EFI_PAGE_SIZE, PAGE_SIZE);
             u16    mapflg = PE_P | PE_RW;    // TODO
-            vmap_map(ps, vs, num, mapflg, MAP_4K);
+            vmap_map(ps, vs, real, mapflg);
             DEBUGK(K_INIT, "[#%02d] runtime region detected\n", i);
 
             vs += desc->NumberOfPages * PAGE_SIZ;

@@ -21,13 +21,7 @@ enum
 #define FS_GAIN    (1ull << 32) // ignore checks for dir / file, ignoring EISDIR / ENOTDIR
 #define FS_GAINMNT (1ull << 33) // open dir mounted to, not root dir of mountpoint
 
-struct node;
-struct dirctx;
-struct superblk;
-typedef struct node node_t;
-typedef struct dirctx dirctx_t;
-typedef struct superblk superblk_t;
-
+#include <textos/type.h>
 #include <textos/dev.h>
 #include <textos/file.h>
 #include <textos/time.h>

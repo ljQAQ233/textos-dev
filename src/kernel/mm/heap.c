@@ -1,4 +1,5 @@
 #include <textos/mm.h>
+#include <textos/mm/vmm.h>
 #include <textos/mm/map.h>
 
 #define HEAP_ORIG 1
@@ -47,7 +48,7 @@ void heap_init()
     PUT (hp + 2, SET(8, true));
     PUT (hp + 3, SET(0, true)); // 设置结尾块 has only header
 
-    vmap_map ((u64)hp, __kern_heap_base, HEAP_ORIG, PE_RW | PE_P, MAP_4K); // 映射至内核堆处
+    vmap_map ((addr_t)hp, __kern_heap_base, HEAP_ORIG, PE_RW | PE_P); // 映射至内核堆处
 
     _heap.root = (block_t *)__kern_heap_base + 3;
     _heap.brk = (block_t *)_heap.root;
@@ -187,11 +188,8 @@ static void _extend_heap(size_t siz)
     siz = _ALIGN(siz, 8);
     int64 diff = (u64)_heap.brk + siz - (u64)_heap.max;
     if (diff > 0) {
-        u64 pages = DIV_ROUND_UP(diff, PAGE_SIZ);
-        void *ext = pmm_allocpages(pages);
-
-        vmap_map((u64)ext, (u64)_heap.max, pages, PE_RW | PE_P, MAP_4K);
-
+        size_t pages = DIV_ROUND_UP(diff, PAGE_SIZ);
+        vmm_phyauto((addr_t)_heap.max, pages, PE_RW | PE_P);
         _heap.max += pages * PAGE_SIZ;
     }
 
