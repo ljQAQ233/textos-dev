@@ -30,9 +30,6 @@ enum sub_type
 };
 
 // dev structure 名字略微生草
-struct devst;
-typedef struct devst devst_t;
-
 struct devst
 {
     char *name;

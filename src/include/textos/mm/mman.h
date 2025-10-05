@@ -45,6 +45,9 @@
 
 #ifdef __TEXT_OS__
 
+/*
+ * it holds internal mmap argument
+ */
 typedef struct
 {
     addr_t va;
@@ -56,7 +59,35 @@ typedef struct
     addr_t *ppgs;
 } vm_region_t;
 
+#include <textos/file.h>
+#include <textos/klib/list.h>
+#include <textos/klib/rbtree.h>
+
+typedef struct
+{
+    addr_t s, t;
+    union
+    {
+        void *file;
+    } obj;
+    int flgs;
+    int prot;
+    list_t list;
+    rbnode_t node;
+} vm_area_t;
+
+typedef struct
+{
+    list_t list;
+    rbtree_t tree;
+} vm_space_t;
+
 #define MRET(x) ((void *)x)
+
+vm_space_t *mm_new_space();
+
+vm_area_t *mmap_lowerbound(vm_space_t *sp, addr_t addr);
+vm_area_t *mmap_upperbound(vm_space_t *sp, addr_t addr);
 
 #endif
 

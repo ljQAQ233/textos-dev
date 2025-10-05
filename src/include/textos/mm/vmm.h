@@ -2,18 +2,8 @@
 
 #include <textos/mm/map.h>
 
-/* Check if the Vrt is a canonical format
-   vrt addr and adjust it if it is invalid
-
-   @retval  int   The state */
-int vmm_caadjust (u64 *vrt);
-
-/* Link virtual pages that Vrt points, 
-   Num holds with an real physical pages */
-void *vmm_phyauto (u64 vrt, size_t num, u16 flgs);
-
+int vmm_caadjust(addr_t *vrt);
+void *vmm_phyauto(addr_t vrt, size_t num, int flgs);
 void *vmm_allocvrt(size_t num);
-
-void *vmm_allocpages (size_t num, u16 flgs);
-
+void *vmm_allocpages(size_t num, int flgs);
 void vmm_allocpv(size_t num, addr_t *va, addr_t *pa);

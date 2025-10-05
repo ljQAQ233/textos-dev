@@ -81,4 +81,14 @@ typedef struct iovec iovec_t;
 
 typedef signed int keysym_t;
 
+struct devst;
+struct node;
+struct dirctx;
+struct superblk;
+
+typedef struct devst devst_t;
+typedef struct node node_t;
+typedef struct dirctx dirctx_t;
+typedef struct superblk superblk_t;
+
 #endif

@@ -45,6 +45,7 @@
 
 #define PAGE_SHIFT 12
 #define PAGE_SIZ   (1 << PAGE_SHIFT)
+#define PAGE_SIZE  (1 << PAGE_SHIFT)
 #define PAGE_MASK  (PAGE_SIZ - 1)
 
 #define  SIZE_4KB    0x00001000

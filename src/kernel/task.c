@@ -131,6 +131,7 @@ task_t *task_create (void *main, int args)
 
     tsk->pgt = get_kppgt();
     tsk->mmap = __user_mmap_va;
+    tsk->vsp = mm_new_space();
     tsk->istk = (addr_t)istack;
 
     for (int i = 0 ; i < MAX_FILE ; i++)

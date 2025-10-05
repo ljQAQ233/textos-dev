@@ -172,7 +172,7 @@ void mmio_setup(e1000_t *e)
 {
     vmap_map(e->base, __e1000_va,
         DIV_ROUND_UP(e->size, PAGE_SIZ),
-        PE_PCD | PE_P | PE_RW, MAP_4K);
+        PE_PCD | PE_P | PE_RW);
     e->base = __e1000_va;
 }
 
@@ -233,7 +233,7 @@ void desc_alloc(addr_t *pa, void **desc, mbuf_t ***m, size_t num)
     *pa = (addr_t)pp;
     void *vp = vmm_allocvrt(npg);
     *desc = vp;
-    vmap_map((addr_t)pp, (addr_t)vp, npg, PE_P | PE_RW, MAP_4K);
+    vmap_map((addr_t)pp, (addr_t)vp, npg, PE_P | PE_RW);
     memset(vp, 0, num * 16);
 
     *m = malloc(sizeof(mbuf_t *) * num);

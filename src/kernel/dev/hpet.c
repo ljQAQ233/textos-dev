@@ -107,7 +107,7 @@ void hpet_init()
     table = laihost_scan("HPET", 0);
     vmap_map(table->address.addr, __acpi_pages,
         DIV_ROUND_UP(sizeof(hpet_t), PAGE_SIZ),
-        PE_P | PE_RW | PE_PCD | PE_PWT, MAP_4K);
+        PE_P | PE_RW | PE_PCD | PE_PWT);
     hpet = (hpet_t *)__acpi_pages;
 
     HPET_WR(&hpet->config, enable, 1);

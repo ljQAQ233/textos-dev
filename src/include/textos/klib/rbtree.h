@@ -17,7 +17,7 @@ typedef struct rbtree
     rbnode_t *root;
 } rbtree_t;
 
-#define RBTREE_INIT(cmp) ((rbtree_t){ cmp, 0 })
+#define RBTREE_INIT() ((rbtree_t){ 0 })
 
 /**
  * @brief link a child node to the parent, if the location has been occupied, the former one will be replaced

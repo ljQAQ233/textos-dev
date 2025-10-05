@@ -1,5 +1,3 @@
-/* make temporary pages mapping to virtual mem space */
-
 #include <textos/mm.h>
 #include <textos/assert.h>
 #include <textos/klib/bitmap.h>
@@ -13,7 +11,7 @@ int make_pvpage(addr_t phy, void *res)
         return -1;
 
     addr_t vrt = __kern_pvpg_base + PAGE_SIZ * idx;
-    vmap_map(phy, vrt, 1, PE_P | PE_RW, MAP_4K);
+    vmap_map(phy, vrt, 1, PE_P | PE_RW);
     *((addr_t *)res) = vrt;
     return 0;
 }

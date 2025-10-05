@@ -8,17 +8,8 @@
 static u64 *pml4;
 static u64 cr3;
 
-/* Value */
-#define PE_V_FLAGS(entry) (((u64)entry) & 0x7FF)
-#define PE_V_ADDR(entry) (((u64)entry) & ~0x7FF)
-
-/* Set */
-#define PE_S_FLAGS(flgs) (u64)(flgs & 0x7FF)
-#define PE_S_ADDR(addr) (u64)(((u64)addr & ~0x7FF))
-
-#define IDX(addr, level) (((u64)addr >> ((int)(level - 1) * 9 + 12)) & 0x1FF)
-
-#define R_IDX 511ULL
+#define FLAG(entry) (((u64)entry) & 0x7FF)
+#define ADDR(entry) (((u64)entry) & ~0x7FF)
 
 #define VRT(iPML4, iPDPT, iPD, iPT) \
     ((u64)(((u64)iPML4 > 255 ? 0xFFFFULL : 0) << 48 \
@@ -27,25 +18,27 @@ static u64 cr3;
     | ((u64)iPD & 0x1FF) << 21   \
     | ((u64)iPT & 0x1FF) << 12))
 
-enum level {
-    L_PML4 = 4,
-    L_PDPT = 3,
-    L_PD   = 2,
-    L_PT   = 1,
-    L_PG   = 0,
-};
+/* * level means where it locates currently */
+#define L_PML4 3
+#define L_PDPT 2
+#define L_PD 1
+#define L_PT 0
+#define L_PG -1
 
 /* Locate entry or others by virtual address */
-#define PML4E_IDX(addr) (((u64)addr >> 39) & 0x1FF)
-#define PDPTE_IDX(addr) (((u64)addr >> 30) & 0x1FF)
-#define PDE_IDX(addr)   (((u64)addr >> 21) & 0x1FF)
-#define PTE_IDX(addr)   (((u64)addr >> 12) & 0x1FF)
+#define IDX(addr, level) ((u64)addr >> (level * 9 + 12) & 0x1FF)
+#define PML4E_IDX(addr) IDX(addr, L_PML4)
+#define PDPTE_IDX(addr) IDX(addr, L_PDPT)
+#define PDE_IDX(addr) IDX(addr, L_PD)
+#define PTE_IDX(addr) IDX(addr, L_PT)
+
+/* Recursive pagetable idx */
+#define R_IDX 511ULL
 
 #include <textos/panic.h>
 
 /* Get vrt addr of pgt by addr & level */
-static inline u64*
-_vrt_entryget (u64 addr, int level)
+static inline u64 *entryget(u64 addr, int level)
 {
     if (level == L_PML4)
         return (u64 *)VRT(R_IDX, R_IDX, R_IDX, R_IDX);
@@ -55,111 +48,75 @@ _vrt_entryget (u64 addr, int level)
         return (u64 *)VRT(R_IDX, R_IDX, PML4E_IDX(addr), PDPTE_IDX(addr));
     else if (level == L_PT)
         return (u64 *)VRT(R_IDX, PML4E_IDX(addr), PDPTE_IDX(addr), PDE_IDX(addr));
-
-    PANIC ("Unable to get the vrt addr of the pgt by addr & level - %p, %d\n", addr, level);
-
     return NULL;
 }
 
-static inline void
-invlpg(addr_t vrt)
+static inline void invlpg(u64 vrt)
 {
-    __asm__ volatile ("invlpg (%0)" : : "r"(vrt) : "memory");
+    __asm__ volatile("invlpg (%0)" : : "r"(vrt) : "memory");
 }
 
-static void
-_map_walk (u64 phy, u64 vrt, u16 flgs, u64 *tab, int level, int mode)
+static void map_walk(u64 phy, u64 vrt, u16 flgs, int lv)
 {
-    u64 idx = IDX(vrt, level);
-
-    if (level == mode) {
-        tab[idx] = PE_S_ADDR(phy) | PE_S_FLAGS(flgs);
+    u64 *tab = entryget(vrt, lv);
+    u64 idx = IDX(vrt, lv);
+    if (lv == 0)
+    {
+        tab[idx] = ADDR(phy) | FLAG(flgs);
         invlpg(vrt);
         return;
     }
-    else if (!(tab[idx] & PE_P))
+    if (!(tab[idx] & PE_P))
     {
         void *new = pmm_allocpages(1);
-        ASSERTK (new != NULL);
+        ASSERTK(new != NULL);
 
-        tab[idx] = PE_S_ADDR(new) | PE_RW | PE_P;
-        invlpg((addr_t)tab);
-        new = _vrt_entryget (vrt, level - 1);
-        memset (new, 0, PAGE_SIZ);
+        tab[idx] = ADDR(new) | PE_RW | PE_P;
+        invlpg((u64)tab);
+        new = entryget(vrt, lv - 1);
+        memset(new, 0, PAGE_SIZ);
     }
-    
+
     if (flgs & PE_US)
         tab[idx] |= PE_US;
 
-    tab = (u64 *)_vrt_entryget (vrt, level - 1);
-    _map_walk (phy, vrt, flgs, tab, --level, mode);
+    map_walk(phy, vrt, flgs, lv - 1);
 }
 
-static u64
-_qry_walk(u64 vrt, u64 *tab, int lv)
+static u64 qry_walk(u64 vrt, int lv)
 {
-    u64 idx = IDX(vrt, lv);
-    u64 entry = tab[idx];
-
+    int idx = IDX(vrt, lv);
+    u64 entry = entryget(vrt, lv)[idx];
     if (!(entry & PE_P))
         return 0;
-
-    if (lv == MAP_4K)
-        return PE_V_ADDR(entry) | vrt & 0xfff;
-    if (lv & (1 << 7))
-        return PE_V_ADDR(entry) | vrt & ((1 << ((lv - 1) * 9) + 12) - 1);
-
-    tab = (u64 *)_vrt_entryget(vrt, lv - 1);
-    return _qry_walk(vrt, tab, lv - 1);
+    if (!lv)
+        return ADDR(entry) | vrt & ((1 << (lv * 9 + 12)) - 1);
+    return qry_walk(vrt, lv - 1);
 }
 
-static inline u16
-parse_flags (int md)
+void vmap_map(addr_t phy, addr_t vrt, size_t num, int flgs)
 {
-    if (md == MAP_2M)
-        return PDE_2M;
-    else if (md == MAP_1G)
-        return PDPTE_1G;
-
-    return 0;
-}
-
-static inline u32
-_pagesiz (int md)
-{
-    if (md == MAP_2M)
-        return SIZE_2MB;
-    else if (md == MAP_1G)
-        return SIZE_1GB;
-
-    return SIZE_4KB;
-}
-
-void vmap_map (u64 phy, u64 vrt, size_t num, u16 flgs, int mode)
-{
-    DEBUGK(K_MM, "try to map %p -> %p - %llu,%x,%d\n", phy, vrt, num, flgs, mode);
-
-    u64 pagesiz = _pagesiz (mode);
-    while (num--) {
-        _map_walk (phy, vrt, flgs | parse_flags (mode), pml4, L_PML4, mode);
-        phy += pagesiz;
-        vrt += pagesiz;
+    size_t pgsz = PAGE_SIZE;
+    while (num--)
+    {
+        map_walk(phy, vrt, flgs, L_PML4);
+        phy += pgsz, vrt += pgsz;
     }
 }
 
 addr_t vmap_query(addr_t vrt)
 {
-    return _qry_walk(vrt, pml4, L_PML4);
+    return qry_walk(vrt, L_PML4);
 }
 
-void vmap_init ()
+void vmap_init()
 {
     cr3 = read_cr3();
     pml4 = (u64 *)cr3;
-    pml4[R_IDX] = PE_S_ADDR(cr3) | PE_RW | PE_P;
-    
+    pml4[R_IDX] = ADDR(cr3) | PE_RW | PE_P;
+
     // set pgt into vrt mode
-    pml4 = _vrt_entryget (0, L_PML4);
+    pml4 = entryget(0, L_PML4);
     write_cr3(cr3);
     DEBUGK(K_INIT, "kpgt - pml4 = %p\n", pml4);
 }
@@ -170,18 +127,16 @@ extern void __acpi_tovmm();
 extern void __apic_tovmm();
 extern void __video_tovmm();
 
-void vmap_initvm ()
+void vmap_initvm()
 {
-    vmap_map(0, __kern_phy_offet, __kern_phy_mapsz / _pagesiz(MAP_1G), PE_P | PE_RW, MAP_1G);
-
     // As callback functions
     __uefi_tovmm();
     __pmm_tovmm();
     __acpi_tovmm();
     __apic_tovmm();
     __video_tovmm();
-    
-    for (int i = 0; i < 256 ;i++)
+
+    for (int i = 0; i < 256; i++)
         if (i != R_IDX)
             pml4[i] &= ~PE_P;
     DEBUGK(K_INIT, "remap completed!\n");
@@ -199,31 +154,33 @@ addr_t get_kppgt()
 
 #include <textos/mm/pvpage.h>
 
-static addr_t _copy_pgtd(addr_t pg, int level)
+static u64 _copy_pgtd(u64 pg, int lv)
 {
-    addr_t npg;
+    u64 npg;
     u64 *vpg, *vnpg;
-    npg = (addr_t)pmm_allocpages(1);
-    
-    while (make_pvpage((addr_t)pg, &vpg) < 0);
-    while (make_pvpage((addr_t)npg, &vnpg) < 0);
+    npg = (u64)pmm_allocpages(1);
+
+    while (make_pvpage((u64)pg, &vpg) < 0)
+        ;
+    while (make_pvpage((u64)npg, &vnpg) < 0)
+        ;
     memcpy(vnpg, vpg, PAGE_SIZ);
 
-    if (level == L_PG)
+    if (lv == L_PG)
         goto done;
 
-    int limit = level == L_PML4 ? 256 : 512;
-    for (int i = 0 ; i < limit ; i++)
+    int limit = lv == L_PML4 ? 256 : 512;
+    for (int i = 0; i < limit; i++)
     {
         if (vnpg[i])
         {
-            addr_t paddr = _copy_pgtd(PE_V_ADDR(vnpg[i]), level - 1);
-            vnpg[i] = PE_V_FLAGS(vnpg[i]) | PE_S_ADDR(paddr);
+            u64 paddr = _copy_pgtd(ADDR(vnpg[i]), lv - 1);
+            vnpg[i] = FLAG(vnpg[i]) | ADDR(paddr);
         }
     }
 
-    if (level == L_PML4)
-        vnpg[R_IDX] = PE_S_ADDR(npg) | PE_RW | PE_P;
+    if (lv == L_PML4)
+        vnpg[R_IDX] = ADDR(npg) | PE_RW | PE_P;
 
 done:
     break_pvpage(vpg);
