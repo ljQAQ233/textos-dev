@@ -1783,7 +1783,7 @@ fs_opts_t __fat32_opts = {
     fat32_read,
     fat32_write,
     fat32_truncate,
-    noopt,
+    vfs_generic_mmap,
     noopt,
     fat32_close,
 };

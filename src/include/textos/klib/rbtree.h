@@ -10,7 +10,7 @@ typedef struct rbnode
     struct rbnode *parent;
 } rbnode_t;
 
-typedef int (*rbcmp_t)(rbnode_t *a, rbnode_t *b);
+typedef void (*rbcallback_t)(int d, rbnode_t *node);
 
 typedef struct rbtree
 {
@@ -43,3 +43,15 @@ void rbtree_fixup(rbtree_t *t, rbnode_t *n);
  * @param z node to be deleted
  */
 void rbtree_delete(rbtree_t *t, rbnode_t *z);
+
+enum
+{
+    RB_PREORDER,
+    RB_INORDER,
+    RB_POSTORDER
+};
+
+/**
+ * @brief foreach node
+ */
+void rbtree_foreach(rbtree_t *t, rbcallback_t cb, int mode);

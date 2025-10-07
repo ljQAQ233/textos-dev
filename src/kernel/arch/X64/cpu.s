@@ -115,6 +115,12 @@ write_cr0:
     mov cr0, rdi
     ret
 
+; u64 read_cr2 ();
+global read_cr2
+read_cr2:
+    mov rax, cr2
+    ret
+
 ; u64 read_cr3 ();
 global read_cr3
 read_cr3:

@@ -13,56 +13,34 @@
 #include <textos/errno.h>
 #include <textos/syscall.h>
 
-void *mmap_file(vm_region_t *vm)
-{
-    file_t *file = vm->file;
-    return file->node->opts->mmap(file->node, vm);
-}
-
-void *mmap_anon(vm_region_t *vm)
-{
-    addr_t vaddr;
-    int mapflg = 0;
-
-    mapflg |= PE_US;
-    if (vm->prot & PROT_READ)
-        mapflg |= PE_P;
-    if (vm->prot & PROT_WRITE)
-        mapflg |= PE_P | PE_RW;
-    if (~vm->prot & PROT_EXEC)
-        mapflg |= PE_NX;
-    if (vm->flgs & MAP_FIXED) {
-        vaddr = vm->va;
-    } else {
-        task_t *tsk = task_current();
-        vaddr = tsk->mmap;
-        tsk->mmap += vm->num * PAGE_SIZ;
-    }
-    return vmm_phyauto(vaddr, vm->num, mapflg);
-}
-
 __SYSCALL_DEFINE6(void *, mmap, void *, addr, size_t, len, int, prot, int, flgs, int, fd, size_t, off)
 {
-    void *ret = MAP_FAILED;
-    file_t *file = NULL;
-
     if ((flgs & MAP_TYPE) == 0)
-        goto done;
+        return MRET(-EINVAL);
 
-    // TODO: replace it
-    if (0 <= fd && fd < MAX_FILE)
-        file = task_current()->files[fd];
+    node_t *node = NULL;
+    if (0 <= fd)
+    {
+        if (fd < MAX_FILE)
+            return MRET(-EBADF);
+        file_t *file = task_current()->files[fd];
+        if (file)
+            node = file->node;
+    }
 
     vm_region_t vm = {
         .va = (addr_t)addr,
-        .num = (size_t)(DIV_ROUND_UP(len, PAGE_SIZ)),
+        .num = DIV_ROUND_UP(len, PAGE_SIZ),
         .prot = prot,
         .flgs = flgs,
         .foff = off,
-        .file = file,
+        .fnode = node,
         .ppgs = NULL,
     };
 
+    void *ret = MRET(-EINVAL);
+    if (!vm.num)
+        goto done;
     if (flgs & MAP_ANON) {
         if (fd != -1 || off != 0)
             goto done;

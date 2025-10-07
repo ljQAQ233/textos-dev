@@ -184,4 +184,6 @@ bool vfs_ismount(node_t *n);
  */
 bool vfs_isaroot(node_t *n);
 
+void *vfs_generic_mmap(node_t *n, vm_region_t *v);
+
 #endif
