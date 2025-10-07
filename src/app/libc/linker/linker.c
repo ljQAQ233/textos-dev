@@ -1,3 +1,4 @@
+#define __NEED_linker
 #ifdef __NEED_linker
 
 #include <elf.h>

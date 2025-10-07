@@ -97,6 +97,18 @@ void *build(void *bp, char *const argv[], char *const envp[])
     return bp;
 }
 
+void *stack()
+{
+    vm_region_t vm = {
+        __user_stack_bot,
+        __user_stack_pages,
+        PROT_READ | PROT_WRITE,
+        MAP_FIXED | MAP_PRIVATE | MAP_ANON,
+        0, 0, 0
+    };
+    return mmap_anon(&vm) + __user_stack_pages * PAGE_SIZE;
+}
+
 RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
 {
     int errno;
@@ -104,13 +116,19 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
 
     char **argvk = duparg(argv),
          **envpk = duparg(envp);
-
+    task_t *curr = task_current();
+    curr->vsp = mm_new_space(0);
     path = strdup(path);
     if ((errno = elf_load(path, &info)))
         goto fail;
 
-    task_t *curr = task_current();
-    void *bp = curr->init.rbp;
+    // a rude way to free the former pages...
+    // if there's some operations, such as memset(), trigger #PF
+    // the changes of these operations will be discarded here.
+    addr_t *pml4 = (addr_t *)get_kpgt();
+    for (int i = 0; i < 256; i++)
+        pml4[i] &= ~PE_P;
+    void *bp = stack();
     void *args = build(bp, argvk, envpk);
 
     curr->init.main = info.entry;

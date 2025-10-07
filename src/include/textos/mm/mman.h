@@ -21,6 +21,11 @@
 #define MAP_ANON      0x20
 #define MAP_ANONYMOUS MAP_ANON
 
+#define MAPL_USER 0
+#define MAPL_FILE 1
+#define MAPL_STACK 2
+#define MAPL_HEAP 3
+
 /*
  * on x86 platform, the page table doesn't provide a native method to implement only `PROT_WRITE`,
  * in our OS-implementation, we choose to ignore it because support it may occupy more resource.
@@ -30,6 +35,11 @@
 #define PROT_READ  1
 #define PROT_WRITE 2
 #define PROT_EXEC  4
+
+#define mapprot(p) \
+    (((p) & PROT_READ  ? 0 : 0) \
+     | ((p) & PROT_WRITE ? PE_RW : 0) \
+     | ((p) & PROT_EXEC ? 0 : PE_NX))
 
 #define MAP_FAILED ((void *)-1)
 
@@ -55,7 +65,7 @@ typedef struct
     int prot;
     int flgs;
     size_t foff;
-    void *file;
+    void *fnode;
     addr_t *ppgs;
 } vm_region_t;
 
@@ -66,12 +76,17 @@ typedef struct
 typedef struct
 {
     addr_t s, t;
-    union
-    {
-        void *file;
-    } obj;
     int flgs;
     int prot;
+    char label;
+    union
+    {
+        struct
+        {
+            size_t foff;
+            node_t *node;
+        };
+    } obj;
     list_t list;
     rbnode_t node;
 } vm_area_t;
@@ -84,10 +99,18 @@ typedef struct
 
 #define MRET(x) ((void *)x)
 
-vm_space_t *mm_new_space();
+void *mmap_file(vm_region_t *vm);
+void *mmap_anon(vm_region_t *vm);
 
+vm_space_t *mm_new_space(vm_space_t *old);
+vm_area_t *mmap_new_vma(vm_area_t *old);
+
+void mmap_free_vma(vm_area_t *vma);
+void mmap_regst(vm_space_t *sp, vm_area_t *vma);
+void mmap_display(vm_space_t *sp);
 vm_area_t *mmap_lowerbound(vm_space_t *sp, addr_t addr);
 vm_area_t *mmap_upperbound(vm_space_t *sp, addr_t addr);
+vm_area_t *mmap_containing(vm_space_t *sp, addr_t addr);
 
 #endif
 

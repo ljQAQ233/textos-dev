@@ -2,6 +2,7 @@
 #define __IRQ_H__
 
 #define INT_NM 0x07
+#define INT_PF 0x0e
 #define INT_MF 0x10
 
 #define INT_APIC_ERR 129 // error handler

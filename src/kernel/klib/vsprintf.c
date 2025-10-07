@@ -66,8 +66,7 @@ int vsprintf(char *buffer, const char *format, va_list args)
     char *out = buffer;
     char *ptr = (char*)format;
 
-    int flgs = 0;
-
+    int flgs;
     while (ptr && *ptr)
     {
         if (*ptr != '%')
@@ -76,6 +75,7 @@ int vsprintf(char *buffer, const char *format, va_list args)
             continue;
         }
 
+        flgs = 0;
 parse_flgs:
         ptr++;
         switch (*ptr) {

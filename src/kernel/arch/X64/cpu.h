@@ -72,6 +72,8 @@ u64 read_cr0 ();
 
 u64 write_cr0 (u64 cr0);
 
+u64 read_cr2();
+
 u64 read_cr3 ();
 
 u64 write_cr3 (u64 cr3);

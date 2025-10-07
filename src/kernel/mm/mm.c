@@ -4,6 +4,7 @@ extern void vmap_init ();
 extern void vmap_initvm ();
 extern void heap_init ();
 extern void pvpage_init ();
+extern void pagefault_init();
 
 void mm_init ()
 {
@@ -14,6 +15,7 @@ void mm_init ()
 
     vmap_initvm();
     pvpage_init();
+    pagefault_init();
 }
 
 #include <boot.h>

@@ -287,3 +287,18 @@ void rbtree_delete(rbtree_t *t, rbnode_t *z)
     if (y_original_color == BLACK && x)
         fixup_del(t, x);
 }
+
+static void rbtree_walk(rbnode_t *n, rbcallback_t cb, int mode, int d)
+{
+    if (!n) return;
+    if (mode == RB_PREORDER) cb(d, n);
+    rbtree_walk(n->left, cb, mode, d + 1);
+    if (mode == RB_INORDER) cb(d, n);
+    rbtree_walk(n->right, cb, mode, d + 1);
+    if (mode == RB_POSTORDER) cb(d, n);
+}
+
+void rbtree_foreach(rbtree_t *t, rbcallback_t cb, int mode)
+{
+    rbtree_walk(t->root, cb, mode, 0);
+}
