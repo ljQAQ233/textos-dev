@@ -4,7 +4,8 @@
 #include <malloc.h>
 #include <errno.h>
 
-const char **__environ;
+char **__environ;
+__weak_alias(__environ, environ);
 
 /**
  * @brief 记录指针的内存使用情况, 是固定的还是 malloc 分配的?
@@ -121,7 +122,7 @@ int unsetenv(const char *name)
 
 char *getenv(const char *name)
 {
-    const char **e = __environ;
+    char **e = __environ;
     size_t len = strchrnul(name, '=') - name;
     if (len && !name[len] && e) {
         for (int i = 0 ; e[i] ; i++) {

@@ -8,7 +8,7 @@
 #include <gdt.h>
 #include <string.h>
 
-char **duparg(char *const arr[])
+static char **duparg(char *const arr[])
 {
     int n = 0;
     for ( ; arr[n] ; n++) ;
@@ -21,7 +21,7 @@ char **duparg(char *const arr[])
     return p;
 }
 
-void brkarg(char **arr)
+static void brkarg(char **arr)
 {
     for (int i = 0 ; arr[i] ; i++)
         free(arr[i]);
@@ -37,7 +37,7 @@ static inline int align(int x)
 
 // 1. count length and number of arr
 // 2. copy string : arr[x] -> new
-void copyarg(void *idx[], void *new, char *const arr[], int *len, int *cnt)
+static void copyarg(void *idx[], void *new, char *const arr[], int *len, int *cnt)
 {
     int l = 0, i = 0, x;
     void *p = new;
@@ -61,8 +61,45 @@ void copyarg(void *idx[], void *new, char *const arr[], int *len, int *cnt)
     *cnt = i;
 }
 
+typedef struct
+{
+    uintptr_t t, v;
+} auxv_t;
+
+#define _PUT(F, T, V) \
+    if (F || !V) {            \
+        sp -= sizeof(auxv_t); \
+        auxv_t *a = sp;       \
+        a->t = T, a->v = V; }
+#define PUT(F, T, V) _PUT(F, T, (uintptr_t)(V))
+
+static void *auxv(void *sp, exeinfo_t *exe)
+{
+    char *a_path = sp -= align(strlen(exe->path));
+    char *a_arch = sp -= align(strlen(ARCH_STRING));
+    strcpy(a_path, exe->path);
+    strcpy(a_arch, ARCH_STRING);
+
+    task_t *tsk = task_current();
+    PUT(1, AT_NULL, 0);
+    PUT(1, AT_PHDR, exe->a_phdr);
+    PUT(1, AT_PHENT, exe->a_phent);
+    PUT(1, AT_PHNUM, exe->a_phnum);
+    PUT(1, AT_PAGESZ, PAGE_SIZE);
+    PUT(0, AT_BASE, exe->a_base);
+    PUT(1, AT_ENTRY, exe->entry);
+    PUT(0, AT_NOTELF, exe->a_notelf);
+    PUT(1, AT_PLATFORM, a_arch);
+    PUT(1, AT_EXECFN, a_path);
+    PUT(1, AT_UID, tsk->ruid);
+    PUT(1, AT_EUID, tsk->euid);
+    PUT(1, AT_GID, tsk->rgid);
+    PUT(1, AT_EGID, tsk->egid);
+    return sp;
+}
+
 // build args
-void *build(void *bp, char *const argv[], char *const envp[])
+static void *build(void *sp, char *const argv[], char *const envp[], exeinfo_t *exe)
 {
     int len;
     int nargc, nenvc;
@@ -71,33 +108,35 @@ void *build(void *bp, char *const argv[], char *const envp[])
     
     // count
     copyarg(NULL, NULL, envp, &len, &nenvc);
-    bp -= len;
-    str_envp = bp;
+    sp -= len;
+    str_envp = sp;
 
     copyarg(NULL, NULL, argv, &len, &nargc);
-    bp -= len;
-    str_argv = bp;
+    sp -= len;
+    str_argv = sp;
 
     int rem = 1 + nargc + 1 + nenvc + 1;
-    if ((((addr_t)bp - rem * N) & 0xf) != 0)
-        bp -= N;
-
+    if ((((addr_t)sp - rem * N) & 0xf) != 0)
+        sp -= N;
+    
+    // auxv
+    sp = auxv(sp, exe);
     // copy
-    bp -= N * (nenvc + 1);
-    nenvp = bp;
+    sp -= N * (nenvc + 1);
+    nenvp = sp;
     copyarg(nenvp, str_envp, envp, &len, &nenvc);
 
-    bp -= N * (nargc + 1);
-    nargv = bp;
+    sp -= N * (nargc + 1);
+    nargv = sp;
     copyarg(nargv, str_argv, argv, &len, &nargc);
 
-    bp -= N * 1; // argc
-    (*(long *)bp) = nargc;
+    sp -= N * 1; // argc
+    (*(long *)sp) = nargc;
 
-    return bp;
+    return sp;
 }
 
-void *stack()
+static void *stack()
 {
     vm_region_t vm = {
         __user_stack_bot,
@@ -128,8 +167,9 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     if ((errno = elf_load(path, &info)))
         goto fail;
 
-    void *bp = stack();
-    void *args = build(bp, argvk, envpk);
+    void *bp, *sp;
+    sp = bp = stack();
+    sp = build(sp, argvk, envpk, &info);
 
     curr->init.main = info.entry;
     brkarg(argvk);
@@ -145,10 +185,10 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
             "push %3 \n" // rip
             : :
             "i"((USER_DATA_SEG << 3) | 3), // ss
-            "m"(args),                     // rsp
+            "m"(sp),                       // rsp
             "i"((USER_CODE_SEG << 3) | 3), // cs
             "m"(info.entry),               // rip
-            "D"(args));                    // rdi
+            "D"(sp));                      // rdi
     __asm__ volatile ("iretq");
 
 fail:

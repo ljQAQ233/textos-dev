@@ -65,6 +65,8 @@ static int _number(char *buffer, uint64_t num, int base, bool upper)
 }
 
 #define out(c) { int ret = fputc(c, f); if (ret < 0) return n ; n++; }
+#define pad_left() if (!(flgs & LEFT)) while (width-- > 0) out(' ');
+#define pad_right() if (flgs & LEFT) while (width-- > 0) out(' ');
 
 int vfprintf(FILE *f, const char *format, va_list ap)
 {
@@ -150,10 +152,9 @@ parse_args:
                 break;
             case 'c':
                 /* Includes the char */
-                if (width > 1)
-                    while (--width)
-                        out(' ');
+                if (width > 1) pad_left();
                 out((char)va_arg(ap, int));
+                if (width > 1) pad_right();
 
                 ptr++;
                 continue;
@@ -164,10 +165,10 @@ parse_args:
                         src = "(null)";
                     for (char *p = src;p && *p;p++)
                         width--;
-                    while (width-- > 0)
-                        out(' ');
+                    pad_left();
                     while (*src)
                         out(*src++);
+                    pad_right();
                     ptr++;
                     continue;
                 }
