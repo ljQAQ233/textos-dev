@@ -34,6 +34,7 @@ static int domap(node_t *n, exeinfo_t *exe)
     int ret;
     Elf64_Ehdr _ehdr;
     Elf64_Ehdr *eh = &_ehdr;
+    uintptr_t pmapself = 0;
     ckerr(vfs_read(n, &_ehdr, sizeof(_ehdr), 0));
     ckerr(dochk(eh));
     void *pmap = malloc(eh->e_phnum * eh->e_phentsize);
@@ -64,6 +65,9 @@ static int domap(node_t *n, exeinfo_t *exe)
         Elf64_Phdr *ph = pmap + lp_okay * eh->e_phentsize;
         if (ph->p_type != PT_LOAD)
             continue;
+        if (ph->p_offset <= eh->e_phoff &&
+            ph->p_offset + ph->p_filesz >= eh->e_phoff)
+            pmapself = eh->e_phoff - ph->p_offset + ph->p_vaddr;
         uintptr_t foff = align_dn(ph->p_offset, ph->p_align);
         uintptr_t fend = align_up(ph->p_offset + ph->p_filesz, ph->p_align);
         uintptr_t fsize = fend - foff;
@@ -108,17 +112,28 @@ static int domap(node_t *n, exeinfo_t *exe)
     }
 
     exe->entry = (void *)eh->e_entry;
+    exe->a_phdr = pmapself;
+    exe->a_phent = eh->e_phentsize;
+    exe->a_phnum = eh->e_phnum;
+    exe->a_base = 0; // TODO
+    exe->a_notelf = 0;
 err:
     if (pmap)
         free(pmap);
     return MIN(ret, 0);
 }
 
-
+/*
+ * load and generate infomation
+ *   - entrypoint
+ *   - auxiliary vector
+ *     - note that PHDR always stored in PT_LOAD if it is expected to be executable
+ */
 int elf_load(char *path, exeinfo_t *exe)
 {
     int ret;
     node_t *n;
+    memset(exe, 0, sizeof(exeinfo_t));
     exe->path = strdup(path);
     ckerr(vfs_open(NULL, path, 0, 0, &n));
     ckerr(domap(n, exe));
