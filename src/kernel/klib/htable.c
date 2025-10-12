@@ -6,8 +6,7 @@ htable_t *htable_init(htable_t *ht, size_t size)
     if (!ht)
         ht = malloc(sizeof(htable_t));
     ht->size = size;
-    if (!ht->tbl)
-        ht->tbl = malloc(sizeof(hlist_head_t) * ht->size);
+    ht->tbl = malloc(sizeof(hlist_head_t) * ht->size);
     for (int i = 0 ; i < ht->size ; i++)
         ht->tbl[i] = HLIST_INIT();
     return ht;

@@ -150,6 +150,6 @@ void __uefi_tovmm()
     bconfig->runtime = memcpy(newrt, rt, sizeof(*rt));
 
     for (balloc_t *p = bconfig->memory.balloc ; p->va ; p++)
-        pmm_freepages(p->ptr, p->cnt);
+        pmm_freepages((addr_t)p->ptr, p->cnt);
 }
 

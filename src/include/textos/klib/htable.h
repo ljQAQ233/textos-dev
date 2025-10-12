@@ -27,3 +27,7 @@ void htable_add(htable_t *ht, hlist_node_t *node, htkey_t key);
 
 #define HTABLE_FOREACH(ptr, ht, key) \
     HLIST_FOREACH(ptr, &(ht)->tbl[(key) % (ht)->size])
+
+#define HTABLE_FORANY(ptr, ht) \
+    for (int __i = 0 ; __i < (ht)->size ; __i++) \
+        HLIST_FOREACH(ptr, &(ht)->tbl[__i])

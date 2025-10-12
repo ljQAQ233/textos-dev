@@ -113,27 +113,29 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
 {
     int errno;
     exeinfo_t info;
-
     char **argvk = duparg(argv),
          **envpk = duparg(envp);
     task_t *curr = task_current();
-    curr->vsp = mm_new_space(0);
     path = strdup(path);
+    /*
+     * create a new pagetable. elf_load may cause #PF which will be handled with
+     * the current address space and its vma. if execve fails, the oldpgt will be applied
+     */
+    addr_t oldpgt = curr->pgt;
+    vm_space_t *oldvsp = curr->vsp;
+    curr->vsp = vmm_new_space(0);
+    write_cr3(curr->pgt = new_pgt());
     if ((errno = elf_load(path, &info)))
         goto fail;
 
-    // a rude way to free the former pages...
-    // if there's some operations, such as memset(), trigger #PF
-    // the changes of these operations will be discarded here.
-    addr_t *pml4 = (addr_t *)get_kpgt();
-    for (int i = 0; i < 256; i++)
-        pml4[i] &= ~PE_P;
     void *bp = stack();
     void *args = build(bp, argvk, envpk);
 
     curr->init.main = info.entry;
     brkarg(argvk);
     brkarg(envpk);
+    clear_pgt(oldpgt);
+    vmm_free_space(oldvsp);
     curr->did_exec = true;
     __asm__ volatile(
             "push %0 \n" // ss
@@ -150,5 +152,8 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     __asm__ volatile ("iretq");
 
 fail:
+    write_cr3(oldpgt);
+    curr->pgt = oldpgt;
+    curr->vsp = oldvsp;
     return errno;
 }

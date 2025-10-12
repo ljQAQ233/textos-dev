@@ -71,7 +71,23 @@ typedef struct
 
 #include <textos/file.h>
 #include <textos/klib/list.h>
+#include <textos/klib/htable.h>
 #include <textos/klib/rbtree.h>
+
+#define PPG_FIXED 1
+
+typedef struct
+{
+    addr_t pa;
+    size_t refcnt;
+    int flag;
+    hlist_node_t hlist;
+} vm_ppgrec_t;
+
+typedef struct
+{
+    htable_t ht;
+} vm_ppg_t;
 
 typedef struct
 {
@@ -87,6 +103,7 @@ typedef struct
             node_t *node;
         };
     } obj;
+    vm_ppg_t *ppgs;
     list_t list;
     rbnode_t node;
 } vm_area_t;
@@ -102,15 +119,20 @@ typedef struct
 void *mmap_file(vm_region_t *vm);
 void *mmap_anon(vm_region_t *vm);
 
-vm_space_t *mm_new_space(vm_space_t *old);
-vm_area_t *mmap_new_vma(vm_area_t *old);
+vm_space_t *vmm_new_space(vm_space_t *old);
+vm_area_t *vmm_new_vma(vm_area_t *old);
+void vmm_free_space(vm_space_t *sp);
+void vmm_free_vma(vm_area_t *vma);
 
-void mmap_free_vma(vm_area_t *vma);
-void mmap_regst(vm_space_t *sp, vm_area_t *vma);
-void mmap_display(vm_space_t *sp);
-vm_area_t *mmap_lowerbound(vm_space_t *sp, addr_t addr);
-vm_area_t *mmap_upperbound(vm_space_t *sp, addr_t addr);
-vm_area_t *mmap_containing(vm_space_t *sp, addr_t addr);
+vm_ppg_t *vmm_ppg_new(vm_ppg_t *old);
+void vmm_ppg_regst(vm_area_t *vma, addr_t pa, int flag);
+void vmm_ppg_clear(vm_area_t *vma);
+
+void vmm_sp_regst(vm_space_t *sp, vm_area_t *vma);
+void vmm_sp_display(vm_space_t *sp);
+vm_area_t *vmm_sp_lowerbound(vm_space_t *sp, addr_t addr);
+vm_area_t *vmm_sp_upperbound(vm_space_t *sp, addr_t addr);
+vm_area_t *vmm_sp_containing(vm_space_t *sp, addr_t addr);
 
 #endif
 

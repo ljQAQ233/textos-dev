@@ -229,11 +229,11 @@ void desc_alloc(addr_t *pa, void **desc, mbuf_t ***m, size_t num)
 {
     size_t npg = DIV_ROUND_UP(num * 16, PAGE_SIZ);
 
-    void *pp = pmm_allocpages(npg);
-    *pa = (addr_t)pp;
+    addr_t pp = pmm_allocpages(npg);
+    *pa = pp;
     void *vp = vmm_allocvrt(npg);
     *desc = vp;
-    vmap_map((addr_t)pp, (addr_t)vp, npg, PE_P | PE_RW);
+    vmap_map(pp, (addr_t)vp, npg, PE_P | PE_RW);
     memset(vp, 0, num * 16);
 
     *m = malloc(sizeof(mbuf_t *) * num);

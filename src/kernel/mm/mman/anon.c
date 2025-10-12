@@ -17,11 +17,11 @@ void *mmap_anon(vm_region_t *vm)
         vaddr = tsk->mmap;
         tsk->mmap += vm->num * PAGE_SIZ;
     }
-    vm_area_t *vma = mmap_new_vma(0);
+    vm_area_t *vma = vmm_new_vma(0);
     vma->s = (addr_t)vaddr;
     vma->t = (addr_t)vaddr + vm->num * PAGE_SIZE;
     vma->flgs = vm->flgs;
     vma->prot = vm->prot;
-    mmap_regst(task_current()->vsp, vma);
+    vmm_sp_regst(task_current()->vsp, vma);
     return MRET(vma->s);
 }

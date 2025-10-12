@@ -1,18 +1,18 @@
 #include <textos/mm.h>
+#include <textos/mm/vmm.h>
 #include <textos/assert.h>
-
-#include <string.h>
+#include <textos/klib/string.h>
 
 static u64 page_total;
 static u64 page_free;
 
 /* Mark which zones are free,every node is so small that can be placed in a page easily */
-struct free {
+typedef struct free
+{
     size_t pages;
     addr_t addr;
     struct free *next;
-};
-typedef struct free free_t;
+} free_t;
 
 static free_t _free;
 
@@ -26,85 +26,83 @@ static free_t _free;
    二者的行为在重映射完成之前没有任何的差异.
 */
 
-static void *alloc_early (free_t *prev, size_t num) { return OFFSET(prev, num * PAGE_SIZ); }
-static void delete_early (free_t *node) { ; }
-
-static void *alloc_post (free_t *prev, size_t num) { return (void *)prev; }
-static void delete_post (free_t *node) { ; }
-
-static void *alloc0_post (free_t *prev, size_t num) { return malloc (sizeof(free_t)); }
-static void delete0_post (free_t *node) { free (node); }
+static void *alloc_early(free_t *prev, size_t num) { return OFFSET(prev, num * PAGE_SIZ); }
+static void delete_early(free_t *node) { }
+static void *alloc_post(free_t *prev, size_t num) { return (void *)prev; }
+static void delete_post(free_t *node) { }
+static void *alloc0_post(free_t *prev, size_t num) { return malloc (sizeof(free_t)); }
+static void delete0_post(free_t *node) { free (node); }
 
 static void *(*alloc)(free_t *prev, size_t num);
 static void *(*alloc0)(free_t *prev, size_t num);
-static void *(*delete)(free_t *node);
-static void *(*delete0)(free_t *node);
+static void (*delete)(free_t *node);
+static void (*delete0)(free_t *node);
 
 /* 获取 Num 页的内存,没有则返回 NULL */
-void *pmm_allocpages (size_t num)
+addr_t pmm_allocpages(size_t num)
 {
-    void *page = NULL;
-
+    addr_t page = 0;
     free_t *n = &_free;
     free_t *prev = &_free;
-
-    do {
+    do
+    {
         n = n->next;
         if (n->pages >= num)
         {
             n->pages -= num;
-            page = (void *)n->addr;
-
-            if (n->pages == 0) {
+            page = n->addr;
+            if (n->pages == 0)
+            {
                 prev->next = n->next; // 越过,销毁
                 delete0(n);
-            } else {
+            }
+            else
+            {
                 free_t *new = alloc(n, num);
                 new->addr = n->addr + num * PAGE_SIZ;
                 new->pages = n->pages; // 之前已经减过了
-
                 new->next = n->next;
                 prev->next = new;
-
                 delete(n);
             }
-
             break;
         }
         prev = prev->next;
     } while (n->next);
 
-    if (page) {
+    if (page)
+    {
         page_free -= num;
         DEBUGK(K_MM, "allocate pages ! - %p,%llu\n", page, num);
     }
     return page;
 }
 
-void pmm_allochard(void *page, size_t num)
+void pmm_allochard(addr_t page, size_t num)
 {
-    if (num == 0) return;
+    if (num == 0)
+        return;
 
     addr_t start = (addr_t)page;
-    addr_t end   = start + num * PAGE_SIZ;
-
+    addr_t end = start + num * PAGE_SIZ;
     free_t *n = &_free;
     free_t *prev = &_free;
-
-    do {
+    do
+    {
         n = n->next;
 
-        addr_t ps = n->addr,
-               pe = n->addr + n->pages * PAGE_SIZ;
+        addr_t ps = n->addr, pe = n->addr + n->pages * PAGE_SIZ;
         if (pe < start || end < ps)
             goto next;
 
-        if (start <= ps && pe <= end) {
+        if (start <= ps && pe <= end)
+        {
             prev->next = n->next;
             delete0(n);
         }
 
-        if (start <= ps && ps < end) {
+        if (start <= ps && ps < end)
+        {
             free_t *new = alloc0((free_t *)end, 0);
 
             new->pages = (pe - end) / PAGE_SIZ;
@@ -112,85 +110,76 @@ void pmm_allochard(void *page, size_t num)
             prev->next = new;
 
             delete0(n);
-        } else if (start < pe && pe <= end) {
+        }
+        else if (start < pe && pe <= end)
+        {
             n->pages -= (pe - start) / PAGE_SIZ;
-        } else if (ps < start && end < pe) {
+        }
+        else if (ps < start && end < pe)
+        {
             free_t *free0 = alloc0((free_t *)ps, 0);
             free_t *free1 = alloc0((free_t *)end, 0);
-
             size_t pg0 = (start - ps) / PAGE_SIZ;
             size_t pg1 = (pe - end) / PAGE_SIZ;
 
             free0->pages = pg0;
             free1->pages = pg1;
-
             free1->next = n->next;
             free0->next = free1;
             prev->next = free0;
-
             delete0(n);
         }
 
-next:
+    next:
         prev = prev->next;
     } while (n->next);
 }
 
-static bool _pmm_isfree(void *page, size_t num)
+static bool _pmm_isfree(addr_t page, size_t num)
 {
     free_t *n = &_free;
-
     /*
-      一句话 : 交集
-       ZoneA : ---------xxxxxxxxx
-       ZoneB : xxxxxxxxx---------
-
-       non   : ZAStart >= ZBEnd || ZBStart >= ZAEnd
-       exist(for `if`) : MAX(ZAStart, ZBStart) < MIN(ZAEnd, ZBEnd)
-    */
-
-    addr_t start = (addr_t)page,
-           end   = (addr_t)page + num * PAGE_SIZ;
-
+     *  ZoneA : ---------xxxxxxxxx
+     *  ZoneB : xxxxxxxxx---------
+     */
+    addr_t start = (addr_t)page;
+    addr_t end   = (addr_t)page + num * PAGE_SIZ;
     do {
         n = n->next;
         addr_t ps = (addr_t)n->addr,
                pe = (addr_t)n->addr + n->pages * PAGE_SIZ;
-        if (MAX(ps, start) < MIN(pe, end)) {
+        if (MAX(ps, start) < MIN(pe, end))
             return true;
-        }
     } while (n->next);
-
     return false;
 }
 
-void pmm_freepages(void *page, size_t num)
+void pmm_freepages(addr_t page, size_t num)
 {
-    page = (void*)((addr_t)page &~ 0x7ff); // 抹掉低位
-    if (_pmm_isfree(page, num)) {
-        DEBUGK(K_MM, "these pages are free before! - %p,%llu\n", page, num);
-        return;
-    }
-
-    addr_t start = (addr_t)page,
-           end   = (addr_t)page + num * PAGE_SIZ;
-
+    page = (addr_t)page &~ PAGE_MASK;
+    ASSERTK(!_pmm_isfree(page, num));
+    addr_t start = page;
+    addr_t end = page + num * PAGE_SIZ;
     free_t *n = &_free;
     free_t *prev = &_free;
-    do {
+    do
+    {
         n = n->next;
-
-        addr_t ps = n->addr,
-               pe = n->addr + n->pages * PAGE_SIZ;
-
-        if (ps == end)        // Head
+        addr_t ps = n->addr;
+        addr_t pe = n->addr + n->pages * PAGE_SIZ;
+        if (ps == end)
         {
-            free_t *new = alloc(page, 0);
+            /*
+             * use `alloc` to adjust `n` to the start of the page
+             * +------+---+ if it is in the physical address mode
+             * | page | n | otherwise `n` is not related to the according
+             * +------+---+ physical address which is store in heap
+             */
+            free_t *new = alloc(n, -n->pages);
             new->addr = start;
             new->pages = n->pages + num;
             new->next = n->next;
             prev->next = new;
-
             delete(n);
             break;
         }
@@ -199,12 +188,15 @@ void pmm_freepages(void *page, size_t num)
             n->pages += num;
             break;
         }
-        else if (ps < start && (!n->next && n->next->addr > start)) // Another case
+        else if (pe < start && (!n->next || n->next->addr > end))
         {
-            ASSERTK(end < n->next->addr);
-
-            free_t *new = alloc0(page, 0);
-
+            /*
+             * +-+-+----+-+-----------+
+             * |n|1|page|1|next / none|
+             * +-+-+----+-+-----------+
+             */
+            ASSERTK(!n->next || end < n->next->addr);
+            free_t *new = alloc0(n, 0);
             new->addr = start;
             new->pages = num;
             new->next = n->next;
@@ -219,28 +211,28 @@ void pmm_freepages(void *page, size_t num)
     DEBUGK(K_MM, "free pages! - %p,%llu\n", page, num);
 }
 
-void pmm_init ()
+void pmm_init()
 {
-    DEBUGK (K_MM, "pages : - total(%llu), free(%llu)\n", page_total, page_free);
+    DEBUGK(K_MM, "pages : - total(%llu), free(%llu)\n", page_total, page_free);
 }
 
-void __pmm_tovmm ()
+void __pmm_tovmm()
 {
     /* 必须要注意的是, 在完成之前最好避免执行任何的物理内存分配操作 */
 
-    free_t *old = &_free,
-           *new = &_free;
+    free_t *old = &_free, *new = &_free;
 
-    size_t i = 0,
-           cnt = 0;
-    for (free_t *n = _free.next ; n ; n = n->next) cnt++;
+    size_t i = 0, cnt = 0;
+    for (free_t *n = _free.next; n; n = n->next)
+        cnt++;
 
     void *array[cnt];
-    for (i = 0 ; i < cnt ; i++)
+    for (i = 0; i < cnt; i++)
         array[i] = malloc(sizeof(free_t));
 
     i = 0;
-    while (old->next && i < cnt) {
+    while (old->next && i < cnt)
+    {
         old = old->next;
 
         new->next = array[i++];
@@ -251,13 +243,13 @@ void __pmm_tovmm ()
     }
 
     while (i < cnt)
-        free (array[i++]);
+        free(array[i++]);
 
     /* switch mode */
-    alloc = (void *)alloc_post;
-    alloc0 = (void *)alloc0_post;
-    delete = (void *)delete_post;
-    delete0 = (void *)delete0_post;
+    alloc = alloc_post;
+    alloc0 = alloc0_post;
+    delete = delete_post;
+    delete0 = delete0_post;
 }
 
 //
@@ -267,54 +259,47 @@ void __pmm_tovmm ()
 
 void __kpg_dump(kpgs_t *kpg)
 {
-    for (int i = 0 ; ; i++, kpg++)
+    for (int i = 0;; i++, kpg++)
     {
         if (!kpg->va)
             break;
-        
         DEBUGK(K_INIT, "[#%2d] kpg %p -> %p | %d\n", i, kpg->phy, kpg->vrt, kpg->msiz);
     }
 }
 
-void __pmm_pre (mconfig_t *m)
+void __pmm_pre(mconfig_t *m)
 {
     DEBUGK(K_INIT, "early-init physical memory!\n");
-
     __kpg_dump((kpgs_t *)m->kpgs);
 
-    mapinfo_t *info = m->map;
-    EFI_MEMORY_DESCRIPTOR *desc = info->maps + info->descsiz; // Skip the first one,its ptr points to NULL.
-
-    page_free = 0;
-
     free_t *n = &_free;
-    for (int i = 1 ; i < info->mapcount ; i++, desc = OFFSET(desc, info->descsiz))
+    mapinfo_t *info = m->map;
+    EFI_MEMORY_DESCRIPTOR *desc = info->maps;
+    for (int i = 0; i < info->mapcount; i++, desc = OFFSET(desc, info->descsiz))
     {
-        DEBUGK(K_INIT, "[#%02d] 0x%016llx | 0x%016llx | %s\n", i, desc->PhysicalStart, desc->NumberOfPages, get_uefi_mtstr(desc->Type));
-
+        if (!desc->NumberOfPages || !desc->PhysicalStart)
+            continue;
+        DEBUGK(K_INIT, "[#%02d] 0x%016llx | 0x%016llx | %s\n", i, desc->PhysicalStart, desc->NumberOfPages,
+               get_uefi_mtstr(desc->Type));
         page_total += desc->NumberOfPages;
-
-        if (desc->Type == EfiBootServicesData ||
-            desc->Type == EfiBootServicesCode)
-            desc->Type  = EfiConventionalMemory;
-
+        if (desc->Type == EfiBootServicesData || desc->Type == EfiBootServicesCode)
+            desc->Type = EfiConventionalMemory;
         if (desc->Type != EfiConventionalMemory)
             continue;
         page_free += desc->NumberOfPages;
 
         /* 处理与内核占用的物理内存的重叠区域
          *  TODO - replace it!
-        */
+         */
 
         n->next = (free_t *)desc->PhysicalStart;
         n = n->next;
         n->addr = (u64)n;
         n->pages = desc->NumberOfPages;
     }
-    
-    alloc = (void *)alloc_early;
-    alloc0 = (void *)alloc_early;
-    delete = (void *)delete_early;
-    delete0 = (void *)delete_early;
-}
 
+    alloc = alloc_early;
+    alloc0 = alloc_early;
+    delete = delete_early;
+    delete0 = delete_early;
+}
