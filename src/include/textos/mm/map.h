@@ -32,4 +32,6 @@ addr_t vmap_query(addr_t vrt);
 
 addr_t get_kpgt();
 addr_t get_kppgt();
+addr_t new_pgt();
 addr_t copy_pgtd(addr_t ppgt);
+void clear_pgt(addr_t ppgt);

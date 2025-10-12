@@ -19,8 +19,19 @@ void *vmm_phyauto(addr_t vrt, size_t num, int flgs)
     ASSERTK(!(vrt & PAGE_MASK) && vrt != 0); // 确保它不是 NULL 并且是一页开始的地方
     if (!vmm_canadjust(&vrt))
         DEBUGK(K_MM, "the addr is not a canonical addr, adjust it - %p\n", vrt);
-    void *page = pmm_allocpages(num);
-    vmap_map((addr_t)page, vrt, num, flgs);
+    size_t unit = num;
+    while (num) {
+        addr_t page = pmm_allocpages(num);
+        if (!page) {
+            unit /= 2;
+            // no free pages
+            ASSERTK(unit != 0);
+            continue;
+        }
+        vmap_map(page, vrt, num, flgs);
+        vrt += unit * PAGE_SIZE;
+        num -= unit;
+    }
     return (void *)vrt;
 }
 

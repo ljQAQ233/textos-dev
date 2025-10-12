@@ -56,31 +56,52 @@ static inline void invlpg(u64 vrt)
     __asm__ volatile("invlpg (%0)" : : "r"(vrt) : "memory");
 }
 
-static void map_walk(u64 phy, u64 vrt, u16 flgs, int lv)
+static u64 *walk(u64 phy, u64 vrt, u16 flgs, int lv, int create)
 {
     u64 *tab = entryget(vrt, lv);
     u64 idx = IDX(vrt, lv);
     if (lv == 0)
-    {
-        tab[idx] = ADDR(phy) | FLAG(flgs);
-        invlpg(vrt);
-        return;
-    }
+        return &tab[idx];
     if (!(tab[idx] & PE_P))
     {
-        void *new = pmm_allocpages(1);
-        ASSERTK(new != NULL);
+        if (!create)
+            return NULL;
+        addr_t new = pmm_allocpages(1);
+        ASSERTK(new != 0);
 
         tab[idx] = ADDR(new) | PE_RW | PE_P;
         invlpg((u64)tab);
-        new = entryget(vrt, lv - 1);
-        memset(new, 0, PAGE_SIZ);
+        u64 *newtab = entryget(vrt, lv - 1);
+        memset(newtab, 0, PAGE_SIZ);
     }
+    if (create)
+        if (flgs & PE_US)
+            tab[idx] |= PE_US;
+    return walk(phy, vrt, flgs, lv - 1, create);
+}
 
-    if (flgs & PE_US)
-        tab[idx] |= PE_US;
+void vmap_map(addr_t phy, addr_t vrt, size_t num, int flgs)
+{
+    size_t pgsz = PAGE_SIZE;
+    while (num--)
+    {
+        u64 *entry = walk(phy, vrt, flgs, L_PML4, 1);
+        *entry = ADDR(phy) | FLAG(flgs);
+        invlpg(vrt);
+        phy += pgsz, vrt += pgsz;
+    }
+}
 
-    map_walk(phy, vrt, flgs, lv - 1);
+void vmap_unmap(addr_t vrt, size_t num)
+{
+    size_t pgsz = PAGE_SIZE;
+    while (num--)
+    {
+        u64 *entry = walk(0, vrt, 0, L_PML4, 1);
+        *entry = 0;
+        invlpg(vrt);
+        vrt += pgsz;
+    }
 }
 
 static u64 qry_walk(u64 vrt, int lv)
@@ -89,19 +110,9 @@ static u64 qry_walk(u64 vrt, int lv)
     u64 entry = entryget(vrt, lv)[idx];
     if (!(entry & PE_P))
         return 0;
-    if (!lv)
+    if (!lv || (lv != L_PML4 && (entry & (1 << 7))))
         return ADDR(entry) | vrt & ((1 << (lv * 9 + 12)) - 1);
     return qry_walk(vrt, lv - 1);
-}
-
-void vmap_map(addr_t phy, addr_t vrt, size_t num, int flgs)
-{
-    size_t pgsz = PAGE_SIZE;
-    while (num--)
-    {
-        map_walk(phy, vrt, flgs, L_PML4);
-        phy += pgsz, vrt += pgsz;
-    }
 }
 
 addr_t vmap_query(addr_t vrt)
@@ -154,6 +165,19 @@ addr_t get_kppgt()
 
 #include <textos/mm/pvpage.h>
 
+addr_t new_pgt()
+{
+    int i = 0;
+    u64 npg, *vnpg;
+    npg = pmm_allocpages(1);
+    while (make_pvpage(npg, &vnpg) < 0);
+    for ( ; i < 256 ; i++) vnpg[i] = 0;
+    for ( ; i < 512 ; i++) vnpg[i] = pml4[i];
+    vnpg[R_IDX] = ADDR(npg) | PE_RW | PE_P;
+    break_pvpage(vnpg);
+    return npg;
+}
+
 static u64 _copy_pgtd(u64 pg, int lv)
 {
     u64 npg;
@@ -192,4 +216,25 @@ done:
 addr_t copy_pgtd(addr_t ppgt)
 {
     return (addr_t)_copy_pgtd(ppgt, L_PML4);
+}
+
+static void clear(u64 pa, int lv)
+{
+    if (lv >= 0)
+    {
+        u64 *vpg;
+        while (make_pvpage(pa, &vpg) < 0);
+        for (int i = 0 ; i < (lv == L_PML4 ? 256 : 512) ; i++)
+            if (vpg[i] & PE_P)
+                clear(ADDR(vpg[i]), lv - 1);
+        break_pvpage(vpg);
+    }
+    pmm_freepages(pa, 1);
+}
+
+void clear_pgt(addr_t ppgt)
+{
+    clear(ppgt, L_PML4);
+    if (read_cr3() == ppgt)
+        write_cr3(ppgt);
 }

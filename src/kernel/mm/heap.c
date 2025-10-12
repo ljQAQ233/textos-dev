@@ -41,14 +41,12 @@ static void _extend_heap(size_t siz);
 
 void heap_init()
 {
-    block_t *hp = pmm_allocpages(HEAP_ORIG); // 分配初始页,总不可能让指针们踩空吧......
-
-    PUT (hp + 0, SET(0, 0));    // Padding
-    PUT (hp + 1, SET(8, true)); // 设置序言块
-    PUT (hp + 2, SET(8, true));
-    PUT (hp + 3, SET(0, true)); // 设置结尾块 has only header
-
-    vmap_map ((addr_t)hp, __kern_heap_base, HEAP_ORIG, PE_RW | PE_P); // 映射至内核堆处
+    block_t *hp = (void *)pmm_allocpages(HEAP_ORIG); // 分配初始页,总不可能让指针们踩空吧......
+    PUT(hp + 0, SET(0, 0));    // Padding
+    PUT(hp + 1, SET(8, true)); // 设置序言块
+    PUT(hp + 2, SET(8, true));
+    PUT(hp + 3, SET(0, true)); // 设置结尾块 has only header
+    vmap_map((addr_t)hp, __kern_heap_base, HEAP_ORIG, PE_RW | PE_P); // 映射至内核堆处
 
     _heap.root = (block_t *)__kern_heap_base + 3;
     _heap.brk = (block_t *)_heap.root;
