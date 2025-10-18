@@ -36,9 +36,7 @@ ovmf:
 	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF.fd $(BASE)/OVMF_$(TARGET)_$(ARCH).fd
 	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_CODE.fd $(BASE)/OVMF_$(TARGET)_$(ARCH).code
 	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_VARS.fd $(BASE)/OVMF_$(TARGET)_$(ARCH).vars
-	@echo
 
-build: BOOT_OUTPUT:=$(BOOT_OUTPUT)/SIGMA_$(ARCH)
 build: prepare
 	@mkdir -p Edk2/Conf
 	@echo -e "Update configures for compliler...\n"
@@ -66,13 +64,16 @@ update: BOOT_OUTPUT:=$(BOOT_OUTPUT)/SIGMA_$(ARCH)
 update: EXEC_OUTPUT:=$(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/$(ARCH)/$(PLATFORM_NAME)
 update:
 	@if ! test -f $(EXEC_OUTPUT).efi ; then \
-		make -C .. boot \
+		make build \
 	;elif ! $(UTILS)/chkmodify.sh $(PROJ) >/dev/null 2>&1;then \
-		make -C .. boot \
+		make build \
 	;fi
-	cp -rf $(EXEC_OUTPUT).efi $(BOOT_EXEC)
+	@cp -f $(EXEC_OUTPUT).efi $(BOOT_EXEC)
+	@mkdir -p $(ROOT)/EFI/Boot
+	@cp -f $(BOOT_EXEC) $(ROOT)/EFI/Boot
 
 clean:
 	rm -rf Edk2/SigmaBootPkg
 
 .PHONY: prepare ovmf build update clean
+.DEFAULT_GOAL := update
