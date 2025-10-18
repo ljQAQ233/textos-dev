@@ -1,11 +1,10 @@
-
 #include <textos/mm.h>
 #include <textos/task.h>
 #include <textos/syscall.h>
 #include <textos/user/elf.h>
 #include <textos/user/exec.h>
 
-#include <gdt.h>
+#include <cpu.h>
 #include <string.h>
 
 static char **duparg(char *const arr[])
@@ -136,6 +135,18 @@ static void *build(void *sp, char *const argv[], char *const envp[], exeinfo_t *
     return sp;
 }
 
+static void *heap()
+{
+    vm_region_t vm = {
+        __user_heap_va,
+        __user_heap_pages,
+        PROT_READ | PROT_WRITE,
+        MAP_FIXED | MAP_PRIVATE | MAP_ANON,
+        0, 0, 0
+    };
+    return mmap_anon(&vm);
+}
+
 static void *stack()
 {
     vm_region_t vm = {
@@ -172,24 +183,13 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     sp = build(sp, argvk, envpk, &info);
 
     curr->init.main = info.entry;
+    curr->brk = (addr_t)heap();
     brkarg(argvk);
     brkarg(envpk);
     clear_pgt(oldpgt);
     vmm_free_space(oldvsp);
     curr->did_exec = true;
-    __asm__ volatile(
-            "push %0 \n" // ss
-            "push %1 \n" // rsp
-            "pushq $0x200\n" // rflags
-            "push %2 \n" // cs
-            "push %3 \n" // rip
-            : :
-            "i"((USER_DATA_SEG << 3) | 3), // ss
-            "m"(sp),                       // rsp
-            "i"((USER_CODE_SEG << 3) | 3), // cs
-            "m"(info.entry),               // rip
-            "D"(sp));                      // rdi
-    __asm__ volatile ("iretq");
+    arch_goto_user(sp, info.entry);
 
 fail:
     write_cr3(oldpgt);

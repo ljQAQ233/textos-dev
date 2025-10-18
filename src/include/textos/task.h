@@ -59,6 +59,7 @@ typedef struct task
 
     addr_t pgt;
     addr_t mmap;
+    addr_t brk;
     vm_space_t *vsp;
     void *fpu;
 

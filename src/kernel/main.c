@@ -96,21 +96,8 @@ static void __init_proc()
     close(2);
 
     exeinfo_t exe;
-    elf_load("/bin/init", &exe);
-
     task_t *curr = task_current();
-    __asm__ volatile (
-            "push %0 \n" // ss
-            "push %1 \n" // rsp
-            "pushfq  \n" // rflags
-            "push %2 \n" // cs
-            "push %3 \n" // rip
-            : :
-            "i"((USER_DATA_SEG << 3) | 3),   // ss
-            "m"(curr->init.rbp),             // rsp
-            "i"((USER_CODE_SEG << 3) | 3), // cs
-            "m"(exe.entry));                 // rip
-    __asm__ volatile ("iretq");
-
-    PANIC("Init exiting...\n");
+    elf_load("/bin/init", &exe);
+    arch_goto_user(curr->init.rbp, exe.entry);
+    PANIC("init exiting...\n");
 }

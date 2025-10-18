@@ -114,7 +114,7 @@ typedef struct
     rbtree_t tree;
 } vm_space_t;
 
-#define MRET(x) ((void *)x)
+#define MRET(x) ((void *)(x))
 
 void *mmap_file(vm_region_t *vm);
 void *mmap_anon(vm_region_t *vm);

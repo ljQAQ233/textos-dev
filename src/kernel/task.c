@@ -710,6 +710,18 @@ __SYSCALL_DEFINE0(pid_t, getppid)
     return task_current()->ppid;
 }
 
+__SYSCALL_DEFINE1(void *, brk, void *, ptr)
+{
+    addr_t ask = (addr_t)ptr;
+    task_t *tsk = task_current();
+    if (ptr == NULL)
+        return MRET(tsk->brk);
+    if (ask < __user_heap_va)
+        return MRET(-ENOMEM);
+    ask = (ask + PAGE_SIZE) & PAGE_MASK;
+    return MRET(tsk->brk = ask);
+}
+
 __SYSCALL_DEFINE0(int, yield)
 {
     task_schedule();
