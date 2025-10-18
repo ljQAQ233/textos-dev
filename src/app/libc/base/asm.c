@@ -44,8 +44,10 @@ long syscall(int num, ...)
         "syscall"
         : "+r"(a0) : "r"(a1), "r"(a2), "r"(a3), "r"(a4), "r"(a5), "r"(a6)
         : "memory");
-    return syscall_ret(a0);
+    return a0;
 }
+
+#define syscall(nr, ARGS...) syscall_ret((syscall)(nr, ##ARGS))
 
 int fork()
 {
@@ -412,6 +414,11 @@ int mprotect(void *addr, size_t len, int prot)
 int munmap(void *addr, size_t len)
 {
     return syscall(SYS_munmap, addr, len);
+}
+
+void *brk(void *ptr)
+{
+    return (void *)syscall(SYS_brk, ptr);
 }
 
 int getuid()

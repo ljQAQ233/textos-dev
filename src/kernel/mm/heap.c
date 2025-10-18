@@ -53,7 +53,7 @@ void heap_init()
     _heap.max = (void *)__kern_heap_base + HEAP_ORIG * PAGE_SIZ;
 }
 
-void *sbrk(int64 siz)
+static void *sbrk(int64 siz)
 {
     _heap.brk += _ALIGN(siz, 8);
 

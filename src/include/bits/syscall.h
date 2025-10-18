@@ -9,6 +9,7 @@
     _(mmap, 9)          \
     _(mprotect, 10)     \
     _(munmap, 11)       \
+    _(brk, 12)          \
     _(sigaction, 13)    \
     _(sigprocmask, 14)  \
     _(sigreturn, 15)    \
