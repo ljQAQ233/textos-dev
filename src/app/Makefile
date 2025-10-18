@@ -2,17 +2,18 @@ SHELL  := bash
 
 include ../config/app.mk
 
-elfs := $(wildcard *.c)
-elfs := $(elfs:.c=.elf)
-elfs := $(addprefix ${APP_OUTPUT}/,${elfs})
+ELFS := $(patsubst %.c,%,$(wildcard *.c))
+ELFS := $(addprefix ${APP_OUTPUT}/,${ELFS})
 
-MODS := \
-	libc \
-	lvgl \
-	test
-# TODO : test does not belong here
+MODS := test
+LIBS := libc lvgl
 
-app: mods $(elfs)
+app: libs mods $(ELFS)
+	@mkdir -p $(ROOT)/bin
+	@cp $(ELFS) $(ROOT)/bin
+
+libs:
+	@for i in ${LIBS}; do cd $$i; make || exit; cd ..; done
 
 mods:
 	@for i in ${MODS}; do cd $$i; make || exit; cd ..; done
@@ -20,11 +21,17 @@ mods:
 clean:
 	rm -rf $(APP_OUTPUT)
 
-# Make rules and printing formats (top-level)
+clean-elfs:
+	rm -f $(ELFS)
 
-$(APP_OUTPUT)/%.elf: %.c $(MODS:=/.stamp)
+$(APP_OUTPUT)/%: %.c $(LIBS:=/.stamp)
 	@mkdir -p $(@D)
-	$(APP_OUTPUT)/libc/cc -static $(CFLAGS) $< $(addprefix $(APP_OUTPUT)/,$(shell ${UTILS}/fix_libs.sh $<)) -o $@ -L$(APP_OUTPUT)/libc -lc -ldl
+	@$(APP_OUTPUT)/libc/cc -static $(CFLAGS) $< $(addprefix $(APP_OUTPUT)/,$(shell ${UTILS}/fix_libs.sh $<)) -o $@ -L$(APP_OUTPUT)/libc -lc -ldl
 	@echo -e "\033[032m   CC  \033[0m $<"
 
-.PHONY: app mods clean
+.PHONY: app libs mods clean clean-elfs
+
+# special targets:
+# - use `make ls` to generate rather than `make path/to/build/ls`!
+%: %.c
+	@$(MAKE) $(APP_OUTPUT)/$@

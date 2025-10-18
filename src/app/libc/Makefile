@@ -6,13 +6,17 @@ BUILD := $(APP_OUTPUT)/$(notdir ${CURDIR})
 OBJS := $(addsuffix .o,${SRCS})
 OBJS := $(addprefix ${BUILD}/,${OBJS})
 
-$(BUILD)/cc: \
-	$(BUILD)/cc.specs \
+all: $(BUILD)/cc \
 	$(BUILD)/libc.a \
 	$(BUILD)/libc.so \
 	$(BUILD)/libdl.a \
 	$(BUILD)/libdl.so \
 	$(BUILD)/ld.so
+	@mkdir -p $(ROOT)/lib
+	@cp $^ $(ROOT)/lib
+
+$(BUILD)/cc: \
+	$(BUILD)/cc.specs
 	@echo '#!/bin/sh' > $@
 	@echo 'gcc "$$@" -specs=$<' >> $@
 	@chmod +x $@
@@ -47,3 +51,5 @@ $(BUILD)/%.c.o: %.c
 	@mkdir -p $(@D)
 	@$(CC) $(CFLAGS) -c $< -o $@ -fPIC
 	@echo -e "\033[032m   CC  \033[0m $<"
+
+.PHONY: all

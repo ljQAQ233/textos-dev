@@ -5,6 +5,8 @@ TARS := $(SRCS:%.c=${BUILD}/%)
 CC := $(APP_OUTPUT)/libc/cc
 
 all: $(TARS)
+	@mkdir -p $(ROOT)/test
+	@cp $^ $(ROOT)/test
 
 $(BUILD)/%: %.c
 	@mkdir -p $(@D)

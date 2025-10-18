@@ -5,18 +5,12 @@ export ARCH
 include config/main.mk
 include config/image.mk
 
-include config/udk.mk
+all: pre boot kernel app image
+pre: include/bits/alltypes.h
 
-all: include/bits/alltypes.h _boot kernel app image
+MODS := kernel boot app
 
-include config/qemu.mk
-
-boot:
-	@make -C boot build
-
-_boot:
-	@make -C boot update
-
+# ovmf
 ovmf:
 	@make -C boot TARGET=RELEASE ovmf
 
@@ -26,20 +20,16 @@ ovmf-debug:
 ovmf-noopt:
 	@make -C boot TARGET=NOOPT FLAGS="-DDEBUG_ON_SERIAL_PORT=TRUE -DSOURCE_DEBUG_ENABLE=TRUE" ovmf
 
-kernel:
-	@make -C kernel kernel
-
-app:
-	@make -C app app
-
-$(IMG) : _boot kernel app
+# image maker
 image: $(IMG)
 
-compile_commands.json: clean
-	@bear --output utils/compile_commands.json -- make clean all
-	@utils/fix_clcmd.sh utils/compile_commands.json
-
+# QEMU commands
+#   - qemu - run
+#   - qemug - kernel debug
+#   - qemubg - uefi debug (udk)
 include config/net.mk
+include config/udk.mk
+include config/qemu.mk
 
 qemu: all net
 	$(QEMU) $(QEMU_FLAGS_RUN)
@@ -55,6 +45,11 @@ qemubg: all net
 	$utils/monitor_qemu.sh > /dev/null 2>&1 & disown -h
 	$(QEMU) $(QEMU_FLAGS_BDBG) -serial pipe:$(PIPE)
 
+# toolkits
+compile_commands.json: clean
+	@bear --output utils/compile_commands.json -- make clean all
+	@utils/fix_clcmd.sh utils/compile_commands.json
+
 clean:
 	make -C boot clean
 	make -C kernel clean
@@ -62,8 +57,21 @@ clean:
 	find . -iname "*.status_lock" | xargs rm -f
 	rm -rf $(OUTPUT)
 
-.PHONY: all _boot boot kernel app image \
-		qemu qemug qemubg \
-		diskmu clean \
-		compile_commands.json 
+.PHONY: all pre image qemu qemug qemubg \
+		clean compile_commands.json $(MODS)
 
+# special target : if the MAKECMDGOALS starts with those targets defined in MODS
+# then it will be seen as calling the submodules and the arguments after it will
+# be passed to the next level makefile. e.g. make -C src app clean-elfs
+# a point worth attention is that although we pass them to the next level, these
+# goals will be also executed after the submodule returns, which leads to an error
+# thrown by this makefile, so %:: provided by GNU is useful to make it shut up :)
+ifneq (,$(filter ${MODS},$(firstword ${MAKECMDGOALS})))
+%::
+	@true
+$(MODS):
+	$(MAKE) -C $@ $(filter-out $@,$(MAKECMDGOALS))
+else
+$(MODS):
+	$(MAKE) -C $@
+endif
