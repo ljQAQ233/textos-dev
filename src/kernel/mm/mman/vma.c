@@ -154,7 +154,6 @@ vm_area_t *vmm_sp_containing(vm_space_t *sp, addr_t addr)
 {
     rbnode_t *p = sp->tree.root;
     vm_area_t *c = NULL;
-    vmm_sp_display(sp);
     while (p) {
         vm_area_t *a = CR(p, vm_area_t, node);
         if (addr >= a->s && addr < a->t) {

@@ -6,6 +6,7 @@ SRCS += mm/map.c
 SRCS += mm/heap.c
 SRCS += mm/mman/vma.c
 SRCS += mm/mman/ppg.c
+SRCS += mm/mman/fitter.c
 SRCS += mm/mman/anon.c
 SRCS += mm/mman/file.c
 SRCS += mm/mman/mman.c

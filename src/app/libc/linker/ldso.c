@@ -63,6 +63,7 @@ static int fixaddr()
 
 int main(int argc, char *argv[], char *envp[])
 {
+    char *prog = (char *)getauxval(AT_EXECFN);
     /*
      * is the dynamic loader executed by commands?
      */
@@ -76,12 +77,12 @@ int main(int argc, char *argv[], char *envp[])
             *(long *)argv = --argc;
             argv++;
 
-            self = loadlib(argv[0], RTLD_LAZY);
+            self = loadlib(prog, RTLD_LAZY);
             goto run;
         }
     }
 
-    if (fixinfo(argv[0]) < 0 ||
+    if (fixinfo(prog) < 0 ||
         fixaddr() < 0 ||
         dolkp(self) < 0)
     {

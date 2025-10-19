@@ -20,46 +20,73 @@ static inline int dochk(void *map)
         return -ENOEXEC;
     if (hdr->e_machine != EM_X86_64)
         return -ENOEXEC;
-    // TODO: static-pie program
-    if (hdr->e_type != ET_EXEC)
-        return -ENOEXEC;
-    return 0;
+    // then check its type
+    if (hdr->e_type == ET_EXEC)
+        return 0;
+    if (hdr->e_type == ET_DYN)
+        return 1;
+    return -ENOEXEC;
 }
 
 #define align_up(x, y) ((y) * ((x + y - 1) / y))
 #define align_dn(x, y) ((y) * (x / y))
 
-static int domap(node_t *n, exeinfo_t *exe)
+static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
 {
     int ret;
+    int isdyn;
+    void *base = 0;
     Elf64_Ehdr _ehdr;
     Elf64_Ehdr *eh = &_ehdr;
     uintptr_t pmapself = 0;
     ckerr(vfs_read(n, &_ehdr, sizeof(_ehdr), 0));
-    ckerr(dochk(eh));
+    ckerr(isdyn = dochk(eh));
     void *pmap = malloc(eh->e_phnum * eh->e_phentsize);
     ckerr(vfs_read(n, pmap, eh->e_phnum * eh->e_phentsize, eh->e_phoff));
 
-    /*
-     * determine the range of virtual address.
-     */
     int lp_segs = 0;
     int lp_okay = 0;
+    uintptr_t lp_max = 0;
+    uintptr_t lp_min = -1;
+    uintptr_t lp_pages;
     for (int i = 0 ; i < eh->e_phnum ; i++)
     {
         Elf64_Phdr *ph = pmap + i * eh->e_phentsize;
         if (ph->p_type == PT_LOAD)
+        {
             lp_segs++;
+            uintptr_t dptr = align_dn(ph->p_vaddr, ph->p_align);
+            uintptr_t uptr = align_up(ph->p_vaddr + ph->p_memsz, ph->p_align);
+            if (dptr < lp_min) lp_min = dptr;
+            if (uptr > lp_max) lp_max = uptr;
+        }
+        if (ph->p_type == PT_INTERP)
+        {
+            /*
+             * the path is stored in .interp
+             *   - use `readelf -p .interp xxx` to check it
+             */
+            if (!allow_ld)
+            {
+                ret = -ENOENT;
+                goto err;
+            }
+            exe->interp = malloc(ph->p_filesz);
+            ckerr(vfs_read(n, exe->interp, ph->p_filesz, ph->p_offset));
+        }
     }
-    DEBUGK(K_LOGK, "elf file %s\n", n->name);
-    DEBUGK(K_LOGK, "total %d segs\n", lp_segs);
     if (lp_segs == 0)
     {
         ret = -ENOEXEC;
         goto err;
     }
-
-    void *base = 0;
+    lp_pages = DIV_ROUND_UP(lp_max - lp_min, PAGE_SIZE);
+    if (isdyn)
+        base = (void *)vmm_fitaddr(0, lp_pages);
+    DEBUGK(K_LOGK, "elf file %s\n", n->name);
+    DEBUGK(K_LOGK, "total %d segs\n", lp_segs);
+    DEBUGK(K_LOGK, "interpreter in %s\n", exe->interp ? exe->interp : "none");
+    DEBUGK(K_LOGK, "taken up %d pages at %p\n", lp_pages, base);
     for ( ; lp_okay < eh->e_phnum ; lp_okay++)
     {
         Elf64_Phdr *ph = pmap + lp_okay * eh->e_phentsize;
@@ -67,7 +94,7 @@ static int domap(node_t *n, exeinfo_t *exe)
             continue;
         if (ph->p_offset <= eh->e_phoff &&
             ph->p_offset + ph->p_filesz >= eh->e_phoff)
-            pmapself = eh->e_phoff - ph->p_offset + ph->p_vaddr;
+            pmapself = (uintptr_t)base + eh->e_phoff - ph->p_offset + ph->p_vaddr;
         uintptr_t foff = align_dn(ph->p_offset, ph->p_align);
         uintptr_t fend = align_up(ph->p_offset + ph->p_filesz, ph->p_align);
         uintptr_t fsize = fend - foff;
@@ -111,12 +138,23 @@ static int domap(node_t *n, exeinfo_t *exe)
         DEBUGK(K_LOGK, "  %p -> %p, size = %lx, prot = %x\n", foff, base + moff, msize, prot);
     }
 
+    exe->base = base;
     exe->entry = (void *)eh->e_entry;
     exe->a_phdr = pmapself;
     exe->a_phent = eh->e_phentsize;
     exe->a_phnum = eh->e_phnum;
-    exe->a_base = 0; // TODO
     exe->a_notelf = 0;
+    // set later
+    exe->dlstart = 0;
+    exe->a_base = 0;
+
+    if (isdyn && exe->interp)
+    {
+        exeinfo_t ld;
+        ckerr(elf_load(exe->interp, &ld, false));
+        exe->dlstart = ld.entry;
+        exe->a_base = (uintptr_t)ld.base;
+    }
 err:
     if (pmap)
         free(pmap);
@@ -129,14 +167,14 @@ err:
  *   - auxiliary vector
  *     - note that PHDR always stored in PT_LOAD if it is expected to be executable
  */
-int elf_load(char *path, exeinfo_t *exe)
+int elf_load(char *path, exeinfo_t *exe, bool allow_ld)
 {
     int ret;
     node_t *n;
     memset(exe, 0, sizeof(exeinfo_t));
     exe->path = strdup(path);
     ckerr(vfs_open(NULL, path, 0, 0, &n));
-    ckerr(domap(n, exe));
+    ckerr(domap(n, exe, allow_ld));
 err:
     return MIN(ret, 0);
 }
