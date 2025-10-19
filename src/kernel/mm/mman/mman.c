@@ -21,7 +21,7 @@ __SYSCALL_DEFINE6(void *, mmap, void *, addr, size_t, len, int, prot, int, flgs,
     node_t *node = NULL;
     if (0 <= fd)
     {
-        if (fd < MAX_FILE)
+        if (fd >= MAX_FILE)
             return MRET(-EBADF);
         file_t *file = task_current()->files[fd];
         if (file)
@@ -41,12 +41,18 @@ __SYSCALL_DEFINE6(void *, mmap, void *, addr, size_t, len, int, prot, int, flgs,
     void *ret = MRET(-EINVAL);
     if (!vm.num)
         goto done;
+    if (~vm.flgs & MAP_FIXED)
+        vm.va = vmm_fitaddr(vm.va, vm.num);
+    else {
+        // TODO: unmap pages at first!!!
+    }
     if (flgs & MAP_ANON) {
         if (fd != -1 || off != 0)
             goto done;
         ret = mmap_anon(&vm);
     } else {
         ret = mmap_file(&vm);
+        DEBUGK(K_LOGK, "mmap file %s -> %p\n", ((node_t *)vm.fnode)->name, ret);
     }
 
 done:

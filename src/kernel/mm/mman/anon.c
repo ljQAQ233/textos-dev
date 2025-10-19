@@ -5,21 +5,12 @@
 
 void *mmap_anon(vm_region_t *vm)
 {
-    addr_t vaddr;
     int mapflg = 0;
-
     mapflg |= PE_P | PE_US;
     mapflg |= mapprot(vm->prot);
-    if (vm->flgs & MAP_FIXED) {
-        vaddr = vm->va;
-    } else {
-        task_t *tsk = task_current();
-        vaddr = tsk->mmap;
-        tsk->mmap += vm->num * PAGE_SIZ;
-    }
     vm_area_t *vma = vmm_new_vma(0);
-    vma->s = (addr_t)vaddr;
-    vma->t = (addr_t)vaddr + vm->num * PAGE_SIZE;
+    vma->s = vm->va;
+    vma->t = vm->va + vm->num * PAGE_SIZE;
     vma->flgs = vm->flgs;
     vma->prot = vm->prot;
     vmm_sp_regst(task_current()->vsp, vma);

@@ -97,7 +97,7 @@ static void __init_proc()
 
     exeinfo_t exe;
     task_t *curr = task_current();
-    elf_load("/bin/init", &exe);
+    elf_load("/bin/init", &exe, false);
     arch_goto_user(curr->init.rbp, exe.entry);
     PANIC("init exiting...\n");
 }

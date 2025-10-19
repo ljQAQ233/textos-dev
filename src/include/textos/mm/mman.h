@@ -119,6 +119,8 @@ typedef struct
 void *mmap_file(vm_region_t *vm);
 void *mmap_anon(vm_region_t *vm);
 
+addr_t vmm_fitaddr(addr_t addr, size_t num);
+
 vm_space_t *vmm_new_space(vm_space_t *old);
 vm_area_t *vmm_new_vma(vm_area_t *old);
 void vmm_free_space(vm_space_t *sp);

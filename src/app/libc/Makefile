@@ -11,9 +11,9 @@ all: $(BUILD)/cc \
 	$(BUILD)/libc.so \
 	$(BUILD)/libdl.a \
 	$(BUILD)/libdl.so \
-	$(BUILD)/ld.so
+	$(BUILD)/ld-textos.so
 	@mkdir -p $(ROOT)/lib
-	@cp $^ $(ROOT)/lib
+	@cp $(filter %.so,$^) $(ROOT)/lib
 
 $(BUILD)/cc: \
 	$(BUILD)/cc.specs
@@ -23,7 +23,8 @@ $(BUILD)/cc: \
 
 $(BUILD)/cc.specs:
 	@mkdir -p $(@D)
-	$(CURDIR)/specs.sh "$(INCLUDE)" "$(BUILD)" "$(BUILD)" "$(BUILD)/ld.so" > $@
+	$(CURDIR)/specs.sh "$(INCLUDE)" "$(BUILD)" "$(BUILD)" "/lib/ld-textos.so" > $@
+	@sudo ln -sf $(BUILD)/ld-textos.so /lib/ld-textos.so
 	@touch .stamp
 
 $(BUILD)/%.a: $(BUILD)/%.o
@@ -42,7 +43,7 @@ $(BUILD)/libdl.o: linker/libdl.c linker/linker.c
 	@$(CC) $(CFLAGS) -c $< -o $@ -L$(BUILD) -lc -fPIC
 	@echo -e "\033[032m   CC  \033[0m $<"
 
-$(BUILD)/ld.so: linker/ldso.c linker/linker.c
+$(BUILD)/ld-textos.so: linker/ldso.c linker/linker.c
 	@$(CC) $(CFLAGS) $< -o $@ -static -L$(BUILD) -lc \
 		-ffunction-sections -fdata-sections -Wl,--gc-sections
 	@echo -e "\033[032m   CC  \033[0m ldso -> $@"

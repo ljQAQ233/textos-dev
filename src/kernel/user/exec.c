@@ -175,7 +175,7 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     vm_space_t *oldvsp = curr->vsp;
     curr->vsp = vmm_new_space(0);
     write_cr3(curr->pgt = new_pgt());
-    if ((errno = elf_load(path, &info)))
+    if ((errno = elf_load(path, &info, true)))
         goto fail;
 
     void *bp, *sp;
@@ -189,6 +189,8 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     clear_pgt(oldpgt);
     vmm_free_space(oldvsp);
     curr->did_exec = true;
+    if (info.dlstart)
+        arch_goto_user(sp, info.dlstart);
     arch_goto_user(sp, info.entry);
 
 fail:
