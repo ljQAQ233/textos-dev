@@ -64,6 +64,12 @@ void vmm_free_space(vm_space_t *sp)
 
 void vmm_sp_regst(vm_space_t *sp, vm_area_t *vma)
 {
+    vm_area_t *prev = vmm_sp_upperbound(sp, vma->s);
+    if (prev != NULL)
+        list_insert_before(&prev->list, &vma->list);
+    else
+        list_insert_before(&sp->list, &vma->list);
+
     rbtree_t *t = &sp->tree;
     rbnode_t *p = NULL;
     rbnode_t **pp = &t->root;
@@ -75,15 +81,14 @@ void vmm_sp_regst(vm_space_t *sp, vm_area_t *vma)
         else if (a->s > vma->s)
             pp = &(*pp)->left;
     }
-
     rbtree_link(&vma->node, pp, p);
     rbtree_fixup(t, &vma->node);
+}
 
-    vm_area_t *prev = vmm_sp_upperbound(sp, vma->s);
-    if (prev != NULL)
-        list_insert_after(&prev->list, &vma->list);
-    else
-        list_insert_before(&sp->list, &vma->list);
+void vmm_sp_unreg(vm_space_t *sp, vm_area_t *vma)
+{
+    rbtree_delete(&sp->tree, &vma->node);
+    list_remove(&vma->list);
 }
 
 static void rbcb(int d, rbnode_t *ptr)
@@ -106,12 +111,6 @@ void vmm_sp_display(vm_space_t *sp)
         ASSERTK(!!vma->t);
     }
     rbtree_foreach(&sp->tree, rbcb, RB_PREORDER);
-}
-
-void mmap_unreg(vm_space_t *sp, vm_area_t *vma)
-{
-    rbtree_delete(&sp->tree, &vma->node);
-    list_remove(&vma->list);
 }
 
 vm_area_t *vmm_sp_lowerbound(vm_space_t *sp, addr_t addr)

@@ -139,17 +139,13 @@ static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
     }
 
     exe->base = base;
-    exe->entry = (void *)eh->e_entry;
-    exe->a_phdr = pmapself;
-    exe->a_phent = eh->e_phentsize;
-    exe->a_phnum = eh->e_phnum;
+    exe->entry = base + eh->e_entry;
     exe->a_notelf = 0;
-    // set later
-    exe->dlstart = 0;
-    exe->a_base = 0;
-
     if (isdyn && exe->interp)
     {
+        exe->a_phdr = pmapself;
+        exe->a_phent = eh->e_phentsize;
+        exe->a_phnum = eh->e_phnum;
         exeinfo_t ld;
         ckerr(elf_load(exe->interp, &ld, false));
         exe->dlstart = ld.entry;

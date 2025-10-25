@@ -65,8 +65,10 @@ typedef struct
     uintptr_t t, v;
 } auxv_t;
 
+// F: force (write even if V is zero)
+// T: auxv entry type / V: value
 #define _PUT(F, T, V) \
-    if (F || !V) {            \
+    if (F || V) {             \
         sp -= sizeof(auxv_t); \
         auxv_t *a = sp;       \
         a->t = T, a->v = V; }
@@ -81,9 +83,9 @@ static void *auxv(void *sp, exeinfo_t *exe)
 
     task_t *tsk = task_current();
     PUT(1, AT_NULL, 0);
-    PUT(1, AT_PHDR, exe->a_phdr);
-    PUT(1, AT_PHENT, exe->a_phent);
-    PUT(1, AT_PHNUM, exe->a_phnum);
+    PUT(0, AT_PHDR, exe->a_phdr);
+    PUT(0, AT_PHENT, exe->a_phent);
+    PUT(0, AT_PHNUM, exe->a_phnum);
     PUT(1, AT_PAGESZ, PAGE_SIZE);
     PUT(0, AT_BASE, exe->a_base);
     PUT(1, AT_ENTRY, exe->entry);
