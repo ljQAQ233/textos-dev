@@ -128,9 +128,13 @@ void vmm_free_vma(vm_area_t *vma);
 
 vm_ppg_t *vmm_ppg_new(vm_ppg_t *old);
 void vmm_ppg_regst(vm_area_t *vma, addr_t pa, int flag);
+vm_ppgrec_t *vmm_ppg_query(vm_area_t *vma, addr_t pa);
+void vmm_ppg_refer(vm_ppgrec_t *rec);
+void vmm_ppg_unref(vm_ppgrec_t *rec);
 void vmm_ppg_clear(vm_area_t *vma);
 
 void vmm_sp_regst(vm_space_t *sp, vm_area_t *vma);
+void vmm_sp_unreg(vm_space_t *sp, vm_area_t *vma);
 void vmm_sp_display(vm_space_t *sp);
 vm_area_t *vmm_sp_lowerbound(vm_space_t *sp, addr_t addr);
 vm_area_t *vmm_sp_upperbound(vm_space_t *sp, addr_t addr);

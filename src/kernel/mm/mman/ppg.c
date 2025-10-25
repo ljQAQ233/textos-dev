@@ -37,6 +37,32 @@ void vmm_ppg_regst(vm_area_t *vma, addr_t pa, int flag)
     htable_add(&vma->ppgs->ht, &record->hlist, key);
 }
 
+vm_ppgrec_t *vmm_ppg_query(vm_area_t *vma, addr_t pa)
+{
+    hlist_node_t *ptr;
+    vm_ppgrec_t *record;
+    htkey_t key = hash(pa);
+    HTABLE_FOREACH(ptr, &vma->ppgs->ht, key)
+    {
+        record = CR(ptr, vm_ppgrec_t, hlist);
+        if (record->pa == pa)
+            return record;
+    }
+    return NULL;
+}
+
+void vmm_ppg_refer(vm_ppgrec_t *rec)
+{
+    rec->refcnt++;
+}
+
+void vmm_ppg_unref(vm_ppgrec_t *rec)
+{
+    rec->refcnt -= 1;
+    if (!rec->refcnt && !(rec->flag & PPG_FIXED))
+        pmm_freepages(rec->pa, 1);
+}
+
 void vmm_ppg_clear(vm_area_t *vma)
 {
     hlist_node_t *ptr;
@@ -44,8 +70,6 @@ void vmm_ppg_clear(vm_area_t *vma)
     HTABLE_FORANY(ptr, &vma->ppgs->ht)
     {
         record = CR(ptr, vm_ppgrec_t, hlist);
-        record->refcnt -= 1;
-        if (!record->refcnt && !(record->flag & PPG_FIXED))
-            pmm_freepages(record->pa, 1);
+        vmm_ppg_unref(record);
     }
 }

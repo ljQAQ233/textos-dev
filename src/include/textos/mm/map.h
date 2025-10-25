@@ -28,6 +28,7 @@
  */
 
 void vmap_map(addr_t phy, addr_t vrt, size_t num, int flgs);
+void vmap_unmap(addr_t vrt, size_t num);
 addr_t vmap_query(addr_t vrt);
 
 addr_t get_kpgt();
