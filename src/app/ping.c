@@ -40,16 +40,14 @@ void dump(char *buf, ssize_t len)
     }
 }
 
-extern int inet_aton(const char *s, uint32_t *in);
-
 int main(int argc, char const *argv[])
 {
     int fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (fd < 0)
         goto die;
 
-    struct sockaddr_in addr;
-    if (inet_aton(argv[1], &addr.sin_addr.s_addr) == 0)
+    struct sockaddr_in addr = { .sin_family = AF_INET };
+    if (inet_aton(argv[1], &addr.sin_addr) == 0)
         goto die;
     
     uint16_t seq = 1;

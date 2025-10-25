@@ -5,11 +5,13 @@
 
 __BEGIN_DECLS
 
+struct in_addr;
+
 #define __NEED_uint16_t
 #define __NEED_uint32_t
 #include <bits/alltypes.h>
 
-int inet_aton(const char *__s, uint32_t *__in);
+int inet_aton(const char *__s, struct in_addr *__in);
 
 char *inet_ntoa(uint32_t __in);
 

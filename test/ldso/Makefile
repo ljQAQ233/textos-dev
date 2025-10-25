@@ -8,11 +8,11 @@ ldbase: ldbase.c
 
 dep.so: dep.c
 	gcc -shared -nostdlib $^ -o $@ -fPIC
-	cp $@ ../../build/root
+	cp $@ ../../build/root/lib
 
 add.so: add.c dep.so
 	gcc -shared -nostdlib $^ -o $@ -fPIC
-	cp $@ ../../build/root
+	cp $@ ../../build/root/lib
 
 clean:
 	rm -f ld ldbase add.so dep.so

@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(53);
-    inet_aton("180.76.76.76", &addr.sin_addr.s_addr);
+    inet_aton("180.76.76.76", &addr.sin_addr);
 
     size_t len;
     mkqry(argv[1], tx, &len);

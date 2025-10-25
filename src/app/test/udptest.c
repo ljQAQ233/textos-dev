@@ -19,7 +19,7 @@ int main(int argc, char const *argv[])
         .sin_family = AF_INET,
         .sin_port = htons(2333),
     };
-    inet_aton("192.168.2.1", &addr.sin_addr.s_addr);
+    inet_aton("192.168.2.1", &addr.sin_addr);
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     // if (connect(fd, (void *)&addr, sizeof(addr)) < 0)

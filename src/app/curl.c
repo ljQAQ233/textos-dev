@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
         .sin_family = AF_INET,
         .sin_port = htons(atoi(port)),
     };
-    inet_aton(ip, &addr.sin_addr.s_addr);
+    inet_aton(ip, &addr.sin_addr);
 
     if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
