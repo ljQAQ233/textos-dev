@@ -126,15 +126,20 @@ void screen_info5(void **i_buf, addr_t *i_pa, size_t *i_sz, u32 *i_hor, u32 *i_v
     if (i_ver) *i_ver = ver;
 }
 
-#include <boot.h>
+#include <textos/boot.h>
 
-void __video_pre(vconfig_t *v)
+void __video_pre()
 {
-    hor = v->hor;
-    ver = v->ver;
+    if (bmode_get() == BOOT_EFI)
+    {
+        bconfig_t *b = binfo_get();
+        vconfig_t *v = &b->video;
+        hor = v->hor;
+        ver = v->ver;
 
-    fb = (void *)v->fb;
-    fb_siz = v->fb_siz;
+        fb = (void *)v->fb;
+        fb_siz = v->fb_siz;
+    }
 }
 
 #include <textos/mm.h>

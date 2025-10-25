@@ -50,8 +50,8 @@ typedef struct _packed {
 #include <textos/panic.h>
 #include <textos/printk.h>
 
-#include <boot.h>
-#include <string.h>
+#include <textos/boot.h>
+#include <textos/klib/string.h>
 
 rsdp_t *__rsdp;
 rsdt_t *__rsdt;
@@ -113,9 +113,13 @@ void acpi_init ()
     madt_parser();
 }
 
-void __acpi_pre (void *acpi)
+void __acpi_pre()
 {
-    __rsdp = acpi;
+    if (bmode_get() == BOOT_EFI)
+    {
+        bconfig_t *b = binfo_get();
+        __rsdp = b->acpi;
+    }
 }
 
 #include <textos/mm.h>

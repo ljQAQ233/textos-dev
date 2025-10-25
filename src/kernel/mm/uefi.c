@@ -99,10 +99,10 @@ const char *get_uefi_statstr(EFI_STATUS x)
     return res;
 }
 
-#include <boot.h>
-#include <string.h>
 #include <textos/mm.h>
+#include <textos/boot.h>
 #include <textos/panic.h>
+#include <textos/klib/string.h>
 
 void __uefi_tovmm()
 {
@@ -112,7 +112,7 @@ void __uefi_tovmm()
     else
         shot = true;
 
-    bconfig_t *bconfig = bconfig_get();
+    bconfig_t *bconfig = binfo_get();
     mapinfo_t *info = bconfig->memory.map;
 
     addr_t vs = __uefi_misc;
@@ -152,4 +152,3 @@ void __uefi_tovmm()
     for (balloc_t *p = bconfig->memory.balloc ; p->va ; p++)
         pmm_freepages((addr_t)p->ptr, p->cnt);
 }
-
