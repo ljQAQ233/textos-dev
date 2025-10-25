@@ -10,13 +10,14 @@ static void qemu_shutdown()
     try(outw(0x604, 0x2000));
 }
 
-#include <boot.h>
+#include <textos/boot.h>
 #include <textos/uefi.h>
 
 // TODO: test it
 static void uefi_shutdown()
 {
-    EFI_RUNTIME_SERVICES *rt = bconfig_get()->runtime;
+    bconfig_t *b = binfo_get();
+    EFI_RUNTIME_SERVICES *rt = b->runtime;
     try(rt->ResetSystem(
             EfiResetShutdown,
             EFI_SUCCESS,

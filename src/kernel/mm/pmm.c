@@ -254,7 +254,7 @@ void __pmm_tovmm()
 
 //
 
-#include <boot.h>
+#include <textos/boot.h>
 #include <textos/uefi.h>
 
 void __kpg_dump(kpgs_t *kpg)
@@ -267,39 +267,48 @@ void __kpg_dump(kpgs_t *kpg)
     }
 }
 
-void __pmm_pre(mconfig_t *m)
+void __pmm_pre()
 {
     DEBUGK(K_INIT, "early-init physical memory!\n");
-    __kpg_dump((kpgs_t *)m->kpgs);
-
-    free_t *n = &_free;
-    mapinfo_t *info = m->map;
-    EFI_MEMORY_DESCRIPTOR *desc = info->maps;
-    for (int i = 0; i < info->mapcount; i++, desc = OFFSET(desc, info->descsiz))
+    if (bmode_get() == BOOT_EFI)
     {
-        if (!desc->NumberOfPages || !desc->PhysicalStart)
-            continue;
-        DEBUGK(K_INIT, "[#%02d] 0x%016llx | 0x%016llx | %s\n", i, desc->PhysicalStart, desc->NumberOfPages,
-               get_uefi_mtstr(desc->Type));
-        page_total += desc->NumberOfPages;
-        if (desc->Type == EfiBootServicesData || desc->Type == EfiBootServicesCode)
-            desc->Type = EfiConventionalMemory;
-        if (desc->Type != EfiConventionalMemory)
-            continue;
-        page_free += desc->NumberOfPages;
+        bconfig_t *b = binfo_get();
+        mconfig_t *m = &b->memory;
+        __kpg_dump((kpgs_t *)m->kpgs);
 
-        /* 处理与内核占用的物理内存的重叠区域
-         *  TODO - replace it!
-         */
+        free_t *n = &_free;
+        mapinfo_t *info = m->map;
+        EFI_MEMORY_DESCRIPTOR *desc = info->maps;
+        for (int i = 0; i < info->mapcount; i++, desc = OFFSET(desc, info->descsiz))
+        {
+            if (!desc->NumberOfPages || !desc->PhysicalStart)
+                continue;
+            DEBUGK(K_INIT, "[#%02d] 0x%016llx | 0x%016llx | %s\n", i, desc->PhysicalStart, desc->NumberOfPages,
+                get_uefi_mtstr(desc->Type));
+            page_total += desc->NumberOfPages;
+            if (desc->Type == EfiBootServicesData || desc->Type == EfiBootServicesCode)
+                desc->Type = EfiConventionalMemory;
+            if (desc->Type != EfiConventionalMemory)
+                continue;
+            page_free += desc->NumberOfPages;
 
-        n->next = (free_t *)desc->PhysicalStart;
-        n = n->next;
-        n->addr = (u64)n;
-        n->pages = desc->NumberOfPages;
+            /* 处理与内核占用的物理内存的重叠区域
+            *  TODO - replace it!
+            */
+
+            n->next = (free_t *)desc->PhysicalStart;
+            n = n->next;
+            n->addr = (u64)n;
+            n->pages = desc->NumberOfPages;
+        }
     }
 
     alloc = alloc_early;
     alloc0 = alloc_early;
     delete = delete_early;
     delete0 = delete_early;
+}
+
+void __pmm_pre_mb()
+{
 }
