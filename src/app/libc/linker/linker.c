@@ -98,6 +98,7 @@ static void r_addlib(struct dl *dl)
     lm->l_addr = (ElfW(Addr))dl->virt;
     lm->l_name = dl->path;
     lm->l_ld   = dl->dynamic;
+    lm->l_next = NULL;
     struct link_map *ptr = &ldso.debug;
     while (ptr->l_next)
         ptr = ptr->l_next;

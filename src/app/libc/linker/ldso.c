@@ -76,8 +76,9 @@ int main(int argc, char *argv[], char *envp[])
                 return help(argv[0]);
             *(long *)argv = --argc;
             argv++;
-
-            self = loadlib(prog, RTLD_LAZY);
+            self = loadlib(argv[0], RTLD_LAZY);
+            if (!self)
+                goto die;
             goto run;
         }
     }
@@ -85,21 +86,18 @@ int main(int argc, char *argv[], char *envp[])
     if (fixinfo(prog) < 0 ||
         fixaddr() < 0 ||
         dolkp(self) < 0)
-    {
-        dprintf(2, "ld.so: %s\n", dlerror());
-        return 1;
-    }
+        goto die;
+    r_addlib(self);
 
 run:
-    r_addlib(self);
-    void *entry = self->entry;
     asm volatile(
         "mov %0, %%rsp\n"
         "jmp *%1\n"
         :
-        : "r"(argv-1), "r"(entry)
+        : "r"(argv-1), "r"(self->entry)
         : "memory"
     );
-
-    return 0;
+die:
+    dprintf(2, "ld.so: %s\n", dlerror());
+    return 1;
 }

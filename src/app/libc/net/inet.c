@@ -1,8 +1,10 @@
 // inet converter
 #include <stdio.h>
 #include <stdint.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
-int inet_aton(const char *s, uint32_t *in)
+int inet_aton(const char *s, struct in_addr *in)
 {
     uint8_t *a = (uint8_t *)in;
     int p[4], c = 0, v = 0;
