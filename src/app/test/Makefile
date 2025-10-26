@@ -17,5 +17,6 @@ $(BUILD)/dlopen: X += -ldl
 $(BUILD)/dluniq: X += -ldl
 $(BUILD)/auxv: X += -static -g
 $(BUILD)/maprm: X += -static -g
+$(BUILD)/setjmp: X += -static -g
 
 .PHONY: all
