@@ -43,17 +43,20 @@ struct passwd *login()
         if (!strcmp(cry, pwd->pw_passwd))
         {
             set_echo(1);
+            printf("\n");
             return pwd;
         }
     retry:
         printf("\nLogin incorrect\n");
     }
     set_echo(1);
+    printf("\n");
     return NULL;
 }
 
 int main()
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
     if (gethostname(name, sizeof(name)) < 0)
         strcpy(name, "localhost");
 

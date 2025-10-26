@@ -70,7 +70,8 @@ char *fgets(char *restrict __s, int __n, FILE *restrict __f);
 #define _IOLBF 1
 #define _IONBF 2
 
-int setvbuf(FILE *__f, char *__buffer, int __mode, size_t __size);
+int setvbuf(FILE *__f, char *__buf, int __mode, size_t __size);
+void setbuf(FILE *__f, char *__buf);
 
 __END_DECLS
 
