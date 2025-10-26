@@ -10,6 +10,7 @@ struct _IO_FILE;
 #define F_EOF  8
 #define F_ERR  16
 #define F_APP  32
+#define F_ALOC 64
 
 struct _IO_FILE
 {

@@ -20,7 +20,7 @@ FILE *__fdopen(int fd, int flgs)
         fl |= F_APP;
     
     f->fd = fd;
-    f->fl = fl;
+    f->fl = fl | F_ALOC;
     f->lbf = '\n';
     f->bufsz = BUFSIZ;
     f->buf = malloc(BUFSIZ);
