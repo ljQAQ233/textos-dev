@@ -10,24 +10,24 @@ typedef struct
 {
     fifo_t fifo;
     lock_t lock;
-    int rd_waiter;
-    int wr_waiter;
+    task_t *rd_waiter;
+    task_t *wr_waiter;
 } pipe_t;
 
-void block_as(lock_t *lock, int *as)
+static void block_as(lock_t *lock, task_t **as)
 {
     // only one task is supported
-    ASSERTK(*as == -1);
-
-    *as = task_current()->pid;
+    ASSERTK(*as == NULL);
+    *as = task_current();
     lock_release(lock);
-    task_block();
+    task_block(NULL, NULL, TASK_BLK, 0);
     lock_acquire(lock);
-    *as = -1;
+    *as = NULL;
 }
 
 static int pipe_read(node_t *this, void *buf, size_t siz, size_t offset)
 {
+    size_t reqsiz = siz;
     pipe_t *pi = this->pdata;
     lock_acquire(&pi->lock);
     for (;;) 
@@ -36,16 +36,18 @@ static int pipe_read(node_t *this, void *buf, size_t siz, size_t offset)
         siz -= read;
         buf += read;
         if (pi->wr_waiter >= 0)
-            task_unblock(pi->wr_waiter);
+            task_unblock(pi->wr_waiter, 0);
         if (!siz)
             break;
         block_as(&pi->lock, &pi->rd_waiter);
     }
     lock_release(&pi->lock);
+    return reqsiz - siz;
 }
 
 static int pipe_write(node_t *this, void *buf, size_t siz, size_t offset)
 {
+    size_t reqsiz = siz;
     pipe_t *pi = this->pdata;
     lock_acquire(&pi->lock);
     for (;;)
@@ -54,12 +56,13 @@ static int pipe_write(node_t *this, void *buf, size_t siz, size_t offset)
         siz -= write;
         buf += write;
         if (pi->rd_waiter >= 0)
-            task_unblock(pi->rd_waiter);
+            task_unblock(pi->rd_waiter, 0);
         if (!siz)
             break;
         block_as(&pi->lock, &pi->wr_waiter);
     }
     lock_release(&pi->lock);
+    return reqsiz - siz;
 }
 
 static int pipe_close(node_t *this)
@@ -75,8 +78,8 @@ int pipe_init(node_t *pipe)
     void *pb = vmm_allocpages(1, PE_P | PE_RW);
     size_t ps = PAGE_SIZ;
     pipe_t *pi = malloc(sizeof(pipe_t));
-    pi->rd_waiter = -1;
-    pi->wr_waiter = -1;
+    pi->rd_waiter = NULL;
+    pi->wr_waiter = NULL;
     fifo_init(&pi->fifo, pb, ps);
     lock_init(&pi->lock);
     
@@ -88,7 +91,7 @@ int pipe_init(node_t *pipe)
 }
 
 // vfs pipe initializer
-int __pipe_init()
+void __pipe_init()
 {
     fs_opts_t *opts = &__pipe_opts;
 

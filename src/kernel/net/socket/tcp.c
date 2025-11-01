@@ -72,8 +72,8 @@ typedef struct
     u32 rcv_nxt;
     u32 rcv_irs;
 
-    int rx_waiter;
-    int syn_waiter;
+    task_t *rx_waiter;
+    task_t *syn_waiter;
 
     /* TODO : replace nif0 */
 } tcp_t;
@@ -87,11 +87,11 @@ typedef struct
 
 #define MAX_PORT 65536
 
-#define TRY_UNBLK(x)         \
-    do {                     \
-        if (x >= 0)          \
-            task_unblock(x); \
-        x = -1;              \
+#define TRY_UNBLK(x)            \
+    do {                        \
+        if (x >= 0)             \
+            task_unblock(x, 0); \
+        x = NULL;               \
     } while (0);
 
 static bitmap_t bmp;
@@ -138,8 +138,8 @@ static int tcp_socket(socket_t *s)
     t->ptcp = NULL;
     t->backlog = 0;
     t->backcnt = 0;
-    t->rx_waiter = -1;
-    t->syn_waiter = -1;
+    t->rx_waiter = NULL;
+    t->syn_waiter = NULL;
     list_init(&t->pchd);
     list_init(&t->acpt);
     list_init(&t->snd_que);
@@ -181,14 +181,13 @@ static int tcp_bind(socket_t *s, sockaddr_t *addr, socklen_t len)
     return 0;
 }
 
-static void block_as(int *as)
+static void block_as(task_t **as)
 {
     // only one task is supported
-    ASSERTK(*as == -1);
-
-    *as = task_current()->pid;
-    task_block();
-    *as = -1;
+    ASSERTK(*as == NULL);
+    *as = task_current();
+    task_block(NULL, NULL, TASK_BLK, 0);
+    *as = NULL;
 }
 
 // 一直处于 LISTEN
@@ -816,8 +815,8 @@ int tcp_rx_listen(tcp_t *tcp, tcpseg_t *seg)
         list_init(&conn->una_que);
         list_init(&conn->buf_que);
         ktimer_init(&conn->tmr_ack);
-        conn->rx_waiter = -1;
-        conn->syn_waiter = -1;
+        conn->rx_waiter = NULL;
+        conn->syn_waiter = NULL;
         list_insert(&tcp->pchd, &conn->pchd);
         list_insert(&list_common, &conn->sock->intype);
 

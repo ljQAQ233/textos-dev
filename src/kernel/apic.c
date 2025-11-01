@@ -61,6 +61,7 @@ extern void task_schedule();
 
 
 size_t __ktick;
+size_t __ktick_ms;
 
 __INTR_HANDLER(timer_handler)
 {
@@ -129,7 +130,8 @@ void apic_init ()
     lapic_set(MSR_TDCR, 0b0000);                       // 设置 除数 (因子) 为 2
     lapic_set(MSR_TICR, 0xFFFFFFFF);                   // 设置 初始计数到最大 (-1)
 
-    pit_sleepms (1);
+    pit_sleepms(1);
+    __ktick_ms = 1;
 
     lapic_set(MSR_TICR, 0xFFFFFFFF - lapic_get(MSR_TCCR)); // 计算 10ms 的 ticks
     lapic_set(MSR_TM, S_TM(TM_PERIODIC, INT_TIMER));       // 步入正轨, 每 10ms 产生一次时钟中断

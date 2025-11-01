@@ -98,6 +98,11 @@ char *crypt(const char *__key, const char *__salt);
 int gethostname(char *__name, size_t __len);
 int sethostname(const char *__name, size_t __len);
 
+// POSIX.1-2001 declares it obsolete
+int usleep(unsigned useconds);
+
+unsigned sleep(unsigned seconds);
+
 #define _CS_PATH 0
 
 size_t confstr(int name, char *buf, size_t size);

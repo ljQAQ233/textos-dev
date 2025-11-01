@@ -21,7 +21,7 @@ void sema_up(semaphore_t *s)
     if (!list_empty(&s->waiter)) {
         list_t *first = s->waiter.next;
         list_remove(first);
-        task_unblock(CR(first, task_t, waiting)->pid);
+        task_unblock(CR(first, task_t, blist), 0);
     }
 
     UNINTR_AREA_END();
@@ -31,10 +31,8 @@ void sema_down(semaphore_t *s)
 {
     UNINTR_AREA_START();
 
-    while (s->val == 0) {
-        list_insert(&s->waiter, &task_current()->waiting);
-        task_block();
-    }
+    while (s->val == 0)
+        task_block(NULL, &s->waiter, TASK_BLK, 0);
 
     ASSERTK(s->val == 1);
     s->val -= 1;

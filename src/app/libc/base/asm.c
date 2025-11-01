@@ -510,3 +510,10 @@ int getttimeofday(struct timeval *tp, void *restrict tzp)
 {
     return syscall(SYS_gettimeofday, tp, tzp);
 }
+
+#include <time.h>
+
+int nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
+{
+    return syscall(SYS_nanosleep, rqtp, rmtp);
+}

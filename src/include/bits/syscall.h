@@ -20,6 +20,7 @@
     _(pipe, 22)         \
     _(dup, 32)          \
     _(dup2, 33)         \
+    _(nanosleep, 35)    \
     _(getpid, 39)       \
     _(socket, 41)       \
     _(connect, 42)      \

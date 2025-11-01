@@ -23,6 +23,7 @@
 #define ENAMETOOLONG 36  // Filename too long
 #define ENOSYS       38  // Function not implemented
 #define ENOTEMPTY    39  // Directory not empty
+#define ETIME        62  // Timer expired
 #define EDESTADDRREQ 89  // Destination address required
 #define EADDRINUSE   98  // Address in use
 #define ECONNRESET   104 // Connection reset by peer

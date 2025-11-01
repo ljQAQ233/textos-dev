@@ -29,10 +29,10 @@ static void tty_nc_timeout(void *arg)
     tty_t *tty = (tty_t *)arg;
     tty_buf_mark(&tty->ibuf, TTY_BF_END);
     tty->timeout = true;
-    if (tty->iwaiter >= 0)
+    if (tty->iwaiter)
     {
-        task_unblock(tty->iwaiter);
-        tty->iwaiter = -1;
+        task_unblock(tty->iwaiter, 0);
+        tty->iwaiter = NULL;
     }
 }
 
@@ -105,7 +105,7 @@ repeat:
             {
                 break;
             }
-            task_block();
+            task_block(NULL, NULL, TASK_BLK, 0);
             continue;
         }
         *buf++ = (char)c;
@@ -137,8 +137,8 @@ static size_t tty_fetch(tty_t *tty, char *buf, size_t len)
         int flag = tty_buf_getc(&tty->ibuf, &c);
         if (flag < 0)
         {
-            tty->iwaiter = task_current()->pid;
-            task_block();
+            tty->iwaiter = task_current();
+            task_block(NULL, NULL, TASK_BLK, 0);
             flag = tty_buf_getc(&tty->ibuf, &c);
         }
         *buf++ = (char)c;
@@ -170,8 +170,8 @@ static inline void tputc(tty_t *tty, char c)
     {
         if (tty_buf_putc(&tty->obuf, c) < 0)
         {
-            tty->owaiter = task_current()->pid;
-            task_block();
+            tty->owaiter = task_current();
+            task_block(NULL, NULL, TASK_BLK, 0);
             tputc(tty, c);
         }
         return ;
@@ -214,8 +214,8 @@ void tdeliver(tty_t *tty)
     tty_buf_mark(&tty->ibuf, TTY_BF_END);
     if (tty->iwaiter >= 0)
     {
-        task_unblock(tty->iwaiter);
-        tty->iwaiter = -1;
+        task_unblock(tty->iwaiter, 0);
+        tty->iwaiter = NULL;
     }
 }
 
@@ -233,8 +233,8 @@ static void tstop(tty_t *tty, int st)
         tty_buf_kill(&tty->obuf);
         if (tty->owaiter >= 0)
         {
-            task_unblock(tty->owaiter);
-            tty->owaiter = -1;
+            task_unblock(tty->owaiter, 0);
+            tty->owaiter = NULL;
         }
     }
 }
@@ -332,7 +332,7 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
                     cc[VTIME] * 100);
             if ((tty->reqlen && !--tty->reqlen) ||
                 tty_buf_full(&tty->ibuf))
-                task_unblock(tty->iwaiter);
+                task_unblock(tty->iwaiter, 0);
         }
         if (FC_LFLAG(tty, ECHO))
             opost(tty, *p);
@@ -398,8 +398,8 @@ tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl, tty_ios
 
     tty->stop = 0;
     tty->pgrp = 0;
-    tty->iwaiter = -1;
-    tty->owaiter = -1;
+    tty->iwaiter = NULL;
+    tty->owaiter = NULL;
     tty_buf_init(&tty->ibuf);
     tty_buf_init(&tty->obuf);
     tty->tio = (struct termios) {

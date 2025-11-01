@@ -76,6 +76,7 @@ int main(int argc, char const *argv[])
             goto die;
 
         dump(rx_buf, ret);
+        sleep(1);
     }
 
     return 0;
