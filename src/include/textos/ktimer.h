@@ -23,11 +23,9 @@ void ktimer(
         );
 
 void ktimer_init(ktimer_t *tmr);
-
 void ktimer_kill(ktimer_t *tmr);
-
 void ktimer_fire(ktimer_t *tmr);
-
 void ktimer_check();
+u64 ktimer_remain(ktimer_t *tmr);
 
 #endif

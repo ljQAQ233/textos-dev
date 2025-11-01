@@ -59,3 +59,11 @@ void ktimer_check()
         ktimer_fire(tmr);
     }
 }
+
+u64 ktimer_remain(ktimer_t *tmr)
+{
+    u64 curtick = __ktick;
+    if (tmr->expires > curtick)
+        return tmr->expires - curtick;
+    return 0;
+}

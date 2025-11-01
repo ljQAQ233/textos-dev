@@ -44,6 +44,7 @@
 #define __NEED_suseconds_t
 #define __NEED_useconds_t
 #define __NEED_struct_timeval
+#define __NEED_struct_timespec
 
 #define __NEED_socklen_t
 #define __NEED_sa_family_t

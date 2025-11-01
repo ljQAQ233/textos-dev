@@ -29,7 +29,7 @@ typedef struct
     u16 rport; // remote
 
     list_t rx_que;
-    int rx_waiter;
+    task_t *rx_waiter;
 } udp_t;
 
 #define UDP(x) ((udp_t *)x)
@@ -56,7 +56,7 @@ static int udp_socket(socket_t *s)
     u->rport = 0;
     memset(u->laddr, 0, sizeof(ipv4_t));
     memset(u->raddr, 0, sizeof(ipv4_t));
-    u->rx_waiter = -1;
+    u->rx_waiter = NULL;
     list_init(&u->rx_que);
 
     list_pushback(&intype, &s->intype);
@@ -172,14 +172,13 @@ static ssize_t udp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 
 #include <irq.h>
 
-static void block_as(int *as)
+static void block_as(task_t **as)
 {
     // only one task is supported
-    ASSERTK(*as == -1);
-
-    *as = task_current()->pid;
-    task_block();
-    *as = -1;
+    ASSERTK(*as == NULL);
+    *as = task_current();
+    task_block(NULL, NULL, TASK_BLK, 0);
+    *as = NULL;
 }
 
 static ssize_t udp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
@@ -246,8 +245,8 @@ int sock_rx_udp(iphdr_t *ip, mbuf_t *m)
         list_pushback(&u->rx_que, &m->list);
         if (u->rx_waiter >= 0)
         {
-            task_unblock(u->rx_waiter);
-            u->rx_waiter = -1;
+            task_unblock(u->rx_waiter, 0);
+            u->rx_waiter = NULL;
         }
 
         ret = 1;

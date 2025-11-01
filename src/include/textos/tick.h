@@ -4,4 +4,7 @@
 // provided by lapci
 extern volatile size_t __ktick;
 
+// ms per kernel tick
+extern size_t __ktick_ms;
+
 #endif

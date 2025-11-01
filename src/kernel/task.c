@@ -46,6 +46,7 @@ static task_t *_task_create(int args)
     tsk->ppid = 0;
     tsk->pgid = 0;
     tsk->stat = TASK_INI;
+    ktimer_init(&tsk->btmr);
     return table[pid] = tsk;
 }
 
@@ -267,7 +268,7 @@ void task_exit(int pid, int val)
     task_t *prt = table[tsk->ppid];
     if (prt->stat == TASK_BLK && (prt->waitpid == tsk->pid || prt->waitpid == -1))
     {
-        task_unblock(prt->pid);
+        task_unblock(prt, 0);
         prt->waitpid = tsk->pid;
     }
     DEBUGK(K_TASK, "exit %d\n", tsk->pid);
@@ -304,7 +305,7 @@ int task_wait(int pid, int *stat, int opt, void *rusage)
     }
         
     tsk->waitpid = pid;
-    task_block();
+    task_block(NULL, NULL, TASK_BLK, 0);
 
     int termd = tsk->waitpid;
     tsk->waitpid = 0;
@@ -358,8 +359,6 @@ extern void fpu_disable();
 
 extern void __task_switch (task_frame_t *next, task_frame_t **curr);
 
-static void update_sleep ();
-
 void task_schedule ()
 {
     task_t *curr, *next;
@@ -367,8 +366,6 @@ void task_schedule ()
     curr = task_current(); /* Get curr first becase _getnext() will change `_curr` */
     if (!curr)
         return;
-
-    update_sleep();
     
     if (curr->stat != TASK_RUN)   // If it is not running now, then sched
         goto Sched;               // Because a running task may have some time ticks
@@ -392,62 +389,50 @@ Sched:
     __task_switch (next->frame, &curr->frame);
 }
 
-void task_yield ()
+void task_yield()
 {
     task_schedule();
 }
 
-struct list _sleeping;
+static list_t list_block;
+static list_t list_sleep;
 
-static void sleep_insert (task_t *task)
+static void wake_timeout(void *tsk)
 {
-    list_insert (&_sleeping, &task->sleeping);
+    task_unblock(tsk, -ETIME);
 }
 
-static void update_sleep ()
+int task_block(task_t *tsk, list_t *blist, int stat, u64 timeout)
 {
-    if (list_empty (&_sleeping)) // 没有任务在睡觉呢...
-        return;
+    if (tsk == NULL)
+        tsk = task_current();
 
-    list_t *ptr;
-    LIST_FOREACH(ptr, &_sleeping)
-    {
-        task_t *task = CR(ptr, task_t, sleeping);
-        if (task->pid == _curr)
-            continue;
-        if (--task->sleep == 0) {   // 坑死老子啦！2的64次方的大整数是什么 o.o
-            task->stat = TASK_PRE;
-            list_remove (ptr);
-        }
-    }
+    tsk->stat = TASK_BLK;
+    tsk->retval = 0;
+    list_insert(blist ? blist : &list_block, &tsk->blist);
+    
+    if (timeout > 0)
+        ktimer(&tsk->btmr, wake_timeout, tsk, timeout);
+
+    if (tsk == task_current())
+        task_schedule();
+    return tsk->retval;
 }
 
-void task_sleep (u64 ticks)
+void task_unblock(task_t *tsk, int reason)
 {
-    ASSERTK (ticks != 0); // 专门防止 24h 工作制
-
-    task_t *curr = task_current();
-    ASSERTK (curr != NULL);
-
-    curr->stat = TASK_SLP;
-    curr->sleep = ticks;
-
-    sleep_insert(curr);
-    task_schedule();
-}
-
-void task_block ()
-{
-    task_t *curr = task_current();
-    curr->stat = TASK_BLK;
-    task_schedule();
-}
-
-void task_unblock (int pid)
-{
-    task_t *tsk = table[pid];
-    ASSERTK (tsk != NULL);
+    ASSERTK(tsk != NULL);
+    tsk->retval = reason;
     tsk->stat = TASK_PRE;
+}
+
+int task_sleep(u64 ms, u64 *rms)
+{
+    task_t *curr = task_current();
+    task_block(curr, &list_sleep, TASK_SLP, ms);
+    if (rms)
+        *rms = ktimer_remain(&curr->btmr);
+    return curr->retval;
 }
 
 #include <textos/syscall.h>
@@ -728,6 +713,18 @@ __SYSCALL_DEFINE0(int, yield)
     return 0;
 }
 
+__SYSCALL_DEFINE2(int, nanosleep, const struct timespec *, rqtp, struct timespec *, rmtp)
+{
+    int ret;
+    u64 ms = 0, rms;
+    ms += rqtp->tv_sec * 1000;
+    ms += rqtp->tv_nsec / 1000 / 1000;
+    ret = task_sleep(ms, &rms);
+    rmtp->tv_sec = rms / 1000;
+    rmtp->tv_nsec = (rms % 1000) * 1000 * 1000;
+    return ret;
+}
+
 #include <textos/dev.h>
 #include <textos/printk.h>
 
@@ -760,11 +757,10 @@ void task_init ()
     {
         table[i] = TASK_FREE;
     }
-
-    list_init (&_sleeping);
+    list_init(&list_block);
+    list_init(&list_sleep);
 
     _task_kern();
-
     _curr = 0;
 
     // task_create (proc_a);

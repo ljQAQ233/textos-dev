@@ -17,6 +17,7 @@ typedef struct
 } task_frame_t;
 
 #include <textos/file.h>
+#include <textos/ktimer.h>
 #include <textos/signal.h>
 #include <textos/mm/mman.h>
 #include <textos/klib/list.h>
@@ -66,9 +67,8 @@ typedef struct task
     int retval;
     int waitpid;
 
-    u64 sleep;
-    list_t sleeping;
-    list_t waiting;
+    ktimer_t btmr;
+    list_t blist;
     int sigcurr;
     sigset_t sigpend;
     sigset_t sigmask;
@@ -83,12 +83,10 @@ typedef struct task
 #define TASK_STP  5 // Stoped
 #define TASK_INI  6 // Initializing
 
-void task_schedule ();
+void task_schedule();
+void task_yield();
 
-void task_yield ();
-
-task_t *task_current ();
-
+task_t *task_current();
 task_t *task_get(int pid);
 
 #define TC_KERN (0 << 0) // ring 0 (kernel)
@@ -96,21 +94,18 @@ task_t *task_get(int pid);
 #define TC_TSK1 (1 << 1) // init proc
 #define TC_NINT (1 << 2) // mask interrupt :(
 
-task_t *task_create (void *main, int args);
+task_t *task_create(void *main, int args);
 
 int task_fork();
 
-void task_sleep (u64 ticks);
-
-void task_block ();
-
-void task_unblock (int pid);
+int task_block(task_t *tsk, list_t *blist, int stat, u64 timeout);
+void task_unblock(task_t *tsk, int reason);
+int task_sleep(u64 ms, u64 *rms);
 
 void task_exit(int pid, int val);
-
 int task_wait(int pid, int *stat, int opt, void *rusage);
 
-#define TASK_MAX  16
+#define TASK_MAX 16
 
 extern task_t *table[TASK_MAX];
 

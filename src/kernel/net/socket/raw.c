@@ -18,7 +18,7 @@ typedef struct
     ipv4_t laddr;
     ipv4_t raddr;
     
-    int rx_waiter;
+    task_t *rx_waiter;
     list_t rx_que;
 } raw_t;
 
@@ -43,7 +43,7 @@ static int raw_socket(socket_t *s)
     r->hdrincl = false; // iphdr not provided by user
     memset(r->laddr, 0, sizeof(r->laddr));
     memset(r->raddr, 0, sizeof(r->raddr));
-    r->rx_waiter = -1;
+    r->rx_waiter = NULL;
     list_init(&r->rx_que);
 
     list_pushback(&intype, &s->intype);
@@ -123,14 +123,13 @@ static ssize_t raw_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 
 #include <irq.h>
 
-static void block_as(int *as)
+static void block_as(task_t **as)
 {
     // only one task is supported
-    ASSERTK(*as == -1);
-
-    *as = task_current()->pid;
-    task_block();
-    *as = -1;
+    ASSERTK(*as == NULL);
+    *as = task_current();
+    task_block(NULL, NULL, TASK_BLK, 0);
+    *as = NULL;
 }
 
 // TODO: timeout
@@ -180,10 +179,10 @@ int sock_rx_raw(iphdr_t *ip, mbuf_t *m)
         mbuf_pushhdr(m, iphdr_t);
 
         list_pushback(&r->rx_que, &m->list);
-        if (r->rx_waiter >= 0)
+        if (r->rx_waiter)
         {
-            task_unblock(r->rx_waiter);
-            r->rx_waiter = -1;
+            task_unblock(r->rx_waiter, 0);
+            r->rx_waiter = NULL;
         }
 
         ret = 1;
