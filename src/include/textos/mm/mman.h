@@ -25,6 +25,7 @@
 #define MAPL_FILE 1
 #define MAPL_STACK 2
 #define MAPL_HEAP 3
+#define MAPL_BSS 4
 
 /*
  * on x86 platform, the page table doesn't provide a native method to implement only `PROT_WRITE`,
@@ -66,7 +67,6 @@ typedef struct
     int flgs;
     size_t foff;
     void *fnode;
-    addr_t *ppgs;
 } vm_region_t;
 
 #include <textos/file.h>
@@ -117,7 +117,7 @@ typedef struct
 #define MRET(x) ((void *)(x))
 
 void *mmap_file(vm_region_t *vm);
-void *mmap_anon(vm_region_t *vm);
+void *mmap_anon(vm_region_t *vm, int label);
 
 addr_t vmm_fitaddr(addr_t addr, size_t num);
 

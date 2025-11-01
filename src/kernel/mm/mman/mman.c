@@ -35,7 +35,6 @@ __SYSCALL_DEFINE6(void *, mmap, void *, addr, size_t, len, int, prot, int, flgs,
         .flgs = flgs,
         .foff = off,
         .fnode = node,
-        .ppgs = NULL,
     };
 
     // do check
@@ -58,7 +57,7 @@ __SYSCALL_DEFINE6(void *, mmap, void *, addr, size_t, len, int, prot, int, flgs,
     {
         if (fd != -1 || off != 0)
             goto done;
-        ret = mmap_anon(&vm);
+        ret = mmap_anon(&vm, 0);
     }
     else
     {

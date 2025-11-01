@@ -144,9 +144,9 @@ static void *heap()
         __user_heap_pages,
         PROT_READ | PROT_WRITE,
         MAP_FIXED | MAP_PRIVATE | MAP_ANON,
-        0, 0, 0
+        0, 0
     };
-    return mmap_anon(&vm);
+    return mmap_anon(&vm, MAPL_HEAP);
 }
 
 static void *stack()
@@ -156,9 +156,9 @@ static void *stack()
         __user_stack_pages,
         PROT_READ | PROT_WRITE,
         MAP_FIXED | MAP_PRIVATE | MAP_ANON,
-        0, 0, 0
+        0, 0
     };
-    return mmap_anon(&vm) + __user_stack_pages * PAGE_SIZE;
+    return mmap_anon(&vm, MAPL_STACK) + __user_stack_pages * PAGE_SIZE;
 }
 
 RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])

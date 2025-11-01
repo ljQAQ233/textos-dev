@@ -3,7 +3,7 @@
 #include <textos/mm/vmm.h>
 #include <textos/mm/mman.h>
 
-void *mmap_anon(vm_region_t *vm)
+void *mmap_anon(vm_region_t *vm, int label)
 {
     int mapflg = 0;
     mapflg |= PE_P | PE_US;
@@ -13,6 +13,7 @@ void *mmap_anon(vm_region_t *vm)
     vma->t = vm->va + vm->num * PAGE_SIZE;
     vma->flgs = vm->flgs;
     vma->prot = vm->prot;
+    vma->label = label;
     vmm_sp_regst(task_current()->vsp, vma);
     return MRET(vma->s);
 }
