@@ -111,7 +111,6 @@ static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
             .flgs = MAP_FIXED | MAP_PRIVATE,
             .foff = foff,
             .fnode = n,
-            .ppgs = NULL,
         };
         ASSERTK(mmap_file(&vm) >= 0);
 
@@ -128,9 +127,8 @@ static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
                     .flgs = MAP_FIXED | MAP_PRIVATE | MAP_ANON,
                     .foff = 0,
                     .fnode = NULL,
-                    .ppgs = NULL,
                 };
-                ASSERTK(mmap_anon(&vm) >= 0);
+                ASSERTK(mmap_anon(&vm, MAPL_BSS) >= 0);
             }
             char *zero = base + ph->p_vaddr + ph->p_filesz;
             memset(zero, 0, ph->p_memsz - ph->p_filesz);

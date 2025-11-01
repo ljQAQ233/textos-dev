@@ -24,6 +24,7 @@ __typeaka uintmax_t;
 
 __typeaka size_t;
 __typeaka ssize_t;
+__typeaka ptrdiff_t;
 
 __typeaka max_align_t;
 

@@ -441,6 +441,56 @@ static int pid_fpust_read(struct proc_entry *this, void *buf, size_t siz, size_t
     return proc_printf(buf, siz, offset, "%d\n", fpust);
 }
 
+#include <textos/mm/mman.h>
+
+static int pid_maps_read(struct proc_entry *this, void *buf, size_t siz, size_t offset)
+{
+    int n = 0;
+    int pid = pid_get(this);
+    vm_space_t *sp = task_get(pid)->vsp;
+    vm_area_t *a;
+    list_t *ptr;
+    LIST_FOREACH(ptr, &sp->list)
+    {
+        char attr[5];
+        char *label;
+        a = CR(ptr, vm_area_t, list);
+        attr[0] = a->prot & PROT_READ ? 'r' : '-';
+        attr[1] = a->prot & PROT_WRITE ? 'w' : '-';
+        attr[2] = a->prot & PROT_EXEC ? 'x' : '-';
+        attr[3] = a->flgs & MAP_SHARED ? 's' : 'p';
+        attr[4] = 0;
+
+        switch (a->label)
+        {
+        case MAPL_FILE:
+            {
+                size_t size = 0;
+                vfs_getpath(a->obj.node, NULL, &size);
+                label = malloc(size);
+                vfs_getpath(a->obj.node, label, &size);
+            }
+            break;
+        case MAPL_STACK:
+            label = "[stack]";
+            break;
+        case MAPL_HEAP:
+            label = "[heap]";
+            break;
+        case MAPL_BSS:
+            label = "[bss]";
+            break;
+        default:
+            label = "";
+            break;
+        }
+        n += proc_printf(buf + n, siz, offset, "%p-%p %s %s\n", a->s, a->t, attr, label);
+        if (a->label == MAPL_FILE)
+            free(label);
+    }
+    return n;
+}
+
 /*
  * /proc/<pid>
  */
@@ -458,6 +508,7 @@ static pid_entry_t pid_entry[] = {
     REG("pid",    S_IRUSR | S_IRGRP | S_IROTH, { .read = pid_pid_read   }),
     REG("ppid",   S_IRUSR | S_IRGRP | S_IROTH, { .read = pid_ppid_read  }),
     REG("fpust",  S_IRUSR | S_IRGRP | S_IROTH, { .read = pid_fpust_read }),
+    REG("maps",   S_IRUSR | S_IRGRP | S_IROTH, { .read = pid_maps_read  }),
 };
 
 #define pid_entry_max (sizeof(pid_entry) / sizeof(pid_entry_t))
@@ -472,6 +523,7 @@ static int pid_open(struct proc_entry *dir, char *name, struct proc_entry **res)
             proc_entry_t *ent = malloc(sizeof(proc_entry_t));
             ent->name = strdup(pe->name);
             ent->ino = (dir->ino &~ IMASK_LOW) | (idx + 1);
+            ent->mode = pe->mode;
             ent->parent = dir;
             ent->subdir = NULL;
             ent->next = NULL;

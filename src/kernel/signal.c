@@ -197,7 +197,7 @@ __SYSCALL_DEFINE0(int, sigreturn)
         "jmp intr_exit\n"
         :
         : "r" (rsp)
-        : "rsp"
+        : "memory"
     );
 
     __builtin_unreachable();
