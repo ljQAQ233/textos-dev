@@ -2,6 +2,7 @@ ARCH    ?= X64
 
 # Commands
 CC      := gcc
+CPP     := $(CC) -E
 LD      := ld
 NASM    := nasm
 OBJCOPY := objcopy

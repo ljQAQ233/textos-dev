@@ -4,6 +4,7 @@
 extern void kernel_main();
 
 extern void __kstack_init();
+extern void __idmap_init();
 
 extern void __video_pre();
 extern void __mm_pre();
@@ -16,7 +17,12 @@ void kernel_init(long a, long b, long c, long d)
 {
     dprintk_set(K_ALL & ~K_SYNC);
     DEBUGK(K_INIT, "kernel_init(%#lx, %#lx, %#lx, %#lx)\n", a, b, c, d);
-
+    if ((u32)a == MULTIBOOT_HEADER_MAGIC)
+    {
+        binfo = (void *)(long)(u32)b;
+        bmode = BOOT_MB1;
+    }
+    else
     {
         static bconfig_t bconfig;
         bconfig_t *config = (bconfig_t *)a;
