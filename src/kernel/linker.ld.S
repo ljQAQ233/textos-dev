@@ -12,36 +12,32 @@ __vbase = 0xffff800000000000;
 SECTIONS {
     . = __lbase;
 
+    /*
+     * the former .boot.text section built by nasm doesn's have
+     * prot EXEC. by contrast, AT&T provides "ax" which means
+     * allocatable / executable
+     */
     .boot.data ALIGN(4K) :
     {
         *(.multiboot)
         *(.boot.data)
-    } :bdata
+    }
     .boot.text ALIGN(4K) :
     {
         *(.boot.text)
-    } :btext
+    }
 
     . = ALIGN(4K);    
     . += __vbase;
 
-    HAL(.text)   { *(.text .text.*) } :text
-    HAL(.rodata) { *(.rodata .rodata.*) } :rodata
-    HAL(.data)   { *(.data .data.*) } :data
+    HAL(.text)   { *(.text .text.*) } 
+    HAL(.rodata) { *(.rodata .rodata.*) } 
+    HAL(.data)   { *(.data .data.*) } 
     HAL(.bss)
     {
         *(.bss .bss.*)
         __lend_bss = . - __vbase;
-    } :bss
+    } 
 
     __lend = . - __vbase;
-}
-
-PHDRS {
-    btext PT_LOAD FLAGS(5);  /* r-x */
-    bdata PT_LOAD FLAGS(6);  /* rw- */
-    text PT_LOAD FLAGS(5);   /* r-x */
-    rodata PT_LOAD FLAGS(4); /* r-- */
-    data PT_LOAD FLAGS(6);   /* rw- */
-    bss PT_LOAD FLAGS(6);    /* rw- */
 }

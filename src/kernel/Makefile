@@ -7,7 +7,7 @@ export OUTPUT ARCH_DIR
 
 SRCS := \
   init.c main.c debug.c assert.c panic.c acpi.c apic.c dev.c \
-  printk.c ktm.c ktimer.c time.c task.c task.s signal.c file.c \
+  printk.c ktm.c ktimer.c time.c task.c task.S signal.c file.c \
   pwm.c lock.c noopt.c
 
 include klib/klib.mk
@@ -22,9 +22,7 @@ include user/user.mk
 include $(ARCH_DIR)/arch.mk
 
 OBJS := $(SRCS:.c=.c.o)
-OBJS := $(OBJS:.s=.s.o)
-OBJS := $(OBJS:.asm=.asm.o)
-
+OBJS := $(OBJS:.S=.S.o)
 OBJS := $(addprefix ${OUTPUT}/,${OBJS})
 
 include ../config/kernel.mk
@@ -61,14 +59,9 @@ clean:
 
 # Make rules and printing formats
 
-$(OUTPUT)/%.s.o: %.s
+$(OUTPUT)/%.S.o: %.S
 	@mkdir -p $(@D)
-	@$(NASM) $(NFLAGS) $< -o $@
-	@echo -e "\033[032m   ASM \033[0m $<"
-
-$(OUTPUT)/%.asm.o: %.asm
-	@mkdir -p $(@D)
-	@$(NASM) $(NFLAGS) $< -o $@
+	@$(CC) $(AFLAGS) -c $< -o $@
 	@echo -e "\033[032m   ASM \033[0m $<"
 
 $(OUTPUT)/%.c.o: %.c
