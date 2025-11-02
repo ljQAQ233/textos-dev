@@ -4,7 +4,6 @@ ARCH    ?= X64
 CC      := gcc
 CPP     := $(CC) -E
 LD      := ld
-NASM    := nasm
 OBJCOPY := objcopy
 
 # Include path
@@ -25,9 +24,8 @@ CFLAGS := \
 
 CFLAGS   += -D__TEXTOS_DEBUG
 
-# Nasm flags
-NFLAGS := \
-  -f elf64 -g
+AFLAGS := \
+  -g
 
 LDFLAGS := \
   -static -nostdlib \
