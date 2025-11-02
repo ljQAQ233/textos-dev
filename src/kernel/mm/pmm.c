@@ -281,12 +281,14 @@ void __pmm_pre()
         EFI_MEMORY_DESCRIPTOR *desc = info->maps;
         for (int i = 0; i < info->mapcount; i++, desc = OFFSET(desc, info->descsiz))
         {
-            if (!desc->NumberOfPages || !desc->PhysicalStart)
-                continue;
-            DEBUGK(K_INIT, "[#%02d] 0x%016llx | 0x%016llx | %s\n", i, desc->PhysicalStart, desc->NumberOfPages,
+            DEBUGK(K_INIT, "[#%02d] %p | %p | %s\n", i, desc->PhysicalStart, desc->NumberOfPages,
                 get_uefi_mtstr(desc->Type));
             page_total += desc->NumberOfPages;
-            if (desc->Type == EfiBootServicesData || desc->Type == EfiBootServicesCode)
+
+            if (!desc->NumberOfPages || !desc->PhysicalStart)
+                continue;
+            if (desc->Type == EfiBootServicesData ||
+                desc->Type == EfiBootServicesCode)
                 desc->Type = EfiConventionalMemory;
             if (desc->Type != EfiConventionalMemory)
                 continue;
@@ -300,6 +302,28 @@ void __pmm_pre()
             n = n->next;
             n->addr = (u64)n;
             n->pages = desc->NumberOfPages;
+        }
+    }
+    if (bmode_get() == BOOT_MB1)
+    {
+        free_t *n = &_free;
+        multiboot_info_t *b = binfo_get();
+        multiboot_memory_map_t *m = (void *)(uintptr_t)b->mmap_addr;
+        int mapcount = b->mmap_length / sizeof(multiboot_memory_map_t);
+        for (int i = 0 ; i < mapcount ; i++, m++)
+        {
+            DEBUGK(K_INIT, "[#%02d] %p | %p | %d\n", i, m->addr, m->len / PAGE_SIZE, m->type);
+            page_total += m->len / PAGE_SIZE;
+            if (!m->len || !m->addr)
+                continue;
+            if (m->type != MULTIBOOT_MEMORY_AVAILABLE)
+                continue;
+            page_free += m->len / PAGE_SIZE;
+
+            n->next = (free_t *)m->addr;
+            n = n->next;
+            n->addr = (u64)n;
+            n->pages = m->len / PAGE_SIZE;
         }
     }
 

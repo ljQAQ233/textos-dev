@@ -1,5 +1,6 @@
 
 SRCS += $(ARCH_DIR)/cpu.s
+SRCS += $(ARCH_DIR)/boot.s
 SRCS += $(ARCH_DIR)/io.s
 SRCS += $(ARCH_DIR)/gdt.c
 SRCS += $(ARCH_DIR)/intr.c

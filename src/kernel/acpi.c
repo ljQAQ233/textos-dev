@@ -120,6 +120,18 @@ void __acpi_pre()
         bconfig_t *b = binfo_get();
         __rsdp = b->acpi;
     }
+    if (bmode_get() == BOOT_MB1)
+    {
+        addr_t scan = 0xe0000;
+        addr_t scan_end = 0x100000;
+        for ( ; scan < scan_end ; scan += 16)
+        {
+            u64 *sig = (u64 *)scan;
+            if (*sig == RSDP_SIG)
+                break;
+        }
+        __rsdp = (void *)scan;
+    }
 }
 
 #include <textos/mm.h>

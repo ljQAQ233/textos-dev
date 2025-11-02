@@ -140,6 +140,14 @@ void __video_pre()
         fb = (void *)v->fb;
         fb_siz = v->fb_siz;
     }
+    if (bmode_get() == BOOT_MB1)
+    {
+        multiboot_info_t *b = binfo_get();
+        hor = b->framebuffer_height;
+        ver = b->framebuffer_width;
+        fb = (void *)b->framebuffer_addr;
+        fb_siz = b->framebuffer_width * b->framebuffer_height * b->framebuffer_bpp;
+    }
 }
 
 #include <textos/mm.h>

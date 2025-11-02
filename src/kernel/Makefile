@@ -44,7 +44,7 @@ autogen:
 
 
 $(KERNEL_EXEC): $(OBJS)
-	@$(LD) $(LDFLAGS) $^ -T linker.ld -o $@
+	@$(LD) $(LDFLAGS) $^ -T <($(CPP) -P linker.ld.S) -o $@
 	@echo -e "\033[032m   LD  \033[0m Linked all objects -> $@"
 	@cp $@ $@.symbol
 	@echo -e "\033[032m   OCP \033[0m $@ -> ${@:$(OUTPUT)/%=%}.symbol"
