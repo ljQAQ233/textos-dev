@@ -126,7 +126,7 @@ EFI_STATUS EFIAPI UefiMain (
 
     Config.Runtime = SystemTable->RuntimeServices;
 
-    ((VOID (*)(BOOT_CONFIG *))KernelEntry)(&Config);
+    ((VOID (*)(long, long))KernelEntry)(Config.Magic, (long)&Config);
 
     return EFI_SUCCESS;
 }

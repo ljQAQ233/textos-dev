@@ -14,4 +14,7 @@ typedef enum
 bmode_t bmode_get();
 void *binfo_get();
 
+#define __bdata __attribute__((section(".boot.data")))
+#define __bcode __attribute__((section(".boot.text")))
+
 #endif

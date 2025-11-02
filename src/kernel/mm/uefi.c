@@ -107,7 +107,7 @@ const char *get_uefi_statstr(EFI_STATUS x)
 void __uefi_tovmm()
 {
     static bool shot;
-    if (shot)
+    if (shot || bmode_get() != BOOT_EFI)
         return;
     else
         shot = true;

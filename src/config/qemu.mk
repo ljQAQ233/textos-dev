@@ -27,10 +27,16 @@ ifeq (${QEMU_GPY},false)
 endif
 
 # Firmware selection
-define fw_arg
-  -drive if=pflash,format=raw,file=$(BASE)/OVMF_$(1)_$(ARCH).code,readonly=on \
-  -drive if=pflash,format=raw,file=$(BASE)/OVMF_$(1)_$(ARCH).vars
-endef
+ifeq (${QEMU_EFI},false)
+  define fw_arg
+    -kernel $(KERNEL_EXEC)
+  endef
+else
+  define fw_arg
+    -drive if=pflash,format=raw,file=$(BASE)/OVMF_$(1)_$(ARCH).code,readonly=on \
+    -drive if=pflash,format=raw,file=$(BASE)/OVMF_$(1)_$(ARCH).vars
+  endef
+endif
 
 QEMU_FLAGS_RUN := \
   $(QEMU_FLAGS) \
