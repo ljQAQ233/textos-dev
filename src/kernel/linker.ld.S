@@ -30,14 +30,31 @@ SECTIONS {
     . = ALIGN(4K);    
     . += __vbase;
 
-    HAL(.text)   { *(.text .text.*) } 
-    HAL(.rodata) { *(.rodata .rodata.*) } 
-    HAL(.data)   { *(.data .data.*) } 
-    HAL(.bss)
+    HAL(.text)
     {
-        *(.bss .bss.*)
-        __lend_bss = . - __vbase;
+        __kx_start = .;
+        *(.text .text.*)
+        __kx_end = .; 
+    } 
+    
+    HAL(.rodata)
+    {
+        __kr_start = .;
+        *(.rodata .rodata.*)
+        __kr_end = .;
     } 
 
+    HAL(.data)
+    {
+        __kw_start = .;
+        *(.data .data.*)
+    } 
+    HAL(.bss)
+    {
+        __lbss = . - __vbase;
+        *(.bss .bss.*)
+        __kw_end = .;
+    }
+    . = ALIGN(4K);
     __lend = . - __vbase;
 }

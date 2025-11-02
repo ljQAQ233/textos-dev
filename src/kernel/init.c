@@ -13,19 +13,19 @@ extern void __acpi_pre();
 static void *binfo;
 static bmode_t bmode;
 
-void kernel_init(long a, long b, long c, long d)
+void kernel_init(long magic, long info)
 {
     dprintk_set(K_ALL & ~K_SYNC);
-    DEBUGK(K_INIT, "kernel_init(%#lx, %#lx, %#lx, %#lx)\n", a, b, c, d);
-    if ((u32)a == MULTIBOOT_HEADER_MAGIC)
+    DEBUGK(K_INIT, "kernel_init(%#lx, %#lx)\n", magic, info);
+    if (magic == MULTIBOOT_BOOTLOADER_MAGIC)
     {
-        binfo = (void *)(long)(u32)b;
+        binfo = (void *)info;
         bmode = BOOT_MB1;
     }
     else
     {
         static bconfig_t bconfig;
-        bconfig_t *config = (bconfig_t *)a;
+        bconfig_t *config = (void *)info;
         if (config->magic != TEXTOS_BOOT_MAGIC)
             goto die;
         memcpy(&bconfig, config, sizeof(bconfig_t));
