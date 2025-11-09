@@ -8,8 +8,8 @@
 
 #include <textos/debug.h>
 
-#define __kern_fb_base   0xffff8a0000000000ULL
-#define __kern_fb_maxsz  0x0000010000000000ULL
+#define __kern_gfx_base   0xffff8a0000000000ULL
+#define __kern_gfx_maxsz  0x0000010000000000ULL
 
 #define __kern_heap_base 0xffff810000000000ULL
 #define __kern_stack_max 0xffff81c000000000ULL // unused -> TODO

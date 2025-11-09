@@ -11,6 +11,8 @@ SRCS += dev/tty/tty_buffer.c
 SRCS += dev/tty/kstoa.c
 SRCS += dev/tty/serial.c
 SRCS += dev/tty/console.c
+SRCS += dev/tty/fbcon.c
+SRCS += dev/tty/vgacon.c
 
 SRCS += dev/kbd/sc1.c
 SRCS += dev/kbd/atkbd.c
