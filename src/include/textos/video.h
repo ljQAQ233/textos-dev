@@ -23,6 +23,7 @@ u32 pixel_get(u32 x, u32 y);
 void block_put(u32 x, u32 y, u32 xe, u32 ye, u32 color);
 void block_transform(u32 x,u32 y, u32 xe,u32 ye, gfx_transformer_t handler, void *private);
 
+bool screen_istxt();
 void screen_clear();
 void screen_pullup(u32 end, u32 cnt, u32 bg);
 void screen_pulldown(u32 start, u32 cnt, u32 bg);

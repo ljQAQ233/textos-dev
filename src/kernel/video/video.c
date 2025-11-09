@@ -111,7 +111,12 @@ void screen_pulldown(u32 start, u32 cnt, u32 bg)
         *d-- = bg;
 }
 
-void screen_info (u32 *i_hor, u32 *i_ver)
+bool screen_istxt()
+{
+    return fb == 0;
+}
+
+void screen_info(u32 *i_hor, u32 *i_ver)
 {
     *i_hor = hor;
     *i_ver = ver;
@@ -140,24 +145,18 @@ void __video_pre()
         fb = (void *)v->fb;
         fb_siz = v->fb_siz;
     }
-    if (bmode_get() == BOOT_MB1)
-    {
-        multiboot_info_t *b = binfo_get();
-        hor = b->framebuffer_height;
-        ver = b->framebuffer_width;
-        fb = (void *)b->framebuffer_addr;
-        fb_siz = b->framebuffer_width * b->framebuffer_height * b->framebuffer_bpp;
-    }
 }
 
 #include <textos/mm.h>
 
 void __video_tovmm()
 {
-    size_t pages = DIV_ROUND_UP(fb_siz, PAGE_SIZ);
-    vmap_map((u64)fb, __kern_fb_base, pages, PE_RW | PE_P | PTE_G);
+    if (bmode_get() == BOOT_EFI)
+    {
+        size_t pages = DIV_ROUND_UP(fb_siz, PAGE_SIZ);
+        vmap_map((u64)fb, __kern_gfx_base, pages, PE_RW | PE_P | PTE_G);
 
-    fb_pa = (addr_t)fb;
-    fb = (void *)__kern_fb_base;
+        fb_pa = (addr_t)fb;
+        fb = (void *)__kern_gfx_base;
+    }
 }
-
