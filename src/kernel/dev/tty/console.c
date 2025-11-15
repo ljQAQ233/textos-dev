@@ -187,7 +187,7 @@ static void sgr()
             break;
         
         default:
-            i += con.op->sgr0(&con.argv[i], &fg, &bg) - 1;
+            i += con.op->sgr0(&con.argv[i], &bg, &fg) - 1;
             break;
         }
     }
