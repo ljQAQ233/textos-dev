@@ -1,5 +1,6 @@
 #include <textos/fs.h>
 #include <textos/mm.h>
+#include <textos/task.h>
 #include <textos/mm/vmm.h>
 #include <textos/mm/mman.h>
 #include <textos/errno.h>
@@ -167,7 +168,7 @@ int elf_load(char *path, exeinfo_t *exe, bool allow_ld)
     node_t *n;
     memset(exe, 0, sizeof(exeinfo_t));
     exe->path = strdup(path);
-    ckerr(vfs_open(NULL, path, 0, 0, &n));
+    ckerr(vfs_open(task_current()->pwd, path, 0, 0, &n));
     ckerr(domap(n, exe, allow_ld));
 err:
     return MIN(ret, 0);
