@@ -440,6 +440,15 @@ tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl, tty_ios
 extern int console_ioctl(void *io, int req, void *argp);
 extern ssize_t console_write(void *io, char *s, size_t len);
 
+void __printkcon(char *buf)
+{
+    if (!fgtty)
+        return;
+    size_t i = strlen(buf);
+    devst_t d = { .pdata = fgtty };
+    tty_write(&d, buf, i);
+}
+
 void tty_init()
 {
     fgtty = tty_register(
