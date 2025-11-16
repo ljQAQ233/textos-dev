@@ -2,6 +2,7 @@
 #include <textos/task.h>
 
 extern void console_init();
+extern void tty_init();
 extern void gdt_init();
 extern void idt_init();
 extern void serial_init();
@@ -42,6 +43,7 @@ void kernel_main ()
     keyboard_init();
     serial_init();
     console_init();
+    tty_init();
     buffer_init();
     pci_init();
     ide_init();
@@ -74,13 +76,11 @@ void kernel_main ()
 
 extern int close(int);
 extern void fs_init();
-extern void tty_init();
 extern void dev_initnod();
 
 static void __init_proc()
 {
     fs_init();
-    tty_init();
     socket_init();
     e1000_init();
     dev_initnod();
