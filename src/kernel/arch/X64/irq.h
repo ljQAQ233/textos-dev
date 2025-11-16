@@ -49,9 +49,9 @@ bool intr_get ();
         } while (false);                             \
 
 /* 接下来是 APIC 的舞台! */
-void lapic_sendeoi ();
-
-void lapic_sendipi(u32 val);
+void lapic_sendeoi();
+void lapic_smp_init_all();
+void lapic_smp_sipi_all(u8 vv);
 
 #define _IOAPIC_RTE(vector) ((u64)((u8)vector))
 

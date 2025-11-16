@@ -37,5 +37,6 @@ typedef int __wchar_t;
 
 // endian
 #define __BYTE_ORDER 1234
+#define BXBRK __asm__ volatile("xchg %bx, %bx")
 
 #endif

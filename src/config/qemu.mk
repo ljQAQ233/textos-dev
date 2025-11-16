@@ -11,7 +11,7 @@ MEM = 64M
 QEMU_FLAGS := \
   -hda $(IMG) \
   -cpu qemu64,+x2apic \
-  -m $(MEM) \
+  -smp 2 -m $(MEM) \
   -no-reboot \
   -debugcon $(QEMU_LOG) \
   -device isa-debug-exit \

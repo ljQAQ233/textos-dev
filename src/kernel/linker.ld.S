@@ -33,26 +33,29 @@ SECTIONS {
     HAL(.text)
     {
         __kx_start = .;
-        *(.text .text.*)
+        *(.text)
         __kx_end = .; 
-    } 
+    }
     
     HAL(.rodata)
     {
         __kr_start = .;
-        *(.rodata .rodata.*)
+        *(.rodata)
         __kr_end = .;
-    } 
+    }
 
     HAL(.data)
     {
         __kw_start = .;
-        *(.data .data.*)
-    } 
+        *(.data)
+        __mycpu_start = .;
+        *(.data.mycpu)
+        __mycpu_end = .;
+    }
     HAL(.bss)
     {
         __lbss = . - __vbase;
-        *(.bss .bss.*)
+        *(.bss)
         __kw_end = .;
     }
     . = ALIGN(4K);
