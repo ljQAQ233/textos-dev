@@ -47,7 +47,7 @@ void *ioapic = NULL;
 #define TM_PERIODIC 0b01 // Periodic Mode 周期模式
 #define TM_TSCDLN   0b10 // TSC-Deadline Mode
 
-void __apic_tovmm ()
+void __apic_tovmm()
 {
     // lapic mapping is unused
     vmap_map((addr_t)lapic, __lapic_va, 1, PE_RW | PE_P | PE_PCD | PE_PWT);
@@ -72,15 +72,15 @@ __INTR_HANDLER(timer_handler)
     task_schedule();
 }
 
-void lapic_errhandler () { PANIC ("apic handler is not supported!!!"); }
-void lapic_spshandler () { ; }
+void lapic_errhandler() { PANIC ("apic handler is not supported!!!"); }
+void lapic_spshandler() { ; }
 
-void lapic_set (int x, u32 v)
+void lapic_set(int x, u64 v)
 {
     write_msr(x, v);
 }
 
-u32 lapic_get (int x)
+u32 lapic_get(int x)
 {
     return read_msr(x);
 }
@@ -144,6 +144,25 @@ void lapic_sendeoi()
     lapic_set(MSR_EOI, 0);
 }
 
+void lapic_smp_init_all()
+{
+    u64 icr = 0;
+    icr |= 0b101 << 8; // INIT
+    icr |= 0b1 << 14;  // assert
+    icr |= 0b1 << 15;  // level
+    icr |= 0b11 << 18; // all excluding self
+    lapic_set(MSR_ICR, icr);
+}
+
+void lapic_smp_sipi_all(u8 vv)
+{
+    u64 icr = vv;      // trampoline at 0xvv000
+    icr |= 0b110 << 8; // SIPI
+    icr |= 0b1 << 15;  // level
+    icr |= 0b11 << 18; // all excluding self
+    lapic_set(MSR_ICR, icr);
+}
+
 #define IOREGSEL    (ioapic + 0x00)
 #define IOWIN       (ioapic + 0x10)
 #define IOAPICID    0x00
@@ -172,6 +191,6 @@ void ioapic_rteset(u8 irq, u64 rte)
     int reg = irq * 2 + IOREDTBL;
     ioapic_write(reg, rte & 0xffffffff);
     ioapic_write(reg + 1, rte >> 32);
-    DEBUGK(K_PIC, "ioapic set : [#irq] = %016llx\n", irq, rte);
+    DEBUGK(K_PIC, "ioapic set : [#%x] = %016llx\n", irq, rte);
 }
  

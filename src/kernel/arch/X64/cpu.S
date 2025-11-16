@@ -17,24 +17,6 @@ cpuid:
     popq %rbx
     ret
 
-/* void cpuid2(int leaf, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx); */
-.globl cpuid2
-cpuid2:
-    pushq %rbx
-
-    movq %rdi, %rax     /* leaf */
-    movq %rdx, %rdi
-    movq %rcx, %r9
-
-    cpuid
-    movl %eax, (%rsi)   /* eax */
-    movl %ebx, (%rdi)   /* ebx */
-    movl %ecx, (%r9)    /* ecx */
-    movl %edx, (%r8)    /* edx */
-
-    popq %rbx
-    ret
-
 /* void halt(); */
 .globl halt
 halt:
@@ -160,10 +142,13 @@ __kstack_init:
     ret
 
 .section .data
-    .align 16
+
+.globl __cpu_count, __cpu_started
+__cpu_count: .long 0
+__cpu_started: .long 0
+
+.align 16
 .globl __kstack
 __kstack:
-    .rept 0x1000
-        .quad 1
-    .endr
+    .zero 0x1000 * 8
 __kstack_top:

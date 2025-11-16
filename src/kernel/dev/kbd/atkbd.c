@@ -110,15 +110,6 @@ void keyboard_init()
     outb(R_CMD, CMD_PORT2_OFF);
 
     input_clear();
-
-    // 自检,如果没有通过则不能进入系统.
-    outb(R_CMD, CMD_PORT1_TEST);
-    if (!(inb(R_STAT) & S_SYS))
-        PANIC("keyboard cannot pass self test!\n");
-    
-    input_clear();
-    
-    // 初始化 环形缓冲区
     intr_register(INT_KEYBOARD, keyboard_handler);
     ioapic_rteset(IRQ_KEYBOARD, _IOAPIC_RTE(INT_KEYBOARD));
 

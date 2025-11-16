@@ -8,7 +8,7 @@ export OUTPUT ARCH_DIR
 SRCS := \
   init.c main.c debug.c assert.c panic.c acpi.c apic.c dev.c \
   printk.c ktm.c ktimer.c time.c task.c task.S signal.c file.c \
-  pwm.c lock.c noopt.c
+  mycpu.c pwm.c lock.c noopt.c
 
 include klib/klib.mk
 include mm/mm.mk

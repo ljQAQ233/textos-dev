@@ -1,6 +1,6 @@
 /*
  * 3 phases to setup acpi
- *   - prepare - get physical address from boot config
+ *   - prepare - get physical address from boot config or scanning
  *   - acpi_init - find out some essential info
  *   - tovmm - map all table to kernel space and enable lai
  */
@@ -282,16 +282,26 @@ typedef struct _packed
 typedef struct _packed
 {
     madt_ics_t hdr;
-    u8 apic_uid; // Apic Processor UID
+    u8 acpi_id;
     u8 apic_id;
     u32 flgs;
 } ics_lapic_t;
+
+typedef struct _packed
+{
+    madt_ics_t hdr;
+    u16 _rev0;
+    u32 apic_id;
+    u32 flgs;
+    u32 acpi_id;
+} ics_x2apic_t;
 
 enum ics_type
 {
     ICS_LAPIC = 0,
     ICS_IOAPIC = 1,
     ICS_ISO = 2,
+    ICS_X2APIC = 9,
 };
 
 typedef struct _packed
@@ -312,8 +322,9 @@ typedef struct _packed
     u16 flgs;
 } ics_iso_t;
 
-extern void *lapic;
-extern void *ioapic;
+extern void *lapic;  // apic.c
+extern void *ioapic; // apic.c
+extern int __cpu_count; // mycpu.c
 
 static u8 _gsi[24];
 
@@ -341,10 +352,26 @@ static void madt_parser()
             // 写 `{}` 是明确变量的 life circle
             {
                 ics_lapic_t *_lapic = (ics_lapic_t *)ics;
-                printk("local Apic -> acpi processor uid : %u\n"
+                printk("local apic -> acpi processor uid : %u\n"
                        "              apic id : %u\n"
                        "              flags :   %x\n",
-                       _lapic->apic_uid, _lapic->apic_id, _lapic->flgs);
+                       _lapic->acpi_id, _lapic->apic_id, _lapic->flgs);
+                __cpu_count++;
+            }
+            break;
+
+        /*
+         * ACPI 6.5/5.2.12.12 : Logical processors with APIC ID < 255 must use Processor
+         * Local APIC (Processor()); APIC ID ≥ 255 must use Processor Local x2APIC (Device()).
+         */        
+        case ICS_X2APIC:
+            {
+                ics_x2apic_t *_x2apic = (ics_x2apic_t *)ics;
+                printk("x2apic -> acpi processor uid : %u\n"
+                       "          apic id : %u\n"
+                       "          flags : %x\n",
+                       _x2apic->acpi_id, _x2apic->apic_id, _x2apic->flgs);
+                __cpu_count++;
             }
             break;
 
@@ -372,4 +399,24 @@ static void madt_parser()
     }
 
     lapic = (void *)(u64)madt->lapic_addr;
+}
+
+void acpi_smp_scan(u32 *apic_ids)
+{
+    madt_t *madt = entryget(APIC_SIG);
+    int64 len = madt->hdr.len - sizeof(madt_t);
+    madt_ics_t *ics = OFFSET(madt, sizeof(madt_t));
+    while (len > 0)
+    {
+        if (ics->type == ICS_LAPIC)
+        {
+            ics_lapic_t *lapic = (ics_lapic_t *)ics;
+            *apic_ids++ = (u32)lapic->apic_id;
+        }
+        else if (ics->type == ICS_X2APIC)
+        {
+            ics_x2apic_t *x2apic = (ics_x2apic_t *)ics;
+            *apic_ids++ = x2apic->apic_id;
+        }
+    }
 }

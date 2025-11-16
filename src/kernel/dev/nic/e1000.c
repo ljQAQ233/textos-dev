@@ -512,6 +512,8 @@ int e1000_ioctl(devst_t *dev, int req, void *argp)
  */
 void e1000_init()
 {
+    if (!CONFIG_NETWORK)
+        return;
     e1000_t *e = &e1000;
 
     pci_idx_t *idx = e1000_find(e);

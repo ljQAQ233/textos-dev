@@ -102,7 +102,6 @@ static void curtoggle()
     u8 state = inb(0x3d5);
     outb(0x3d5, state ^ 0x20);
     vga_movcur(con.cur_x, con.cur_y);
-    DEBUGK(K_LOGK, "current cursor at (%d, %d)\n", con.cur_x, con.cur_y);
 }
 
 static void pullup()

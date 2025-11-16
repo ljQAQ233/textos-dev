@@ -29,7 +29,7 @@
 
 typedef struct
 {
-    int wait;
+    task_t *wait;
 } channel_t;
 
 typedef struct _packed __attribute__((aligned(4)))
@@ -55,11 +55,12 @@ typedef struct {
 static ide_t ide[4];
 
 #define STAT_ERR   (1 << 0) // Error
-#define STAT_IDX   (1 << 2) // Index
-#define STAT_CD    (1 << 3) // Corrected data
-#define STAT_RQRDY (1 << 4) // Data request ready
-#define STAT_WF    (1 << 5) // Drive write fault
-#define STAT_RDY   (1 << 6) // Drive ready
+#define STAT_IDX   (1 << 1) // Index
+#define STAT_CORR  (1 << 2) // Corrected data
+#define STAT_DRQ   (1 << 3) // Data request ready
+#define STAT_DSC   (1 << 4) // Drive seek complete
+#define STAT_DWF   (1 << 5) // Drive write fault
+#define STAT_DRDY  (1 << 6) // Drive ready
 #define STAT_BSY   (1 << 7) // Drive Busy
 
 //
@@ -92,14 +93,21 @@ __INTR_HANDLER(ide_handler)
     int idx = (vector - INT_PRIDISK);
     channel_t *stat = &channel[idx];
 
-    if (stat->wait < 0)
+    if (!stat->wait)
         return ;
 
-    DEBUGK(K_DEV, "Read opt has finished, waking proc... -> %d\n", stat->wait);
-    task_unblock(stat->wait);
-    stat->wait = -1;
+    DEBUGK(K_DEV, "Read opt has finished, waking proc... -> %d\n", stat->wait->pid);
+    task_unblock(stat->wait, 0);
+    stat->wait = NULL;
 }
 
+#elif !CONFIG_IDE_NO_DMA
+/*
+ * DMA 用 poll status 的方法可能需要:
+ * while (inb(pri->bmbase + R_BMSTAT) & 1);
+ * 这里就直接不允许 DMA + NO_INTR 了
+ */
+#error "dma + poll not supported!"
 #endif
 
 static void read_sector(u16 port, u16 *data)
@@ -131,18 +139,32 @@ static void ide_select(ide_t *pri, u32 lba, u8 cnt)
     outb(pri->iobase + R_LBAH, (lba >> 16) & 0xFF); // LBA 16_23
 }
 
-static void ide_waitrw(ide_t *pri)
+static void ide_delay(ide_t *pri)
 {
-    while (inb(pri->iobase + R_SCMD) & STAT_BSY) ;
+    for (int i = 0 ; i < 100 ; i++)
+        inb(pri->iobase + R_BCTL);
 }
 
-static void ide_block(ide_t *pri)
+static void ide_wait(ide_t *pri, u8 mask)
+{
+    while (true)
+    {
+        u8 state = inb(pri->iobase + R_BCTL);
+        if (state & STAT_BSY)
+            continue;
+        if ((state & mask) == mask)
+            break;
+        ide_delay(pri);
+    }
+}
+
+static void ide_block(ide_t *pri, u8 mask)
 {
 #if CONFIG_IDE_USE_INTR
-    pri->channel->wait = task_current()->pid;
-    task_block();
+    pri->channel->wait = task_current();
+    task_block(NULL, NULL, TASK_BLK, 0);
 #else
-    ide_waitrw(pri);
+    ide_wait(pri, mask);
 #endif
 }
 
@@ -214,12 +236,10 @@ static void ide_dma_read(devst_t *dev, u32 lba, void *data, u8 cnt)
 
     ide_t *pri = dev->pdata;
     lba &= 0xFFFFFFF;
-    ide_waitrw(pri);
-    
+
     ide_setdma(pri, data, CMD_BMREAD, cnt * SECT_SIZ);
     ide_select(pri, lba, cnt);
     ide_rundma(pri, CMD_RDMA);
-    ide_block(pri);
     ide_enddma(pri);
     
     UNINTR_AREA_END();
@@ -231,11 +251,11 @@ static void ide_dma_write(devst_t *dev, u32 lba, void *data, u8 cnt)
 
     ide_t *pri = dev->pdata;
     lba &= 0xFFFFFFF;
-    ide_waitrw(pri);
 
     ide_setdma(pri, data, CMD_BMWRITE, cnt * SECT_SIZ);
     ide_select(pri, lba, cnt);
     ide_rundma(pri, CMD_WDMA);
+    ide_enddma(pri);
     
     UNINTR_AREA_END();
 }
@@ -246,13 +266,12 @@ static void ide_pio_read(devst_t *dev, u32 lba, void *data, u8 cnt)
 
     ide_t *pri = dev->pdata;
     lba &= 0xFFFFFFF;
-    ide_waitrw(pri);
 
     ide_select(pri, lba, cnt);
     ide_runpio(pri, CMD_READ);
 
-    ide_block(pri);
     for (int i = 0 ; i < cnt ; i++) {
+        ide_block(pri, STAT_DRQ);
         read_sector(pri->iobase, data);
         data += SECT_SIZ;
     }
@@ -266,7 +285,6 @@ static void ide_pio_write(devst_t *dev, u32 lba, void *data, u8 cnt)
 
     ide_t *pri = dev->pdata;
     lba &= 0xFFFFFFF;
-    ide_waitrw(pri);
 
     ide_select(pri, lba, cnt);
     ide_runpio(pri, CMD_WRITE);
@@ -274,7 +292,7 @@ static void ide_pio_write(devst_t *dev, u32 lba, void *data, u8 cnt)
     for (int i = 0 ; i < cnt ; i++) {
         write_sector(pri->iobase, data);
         data += SECT_SIZ;
-        ide_block(pri);
+        ide_block(pri, 0);
     }
     
     UNINTR_AREA_END();

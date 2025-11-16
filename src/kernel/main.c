@@ -23,6 +23,8 @@ extern void ktm_init();
 extern void clock_init();
 extern void task_init();
 extern void syscall_init();
+extern void mycpu_init();
+extern void ap_init();
 
 static void __init_proc();
 
@@ -65,6 +67,8 @@ void kernel_main ()
             "movq %%rsp, %%rdi\n"
             "call tss_set": : : "%rdi");
 
+    mycpu_init();
+    ap_init();
     intr_sti();
 
     while (true);
