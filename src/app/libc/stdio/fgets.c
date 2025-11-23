@@ -6,12 +6,10 @@
 char *fgets(char *restrict s, int n, FILE *restrict f)
 {
     char interbuf[512];
-    unsigned char *oldbuf = 0;
-    size_t oldsz = 0;
-    if (!f->bufsz)
+    unsigned char *oldbuf = f->buf;
+    size_t oldsz = oldsz = f->bufsz;
+    if (!oldsz)
     {
-        oldbuf = f->buf;
-        oldsz = f->bufsz;
         f->buf = interbuf;
         f->bufsz = sizeof(interbuf);
     }

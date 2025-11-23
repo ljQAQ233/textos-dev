@@ -408,7 +408,7 @@ int vfs_mknod(char *path, dev_t dev, int mode)
     ret = vfs_walkd(NULL, &path, &dir);
     if (ret < 0)
         return ret;
-    ret = vfs_open(dir, path, 0, 0, &dir);
+    ret = vfs_open(dir, path, 0, 0, &nod);
     if (ret >= 0)
         return -EEXIST;
     ret = dir->sb->op->mknod(dir, path, dev, mode, &nod);

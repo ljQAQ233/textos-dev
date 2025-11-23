@@ -1593,6 +1593,7 @@ static int fat32_close(node_t *this)
 {
     lookup_t *lkp = this->pdata;
     node_update(this);
+    return 0;
     vfs_release(this);
     lct_clr(&lkp->link);
     free(lkp);
