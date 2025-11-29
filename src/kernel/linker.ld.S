@@ -48,6 +48,7 @@ SECTIONS {
     {
         __kw_start = .;
         *(.data)
+        . = ALIGN(8);
         __mycpu_start = .;
         *(.data.mycpu)
         __mycpu_end = .;

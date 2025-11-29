@@ -1,22 +1,17 @@
-.extern sys_handlers
 .extern syscall_handler
-.extern task_current
 .extern __handle_signal
-
-TASK_ISTACK = 0x00
-TASK_IFRAME = 0x10
-TASK_SFRMAE = 0x18
-TASK_OLDSP  = 0x20
+.extern current_istk
+.extern current_oldrsp
 
 .globl msyscall_exit
 .globl msyscall_handler
 
 msyscall_handler:
-    movq %rsp, %gs:TASK_OLDSP
-    movq %gs:TASK_ISTACK, %rsp
+    movq %rsp, %gs:current_oldsp(%rip)
+    movq %gs:current_istk(%rip), %rsp
 
     pushq $0x23 /* user ss */
-    pushq %gs:TASK_OLDSP /* rsp */
+    pushq %gs:current_oldsp(%rip) /* rsp */
     pushq %r11  /* rflags */
     pushq $0x2b /* user cs */
     pushq %rcx  /* rip */

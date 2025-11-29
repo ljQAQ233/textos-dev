@@ -8,6 +8,7 @@
     extern MYCPU_DEFINE(type, name)
 
 MYCPU_DECLARE(int, cpu_id);
+MYCPU_DECLARE(addr_t, cpu_kstk);
 
 extern addr_t *__mycpu_ptrs;
 
