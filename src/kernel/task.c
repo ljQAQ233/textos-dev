@@ -1,11 +1,15 @@
 #include <cpu.h>
 #include <textos/task.h>
+#include <textos/mycpu.h>
 #include <textos/errno.h>
 #include <textos/panic.h>
 #include <textos/assert.h>
 #include <textos/mm/vmm.h>
 #include <textos/mm/pvpage.h>
 #include <textos/klib/string.h>
+
+MYCPU_DEFINE(addr_t, current_istk);
+MYCPU_DEFINE(addr_t, current_oldsp);
 
 #define TASK_PAGE (1)
 #define TASK_SIZ  (PAGE_SIZ * TASK_PAGE)
@@ -356,10 +360,10 @@ task_t *task_get(int pid)
 }
 
 extern void fpu_disable();
+extern void __tss_set(u64 rsp);
+extern void __task_switch(task_frame_t *next, task_frame_t **curr);
 
-extern void __task_switch (task_frame_t *next, task_frame_t **curr);
-
-void task_schedule ()
+void task_schedule()
 {
     task_t *curr, *next;
     
@@ -383,8 +387,8 @@ Sched:
     next->stat = TASK_RUN;
 
     fpu_disable();
-    tss_set(next->istk);
-    write_msr(MSR_GS_BASE, (addr_t)next);
+    __tss_set(next->istk);
+    mycpu_var(current_istk) = next->istk;
     write_cr3(next->pgt);
     __task_switch (next->frame, &curr->frame);
 }

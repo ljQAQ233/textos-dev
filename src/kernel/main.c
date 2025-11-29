@@ -58,15 +58,6 @@ void kernel_main ()
     syscall_init();
     task_create(__init_proc, TC_USER | TC_TSK1);
 
-    /*
-       NOTE: 测试用
-       就让当前的栈帧成为中断栈了!
-       从用户态来的中断将加载 tss 中的 rsp
-    */
-    __asm__ volatile (
-            "movq %%rsp, %%rdi\n"
-            "call tss_set": : : "%rdi");
-
     mycpu_init();
     ap_init();
     intr_sti();

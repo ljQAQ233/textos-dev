@@ -145,7 +145,7 @@ __kstack_init:
 
 .globl __cpu_count, __cpu_started
 __cpu_count: .long 0
-__cpu_started: .long 0
+__cpu_started: .long 1
 
 .align 16
 .globl __kstack
