@@ -44,6 +44,5 @@
 #define CONFIG_NETWORK       0
 #define CONFIG_IDE_NO_DMA    1
 #define CONFIG_IDE_USE_INTR  0
-#define CONFIG_FAT_SIMU_UNIX 1
 
 #endif

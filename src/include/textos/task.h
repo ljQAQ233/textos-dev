@@ -39,6 +39,7 @@ typedef struct task
     gid_t egid; // effective gid
     gid_t sgid; // saved set-gid
     gid_t *supgids;
+    u16 umask;
     int pid;
     int sid;
     int ppid;

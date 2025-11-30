@@ -62,9 +62,34 @@ typedef struct _packed
 
 extern void noopt_handler();
 
+#include <textos/task.h>
+#include <textos/mm/heap.h>
+#include <textos/klib/string.h>
 /*
  * vfs in-memory node operations used by physical file systems
  */
+static int vfs_m_mknod(node_t *prt, char *name, dev_t rdev, int mode, node_t **result, ino_t ino)
+{
+    node_t *chd = calloc(sizeof(*chd));
+    chd->name = strdup(name);
+    chd->attr = 0;
+    chd->siz = 0;
+    chd->uid = task_current()->euid;
+    chd->gid = task_current()->egid;
+    chd->ino = ino;
+    chd->mode = mode & (S_IFMT | mode &~ task_current()->umask);
+    chd->atime = chd->mtime = chd->ctime = arch_time_now();
+    chd->dev = prt->dev;
+    chd->rdev = rdev;
+    chd->pdata = NULL;
+    chd->sb = prt->sb;
+    chd->opts = prt->opts;
+    vfs_regst(chd, prt);
+
+    *result = chd;
+    return 0;
+}
+
 static int vfs_m_chown(node_t *this, uid_t owner, gid_t group, bool ap)
 {
     if (!ap && S_ISREG(this->mode))

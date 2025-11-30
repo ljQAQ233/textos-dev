@@ -1,7 +1,6 @@
 /*
  * /tmp is simple
- * TODO: tmpfs doesn't need its own tmpfs_entry. use vfs's instead!!!
- *       the precondition is that we complete reference count.
+ * TODO : complete vfs node reference count.
  */
 
 #include <textos/fs.h>
@@ -19,19 +18,10 @@ typedef struct tmpfs_page
     rbnode_t node;
 } tmpfs_page_t;
 
-typedef struct tmpfs_entry
+typedef struct tmpfs_sbi
 {
-    char *name;
-    u64 ino;
-    int mode;
-    dev_t rdev;
-    superblk_t *super;
-    struct tmpfs_entry *parent;
-    struct tmpfs_entry *subdir;
-    struct tmpfs_entry *next;
-    size_t filsz;
-    rbtree_t pages;
-} tmpfs_entry_t;
+    ino_t ino_current;
+} tmpfs_sbi_t;
 
 #include <textos/klib/string.h>
 #include <textos/fs/inter.h>
@@ -41,67 +31,49 @@ static u64 __tmpfs_ino = 1;
 _UTIL_CMP();
 
 #define tmpfs_foreach(ent) \
-    for (tmpfs_entry_t *ptr = ent ; ptr ; ptr = ptr->next)
+    for (node_t *ptr = ent ; ptr ; ptr = ptr->next)
 
-static tmpfs_entry_t *tmp_ent_find(tmpfs_entry_t *dir, char *name)
-{
-    tmpfs_foreach(dir->subdir) {
-        if (_cmp(ptr->name, name))
-            return ptr;
-    }
-    return NULL;
-}
-
-static int tmpfs_ent_count(tmpfs_entry_t *dir)
+static int tmpfs_ent_count(node_t *dir)
 {
     int count = 0;
-    tmpfs_foreach(dir->subdir) {
+    tmpfs_foreach(dir->child) {
         count++;
     }
     return count;
 }
 
-static void tmpfs_ent_regst(tmpfs_entry_t *ent, tmpfs_entry_t *prt)
-{
-    ent->next = prt->subdir;
-    prt->subdir = ent;
-    ent->parent = prt;
-}
-
-static void tmpfs_ent_unreg(tmpfs_entry_t *ent)
-{
-    tmpfs_entry_t **pp = &ent->parent->subdir;
-    while (*pp && *pp != ent)
-        pp = &(*pp)->next;
-    if (*pp == ent)
-        *pp = ent->next;
-}
-
 fs_opts_t __tmpfs_op;
 
-static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
+static ino_t tmpfs_inoget(superblk_t *sb)
 {
-    unsigned ma = ent->super->dev->major;
-    unsigned mi = ent->super->dev->minor;
+    tmpfs_sbi_t *sbi = sb->sbi;
+    return sbi->ino_current++;
+}
 
-    node_t *node = malloc(sizeof(node_t));
-    node->name = strdup(ent->name);
-    node->mode = ent->mode;
-    node->siz = ent->filsz;
-    node->ino = ent->ino;
-    node->atime = arch_time_now();
-    node->mtime = arch_time_now();
-    node->ctime = arch_time_now();
-    node->parent = NULL;
-    node->child = NULL;
-    node->next = NULL;
-    node->dev = makedev(ma, mi);
-    node->rdev = ent->rdev;
-    node->pdata = ent;
-    node->sb = ent->super;
-    node->mount = NULL;
-    node->opts = &__tmpfs_op;
-    return node;
+static node_t *tmpfs_nodenew(superblk_t *sb, char *name, mode_t mode, dev_t rdev)
+{
+    unsigned ma = sb->dev->major;
+    unsigned mi = sb->dev->minor;
+    rbtree_t *rbt = malloc(sizeof(rbtree_t));
+    *rbt = RBTREE_INIT();
+
+    node_t *chd = malloc(sizeof(node_t));
+    chd->name = strdup(name);
+    chd->attr = 0;
+    chd->siz = 0;
+    chd->ino = tmpfs_inoget(sb);
+    chd->uid = task_current()->euid;
+    chd->gid = task_current()->egid;
+    chd->mode = mode &~ task_current()->umask;
+    chd->atime = chd->mtime = chd->atime = arch_time_now();
+    chd->dev = makedev(ma, mi);
+    chd->rdev = rdev;
+    chd->mount = NULL;
+    chd->pdata = rbt;
+    chd->sb = sb;
+    chd->opts = &__tmpfs_op;
+    chd->parent = chd->child = chd->next = NULL;
+    return chd;
 }
 
 /*
@@ -111,11 +83,6 @@ static node_t *tmpfs_nodeget(tmpfs_entry_t *ent)
 static int tmpfs_open(node_t *parent, char *name, u64 args, int mode, node_t **result)
 {
     node_t *node = NULL;
-    tmpfs_entry_t *dir = parent->pdata;
-    tmpfs_entry_t *ent = tmp_ent_find(dir, name);
-    if (ent != NULL)
-        goto end;
-
     if (~args & O_CREAT) {
         *result = NULL;
         return -ENOENT;
@@ -125,19 +92,9 @@ static int tmpfs_open(node_t *parent, char *name, u64 args, int mode, node_t **r
         mode |= S_IFDIR;
     else
         mode |= S_IFREG;
-
-    ent = malloc(sizeof(tmpfs_entry_t));
-    ent->name = strdup(name);
-    ent->ino = __tmpfs_ino++;
-    ent->mode = mode;
-    ent->super = dir->super;
-    ent->subdir = NULL;
-    ent->filsz = 0;
-    ent->pages.root = NULL;
-    tmpfs_ent_regst(ent, dir);
+    node = tmpfs_nodenew(parent->sb, name, mode, NODEV);
 
 end:
-    node = tmpfs_nodeget(ent);
     vfs_regst(node, parent);
     *result = node;
     return 0;
@@ -145,32 +102,20 @@ end:
 
 int tmpfs_mknod(node_t *parent, char *name, dev_t rdev, int mode, node_t **result)
 {
-    tmpfs_entry_t *dir = parent->pdata;
-    tmpfs_entry_t *ent = malloc(sizeof(tmpfs_entry_t));
-    ent->name = strdup(name);
-    ent->ino = __tmpfs_ino++;
-    ent->mode = mode;
-    ent->rdev = rdev;
-    ent->super = dir->super;
-    ent->subdir = NULL;
-    ent->filsz = 0;
-    ent->pages.root = NULL;
-    tmpfs_ent_regst(ent, dir);
-    
-    node_t *node = tmpfs_nodeget(ent);
-    vfs_regst(node, parent);
-    *result = node;
+    node_t *chd = tmpfs_nodenew(parent->sb, name, mode, rdev);
+    vfs_regst(chd, parent);
+    *result = chd;
     return 0;
 }
 
 /**
  * @brief get a page which stores a part of a file from rbtree
  */
-static tmpfs_page_t *getblk(tmpfs_entry_t *ent, size_t idx)
+static tmpfs_page_t *getblk(node_t *ent, size_t idx)
 {
     ASSERTK(S_ISREG(ent->mode));
 
-    rbtree_t *t = &ent->pages;
+    rbtree_t *t = ent->pdata;
     rbnode_t **pp = &t->root;
     while (*pp) {
         tmpfs_page_t *pg = CR(*pp, tmpfs_page_t, node);
@@ -184,9 +129,9 @@ static tmpfs_page_t *getblk(tmpfs_entry_t *ent, size_t idx)
     return NULL;
 }
 
-static void insert(tmpfs_entry_t *ent, tmpfs_page_t *ipg)
+static void insert(node_t *ent, tmpfs_page_t *ipg)
 {
-    rbtree_t *t = &ent->pages;
+    rbtree_t *t = ent->pdata;
     rbnode_t *p = NULL;
     rbnode_t **pp = &t->root;
     while (*pp) {
@@ -208,13 +153,13 @@ static void insert(tmpfs_entry_t *ent, tmpfs_page_t *ipg)
  * @brief extends a file. i.e. allocate free pages. used only when req >= has!!!
  * @retval size_t the size extended to
  */
-static size_t extend(tmpfs_entry_t *ent, size_t siz)
+static size_t extend(node_t *ent, size_t siz)
 {
     size_t req = DIV_ROUND_UP(siz, PAGE_SIZ);
-    size_t has = DIV_ROUND_UP(ent->filsz, PAGE_SIZ);
+    size_t has = DIV_ROUND_UP(ent->siz, PAGE_SIZ);
     ASSERTK(req >= has);
     if (has == req)
-        return ent->filsz = siz;
+        return ent->siz = siz;
     
     // TODO: extending limitlessly is not allowed!
     size_t rem = req - has;
@@ -228,7 +173,7 @@ static size_t extend(tmpfs_entry_t *ent, size_t siz)
         vpgs += PAGE_SIZ;
         rem -= 1;
     }
-    return ent->filsz = siz;
+    return ent->siz = siz;
 }
 
 // TODO
@@ -254,11 +199,9 @@ static int tmpfs_close(node_t *this)
 
 static int tmpfs_remove(node_t *this)
 {
-    tmpfs_entry_t *ent = this->pdata;
-    if (ent->subdir)
+    if (this->child)
         return -ENOTEMPTY;
-    tmpfs_ent_unreg(ent);
-    free(ent);
+    vfs_unreg(this);
     return 0;
 }
 
@@ -271,13 +214,12 @@ static int tmpfs_read(node_t *this, void *buf, size_t siz, size_t offset)
     
     // adjust to real size
     siz = MIN(this->siz, offset + siz) - offset;
-    tmpfs_entry_t *ent = this->pdata;
     size_t rem = siz;
     size_t pidx = offset / PAGE_SIZ; // page index
     size_t boff = offset % PAGE_SIZ; // byte offset
     while (rem)
     {
-        tmpfs_page_t *pg = getblk(ent, pidx);
+        tmpfs_page_t *pg = getblk(this, pidx);
         size_t cpysiz = MIN(rem, boff != 0 ? PAGE_SIZ - boff : MIN(rem, PAGE_SIZ));
         memcpy(buf, pg->vpage + boff, cpysiz);
         boff = 0;
@@ -291,10 +233,9 @@ static int tmpfs_read(node_t *this, void *buf, size_t siz, size_t offset)
 
 static int tmpfs_write(node_t *this, void *buf, size_t siz, size_t offset)
 {
-    tmpfs_entry_t *ent = this->pdata;
     size_t maxpos = siz + offset;
     if (maxpos > this->siz)
-        this->siz = extend(ent, maxpos);
+        this->siz = extend(this, maxpos);
     
     // because of extending, real size is not used yet not
     size_t rem = siz;
@@ -302,7 +243,7 @@ static int tmpfs_write(node_t *this, void *buf, size_t siz, size_t offset)
     size_t boff = offset % PAGE_SIZ; // byte offset
     while (rem)
     {
-        tmpfs_page_t *pg = getblk(ent, pidx);
+        tmpfs_page_t *pg = getblk(this, pidx);
         size_t cpysiz = MIN(rem, boff != 0 ? PAGE_SIZ - boff : MIN(rem, PAGE_SIZ));
         memcpy(pg->vpage + boff, buf, cpysiz);
         boff = 0;
@@ -319,16 +260,15 @@ static int tmpfs_truncate(node_t *this, size_t len)
     if (len == this->siz)
         return 0;
 
-    tmpfs_entry_t *ent = this->pdata;
     if (len > this->siz) {
-        this->siz = extend(ent, len);
+        this->siz = extend(this, len);
     } else {
         size_t pidx = DIV_ROUND_UP(len, PAGE_SIZ);
         size_t end = DIV_ROUND_UP(this->siz, PAGE_SIZ);
         while (pidx <= end)
         {
-            tmpfs_page_t *pg = getblk(ent, pidx);
-            rbtree_delete(&ent->pages, &pg->node);
+            tmpfs_page_t *pg = getblk(this, pidx);
+            rbtree_delete(this->pdata, &pg->node);
             pidx++;
         }
         this->siz = len;
@@ -364,8 +304,7 @@ static int tmpfs_readdir(node_t *node, dirctx_t *ctx)
         ctx->pos++;
     }
     
-    tmpfs_entry_t *dir = node->pdata;
-    tmpfs_foreach(dir->subdir) {
+    tmpfs_foreach(node->child) {
         if (!dir_emit(ctx, ptr->name, strlen(ptr->name), ptr->ino, dir_get_type(ptr->mode)))
             goto end;
         ctx->pos++;
@@ -380,8 +319,7 @@ end:
 
 static int tmpfs_seekdir(node_t *this, dirctx_t *ctx, size_t *pos)
 {
-    tmpfs_entry_t *dir = this->pdata;
-    size_t subsz = tmpfs_ent_count(dir);
+    size_t subsz = tmpfs_ent_count(this);
     if (subsz + 1 >= *pos)
     {
         ctx->stat = ctx_pre;
@@ -410,22 +348,14 @@ node_t *__fs_init_tmpfs()
     devst_t *anony = dev_new();
     dev_register_anony(anony);
     superblk_t *sb = malloc(sizeof(superblk_t));
+    tmpfs_sbi_t *sbi = malloc(sizeof(tmpfs_sbi_t));
+    sbi->ino_current = 1;
     sb->blksz = PAGE_SIZ;
     sb->dev = anony;
     sb->root = NULL;
     sb->op = &__tmpfs_op;
-    sb->sbi = NULL;
-
-    tmpfs_entry_t *root = malloc(sizeof(tmpfs_entry_t));
-    root->name = "";
-    root->ino = __tmpfs_ino++;
-    root->mode = S_IFDIR | 0555;
-    root->super = sb;
-    root->parent = NULL;
-    root->subdir = NULL;
-    root->next = NULL;
-
-    return sb->root = tmpfs_nodeget(root);
+    sb->sbi = sbi;
+    return sb->root = tmpfs_nodenew(sb, "", S_IFDIR | 0777, NODEV);
 }
 
 fs_opts_t __tmpfs_op = {
