@@ -45,6 +45,7 @@ static task_t *_task_create(int args)
     tsk->ruid = tsk->euid = tsk->suid = 0;
     tsk->rgid = tsk->egid = tsk->sgid = 0;
     tsk->supgids = NULL;
+    tsk->umask = 0022;
     tsk->pid = pid;
     tsk->sid = 0;
     tsk->ppid = 0;

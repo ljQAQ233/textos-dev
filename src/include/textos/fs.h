@@ -65,7 +65,6 @@ typedef struct
 struct node
 {
     char *name;
-
     u64 attr;
     u64 siz;
     ino_t ino;
@@ -103,6 +102,12 @@ struct superblk
     node_t *root;
     fs_opts_t *op;
     void *sbi;
+    struct {
+        u16 dmask;
+        u16 fmask;
+        uid_t uid;
+        uid_t gid;
+    } protcap;
 };
 
 enum

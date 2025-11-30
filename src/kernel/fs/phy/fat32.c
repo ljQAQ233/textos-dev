@@ -6,12 +6,6 @@
 #include <textos/dev/buffer.h>
 #include <textos/klib/string.h>
 
-/*
- * fat32's mode fields are no longer valid after a shutdown, mode is held by vfs
- * to make sure elf to able to be executed, MODE_REG is set to "rwxr--r--"
- */
-#define MODE_DIR 0755
-#define MODE_REG 0744
 #define EOC 0x0FFFFFFF
 // end-of-cluster marker
 #define is_eoc(val) (0x0FFFFFF8 <= val && val <= 0x0FFFFFFF) 
@@ -572,7 +566,18 @@ static inline void make_time(time_t ts, fat_date_t *fdate, fat_time_t *ftime)
     }
 }
 
-static node_t *analyse_entry(stack_t *stk, unsigned *clst)
+static void acquire_prot(node_t *n, superblk_t *sb, int isdir)
+{
+    n->uid = sb->protcap.uid;
+    n->gid = sb->protcap.gid;
+
+    u16 basic = isdir ? 0777 : 0666;
+    u16 fdmask = isdir ? sb->protcap.dmask : sb->protcap.fmask;
+    n->mode &= S_IFMT;
+    n->mode |= basic & ~fdmask;
+}
+
+static node_t *analyse_entry(superblk_t *sb, stack_t *stk, unsigned *clst)
 {
     ASSERTK(!stack_empty(stk));
     stacki_t *iter = stacki(stk, iter);
@@ -583,9 +588,10 @@ static node_t *analyse_entry(stack_t *stk, unsigned *clst)
     n->siz = main->filesz;
     n->attr = 0;
     if (main->attr & FA_DIR)
-        n->mode |= S_IFDIR | MODE_DIR;
+        n->mode |= S_IFDIR;
     else if (main->attr & FA_ARCHIVE)
-        n->mode |= S_IFREG | MODE_REG;
+        n->mode |= S_IFREG;
+    acquire_prot(n, sb, S_ISDIR(n->mode));
 
     size_t cnt = stack_siz(stk) - 1;
     // only has a main entry (short entry)
@@ -871,7 +877,7 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
                 stack_push(&lkp->ents, &ents[i]);
 
                 // generate node
-                lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
+                lkp->node = analyse_entry(sbi->sb, &lkp->ents, &lkp->clst);
                 size_t cmpsiz = (size_t)(strchrnul(name, '/') - name);
                 if (_cmp(name, lkp->node->name)) {
                     wind = true;
@@ -1034,7 +1040,7 @@ static void lookup_byctx(dirctx_t *ctx)
                 stack_push(&lkp->ents, &ents[eidx]);
 
                 // generate node
-                lkp->node = analyse_entry(&lkp->ents, &lkp->clst);
+                lkp->node = analyse_entry(ctx->sb, &lkp->ents, &lkp->clst);
                 lkp->node->ino = inoget(lkp);
                 if (dir_emit_node(ctx, lkp->node))
                 {
@@ -1452,18 +1458,22 @@ done:
 static sentry_t dirhead_1 = { ".          ", FA_DIR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static sentry_t dirhead_2 = { "..         ", FA_DIR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-static node_t *create(node_t *prt, char *name, int mode)
+static node_t *create(node_t *prt, char *name, int fmt)
 {
     node_t *chd = calloc(sizeof(*chd));
     lookup_t *lkp = malloc(sizeof(*lkp));
     lookup_t *lkpp = prt->pdata;
 
     chd->name = strdup(name);
-    chd->mode = mode;
+    chd->attr = 0;
     chd->siz = 0;
-    chd->pdata = lkp;
+    chd->ino = 0; // init later with inoget()
+    chd->mode = fmt;
+    acquire_prot(chd, prt->sb, S_ISDIR(fmt));
 
     chd->dev = prt->dev;
+    chd->rdev = NODEV;
+    chd->pdata = lkp;
     chd->sb = prt->sb;
     chd->opts = prt->opts;
     vfs_regst(chd, prt);
@@ -1472,12 +1482,14 @@ static node_t *create(node_t *prt, char *name, int mode)
     if (S_ISDIR(chd->mode))
         clst = alloc_clst(chd->sb->sbi);
 
+    // init lookup structure
     lkp->sbi = prt->sb->sbi;
     lkp->clst = clst;
     lkp->node = chd;
     list_init(&lkp->link);
     stack_init(&lkp->ents);
 
+    // create entry in physical fs
     stack_t *stk = make_entry(chd, lkp, 1);
     lookup_alloc(lkpp, lkp, stk);
     lookup_save0(lkp, stk);
@@ -1552,41 +1564,6 @@ end:
         opened = NULL;
     *result = opened;
     return ret;
-}
-
-/*
- * fat does not support device node. here we create an empty file and bind
- * it with a device only in memory (vfs node_t::rdev).
- */
-static int fat32_mknod(node_t *parent, char *name, dev_t rdev, int mode, node_t **result)
-{
-#if !CONFIG_FAT_SIMU_UNIX
-    return -ENOSYS;
-#endif
-    node_t *node;
-    int ret = fat32_open(parent, name, O_CREAT, MODE_REG, &node);
-    if (ret < 0)
-        return ret;
-    node->mode = mode;
-    node->rdev = rdev;
-    *result = node;
-    return 0;
-}
-
-static int fat32_chown(node_t *this, uid_t owner, gid_t group, bool ap)
-{
-#if !CONFIG_FAT_SIMU_UNIX
-    return -ENOSYS;
-#endif
-    return vfs_m_chown(this, owner, group, ap);
-}
-
-static int fat32_chmod(node_t *this, mode_t mode, bool clrsgid)
-{
-#if !CONFIG_FAT_SIMU_UNIX
-    return -ENOSYS;
-#endif
-    return vfs_m_chmod(this, mode, clrsgid);
 }
 
 static int fat32_close(node_t *this)
@@ -1727,12 +1704,16 @@ superblk_t *__fs_init_fat32(devst_t *dev)
     superblk_t *sb = malloc(sizeof(*sb));
     fat_sbi_t *sbi = malloc(sizeof(*sbi));
     node_t *node = malloc(sizeof(*node));
-    lookup_t *root = malloc(sizeof(*root));
+    lookup_t *lkp = malloc(sizeof(*lkp));
     sb->blksz = rec->sec_siz;
     sb->dev = dev;
     sb->root = node;
     sb->op = &__fat32_opts;
     sb->sbi = sbi;
+    sb->protcap.dmask = 0;
+    sb->protcap.fmask = 0;
+    sb->protcap.uid = 0;
+    sb->protcap.gid = 0;
 
     sbi->sb = sb;
     sbi->sec_siz = rec->sec_siz;
@@ -1747,26 +1728,26 @@ superblk_t *__fs_init_fat32(devst_t *dev)
     sbi->fil_persec = sbi->sec_siz / 32;
     sbi->fil_perclst = sbi->clst_siz / 32;
 
-    root->sbi = sbi;
-    root->node = node;
-    root->clst = sec2clst(sbi, root_sec);
+    lkp->sbi = sbi;
+    lkp->node = node;
+    lkp->clst = sec2clst(sbi, root_sec);
 
     node->name = "/";
-    node->mode = S_IFDIR | MODE_DIR;
-    node->atime = arch_time_now();
-    node->mtime = arch_time_now();
-    node->ctime = arch_time_now();
-    node->ino = 1;
+    node->attr = 0;
     node->siz = 0;
-    node->parent = node;
-    node->child = node->next = NULL;
+    node->ino = 1;
+    node->uid = 0;
+    node->gid = 0;
+    node->mode = S_IFDIR | 0755;
+    node->atime = node->mtime = node->ctime = arch_time_now();
     node->dev = makedev(dev->major, dev->minor);
     node->rdev = NODEV;
-    node->pdata = root;
     node->mount = NULL;
+    node->pdata = lkp;
     node->sb = sb;
     node->opts = &__fat32_opts;
-
+    node->parent = node;
+    node->child = node->next = NULL;
     return sb;
 
 fail:
@@ -1775,9 +1756,9 @@ fail:
 
 fs_opts_t __fat32_opts = {
     fat32_open,
-    fat32_mknod,
-    fat32_chown,
-    fat32_chmod,
+    noopt_perm,
+    noopt_perm,
+    noopt_perm,
     fat32_remove,
     fat32_readdir,
     fat32_seekdir,
