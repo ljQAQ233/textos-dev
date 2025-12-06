@@ -1,5 +1,5 @@
-#ifndef	_UNISTD_H
-#define	_UNISTD_H
+#ifndef _UNISTD_H
+#define _UNISTD_H
 
 #include <sys/cdefs.h>
 
@@ -99,13 +99,17 @@ int gethostname(char *__name, size_t __len);
 int sethostname(const char *__name, size_t __len);
 
 // POSIX.1-2001 declares it obsolete
-int usleep(unsigned useconds);
+int usleep(unsigned __useconds);
 
-unsigned sleep(unsigned seconds);
+unsigned sleep(unsigned __seconds);
 
 #define _CS_PATH 0
 
-size_t confstr(int name, char *buf, size_t size);
+size_t confstr(int __name, char *__buf, size_t __size);
+
+extern char *optarg;
+extern int optind, opterr, optopt;
+int getopt(int __argc, char *__argv[], const char *__optstring);
 
 __END_DECLS
 
