@@ -7,7 +7,7 @@ cat <<EOF
 %(cc1_cpu) -nostdinc $(for d in $incdir; do printf -- "-isystem %s " "$d"; done)
 
 *link_libgcc:
--L$libdir -lc
+$(for d in $libdir; do printf -- "-L %s " "$d"; done) -lc
 
 *libgcc:
 libgcc.a%s

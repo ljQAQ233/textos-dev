@@ -3,16 +3,18 @@ ARCH ?= X64
 # Commands
 CC      := gcc
 LD      := ld
-NASM    := nasm
 OBJCOPY := objcopy
 
 # Include path
 INCLUDE := \
   $(SRC_DIR)/include \
   $(SRC_DIR)/include/arch/$(ARCH) \
-  $(SRC_DIR)/app/lvgl
+  $(SRC_DIR)/app/lvgl \
+  $(APP_OUTPUT)/libm/include/openlibm
 
-LIBC := $(APP_OUTPUT)/libc/libc.o
+LIBRARY := \
+  $(APP_OUTPUT)/libc \
+  $(APP_OUTPUT)/libm
 
 CFLAGS := \
   -nostdlib -nostdinc -g \
@@ -24,4 +26,4 @@ CFLAGS := \
 LDFLAGS := \
   -nostdlib
 
-export CC LD NASM OBJCOPY INCLUDE LIBC CFLAGS LDFLAGS
+export CC LD OBJCOPY INCLUDE LIBRARY CFLAGS LDFLAGS
