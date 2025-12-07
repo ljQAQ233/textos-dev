@@ -6,7 +6,7 @@ ELFS := $(patsubst %.c,%,$(wildcard *.c))
 ELFS := $(addprefix ${APP_OUTPUT}/,${ELFS})
 
 MODS := test
-LIBS := libc lvgl
+LIBS := libc libm lvgl
 
 app: libs mods $(ELFS)
 	@mkdir -p $(ROOT)/bin

@@ -5,6 +5,7 @@
 
 __BEGIN_DECLS
 
+typedef int sig_atomic_t;
 #define __NEED_pid_t
 #define __NEED_sigset_t
 #include <bits/alltypes.h>

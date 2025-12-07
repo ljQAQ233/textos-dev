@@ -5,3 +5,6 @@
 	path = src/app/lvgl/lvgl
 	url = https://github.com/lvgl/lvgl
 	shallow = true
+[submodule "src/app/libm/openlibm"]
+	path = src/app/libm/openlibm
+	url = https://github.com/JuliaMath/openlibm

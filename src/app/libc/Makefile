@@ -23,7 +23,7 @@ $(BUILD)/cc: \
 
 $(BUILD)/cc.specs:
 	@mkdir -p $(@D)
-	$(CURDIR)/specs.sh "$(INCLUDE)" "$(BUILD)" "$(BUILD)" "/lib/ld-textos.so" > $@
+	$(CURDIR)/specs.sh "$(INCLUDE)" "$(BUILD)" "$(LIBRARY)" "/lib/ld-textos.so" > $@
 	@sudo ln -sf $(BUILD)/ld-textos.so /lib/ld-textos.so
 	@touch .stamp
 

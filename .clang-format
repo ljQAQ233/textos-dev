@@ -7,7 +7,7 @@ TabWidth: 4
 
 MaxEmptyLinesToKeep: 1
 
-AllowShortFunctionsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: false
 

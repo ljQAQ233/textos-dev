@@ -67,3 +67,12 @@ __struct winsize { unsigned short ws_row, ws_col, ws_xpixel, ws_ypixel; };
 
 #define __LITTLE_ENDIAN 1234
 #define __BIG_ENDIAN    4321
+
+// x86_64
+#if defined(__FLT_EVAL_METHOD__) && __FLT_EVAL_METHOD__ == 2
+__typedef long double float_t;
+__typedef long double double_t;
+#else
+__typedef float float_t;
+__typedef double double_t;
+#endif
