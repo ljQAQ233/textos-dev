@@ -87,6 +87,7 @@ int main(int argc, char *argv[], char *envp[])
         fixaddr() < 0 ||
         dolkp(self) < 0)
         goto die;
+    doinit(self);
     r_addlib(self);
 
 run:

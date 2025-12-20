@@ -19,8 +19,6 @@ typedef uint64_t u64;
 #include <../kernel/klib/hlist.c>
 #include <../kernel/klib/htable.c>
 
-#warning "this lib can only run on linux due to a lack of mmap"
-
 struct sym
 {
     char *str;
@@ -47,6 +45,7 @@ struct dl
      * initialized by `dolkp`
      */
     void *entry;
+    size_t array[DT_NUM];
     uintptr_t *pltgot; // GOT entries
     char *strtab;      // .dynstr
     void *dynsym;      // .dynsym
@@ -142,7 +141,8 @@ static void r_init()
     dllog("--- last level --- \n"); \
     __dllevel -= 1;
 #define dlerr(fmt, arg...) \
-    sprintf(__dlmsg, fmt, ##arg)
+    sprintf(__dlmsg, fmt, ##arg); \
+    dllog("%s\n", __dlmsg)
 #define dllog(fmt, arg...) if (__dllog) { \
     for (int _ = 0 ; _ < __dllevel ; _++) \
         dprintf(2, "  ");                 \
@@ -358,7 +358,7 @@ static inline int dochk(struct dl *dl)
     return 0;
 }
 
-static void *dlsymc(struct dl *h, struct dl *c, const char *str);
+static void *dlsymc(struct dl *h, struct dl *c, const char *str, int exclude_c);
 
 void *__ld_resolver(void *dlptr, int reloc)
 {
@@ -366,7 +366,7 @@ void *__ld_resolver(void *dlptr, int reloc)
     Elf64_Rela *r = dl->jmprela + reloc * sizeof(Elf64_Rela);
     Elf64_Sym *sym = dl->dynsym + dl->entsym * ELF64_R_SYM(r->r_info);
     char *name = dl->strtab + sym->st_name;
-    void *val = dlsymc(RTLD_DEFAULT, dl, name);
+    void *val = dlsymc(RTLD_DEFAULT, dl, name, 0);
     if (!val)
     {
         dllog("couldn't find %s\n", name);
@@ -394,41 +394,29 @@ static inline int dolkp(struct dl *dl)
      *   
      *   - DT_PLTREL tells the type of plt : REL / RELA
      */
-    char *strtab = NULL;
-    void *dynsym = NULL;
-    void *pltgot = NULL;
-    void *dynrela = NULL;
-    void *jmprela = NULL;
-    size_t entsym = 0;
-    size_t szrela = 0;
-    size_t entrela = 0;
-    size_t szpltrel = 0;
     Elf64_Dyn *dyn = (Elf64_Dyn *)dmap;
+    memset(dl->array, 0, sizeof(dl->array));
     for ( ; dyn->d_tag != DT_NULL ; dyn++)
     {
-        if (dyn->d_tag == DT_STRTAB)
-            strtab = dl->virt + dyn->d_un.d_ptr;
-        if (dyn->d_tag == DT_SYMTAB)
-            dynsym = dl->virt + dyn->d_un.d_ptr;
-        if (dyn->d_tag == DT_PLTGOT)
-            pltgot = dl->virt + dyn->d_un.d_ptr;
-        if (dyn->d_tag == DT_SYMENT)
-            entsym = dyn->d_un.d_val;
-        if (dyn->d_tag == DT_RELA)
-            dynrela = dl->virt + dyn->d_un.d_ptr;
-        if (dyn->d_tag == DT_RELASZ)
-            szrela = dyn->d_un.d_val;
-        if (dyn->d_tag == DT_RELAENT)
-            entrela = dyn->d_un.d_val;
+        if (dyn->d_tag < DT_NUM)
+            dl->array[dyn->d_tag] = dyn->d_un.d_val;
         if (dyn->d_tag == DT_PLTREL)
             dllog("pltrel %d used\n", dyn->d_un.d_val);
-        if (dyn->d_tag == DT_JMPREL)
-            jmprela = dl->virt + dyn->d_un.d_ptr;
-        if (dyn->d_tag == DT_PLTRELSZ)
-            szpltrel = dyn->d_un.d_val;
         if (dyn->d_tag == DT_DEBUG)
             dyn->d_un.d_ptr = (uintptr_t)&dbg;
     }
+    #define setif(x) dl->array[x] ? dl->virt + dl->array[x] : 0
+    char *strtab = setif(DT_STRTAB);
+    void *dynsym = setif(DT_SYMTAB);
+    void *pltgot = setif(DT_PLTGOT);
+    void *dynrela = setif(DT_RELA);
+    void *jmprela = setif(DT_JMPREL);
+    #undef setif
+    size_t entsym = dl->array[DT_SYMENT];
+    size_t szrela = dl->array[DT_RELASZ];
+    size_t entrela = dl->array[DT_RELAENT];
+    size_t szpltrel = dl->array[DT_PLTRELSZ];
+
     dllog("symbols:\n");
     dllog("  strtab at %p\n", strtab);
     dllog("  dynsym at %p\n", dynsym);
@@ -440,6 +428,20 @@ static inline int dolkp(struct dl *dl)
     dl->jmprela = jmprela;
     dl->entsym = entsym;
     
+    size_t nrsym;
+    nrsym = strtab - (char *)dynsym;
+    nrsym /= entsym;
+    htable_init(&dl->sym, 32);
+    for (int i = 1 ; i < nrsym ; i++)
+    {
+        Elf64_Sym *sym = dynsym + i * entsym;
+        if (!sym->st_value)
+            continue;
+        if (ELF64_ST_BIND(sym->st_info) == STB_GLOBAL ||
+            ELF64_ST_BIND(sym->st_info) == STB_WEAK)
+            addsym(dl, strtab + sym->st_name, dl->virt + sym->st_value);
+    }
+    
     list_init(&dl->dep);
     dyn = (Elf64_Dyn *)dmap;
     for ( ; dyn->d_tag != DT_NULL ; dyn++)
@@ -450,7 +452,7 @@ static inline int dolkp(struct dl *dl)
             dl_into(void *handle = dlopen(lib, RTLD_LAZY));
             if (!handle)
             {
-                dlerr("unable to dependent lib %s", lib);
+                dlerr("unable to load dependent lib %s", lib);
                 return -1;
             }
             struct dep *dep = malloc(sizeof(struct dep));
@@ -492,7 +494,7 @@ static inline int dolkp(struct dl *dl)
                         val = (uintptr_t)dl->virt + sym->st_value;
                     } else {
                         char *name = strtab + sym->st_name;
-                        void *addr = dlsymc(RTLD_DEFAULT, dl, name);
+                        void *addr = dlsymc(RTLD_DEFAULT, dl, name, 1);
                         if (!addr) {
                             dlerr("%s not found\n", name);
                             return -1;
@@ -504,7 +506,7 @@ static inline int dolkp(struct dl *dl)
                 }
                 case R_X86_64_COPY: {
                     char *name = strtab + sym->st_name;
-                    void *src = dlsymc(RTLD_DEFAULT, dl, name);
+                    void *src = dlsymc(RTLD_DEFAULT, dl, name, 0);
                     if (!src) {
                         dlerr("R_COPY %s not found\n", name);
                         return -1;
@@ -527,25 +529,40 @@ static inline int dolkp(struct dl *dl)
         }
     }
     
-    /*
-     * This library's symbols are added to the global symbol table only after this point.
-     * Any dlsym lookups performed before this will not see the library's own symbols.
-     * Therefore, place this registration step at the end to avoid missing or shadowed symbols.
-     */
-    size_t nrsym;
-    nrsym = strtab - (char *)dynsym;
-    nrsym /= entsym;
-    htable_init(&dl->sym, 32);
-    for (int i = 1 ; i < nrsym ; i++)
-    {
-        Elf64_Sym *sym = dynsym + i * entsym;
-        if (!sym->st_value)
-            continue;
-        if (ELF64_ST_BIND(sym->st_info) == STB_GLOBAL ||
-            ELF64_ST_BIND(sym->st_info) == STB_WEAK)
-            addsym(dl, strtab + sym->st_name, dl->virt + sym->st_value);
-    }
     return 0;
+}
+
+typedef void (*fn)();
+#define call(o) ((fn)(dl->virt + (size_t)o))()
+
+void doinit(struct dl *dl)
+{
+    if (dl->array[DT_INIT])
+        call(dl->array[DT_INIT]);
+    if (dl->array[DT_INIT_ARRAY])
+    {
+        size_t n = dl->array[DT_FINI_ARRAYSZ] / sizeof(fn);
+        for (size_t i = 0 ; i < n ; i++)
+        {
+            fn *inits = dl->virt + dl->array[DT_INIT_ARRAY];
+            call(inits);
+        }
+    }
+}
+
+void dofini(struct dl *dl)
+{
+    if (dl->array[DT_FINI])
+        call(dl->array[DT_FINI]);
+    if (dl->array[DT_FINI_ARRAY])
+    {
+        size_t n = dl->array[DT_FINI_ARRAYSZ] / sizeof(fn);
+        for (size_t i = 0 ; i < n ; i)
+        {
+            fn *finis = dl->virt + dl->array[DT_INIT_ARRAY];
+            call(finis[i]);
+        }
+    }
 }
 
 #define minimum(x, y) ((x) > (y) ? (y) : (x))
@@ -713,6 +730,7 @@ static void *loadlib(const char *path, int flags)
         goto err;
     if (dolkp(dl) < 0)
         goto err;
+    doinit(dl);
     r_addlib(dl);
     dllog("==> gdb -> add-symbol-file %s -o %p\n", path, dl->virt);
 
@@ -796,19 +814,24 @@ end:
 /*
  * another version for dlsym. with `caller` provided
  */
-static void *dlsymc(struct dl *h, struct dl *c, const char *str)
+static void *dlsymc(struct dl *h, struct dl *c, const char *str, int exclude_c)
 {
     if (h == RTLD_NEXT)
         return c ? lkpnxt(c, str) : NULL;
     else if (h == RTLD_DEFAULT)
     {
         void *res;
-        if (self && (res = lkpsym(self, str)))
-            return res;
+        // search itself if it not expects an external symbol
+        if (self && !(self == c && exclude_c))
+            if((res = lkpsym(self, str)))
+                return res;
+        // search in LD_PRELOAD
         if ((res = lkppre(str)))
             return res;
-        if (c && (res = lkprec(c, str)))
+        // search recursively 
+        if (!exclude_c && c && (res = lkprec(c, str)))
             return res;
+        // search in global loaded libs
         return lkpglb(str);
     }
     return lkprec(h, str);
@@ -818,7 +841,7 @@ void *dlsym(void *restrict handle, const char *restrict name)
 {
     void *retaddr = __builtin_return_address(0);
     struct dl *caller = byptr((uintptr_t)retaddr);
-    return dlsymc(handle, caller, name);
+    return dlsymc(handle, caller, name, 0);
 }
 
 char *dlerror()
