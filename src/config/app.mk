@@ -16,8 +16,7 @@ LIBRARY := \
   $(APP_OUTPUT)/libc \
   $(APP_OUTPUT)/libm
 
-CFLAGS := \
-  -nostdlib -nostdinc -g \
+CFLAGS := -g \
   -std=c11 -fshort-wchar -ffreestanding \
   -fno-builtin -fno-stack-check -fno-stack-protector \
   -include $(SRC_DIR)/include/bits/compiler.h \

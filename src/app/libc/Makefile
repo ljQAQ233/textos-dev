@@ -1,12 +1,20 @@
 SRCS := $(wildcard *.c */*.c)
 SRCS := $(filter-out linker/%,$(SRCS))
+SRCS := $(filter-out crt1.c crtn.c crti.c, $(SRCS))
 
 BUILD := $(APP_OUTPUT)/$(notdir ${CURDIR})
 
 OBJS := $(addsuffix .o,${SRCS})
 OBJS := $(addprefix ${BUILD}/,${OBJS})
+CRTO := \
+	$(BUILD)/crt1.c.o \
+	$(BUILD)/crti.c.o \
+	$(BUILD)/crtn.c.o
+
+CFLAGS += -nostdinc -nostdlib
 
 all: $(BUILD)/cc \
+	$(CRTO) \
 	$(BUILD)/libc.a \
 	$(BUILD)/libc.so \
 	$(BUILD)/libdl.a \
@@ -43,8 +51,8 @@ $(BUILD)/libdl.o: linker/libdl.c linker/linker.c
 	@$(CC) $(CFLAGS) -c $< -o $@ -L$(BUILD) -lc -fPIC
 	@echo -e "\033[032m   CC  \033[0m $<"
 
-$(BUILD)/ld-textos.so: linker/ldso.c linker/linker.c
-	@$(CC) $(CFLAGS) $< -o $@ -static -L$(BUILD) -lc \
+$(BUILD)/ld-textos.so: linker/ldso.c linker/linker.c $(CRTO)
+	@$(CC) $(CFLAGS) $< $(CRTO) -o $@ -static -L$(BUILD) -lc \
 		-ffunction-sections -fdata-sections -Wl,--gc-sections
 	@echo -e "\033[032m   CC  \033[0m ldso -> $@"
 

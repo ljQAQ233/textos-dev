@@ -1,5 +1,8 @@
 #include <sys/cdefs.h>
 
-static void *dummy;
-__weak_alias(dummy, __init_array_start);
-__weak_alias(dummy, __init_array_end);
+asm(".section .init\n"
+    ".global _init\n"
+    "_init: push %rax");
+asm(".section .fini\n"
+    ".global _fini\n"
+    "_fini: push %rax");

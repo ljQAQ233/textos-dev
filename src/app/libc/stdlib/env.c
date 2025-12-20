@@ -4,7 +4,7 @@
 #include <malloc.h>
 #include <errno.h>
 
-char **__environ;
+char **__environ = 0;
 __weak_alias(__environ, environ);
 
 /**

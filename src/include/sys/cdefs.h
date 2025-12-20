@@ -20,4 +20,7 @@
 #define __weak_alias(_orig, _alias) \
   extern __typeof__(_orig) _alias __attribute__((weak, alias(#_orig)))
 
+#define __weak __attribute__((weak))
+#define __hidden __attribute__((__visibility__("hidden")))
+
 #endif
