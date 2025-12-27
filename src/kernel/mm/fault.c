@@ -59,8 +59,6 @@ __INTR_HANDLER(pagefault_handler)
 segv:
     if (i != 1)
     {
-        #include <textos/panic.h>
-        PANIC("SIGSEGV not handled\n");
         kill(tsk->pid, SIGSEGV);
     }
 }

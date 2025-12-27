@@ -261,15 +261,11 @@ int task_fork()
     return chd->pid; // 父进程返回子进程号
 }
 
-void task_exit(int pid, int val)
+void task_exit(int val)
 {
-    task_t *tsk = task_get(pid);
-    if (!tsk)
-        return ;
-
-    tsk->stat = TASK_DIE;
+    task_t *tsk = task_current();
+    tsk->stat = TASK_DIE; // TODO : ZOMBIE
     tsk->retval = val;
-
     task_t *prt = table[tsk->ppid];
     if (prt->stat == TASK_BLK && (prt->waitpid == tsk->pid || prt->waitpid == -1))
     {
@@ -277,6 +273,9 @@ void task_exit(int pid, int val)
         prt->waitpid = tsk->pid;
     }
     DEBUGK(K_TASK, "exit %d\n", tsk->pid);
+
+    if (tsk->pid == 1)
+        PANIC("init exited with %d!!!\n", val);
 
     task_schedule();
 }
@@ -452,8 +451,7 @@ __SYSCALL_DEFINE0(int, fork)
 
 __SYSCALL_DEFINE1(RETVAL(void), exit, int, stat)
 {
-    task_exit(task_current()->pid, stat);
-
+    task_exit(make_stat_exit(stat));
     __builtin_unreachable();
 }
 
