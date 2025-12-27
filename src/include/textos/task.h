@@ -103,7 +103,7 @@ int task_block(task_t *tsk, list_t *blist, int stat, u64 timeout);
 void task_unblock(task_t *tsk, int reason);
 int task_sleep(u64 ms, u64 *rms);
 
-void task_exit(int pid, int val);
+void task_exit(int val);
 int task_wait(int pid, int *stat, int opt, void *rusage);
 
 #define TASK_MAX 16

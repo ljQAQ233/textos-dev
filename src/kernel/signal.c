@@ -50,10 +50,13 @@ int sigismember(const sigset_t *set, int signum)
 
 static void sig_core(int sig)
 {
+    // NOTE: coredump not supported yet
+    task_exit(make_stat_signal(sig, 0));
 }
 
 static void sig_term(int sig)
 {
+    task_exit(make_stat_signal(sig, 0));
 }
 
 static void sig_ignore(int sig)
@@ -101,14 +104,13 @@ void __handle_signal(intr_frame_t *iframe)
     *sig &= ~tsk->sigmask;
     if (*sig == 0)
         return ;
+    if (!sigismember(sig, SIGKILL))
+        task_exit(make_stat_signal(SIGKILL, 0));
 
     for (int i = 1 ; i <= _NSIG ; i++) {
         if (!sigismember(sig, i))
             continue;
         sigdelset(sig, i);
-
-        if (i == SIGKILL)
-            task_exit(tsk->pid, ((SIGKILL | 128) << 8) | SIGKILL);
 
         sigaction_t *act = &tsk->sigacts[i-1];
         sighandler_t handler = act->sa_handler;
@@ -288,6 +290,7 @@ __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
      */
     if (sig == 0)
         return 0;
+    sigaddset(&ptsk->sigpend, sig);
     if (sig == SIGSTOP)
     {
         ptsk->stat = TASK_STP;
@@ -297,8 +300,11 @@ __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
     }
     if (sig == SIGKILL)
     {
-        // TODO: WAKEUP
-        PANIC("NOSYS\n");
+        int status = make_stat_signal(SIGKILL, 0);
+        if (ptsk->stat == TASK_SLP || ptsk->stat == TASK_BLK)
+            task_unblock(ptsk, status);
+        if (ptsk->stat == TASK_STP)
+            ptsk->stat = TASK_PRE;
     }
     if (sig == SIGCONT)
     {
@@ -306,6 +312,5 @@ __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
             ptsk->stat = TASK_PRE;
     }
 
-    sigaddset(&ptsk->sigpend, sig);
     return 0;
 }
