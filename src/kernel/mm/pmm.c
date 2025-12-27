@@ -23,7 +23,7 @@ static free_t _free;
 
    alloc  是在原有的基础上进行修改, 如果重映射还没完成, alloc 会将原来在已经分配页上的 节点向后移动一段
    alloc0 在重映射完成后, 是直接 malloc 一个新的节点, 原来的节点应该使用 delete0 来删掉
-   二者的行为在重映射完成之前没有任何的差异.
+   二者的行为在重映射完成之前没有任何的差异. 而 delete() 只是为了标识这个 node 已经被复用了.
 */
 
 static void *alloc_early(free_t *prev, size_t num) { return OFFSET(prev, num * PAGE_SIZ); }
@@ -80,59 +80,46 @@ addr_t pmm_allocpages(size_t num)
 
 void pmm_allochard(addr_t page, size_t num)
 {
+    ASSERTK((page & PAGE_MASK) == 0);
     if (num == 0)
         return;
-
     addr_t start = (addr_t)page;
     addr_t end = start + num * PAGE_SIZ;
-    free_t *n = &_free;
-    free_t *prev = &_free;
-    do
+    free_t *n = _free.next, *prev = &_free;
+    for ( ; n ; n = n->next, prev = prev->next)
     {
-        n = n->next;
-
-        addr_t ps = n->addr, pe = n->addr + n->pages * PAGE_SIZ;
-        if (pe < start || end < ps)
-            goto next;
-
-        if (start <= ps && pe <= end)
+        addr_t phy_start = n->addr;
+        addr_t phy_end   = n->addr + n->pages * PAGE_SIZE;
+        if (phy_end <= start || phy_start >= end)
+            continue;
+        if (phy_start < start && phy_end > end)
         {
+            // 分成两段, 先保留低地址段
+            n->pages = (start - phy_start) / PAGE_SIZE;
+            free_t *new = alloc0(n, n->pages);
+            new->addr = end;
+            new->pages = (phy_end - end) / PAGE_SIZE;
+            new->next = n->next;
+            n->next = new;
+        }
+        else if (phy_start >= start && phy_end <= end)
+        {
+            // 内存 区域 都被占用
             prev->next = n->next;
             delete0(n);
         }
-
-        if (start <= ps && ps < end)
+        else if (phy_start < start && phy_end > start)
         {
-            free_t *new = alloc0((free_t *)end, 0);
-
-            new->pages = (pe - end) / PAGE_SIZ;
-            new->next = n->next;
-            prev->next = new;
-
-            delete0(n);
+            // 内存 末尾和目标区域重叠
+            n->pages = (start - phy_start) / PAGE_SIZE;
         }
-        else if (start < pe && pe <= end)
+        else if (phy_start < end && phy_end > end)
         {
-            n->pages -= (pe - start) / PAGE_SIZ;
+            // 内存 起始和目标区域重叠
+            n->addr = end;
+            n->pages = (phy_end - end) / PAGE_SIZE;
         }
-        else if (ps < start && end < pe)
-        {
-            free_t *free0 = alloc0((free_t *)ps, 0);
-            free_t *free1 = alloc0((free_t *)end, 0);
-            size_t pg0 = (start - ps) / PAGE_SIZ;
-            size_t pg1 = (pe - end) / PAGE_SIZ;
-
-            free0->pages = pg0;
-            free1->pages = pg1;
-            free1->next = n->next;
-            free0->next = free1;
-            prev->next = free0;
-            delete0(n);
-        }
-
-    next:
-        prev = prev->next;
-    } while (n->next);
+    }
 }
 
 static bool _pmm_isfree(addr_t page, size_t num)
@@ -156,7 +143,7 @@ static bool _pmm_isfree(addr_t page, size_t num)
 
 void pmm_freepages(addr_t page, size_t num)
 {
-    page = (addr_t)page &~ PAGE_MASK;
+    ASSERTK((page & PAGE_MASK) == 0);
     ASSERTK(!_pmm_isfree(page, num));
     addr_t start = page;
     addr_t end = page + num * PAGE_SIZ;
@@ -331,6 +318,7 @@ void __pmm_pre()
     alloc0 = alloc_early;
     delete = delete_early;
     delete0 = delete_early;
+    pmm_allochard(0x1000, 63);
 }
 
 void __pmm_pre_mb()
