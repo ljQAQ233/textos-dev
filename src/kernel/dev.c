@@ -55,7 +55,7 @@ static void initnod(devst_t *dev)
     }
     vfs_mknod(path, makedev(dev->major, dev->minor), 0744 | mt);
 
-    DEBUGK(K_SYNC, "init dev at %s\n", path);
+    DEBUGK(K_INFO, "init dev at %s\n", path);
 
     if (dev->minor != 1)
         return;

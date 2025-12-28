@@ -34,7 +34,7 @@ void ktm_init()
 {
     if (hpet_is_long()) {
         get_us = (void *)hpet_get_us;
-        DEBUGK(K_INIT, "ktm : hpet used as tick source\n");
+        DEBUGK(K_INFO, "ktm : hpet used as tick source\n");
     } else {
         u64 s, t;
         s = read_tsc();
@@ -42,7 +42,7 @@ void ktm_init()
         t = read_tsc();
         tsc_divisor = (t - s + 1000) / 2000;
         get_us = (void *)tsc_get_us;
-        DEBUGK(K_INIT, "ktm : tsc used as tick source\n");
+        DEBUGK(K_INFO, "ktm : tsc used as tick source\n");
     }
 }
 
@@ -62,7 +62,7 @@ void ktm_dump(ktm_t *k)
 {
     size_t us = (k->t - k->s);
     size_t ms = (k->t - k->s) / 1000ull;
-    dprintk(K_SYNC,
+    DEBUGK(K_INFO,
       "ktm : [%s] spend %ums %uus (%llu ~ %llu)\n",
       k->label, ms, us, k->s, k->t
       );

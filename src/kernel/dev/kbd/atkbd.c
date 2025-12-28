@@ -124,6 +124,6 @@ void keyboard_init()
     dev->write = NULL;
     dev->type = DEV_CHAR;
     dev->subtype = DEV_KBD;
-    DEBUGK(K_INIT, "atkbd initialized!\n");
+    DEBUGK(K_INFO, "atkbd initialized!\n");
 }
 

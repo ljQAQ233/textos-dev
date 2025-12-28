@@ -3,6 +3,10 @@
 #include <textos/assert.h>
 #include <textos/klib/string.h>
 
+// disable pmm's log
+#undef K_LEVEL
+#define K_LEVEL 0
+
 static u64 page_total;
 static u64 page_free;
 
@@ -73,7 +77,7 @@ addr_t pmm_allocpages(size_t num)
     if (page)
     {
         page_free -= num;
-        DEBUGK(K_MM, "allocate pages ! - %p,%llu\n", page, num);
+        DEBUGK(K_TRACE, "allocate pages ! - %p,%llu\n", page, num);
     }
     return page;
 }
@@ -195,12 +199,12 @@ void pmm_freepages(addr_t page, size_t num)
     } while (n->next);
 
     page_free += num;
-    DEBUGK(K_MM, "free pages! - %p,%llu\n", page, num);
+    DEBUGK(K_TRACE, "free pages! - %p,%llu\n", page, num);
 }
 
 void pmm_init()
 {
-    DEBUGK(K_MM, "pages : - total(%llu), free(%llu)\n", page_total, page_free);
+    DEBUGK(K_INFO, "pages : - total(%llu), free(%llu)\n", page_total, page_free);
 }
 
 void __pmm_tovmm()
@@ -246,17 +250,18 @@ void __pmm_tovmm()
 
 void __kpg_dump(kpgs_t *kpg)
 {
+    DEBUGK(K_INFO, "dump kpg = %p\n", kpg);
     for (int i = 0;; i++, kpg++)
     {
         if (!kpg->va)
             break;
-        DEBUGK(K_INIT, "[#%2d] kpg %p -> %p | %d\n", i, kpg->phy, kpg->vrt, kpg->msiz);
+        DEBUGK(K_INFO | K_CONT, "[#%2d] kpg %p -> %p | %d\n", i, kpg->phy, kpg->vrt, kpg->msiz);
     }
 }
 
 void __pmm_pre()
 {
-    DEBUGK(K_INIT, "early-init physical memory!\n");
+    DEBUGK(K_INFO, "early-init physical memory!\n");
     if (bmode_get() == BOOT_EFI)
     {
         bconfig_t *b = binfo_get();
@@ -266,9 +271,10 @@ void __pmm_pre()
         free_t *n = &_free;
         mapinfo_t *info = m->map;
         EFI_MEMORY_DESCRIPTOR *desc = info->maps;
+        DEBUGK(K_INFO | K_CONT, "dump efi memory map :\n");
         for (int i = 0; i < info->mapcount; i++, desc = OFFSET(desc, info->descsiz))
         {
-            DEBUGK(K_INIT, "[#%02d] %p | %p | %s\n", i, desc->PhysicalStart, desc->NumberOfPages,
+            DEBUGK(K_INFO | K_CONT, "[#%02d] %p | %p | %s\n", i, desc->PhysicalStart, desc->NumberOfPages,
                 get_uefi_mtstr(desc->Type));
             page_total += desc->NumberOfPages;
 
@@ -297,9 +303,10 @@ void __pmm_pre()
         multiboot_info_t *b = binfo_get();
         multiboot_memory_map_t *m = (void *)(uintptr_t)b->mmap_addr;
         int mapcount = b->mmap_length / sizeof(multiboot_memory_map_t);
+        DEBUGK(K_INFO | K_CONT, "dump multiboot memory map :\n");
         for (int i = 0 ; i < mapcount ; i++, m++)
         {
-            DEBUGK(K_INIT, "[#%02d] %p | %p | %d\n", i, m->addr, m->len / PAGE_SIZE, m->type);
+            DEBUGK(K_INFO | K_CONT, "[#%02d] %p | %p | %d\n", i, m->addr, m->len / PAGE_SIZE, m->type);
             page_total += m->len / PAGE_SIZE;
             if (!m->len || !m->addr)
                 continue;

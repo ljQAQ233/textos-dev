@@ -95,8 +95,8 @@ static void rbcb(int d, rbnode_t *ptr)
 {
     vm_area_t *vma = CR(ptr, vm_area_t, node);
     for (int i = 0 ; i < d ; i ++)
-        dprintk(K_LOGK, " ");
-    dprintk(K_LOGK, "- [%d] %p\n", ptr->color, vma->s);
+        dprintk(" ");
+    dprintk("- [%d] %p\n", ptr->color, vma->s);
 }
 
 #include <textos/assert.h>
@@ -107,7 +107,7 @@ void vmm_sp_display(vm_space_t *sp)
     LIST_FOREACH(ptr, &sp->list)
     {
         vm_area_t *vma = CR(ptr, vm_area_t, list);
-        DEBUGK(K_LOGK, "%p-%p prot=%x\n", vma->s, vma->t, vma->prot);
+        DEBUGK(K_DEBUG, "%p-%p prot=%x\n", vma->s, vma->t, vma->prot);
         ASSERTK(!!vma->t);
     }
     rbtree_foreach(&sp->tree, rbcb, RB_PREORDER);

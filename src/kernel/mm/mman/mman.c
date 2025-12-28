@@ -62,7 +62,7 @@ __SYSCALL_DEFINE6(void *, mmap, void *, addr, size_t, len, int, prot, int, flgs,
     else
     {
         ret = mmap_file(&vm);
-        DEBUGK(K_LOGK, "mmap file %s -> %p\n", ((node_t *)vm.fnode)->name, ret);
+        DEBUGK(K_DEBUG, "mmap file %s -> %p\n", ((node_t *)vm.fnode)->name, ret);
     }
 
 done:

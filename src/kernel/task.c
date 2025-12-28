@@ -272,7 +272,7 @@ void task_exit(int val)
         task_unblock(prt, 0);
         prt->waitpid = tsk->pid;
     }
-    DEBUGK(K_TASK, "exit %d\n", tsk->pid);
+    DEBUGK(K_INFO, "exit %d\n", tsk->pid);
 
     if (tsk->pid == 1)
         PANIC("init exited with %d!!!\n", val);

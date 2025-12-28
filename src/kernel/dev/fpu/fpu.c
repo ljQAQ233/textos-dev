@@ -75,7 +75,6 @@ void fpu_init()
     write_cr0(read_cr0() | CR0_NE);
     intr_register(INT_MF, math_handler);
     intr_register(INT_NM, fpu_handler);
-
-    DEBUGK(K_INIT, "fpu initialized!\n");
+    DEBUGK(K_INFO, "fpu initialized!\n");
 }
 

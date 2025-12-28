@@ -28,7 +28,7 @@ __INTR_HANDLER(pagefault_handler)
     addr_t addr = read_cr2();
     vm_space_t *sp = tsk->vsp;
     vm_area_t *vma = vmm_sp_containing(sp, addr);
-    DEBUGK(K_MM, "page fault at %p (err=%x)\n", addr, errcode);
+    DEBUGK(K_TRACE, "page fault at %p (err=%x)\n", addr, errcode);
     int i = 0;
     if (!vma)
         goto segv;

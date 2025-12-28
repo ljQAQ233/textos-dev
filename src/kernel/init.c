@@ -15,8 +15,7 @@ static bmode_t bmode;
 
 void kernel_init(long magic, long info)
 {
-    dprintk_set(K_ALL & ~K_SYNC);
-    DEBUGK(K_INIT, "kernel_init(%#lx, %#lx)\n", magic, info);
+    DEBUGK(K_INFO, "kernel_init(%#lx, %#lx)\n", magic, info);
     if (magic == MULTIBOOT_BOOTLOADER_MAGIC)
     {
         binfo = (void *)info;

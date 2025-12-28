@@ -117,6 +117,7 @@ void __uefi_tovmm()
 
     addr_t vs = __uefi_misc;
     EFI_MEMORY_DESCRIPTOR *desc = OFFSET(info->maps, info->descsiz);
+    DEBUGK(K_INFO, "try to remap uefi\n");
     for (int i = 1 ; i < info->mapcount ; i++) {
         if (desc->Attribute & EFI_MEMORY_RUNTIME) {
             desc->VirtualStart = vs;
@@ -125,7 +126,7 @@ void __uefi_tovmm()
             size_t real = DIV_ROUND_UP(num * EFI_PAGE_SIZE, PAGE_SIZE);
             u16    mapflg = PE_P | PE_RW;    // TODO
             vmap_map(ps, vs, real, mapflg);
-            DEBUGK(K_INIT, "[#%02d] runtime region detected\n", i);
+            DEBUGK(K_INFO | K_CONT, "[#%02d] runtime region detected\n", i);
 
             vs += desc->NumberOfPages * PAGE_SIZ;
             if (vs >= __uefi_max)
@@ -144,7 +145,7 @@ void __uefi_tovmm()
     if (EFI_ERROR(stat))
         PANIC("failed to SetVirtualAddressMap - %s\n", get_uefi_statstr(stat));
     else
-        DEBUGK(K_INIT, "SetVirtualAddressMap() okay - %s\n", get_uefi_statstr(stat));
+        DEBUGK(K_INFO, "SetVirtualAddressMap() okay - %s\n", get_uefi_statstr(stat));
     
     void *newrt = malloc(sizeof(*rt));
     bconfig->runtime = memcpy(newrt, rt, sizeof(*rt));

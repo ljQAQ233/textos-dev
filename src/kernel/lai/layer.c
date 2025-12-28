@@ -14,14 +14,7 @@ void laihost_log(int level, const char *msg)
 __attribute__((noreturn))
 void laihost_panic(const char *msg)
 {
-    dprintk(K_SYNC, "panic!!! - %s", msg);
-    __asm__ volatile(
-        "cli\n"
-        "hlt\n"
-    );
-
-    // unreachable
-    while (true);
+    PANIC("lai reported - %s\n", msg);
 }
 
 #include <io.h>

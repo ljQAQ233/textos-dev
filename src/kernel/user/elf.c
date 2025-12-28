@@ -84,10 +84,10 @@ static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
     lp_pages = DIV_ROUND_UP(lp_max - lp_min, PAGE_SIZE);
     if (isdyn)
         base = (void *)vmm_fitaddr(0, lp_pages);
-    DEBUGK(K_LOGK, "elf file %s\n", n->name);
-    DEBUGK(K_LOGK, "total %d segs\n", lp_segs);
-    DEBUGK(K_LOGK, "interpreter in %s\n", exe->interp ? exe->interp : "none");
-    DEBUGK(K_LOGK, "taken up %d pages at %p\n", lp_pages, base);
+    DEBUGK(K_INFO, "elf file %s\n", n->name);
+    DEBUGK(K_INFO, "total %d segs\n", lp_segs);
+    DEBUGK(K_INFO, "interpreter in %s\n", exe->interp ? exe->interp : "none");
+    DEBUGK(K_INFO, "taken up %d pages at %p\n", lp_pages, base);
     for ( ; lp_okay < eh->e_phnum ; lp_okay++)
     {
         Elf64_Phdr *ph = pmap + lp_okay * eh->e_phentsize;
@@ -134,7 +134,7 @@ static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
             char *zero = base + ph->p_vaddr + ph->p_filesz;
             memset(zero, 0, ph->p_memsz - ph->p_filesz);
         }
-        DEBUGK(K_LOGK, "  %p -> %p, size = %lx, prot = %x\n", foff, base + moff, msize, prot);
+        DEBUGK(K_INFO, "  %p -> %p, size = %lx, prot = %x\n", foff, base + moff, msize, prot);
     }
 
     exe->base = base;

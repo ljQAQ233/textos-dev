@@ -10,7 +10,6 @@ size_t printk(const char *format, ...)
     va_list args;
     va_start(args, format);
     size_t i = vsprintf(buf, format, args);
-    dprintk(K_INIT, buf);
     __printkcon(buf);
     va_end(args);
     return i;

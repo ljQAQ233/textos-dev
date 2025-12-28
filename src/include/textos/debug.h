@@ -1,35 +1,40 @@
 #ifndef __DEBUG_H__
 #define __DEBUG_H__
 
-void dprintk(int lv, const char *format, ...);
+void dprintk(const char *format, ...);
 
-#define K_NONE  0         // none
-#define K_LOGK  (1 << 0)  // log
-#define K_WARN  (1 << 1)  // warn
-#define K_ERRO  (1 << 2)  // error
-#define K_SYNC  (1 << 3)  // sync to console
-#define K_INIT  (1 << 4)  // initializer
+#define K_FATAL 0 // Fatal error, program cannot continue
+#define K_ERROR 1 // Error, something went wrong
+#define K_WARN  2 // Warning, unusual but recoverable
+#define K_INFO  3 // Info, normal but important messages
+#define K_DEBUG 4 // Debug, for debugging purposes
+#define K_TRACE 5 // Trace, very detailed debug information
 
-#define K_MM    (1 << 5)  // memory manager
-#define K_TASK  (1 << 6)  // task manager
-#define K_DEV   (1 << 7)  // device
-#define K_FS    (1 << 8)  // file system
-#define K_PIC   (1 << 9)  // pic / apic
-#define K_KBD   (1 << 10) // keyboard
-#define K_PCI   (1 << 11) // pci bus / dev
-#define K_NET   (1 << 12) // network
+#define K_LVMSK 0xff     // level mask
+#define K_CONT  (1 << 8) // it's a continuation
+#define K_WORDY (1 << 9) // print file and line number
 
-#define K_ALL   ((unsigned)-1)
+#ifndef K_LEVEL
+    #define K_LEVEL (K_DEBUG | K_WORDY)
+#endif
 
-int dprintk_set(int mask);
+#define _STR(x) #x
+#define STR(x)  _STR(x)
 
-void debugk(int lv, const char *file, const int line, const char *format, ...);
-
-#if !defined(kconf_release)
-    #define DEBUGK(lv, format, ARGS...) \
-            debugk(lv, __FILE__, __LINE__, format, ##ARGS)
+#ifndef CONFIG_RELEASE
+    #define DEBUGK(lv, format, ARGS...)                                 \
+        do {                                                            \
+            if (((lv) & K_LVMSK) <= K_LEVEL) {                          \
+                if ((((lv) | K_LEVEL) & K_WORDY)) {                     \
+                    dprintk("[" __FILE__ ":" STR(__LINE__) "] ", \
+                            ##ARGS);                                    \
+                }                                                       \
+                if ((lv) & K_CONT) dprintk(" | ");                      \
+                dprintk(format, ##ARGS);                                \
+            }                                                           \
+        } while (0)
 #else
-    #define DEBUGK(format, ARGS...) 
+    #define DEBUGK(lv, format, ARGS...)
 #endif
 
 #endif
