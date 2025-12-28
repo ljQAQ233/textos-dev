@@ -129,7 +129,7 @@ void vmap_init()
     // set pgt into vrt mode
     pml4 = entryget(0, L_PML4);
     write_cr3(cr3);
-    DEBUGK(K_INIT, "kpgt - pml4 = %p\n", pml4);
+    DEBUGK(K_INFO, "kpgt - pml4 = %p\n", pml4);
 }
 
 extern void __uefi_tovmm();
@@ -150,7 +150,7 @@ void vmap_initvm()
     for (int i = 0; i < 256; i++)
         if (i != R_IDX)
             pml4[i] &= ~PE_P;
-    DEBUGK(K_INIT, "remap completed!\n");
+    DEBUGK(K_INFO, "remap completed!\n");
 }
 
 addr_t get_kpgt()

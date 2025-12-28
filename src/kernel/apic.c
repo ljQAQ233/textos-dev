@@ -104,14 +104,14 @@ void x2apic_enable()
 void apic_init ()
 {
     if (lapic == NULL || ioapic == NULL)
-        PANIC ("invalid lapic or ioapic. not detected\n");
+        PANIC("invalid lapic or ioapic. not detected\n");
 
     pic_disable(); // 某种意义上,这是废话,大家不要理它...
     
     // write_msr (IA32_APIC_BASE, ((u64)lapic << 12) | (1 << 11));
 
     if (!x2apic_detect())
-        PANIC ("x2apic is not supported!\n");
+        PANIC("x2apic is not supported!\n");
     else
         x2apic_enable();
 
@@ -136,7 +136,7 @@ void apic_init ()
     lapic_set(MSR_TICR, 0xFFFFFFFF - lapic_get(MSR_TCCR)); // 计算 10ms 的 ticks
     lapic_set(MSR_TM, S_TM(TM_PERIODIC, INT_TIMER));       // 步入正轨, 每 10ms 产生一次时钟中断
     intr_register (INT_TIMER, timer_handler);              // 注册中断函数
-    DEBUGK(K_INIT, "apic initialized\n");
+    DEBUGK(K_INFO, "apic initialized\n");
 }
 
 void lapic_sendeoi()
@@ -191,6 +191,6 @@ void ioapic_rteset(u8 irq, u64 rte)
     int reg = irq * 2 + IOREDTBL;
     ioapic_write(reg, rte & 0xffffffff);
     ioapic_write(reg + 1, rte >> 32);
-    DEBUGK(K_PIC, "ioapic set : [#%x] = %016llx\n", irq, rte);
+    DEBUGK(K_DEBUG, "ioapic set : [#%x] = %016llx\n", irq, rte);
 }
  

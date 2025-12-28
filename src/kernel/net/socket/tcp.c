@@ -396,7 +396,7 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
         m->len -= cpy;
         m->phy += cpy;
         m->head += cpy;
-        DEBUGK(K_NET, "tcp rcvd seqnr=%u cpysz=%u psh=%d\n", m->id, cpy, hdr->flgs & TCP_F_PSH);
+        DEBUGK(K_INFO, "tcp rcvd seqnr=%u cpysz=%u psh=%d\n", m->id, cpy, hdr->flgs & TCP_F_PSH);
         if (!m->len)
         {
             list_remove(ptr);
@@ -447,7 +447,7 @@ static void tcp_tx_agree(tcp_t *tcp)
         tcp->raddr, tcp->lport, tcp->rport,
         iss, tcp->rcv_nxt,
         TCP_F_SYN | TCP_F_ACK, TCP_WINDOW, 0);
-    DEBUGK(K_NET, "agreed - client on port %d\n", tcp->rport);
+    DEBUGK(K_INFO, "agreed - client on port %d\n", tcp->rport);
 }
 
 int tcp_tx_reset(tcpseg_t *seg)
@@ -742,7 +742,7 @@ int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
 {
     if (tcp->rcv_nxt < seg->seqnr)
     {
-        DEBUGK(K_NET, "tcp fast-rexmit applied - %#08x\n", tcp->rcv_nxt);
+        DEBUGK(K_INFO, "tcp fast-rexmit applied - %#08x\n", tcp->rcv_nxt);
         tcp_tx_ack(tcp);
         return 1;
     }

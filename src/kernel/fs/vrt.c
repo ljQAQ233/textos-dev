@@ -247,7 +247,7 @@ int vfs_open(node_t *parent, const char *path, u64 args, int mode, node_t **node
 end:
     if (!ret)
         *node = res;
-    DEBUGK(K_FS, "open %s = %d\n", path, ret);
+    DEBUGK(K_INFO, "open %s = %d\n", path, ret);
     return ret;
 }
 

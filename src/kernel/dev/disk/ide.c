@@ -409,10 +409,10 @@ static void init(int x, u16 bmbase)
     dev->pdata = pri;
     dev_register(NULL, dev);
 
-    DEBUGK(K_DEV | K_SYNC, "disk : %s\n", dev->name);
-    DEBUGK(K_DEV | K_SYNC, "disk sn : %s\n", pri->serial_num);
-    DEBUGK(K_DEV | K_SYNC, "disk model : %s\n", pri->model_num);
-    DEBUGK(K_DEV | K_SYNC, "iobase = %x, bmbase = %x\n", pri->iobase, pri->bmbase);
+    DEBUGK(K_INFO, "disk : %s\n", dev->name);
+    DEBUGK(K_INFO | K_CONT, "disk sn : %s\n", pri->serial_num);
+    DEBUGK(K_INFO | K_CONT, "disk model : %s\n", pri->model_num);
+    DEBUGK(K_INFO | K_CONT, "iobase = %x, bmbase = %x\n", pri->iobase, pri->bmbase);
 }
 
 void ide_init()

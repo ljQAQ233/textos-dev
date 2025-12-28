@@ -52,11 +52,11 @@ void net_rx_icmp(nif_t *n, mbuf_t *m, void *iph)
     switch (hdr->type)
     {
         case ICMP_REPLY:
-            DEBUGK(K_NET, "ICMP RX reply!!!\n");
+            DEBUGK(K_INFO, "ICMP RX reply!!!\n");
             break;
 
         case ICMP_REQUEST:
-            DEBUGK(K_NET, "ICMP RX request echo\n");
+            DEBUGK(K_INFO, "ICMP RX request echo\n");
             net_rp_icmp(n, m, iphdr->sip);
             break;
     }

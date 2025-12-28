@@ -212,7 +212,7 @@ void *acpi_regtab(hdr_t *hdr)
     list_insert(&kacpi, &t->list);
 
     char *sig = (char *)(&t->sign);
-    DEBUGK(K_INIT, "ACPI REG %c%c%c%c\n", sig[0], sig[1], sig[2], sig[3]);
+    DEBUGK(K_INFO, "ACPI REG %c%c%c%c\n", sig[0], sig[1], sig[2], sig[3]);
     return vpg;
 }
 

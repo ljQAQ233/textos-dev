@@ -1695,7 +1695,7 @@ superblk_t *__fs_init_fat32(devst_t *dev)
     unsigned fat_sec = rec->rev_num;
     unsigned data_sec = fat_sec + rec->fat_num * fat_siz;
     unsigned root_sec = (rec->root_clst - 2) * rec->sec_perclst + data_sec;
-    DEBUGK(K_INIT,
+    DEBUGK(K_INFO,
            "fat32 -> tab : %#x (%u,%u) , first_data_sec : %#x , root_sec : %#x "
            "{%d}\n",
            fat_sec, rec->fat_num, fat_siz, data_sec, root_sec,

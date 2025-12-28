@@ -1,14 +1,17 @@
 #ifndef __ASSERT_H__
 #define __ASSERT_H__
 
-void assertk (
-        const char *file,
-        const u64  line,
-        const bool state,
-        const char *expr
-        );
+#include <textos/panic.h>
 
-#define ASSERTK(expr) \
-            assertk (__FILE__, __LINE__, (expr), #expr)
+#ifndef CONFIG_RELEASE
+    #define assert(expr)                \
+        do {                            \
+            if (!(expr)) {              \
+                PANIC("assert failed"); \
+            }                           \
+        } while (0)
+#endif
+
+#define ASSERTK(expr) assert(expr)
 
 #endif

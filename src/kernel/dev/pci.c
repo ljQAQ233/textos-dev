@@ -234,8 +234,7 @@ static void scan_dev(u8 bus, u8 slot)
             break;
 
         u16 class = get_code(bus, slot, func);
-
-        dprintk(K_PCI, " [%u/%u/%d] %x %x %s\n", bus, slot, func, vendor, devid, get_classname(class));
+        DEBUGK(K_INFO | K_CONT, " [%u/%u/%d] %x %x %s\n", bus, slot, func, vendor, devid, get_classname(class));
 
         pci_idx_t *idx = malloc(sizeof(pci_idx_t));
         idx->bus = bus;
@@ -256,7 +255,7 @@ static void scan_bus(u8 bus)
 
 static void scan_all()
 {
-    DEBUGK(K_PCI, "scanning pci...\n");
+    DEBUGK(K_INFO, "scanning pci...\n");
     u8 type = get_hdrtype(0, 0, 0);
     if ((type & 0x80) == 0)
         scan_bus(0);

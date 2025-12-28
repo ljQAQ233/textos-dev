@@ -413,7 +413,7 @@ __SYSCALL_DEFINE1(int, close, int, fd)
     
     free(file);
     task_current()->files[fd] = NULL;
-    dprintk(K_INIT, "task[#%d] close %d\n", task_current()->pid, fd);
+    DEBUGK(K_TRACE, "task[#%d] close %d\n", task_current()->pid, fd);
     return ret;
 }
 

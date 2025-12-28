@@ -43,4 +43,5 @@ AccessModifierOffset: -4
 ColumnLimit: 80
 
 SortIncludes: false
-
+IndentPPDirectives: BeforeHash
+PPIndentWidth: 4

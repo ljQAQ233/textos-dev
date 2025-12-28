@@ -20,7 +20,7 @@ void mycpu_init()
         get_cpu_base(i) = (addr_t)(base - __mycpu_start);
         get_cpu_var(i, cpu_id) = i;
         get_cpu_var(i, cpu_kstk) = (addr_t)vmm_allocpages(8, PE_P | PE_RW);
-        DEBUGK(K_LOGK, "mycpu[#%d] base at %p\n", i, base);
+        DEBUGK(K_DEBUG, "mycpu[#%d] base at %p\n", i, base);
     }
     arch_mycpu_init();
 }

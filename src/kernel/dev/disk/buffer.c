@@ -156,5 +156,5 @@ void buffer_init()
 {
     list_init(&fre);
     lock_init(&lkall);
-    DEBUGK(K_INIT, "buffer initialized!\n");
+    DEBUGK(K_INFO, "buffer initialized!\n");
 }

@@ -540,7 +540,7 @@ void e1000_init()
     }
     
     e->eeprom = eeprom_detect(e);
-    DEBUGK(K_INIT,
+    DEBUGK(K_INFO,
       "E1000 - mmio = %d, eeprom = %d, e1000e = %d\n",
       e->mmio, e->eeprom, e->e1000e);
 
@@ -549,7 +549,7 @@ void e1000_init()
     pci_set_busmaster(idx);
 
     mac_init(e);
-    DEBUGK(K_INIT,
+    DEBUGK(K_INFO,
       "E1000 - MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
       e->nif.mac[0], e->nif.mac[1], e->nif.mac[2],
       e->nif.mac[3], e->nif.mac[4], e->nif.mac[5]);

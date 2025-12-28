@@ -7,6 +7,7 @@
 #include <textos/base.h>
 
 #include <textos/debug.h>
+#include <textos/assert.h>
 
 #define __kern_gfx_base   0xffff8a0000000000ULL
 #define __kern_gfx_maxsz  0x0000010000000000ULL
