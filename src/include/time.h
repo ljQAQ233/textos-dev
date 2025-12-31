@@ -12,6 +12,8 @@ __BEGIN_DECLS
 #include <bits/null.h>
 #include <bits/alltypes.h>
 
+time_t time(time_t /* _Nullable */ *tp);
+
 int nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
 
 __END_DECLS

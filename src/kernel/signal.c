@@ -229,8 +229,8 @@ __SYSCALL_DEFINE3(int, sigaction, int, signum, const sigaction_t *, act, sigacti
 __SYSCALL_DEFINE3(int, sigprocmask, int, how, const sigset_t *, set, sigset_t *, oset)
 {
     task_t *tsk = task_current();
-    if (oset)
-        *oset = tsk->sigmask;
+    if (oset) *oset = tsk->sigmask;
+    if (!set) return 0;
 
     switch (how) {
         case SIG_BLOCK:

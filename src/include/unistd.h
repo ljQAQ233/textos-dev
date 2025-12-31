@@ -111,6 +111,11 @@ extern char *optarg;
 extern int optind, opterr, optopt;
 int getopt(int __argc, char *__argv[], const char *__optstring);
 
+int isatty(int __fd);
+
+// TODO
+unsigned alarm(unsigned __seconds);
+
 __END_DECLS
 
 #endif

@@ -501,17 +501,19 @@ pid_t getppid()
     return syscall(SYS_getppid);
 }
 
-time_t time(time_t *tp)
-{
-    return syscall(SYS_time);
-}
-
+/* sys/time.h */
 int getttimeofday(struct timeval *tp, void *restrict tzp)
 {
     return syscall(SYS_gettimeofday, tp, tzp);
 }
 
 #include <time.h>
+
+/* time.h */
+time_t time(time_t *tp)
+{
+    return syscall(SYS_time);
+}
 
 int nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
 {
