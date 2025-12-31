@@ -65,26 +65,40 @@ int strcmp(const char* str1,const char *str2)
 */
 char *strchr(const char *str, int c)
 {
-    while (*str) {
+    do {
         if (*str == (char)c)
             return (char *)str;
-        str++;
-    }
-    if (c == '\0')
-        return (char *)str;
-
+    } while (*str++);
     return NULL;
 }
 
-char *strchrnul (const char *str, int c)
+char *strrchr(const char *str, int c)
 {
-    while (*str) {
+    char *res = NULL;
+    do {
+        if (*str == (char)c)
+            res = (char *)str;
+    } while (*str++);
+    return res;
+}
+
+char *strchrnul(const char *str, int c)
+{
+    do {
         if (*str == (char)c)
             return (char *)str;
-        str++;
-    }
+    } while (*str++);
+    return (char *)(str - 1);
+}
 
-    return (char *)str;
+char *strrchrnul(const char *str, int c)
+{
+    const char *r = NULL;
+    do {
+        if (*str == (char)c)
+            r = str;
+    } while (*str++);
+    return (char *)(r ? r : str - 1);
 }
 
 char *strstr(const char *haystack, const char *needle)

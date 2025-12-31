@@ -53,8 +53,8 @@ void _start()
     chown("/mnt/dev/null", 0, 0);
     chmod("/mnt/dev/null", 0000);
 
-    // invoke page fault
-    *((volatile int *)NULL);
+    // // invoke page fault
+    // *((volatile int *)NULL);
 
     exec("/dev/tty1");
     exec("/dev/ttyS0");
