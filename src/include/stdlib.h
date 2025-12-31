@@ -29,6 +29,8 @@ int putenv(char *__str);
 int unsetenv(const char *__name);
 char *getenv(const char *__name);
 
+_Noreturn void abort();
+
 __END_DECLS
 
 #endif

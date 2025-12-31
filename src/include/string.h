@@ -44,8 +44,12 @@ char *strcat(char* __dest, const char* __src);
   occurrence of the character `c` in the string `str`
 */
 char *strchr(const char *__str, int __c);
-
+char *strrchr(const char *__str, int __c);
 char *strchrnul(const char *__str, int __c);
+
+#ifdef _GNU_SOURCE
+char *strrchrnul(const char *__str, int __c);
+#endif
 
 char *strstr(const char *__haystack, const char *__needle);
 
