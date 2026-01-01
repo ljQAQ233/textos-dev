@@ -27,7 +27,7 @@ static void brkarg(char **arr)
     free(arr);
 }
 
-#define N (sizeof(long)) // alignment
+#define N (sizeof(void *)) // alignment
 
 static inline int align(int x)
 {
@@ -67,19 +67,26 @@ typedef struct
 
 // F: force (write even if V is zero)
 // T: auxv entry type / V: value
-#define _PUT(F, T, V) \
-    if (F || V) {             \
-        sp -= sizeof(auxv_t); \
-        auxv_t *a = sp;       \
-        a->t = T, a->v = V; }
-#define PUT(F, T, V) _PUT(F, T, (uintptr_t)(V))
+// DO: do put it into stack
+#define _PUT(F, T, V, DO)       \
+    if (F || V) {               \
+        sp -= sizeof(auxv_t);   \
+        if (DO) {               \
+            auxv_t *a = sp;     \
+            a->t = T, a->v = V; \
+        }                       \
+    }
+#define PUT(F, T, V) _PUT(F, T, (uintptr_t)(V), !!put)
 
-static void *auxv(void *sp, exeinfo_t *exe)
+static void *auxv(void *sp, exeinfo_t *exe, int put)
 {
+    void *osp = sp; // old record
     char *a_path = sp -= align(strlen(exe->path));
     char *a_arch = sp -= align(strlen(ARCH_STRING));
-    strcpy(a_path, exe->path);
-    strcpy(a_arch, ARCH_STRING);
+    if (put) {
+        strcpy(a_path, exe->path);
+        strcpy(a_arch, ARCH_STRING);
+    }
 
     task_t *tsk = task_current();
     PUT(1, AT_NULL, 0);
@@ -116,12 +123,13 @@ static void *build(void *sp, char *const argv[], char *const envp[], exeinfo_t *
     sp -= len;
     str_argv = sp;
 
+    int lauxv = sp - auxv(sp, exe, 0);
     int rem = 1 + nargc + 1 + nenvc + 1;
-    if ((((addr_t)sp - rem * N) & 0xf) != 0)
+    if ((((addr_t)sp - rem * N - lauxv) & 0xf) != 0)
         sp -= N;
     
     // auxv
-    sp = auxv(sp, exe);
+    sp = auxv(sp, exe, 1);
     // copy
     sp -= N * (nenvc + 1);
     nenvp = sp;
@@ -133,6 +141,7 @@ static void *build(void *sp, char *const argv[], char *const envp[], exeinfo_t *
 
     sp -= N * 1; // argc
     (*(long *)sp) = nargc;
+    ASSERTK(((addr_t)sp & 0xf) == 0);
 
     return sp;
 }
@@ -184,6 +193,7 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     sp = bp = stack();
     sp = build(sp, argvk, envpk, &info);
 
+    task_reset_allsigs(curr);
     curr->init.main = info.entry;
     curr->brk = (addr_t)heap();
     brkarg(argvk);

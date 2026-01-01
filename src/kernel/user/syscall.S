@@ -2,6 +2,8 @@
 .extern __handle_signal
 .extern current_istk
 .extern current_oldrsp
+.extern task_stime_enter
+.extern task_stime_exit
 
 .globl msyscall_exit
 .globl msyscall_handler
@@ -33,6 +35,7 @@ msyscall_handler:
     pushq %r13
     pushq %r14
     pushq %r15
+    call task_stime_enter
 
     mov 15 * 8(%rsp), %rdi
     mov 16 * 8(%rsp), %rsi
@@ -40,6 +43,7 @@ msyscall_handler:
     call syscall_handler
 
 msyscall_exit:
+    call task_stime_exit
     popq %r15
     popq %r14
     popq %r13

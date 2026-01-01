@@ -502,7 +502,7 @@ pid_t getppid()
 }
 
 /* sys/time.h */
-int getttimeofday(struct timeval *tp, void *restrict tzp)
+int gettimeofday(struct timeval *tp, void *restrict tzp)
 {
     return syscall(SYS_gettimeofday, tp, tzp);
 }

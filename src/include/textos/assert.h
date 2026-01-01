@@ -4,11 +4,11 @@
 #include <textos/panic.h>
 
 #ifndef CONFIG_RELEASE
-    #define assert(expr)                \
-        do {                            \
-            if (!(expr)) {              \
-                PANIC("assert failed"); \
-            }                           \
+    #define assert(expr)                      \
+        do {                                  \
+            if (!(expr)) {                    \
+                PANIC("assert failed " #expr); \
+            }                                 \
         } while (0)
 #endif
 

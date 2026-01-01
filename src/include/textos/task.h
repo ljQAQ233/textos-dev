@@ -16,6 +16,7 @@ typedef struct
     u64  rip;
 } task_frame_t;
 
+#include <bits/rusage.h>
 #include <textos/file.h>
 #include <textos/ktimer.h>
 #include <textos/signal.h>
@@ -67,6 +68,10 @@ typedef struct task
 
     int retval;
     int waitpid;
+    useconds_t utime;
+    useconds_t stime;
+    useconds_t _ulast;
+    useconds_t _slast;
 
     ktimer_t btmr;
     list_t blist;
@@ -95,6 +100,7 @@ task_t *task_get(int pid);
 #define TC_TSK1 (1 << 1) // init proc
 #define TC_NINT (1 << 2) // mask interrupt :(
 
+void task_reset_allsigs(task_t *tsk);
 task_t *task_create(void *main, int args);
 
 int task_fork();
@@ -104,7 +110,12 @@ void task_unblock(task_t *tsk, int reason);
 int task_sleep(u64 ms, u64 *rms);
 
 void task_exit(int val);
-int task_wait(int pid, int *stat, int opt, void *rusage);
+int task_wait(int pid, int *stat, int opt, struct rusage *ru);
+
+/* mark stime's start and end */
+void task_stime_enter();
+void task_stime_exit();
+void task_look_rusage(task_t *tsk, struct rusage *ru);
 
 #define TASK_MAX 16
 

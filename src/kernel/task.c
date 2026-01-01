@@ -103,7 +103,15 @@ task_frame_t *build_tframe (task_t *tsk, void *stack, int args)
     return tsk->frame = frame;
 }
 
-task_t *task_create (void *main, int args)
+void task_reset_allsigs(task_t *tsk)
+{
+    tsk->sigcurr = 0;
+    tsk->sigpend = 0;
+    tsk->sigmask = 0;
+    memset(tsk->sigacts, 0, sizeof(tsk->sigacts));
+}
+
+task_t *task_create(void *main, int args)
 {
     task_t *tsk = _task_create(args);
 
@@ -140,14 +148,14 @@ task_t *task_create (void *main, int args)
     tsk->vsp = vmm_new_space(0);
     tsk->istk = (addr_t)istack;
 
+    tsk->utime = 0;
+    tsk->stime = 0;
+    tsk->_ulast = 0;
+    tsk->_slast = arch_us_ran();
+
     for (int i = 0 ; i < MAX_FILE ; i++)
         tsk->files[i] = NULL;
-
-    tsk->sigcurr = 0;
-    tsk->sigpend = 0;
-    tsk->sigmask = 0;
-    memset(tsk->sigacts, 0, sizeof(tsk->sigacts));
-
+    task_reset_allsigs(tsk);
     return tsk;
 }
 
@@ -257,6 +265,11 @@ int task_fork()
 
     chd->init = prt->init;
     chd->did_exec = false;
+    chd->utime = 0;
+    chd->stime = 0;
+    chd->_ulast = 0;
+    chd->_slast = arch_us_ran();
+    DEBUGK(K_TRACE, "fork %d -> child=%d\n", prt->pid, chd->pid);
 
     return chd->pid; // 父进程返回子进程号
 }
@@ -272,7 +285,7 @@ void task_exit(int val)
         task_unblock(prt, 0);
         prt->waitpid = tsk->pid;
     }
-    DEBUGK(K_INFO, "exit %d\n", tsk->pid);
+    DEBUGK(K_TRACE, "exit %d\n", tsk->pid);
 
     if (tsk->pid == 1)
         PANIC("init exited with %d!!!\n", val);
@@ -280,7 +293,7 @@ void task_exit(int val)
     task_schedule();
 }
 
-int task_wait(int pid, int *stat, int opt, void *rusage)
+int task_wait(int pid, int *stat, int opt, struct rusage *ru)
 {
     task_t *tsk = task_current();
     if (pid > 0)
@@ -315,8 +328,8 @@ int task_wait(int pid, int *stat, int opt, void *rusage)
     tsk->waitpid = 0;
 
     task_t *chd = table[termd];
-    if (stat)
-        *stat = chd->retval;
+    if (ru) task_look_rusage(chd, ru);
+    if (stat) *stat = chd->retval;
     table[termd] = NULL;
 
     return termd;
@@ -439,6 +452,36 @@ int task_sleep(u64 ms, u64 *rms)
     return curr->retval;
 }
 
+void task_stime_enter()
+{
+    task_t *tsk = task_current();
+    useconds_t us = arch_us_ran(); 
+    tsk->_slast = us;
+    tsk->utime += us - tsk->_ulast;
+}
+
+void task_stime_exit()
+{
+    task_t *tsk = task_current();
+    useconds_t us = arch_us_ran(); 
+    tsk->_ulast = us;
+    tsk->stime += us - tsk->_slast;
+}
+
+static void us_to_timeval(useconds_t us, struct timeval *tp)
+{
+    useconds_t scale = 1000 * 1000;
+    tp->tv_sec = us / scale;
+    tp->tv_usec = us % scale;
+}
+
+void task_look_rusage(task_t *tsk, struct rusage *ru)
+{
+    memset(ru, 0, sizeof(struct rusage));
+    us_to_timeval(tsk->utime, &ru->ru_utime);
+    us_to_timeval(tsk->stime, &ru->ru_stime);
+}
+
 #include <textos/syscall.h>
 
 /*
@@ -459,6 +502,23 @@ __SYSCALL_DEFINE1(RETVAL(void), exit, int, stat)
 __SYSCALL_DEFINE4(int, wait4, int, pid, int *, stat, int, opt, void *, rusage)
 {
     return task_wait(pid, stat, opt, rusage);
+}
+
+__SYSCALL_DEFINE2(int, getrusage, int, who, struct rusage *, ru)
+{
+    if (ru == NULL) return -EINVAL;
+    switch (who) {
+    case RUSAGE_SELF: {
+        task_t *tsk = task_current();
+        task_look_rusage(tsk, ru);
+    } break;
+    case RUSAGE_CHILDREN:
+    case RUSAGE_THREAD:
+        return -ENOSYS;
+    default:
+        return -EINVAL;
+    }
+    return 0;
 }
 
 __SYSCALL_DEFINE0(uid_t, getuid)

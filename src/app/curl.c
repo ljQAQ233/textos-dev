@@ -9,7 +9,7 @@
 char req[512];
 char buf[4096];
 
-static int atoi(char *s)
+static int myatoi(char *s)
 {
     int x = 0;
     char ch = 0;
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
 
     struct sockaddr_in addr = {
         .sin_family = AF_INET,
-        .sin_port = htons(atoi(port)),
+        .sin_port = htons(myatoi(port)),
     };
     inet_aton(ip, &addr.sin_addr);
 
