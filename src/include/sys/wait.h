@@ -11,6 +11,8 @@ __BEGIN_DECLS
 
 int wait(int *stat);
 
+#include <bits/rusage.h>
+
 /* os-specified */
 int wait4(pid_t pid, int *stat, int opt, void *rusage);
 

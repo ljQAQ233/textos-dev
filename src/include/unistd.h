@@ -5,6 +5,9 @@
 
 __BEGIN_DECLS
 
+// fake - maybe not POSIX.1-2008
+#define _POSIX_VERSION 200809L
+
 #define __NEED_size_t
 #define __NEED_ssize_t
 #define __NEED_uid_t

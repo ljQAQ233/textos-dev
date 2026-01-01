@@ -1,5 +1,7 @@
 .extern intr_handlers
 .extern __handle_signal
+.extern task_stime_enter
+.extern task_stime_exit
 
 .globl intr_exit
 .globl intr_entries
@@ -38,6 +40,7 @@ intr_caller:
     pushq %r13
     pushq %r14
     pushq %r15
+    call task_stime_enter
 
     movq 15*8(%rsp), %rdi  /* vector */
     movq 16*8(%rsp), %rsi  /* errcode */
@@ -58,6 +61,7 @@ intr_caller:
     call __handle_signal
 
 intr_exit:
+    call task_stime_exit
     /* 恢复寄存器 */
     popq %r15
     popq %r14

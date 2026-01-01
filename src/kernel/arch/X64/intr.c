@@ -96,13 +96,13 @@ static inline const char *msgget (u8 Vector)
 
 __INTR_HANDLER (intr_common)
 {
-    printk ("intr occurred !!! - [%03x] %s ->\n", vector, msgget (vector));
-    printk ("  rax=%016llx rbx=%016llx rcx=%016llx rdx=%016llx\n", frame->rax, frame->rbx, frame->rcx, frame->rdx);
-    printk ("  rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx\n", frame->rsi, frame->rdi, frame->rbp, frame->rsp);
-    printk ("  r8 =%016llx r9 =%016llx r10=%016llx r11=%016llx\n", frame->r8 , frame->r9 , frame->r10, frame->r11);
-    printk ("  r12=%016llx r13=%016llx r14=%016llx r15=%016llx\n", frame->r12, frame->r13, frame->r14, frame->r15);
-    printk ("  err=%016llx rip=%016llx rfl=%08llx\n", errcode, frame->rip, frame->rflags);
-    printk ("<-\n");
+    DEBUGK(K_FATAL, "intr occurred !!! - [%03x] %s ->\n", vector, msgget (vector));
+    DEBUGK(K_FATAL, "  rax=%016llx rbx=%016llx rcx=%016llx rdx=%016llx\n", frame->rax, frame->rbx, frame->rcx, frame->rdx);
+    DEBUGK(K_FATAL, "  rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx\n", frame->rsi, frame->rdi, frame->rbp, frame->rsp);
+    DEBUGK(K_FATAL, "  r8 =%016llx r9 =%016llx r10=%016llx r11=%016llx\n", frame->r8 , frame->r9 , frame->r10, frame->r11);
+    DEBUGK(K_FATAL, "  r12=%016llx r13=%016llx r14=%016llx r15=%016llx\n", frame->r12, frame->r13, frame->r14, frame->r15);
+    DEBUGK(K_FATAL, "  err=%016llx rip=%016llx rfl=%08llx\n", errcode, frame->rip, frame->rflags);
+    DEBUGK(K_FATAL, "<-\n");
     
     int i = 0;
     while (i == 0) ;

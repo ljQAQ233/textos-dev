@@ -2,11 +2,22 @@
 #define _SYS_TIME_H
 
 #define __NEED_time_t
+#define __NEED_clock_t
 #define __NEED_suseconds_t
 #define __NEED_struct_timeval
 #include <bits/alltypes.h>
 
 int gettimeofday(struct timeval *__tp, void *__tzp);
+
+struct tms
+{
+    clock_t tms_utime;  /* user time */
+    clock_t tms_stime;  /* system time */
+    clock_t tms_cutime; /* user time of children */
+    clock_t tms_cstime; /* system time of children */
+};
+
+clock_t times(struct tms *tms);
 
 #define ITIMER_REAL    0
 #define ITIMER_VIRTUAL 1
@@ -27,6 +38,6 @@ struct itimerval
 int getitimer(int __which, struct itimerval *__val);
 int setitimer(int __which, const struct itimerval *restrict __val,
               struct itimerval *restrict __oval);
-int utimes(const char *, const struct timeval /* Nullable */ __times[2]);
+int utimes(const char *__path, const struct timeval /* Nullable */ __times[2]);
 
 #endif
