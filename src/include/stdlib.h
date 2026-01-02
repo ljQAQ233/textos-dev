@@ -30,10 +30,13 @@ int unsetenv(const char *__name);
 char *getenv(const char *__name);
 
 // number / string
-// TODO x 5
 long strtol(const char *restrict __nptr,
             char /* _Nullable */ **restrict __endptr, int __base);
 long long strtoll(const char *restrict nptr,
+                  char /* _Nullable */ **restrict __endptr, int __base);
+unsigned long strtoul(const char *restrict nptr,
+                  char /* _Nullable */ **restrict __endptr, int __base);
+unsigned long long strtoull(const char *restrict nptr,
                   char /* _Nullable */ **restrict __endptr, int __base);
 int atoi(const char *__str);
 long atol(const char *__str);
