@@ -3,7 +3,16 @@
 #include <stdlib.h>
 #include <limits.h>
 
-static inline int extract(int c, int base, long *v)
+// for strtol
+#ifndef NAME
+typedef long TYPE;
+#define NAME strtol
+#define MAX LONG_MAX
+#define MIN LONG_MIN
+#define SIGNED 1
+#endif
+
+static inline int extract(int c, int base, TYPE *v)
 {
     // 0 - 9, a - z, A - Z
     if ('0' <= c && c <= '9')
@@ -17,17 +26,14 @@ static inline int extract(int c, int base, long *v)
     return *v < base;
 }
 
-long strtol(const char *restrict nptr, char **restrict endptr, int base)
+TYPE NAME(const char *restrict nptr, char **restrict endptr, int base)
 {
     errno = 0;
     const char *end = nptr;
-    long ret = 0;
-    long sign = 1;
+    TYPE ret = 0;
+    TYPE sign = 1;
     if ((base < 0) || (base == 1) || (base > 36)) {
-        if (endptr != NULL) {
-            *endptr = (char *)end;
-        }
-        return 0;
+        goto l_exit;
     }
     while (isspace((unsigned char)*nptr))
         nptr++;
@@ -45,26 +51,33 @@ long strtol(const char *restrict nptr, char **restrict endptr, int base)
         } else
             base = 10; /* by default */
     }
+    if (sign < 0 && !SIGNED) {
+        ret = MIN;
+        errno = ERANGE;
+        goto l_exit;
+    }
     /* calc cutoff (1 < base <= 36) */
-    long cutoff = (sign > 0) ? LONG_MAX / base : -(LONG_MIN / base);
-    long cutlim = (sign > 0) ? LONG_MAX % base : -(LONG_MIN % base);
+    /* for unsigned int, sign > 0 */
+    TYPE cutoff = (sign > 0) ? MAX / base : -(MIN / base);
+    TYPE cutlim = (sign > 0) ? MAX % base : -(MIN % base);
     /* digits follow */
-    long digit;
+    TYPE digit;
     while (extract((unsigned char)*nptr, base, &digit)) {
         if ((ret > cutoff) || (ret == cutoff && digit > cutlim)) {
             if (sign < 0)
-                ret = LONG_MIN;
-            else ret = LONG_MAX;
+                ret = MIN;
+            else ret = MAX;
             sign = 1;
             errno = ERANGE;
-            while (extract(*nptr, base, &digit))
+            while (extract((unsigned char)*nptr, base, &digit))
                 nptr++;
-            break;
+            goto l_exit;
         }
         ret = ret * base + digit;
         end = ++nptr;
     }
 
+l_exit:
     if (endptr) {
         *endptr = (char *)end;
     }
