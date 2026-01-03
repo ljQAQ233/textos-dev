@@ -50,6 +50,7 @@
     _(chown, 92)        \
     _(fchown, 93)       \
     _(gettimeofday, 96) \
+    _(times, 100)       \
     _(getuid, 102)      \
     _(getgid, 104)      \
     _(setuid, 105)      \

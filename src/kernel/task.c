@@ -150,8 +150,8 @@ task_t *task_create(void *main, int args)
 
     tsk->utime = 0;
     tsk->stime = 0;
-    tsk->_ulast = 0;
-    tsk->_slast = arch_us_ran();
+    tsk->_ustart = 0;
+    tsk->_sstart = arch_us_ran();
 
     for (int i = 0 ; i < MAX_FILE ; i++)
         tsk->files[i] = NULL;
@@ -267,8 +267,8 @@ int task_fork()
     chd->did_exec = false;
     chd->utime = 0;
     chd->stime = 0;
-    chd->_ulast = 0;
-    chd->_slast = arch_us_ran();
+    chd->_ustart = 0;
+    chd->_sstart = arch_us_ran();
     DEBUGK(K_TRACE, "fork %d -> child=%d\n", prt->pid, chd->pid);
 
     return chd->pid; // 父进程返回子进程号
@@ -441,12 +441,14 @@ void task_unblock(task_t *tsk, int reason)
     ASSERTK(tsk != NULL);
     tsk->retval = reason;
     tsk->stat = TASK_PRE;
+    task_stime_discard();
 }
 
 int task_sleep(u64 ms, u64 *rms)
 {
     task_t *curr = task_current();
     task_block(curr, &list_sleep, TASK_SLP, ms);
+    task_stime_discard();
     if (rms)
         *rms = ktimer_remain(&curr->btmr);
     return curr->retval;
@@ -456,19 +458,25 @@ void task_stime_enter()
 {
     task_t *tsk = task_current();
     useconds_t us = arch_us_ran(); 
-    tsk->_slast = us;
-    tsk->utime += us - tsk->_ulast;
+    tsk->_sstart = us;
+    tsk->utime += us - tsk->_ustart;
 }
 
 void task_stime_exit()
 {
     task_t *tsk = task_current();
     useconds_t us = arch_us_ran(); 
-    tsk->_ulast = us;
-    tsk->stime += us - tsk->_slast;
+    tsk->_ustart = us;
+    tsk->stime += us - tsk->_sstart;
 }
 
-static void us_to_timeval(useconds_t us, struct timeval *tp)
+void task_stime_discard()
+{
+    task_t *tsk = task_current();
+    tsk->_sstart = arch_us_ran();
+}
+
+static void us_to_timeval(u64 us, struct timeval *tp)
 {
     useconds_t scale = 1000 * 1000;
     tp->tv_sec = us / scale;
@@ -786,6 +794,26 @@ __SYSCALL_DEFINE2(int, nanosleep, const struct timespec *, rqtp, struct timespec
     rmtp->tv_sec = rms / 1000;
     rmtp->tv_nsec = (rms % 1000) * 1000 * 1000;
     return ret;
+}
+
+#include <bits/times.h>
+
+__SYSCALL_DEFINE1(clock_t, times, struct tms *, buf)
+{
+    task_t *tsk = task_current();
+    useconds_t cutime = 0;
+    useconds_t cstime = 0;
+    for (int i = 0 ; i < TASK_MAX ; i++) {
+        if (task_get(i)->ppid == tsk->pid) {
+            cutime += tsk->utime;
+            cstime += tsk->stime;
+        }
+    }
+    buf->tms_utime = tsk->utime / CLK_TCK;
+    buf->tms_stime = tsk->stime / CLK_TCK;
+    buf->tms_cutime = cutime / CLK_TCK;
+    buf->tms_cstime = cstime / CLK_TCK;
+    return arch_us_ran() / CLK_TCK;
 }
 
 #include <textos/dev.h>

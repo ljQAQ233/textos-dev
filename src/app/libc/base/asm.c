@@ -519,3 +519,11 @@ int nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
 {
     return syscall(SYS_nanosleep, rqtp, rmtp);
 }
+
+#include <sys/times.h>
+
+/* sys/times.h */
+clock_t times(struct tms *buf)
+{
+    syscall(SYS_times, buf);
+}
