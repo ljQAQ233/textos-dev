@@ -54,10 +54,21 @@ char *strrchrnul(const char *__str, int __c);
 char *strstr(const char *__haystack, const char *__needle);
 
 /*
-  The `strnchr()` function returns a pointer to the first
-  occurrence of the character `c` in the string `str`, count down from `n`
+  The `strspn()` function calculates the length (in bytes) of the initial
+  segment of `s` which consists entirely of bytes in `accept`
 */
-char *strnchr(const char *__str, int __c, size_t __n);
+size_t strspn(const char *__str, const char *__accept);
+
+/*
+  string complement span
+ */
+size_t strcspn(const char *__str, const char *__reject);
+
+/*
+  The `strpbrk()` function locates the first occurrence in the string `s`
+  of any of the bytes in the string `accept`
+ */
+char *strpbrk(const char *__str, const char *__accept);
 
 /* duplicate a string */
 char *strdup(const char *__str);
