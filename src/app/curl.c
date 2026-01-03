@@ -9,19 +9,6 @@
 char req[512];
 char buf[4096];
 
-static int myatoi(char *s)
-{
-    int x = 0;
-    char ch = 0;
-    while (ch < '0' || ch > '9')
-        ch = *s++;
-    while (ch >= '0' && ch <= '9') {
-        x = x * 10 + (ch - '0');
-        ch = *s++;
-    }
-    return x;
-}
-
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("usage: curl http://ip[:port]/path\n");
@@ -62,7 +49,7 @@ int main(int argc, char *argv[]) {
 
     struct sockaddr_in addr = {
         .sin_family = AF_INET,
-        .sin_port = htons(myatoi(port)),
+        .sin_port = htons(atoi(port)),
     };
     inet_aton(ip, &addr.sin_addr);
 

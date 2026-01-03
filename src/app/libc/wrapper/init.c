@@ -1,9 +1,9 @@
 #include <string.h>
+#include <unistd.h>
 #include <sys/utsname.h>
 
 int __is_linux;
-
-int printf(char *, ...);
+extern long __sysconfs[];
 
 void __init_wrapper()
 {
@@ -13,4 +13,8 @@ void __init_wrapper()
         return ;
     if (strcmp(u->sysname, "Linux") == 0)
         __is_linux = 1;
+    else
+        return ;
+    // musl libc gives us the value 100
+    __sysconfs[_SC_CLK_TCK] = 100;
 }

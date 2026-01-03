@@ -119,6 +119,12 @@ int isatty(int __fd);
 // TODO
 unsigned alarm(unsigned __seconds);
 
+#define _SC_CLK_TCK 2
+
+long sysconf(int name);
+
+#define CLK_TCK sysconf(_SC_CLK_TCK);
+
 __END_DECLS
 
 #endif

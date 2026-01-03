@@ -9,16 +9,6 @@
 
 int gettimeofday(struct timeval *__tp, void *__tzp);
 
-struct tms
-{
-    clock_t tms_utime;  /* user time */
-    clock_t tms_stime;  /* system time */
-    clock_t tms_cutime; /* user time of children */
-    clock_t tms_cstime; /* system time of children */
-};
-
-clock_t times(struct tms *tms);
-
 #define ITIMER_REAL    0
 #define ITIMER_VIRTUAL 1
 #define ITIMER_PROF    2

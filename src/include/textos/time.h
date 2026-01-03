@@ -15,4 +15,6 @@ time_t arch_time_now();
 suseconds_t arch_us_ran();
 suseconds_t arch_us_thissec();
 
+#define CLK_TCK 1000
+
 #endif

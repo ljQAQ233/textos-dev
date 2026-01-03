@@ -68,10 +68,10 @@ typedef struct task
 
     int retval;
     int waitpid;
-    useconds_t utime;
-    useconds_t stime;
-    useconds_t _ulast;
-    useconds_t _slast;
+    u64 utime;
+    u64 stime;
+    u64 _ustart;
+    u64 _sstart;
 
     ktimer_t btmr;
     list_t blist;
@@ -112,9 +112,10 @@ int task_sleep(u64 ms, u64 *rms);
 void task_exit(int val);
 int task_wait(int pid, int *stat, int opt, struct rusage *ru);
 
-/* mark stime's start and end */
+/* mark stime's start and end, or discard the current count */
 void task_stime_enter();
 void task_stime_exit();
+void task_stime_discard();
 void task_look_rusage(task_t *tsk, struct rusage *ru);
 
 #define TASK_MAX 16
