@@ -124,6 +124,40 @@ char *strstr(const char *haystack, const char *needle)
     return NULL;
 }
 
+// string span
+// 从字符串开头开始, 连续有多少个字符都属于给定字符集合
+size_t strspn(const char *str, const char *accept)
+{
+    unsigned char table[256] = {0};
+    unsigned char *s = (unsigned char *)accept;
+    while (*s)
+        table[*s++] = 1;
+    s = (unsigned char *)str;
+    while (*s && table[*s])
+        s++;
+    return (size_t)((const char *)s - str);
+}
+
+// string complement span
+// 从字符串开头开始, 连续有多少个字符「不在」给定集合里
+size_t strcspn(const char *str, const char *reject)
+{
+    unsigned char table[256] = {0};
+    unsigned char *s = (unsigned char *)reject;
+    while (*s)
+        table[*s++] = 1;
+    s = (unsigned char *)str;
+    while (*s && !table[*s])
+        s++;
+    return (size_t)((const char *)s - str);
+}
+
+char *strpbrk(const char *str, const char *accept)
+{
+    str += strcspn(str, accept);
+    return *str ? (char *)str : 0;
+}
+
 /*
  * Limited by `n`, which is similar to `strcpy()`
  */
