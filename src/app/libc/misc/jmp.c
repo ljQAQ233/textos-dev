@@ -23,15 +23,15 @@ __asm__
 int sigsetjmp(sigjmp_buf env, int savesigs)
 {
     if (savesigs) {
-        env.saved = 1;
-        sigprocmask(SIG_SETMASK, NULL, &env.sig);
+        env->saved = 1;
+        sigprocmask(SIG_SETMASK, NULL, &env->sig);
     }
-    return setjmp(env.buf);
+    return setjmp(env->buf);
 }
 
 _Noreturn void siglongjmp(sigjmp_buf env, int val)
 {
-    if (env.saved)
-        sigprocmask(SIG_SETMASK, &env.sig, NULL);
-    longjmp(env.buf, val);
+    if (env->saved)
+        sigprocmask(SIG_SETMASK, &env->sig, NULL);
+    longjmp(env->buf, val);
 }
