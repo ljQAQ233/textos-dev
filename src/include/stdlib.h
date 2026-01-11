@@ -19,8 +19,9 @@ div_t div(int __num, int __den);
 ldiv_t ldiv(long __num, long __den);
 lldiv_t lldiv(long long __num, long long __den);
 
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
 void _Exit(int __status);
-
 void exit(int __status);
 
 // environ

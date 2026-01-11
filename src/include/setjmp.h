@@ -19,12 +19,17 @@ _Noreturn void longjmp(jmp_buf __env, int __val);
     #include <bits/null.h>
     #define __NEED_sigset_t
     #include <bits/alltypes.h>
+/*
+ * jmpbuf with signal saved if required
+ * many programs (e.g. bash) use the variable name to access the
+ * address of this struct instead of `&name`, so [1] is used
+ */
 typedef struct
 {
     int saved;
     jmp_buf buf;
     sigset_t sig;
-} sigjmp_buf;
+} sigjmp_buf[1];
 
 int sigsetjmp(sigjmp_buf __env, int __savesigs);
 _Noreturn void siglongjmp(sigjmp_buf __env, int __val);
