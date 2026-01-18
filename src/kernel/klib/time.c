@@ -46,7 +46,8 @@ u64 time_stamp (rtc_tm_t *tm)
     u64 common = (tm->year - 1970) * 365;
 
     /* 计算在今年这天之前度过了多少天 */
-    u64 days = month[tm->month - 1] + (LEAP_CKR(tm->year) ? 1 : 0)
+    u64 days = month[tm->month - 1]
+             + ((tm->month > 2 && LEAP_CKR(tm->year)) ? 1 : 0)
              + (tm->day - 1);
     
     /* 综上所述... */
