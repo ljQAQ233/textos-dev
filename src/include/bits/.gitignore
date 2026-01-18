@@ -1,1 +1,2 @@
-alltypes.h
+# "/" means the dir .gitignore is located
+/alltypes.h
