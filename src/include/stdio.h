@@ -55,8 +55,19 @@ int fclose(FILE *__f);
 void clearerr(FILE *__f);
 int feof(FILE *__f);
 int ferror(FILE *__f);
-off_t ftello(FILE *f);
+
+// the same as unistd.h
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 long ftell(FILE *f);
+int fseek(FILE *__f, long __offset, int __whence);
+
+#if _FILE_OFFSET_BITS == 64 ||  _POSIX_C_SOURCE >= 200112L
+off_t ftello(FILE *f);
+int fseeko(FILE *__f, off_t __offset, int __whence);
+#endif
 
 int fgetc(FILE *__f);
 int fputc(int __c, FILE *__f);
