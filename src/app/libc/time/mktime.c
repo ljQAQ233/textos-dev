@@ -41,9 +41,10 @@ time_t mktime(struct tm *tm)
     // 全是平年的话, 度过的天数
     time_t common = (Y - 1970) * 365;
     // 计算在今年这天之前度过了多少天
+    // tm_mon [0, 11] 0 是一月
     time_t days = month[tm->tm_mon];
     days += tm->tm_mday - 1;
-    days += tm->tm_mon > 2 ? LEAP_CKR(Y) : 0;
+    days += tm->tm_mon > 1 ? LEAP_CKR(Y) : 0;
     // 综上所述...
     time_t res = 0;
     res += (common + offset + days) * TS_DAY;
