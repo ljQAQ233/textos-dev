@@ -55,6 +55,9 @@ __typedef __uint32_t useconds_t;
 __struct timeval { time_t tv_sec; suseconds_t tv_usec; };
 __struct timespec { time_t tv_sec; __int64_t tv_nsec; };
 
+#define __TIME_T_MAX 0x7fffffffffffffffLL
+#define __TIME_T_MIN (-__TIME_T_MAX - 1)
+
 __typedef unsigned socklen_t;
 __typedef unsigned short sa_family_t;
 
