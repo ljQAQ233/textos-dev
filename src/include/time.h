@@ -45,6 +45,16 @@ struct tm *localtime_r(const time_t *restrict __t, struct tm *restrict __tm);
 
 time_t mktime(struct tm *tm);
 
+#ifdef _POSIX_C_SOURCE
+extern char *tzname[2];
+extern void tzset();
+#endif
+
+#ifdef _XOPEN_SOURCE
+extern long timezone;
+extern int daylight;
+#endif
+
 __END_DECLS
 
 #endif
