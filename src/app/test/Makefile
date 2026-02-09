@@ -28,5 +28,6 @@ $(BUILD)/abrt: X += -static -g
 $(BUILD)/maprm: X += -static -g
 $(BUILD)/setjmp: X += -static -g
 $(BUILD)/mktime: X += -static -g
+$(BUILD)/gmtime: X += -static -g
 
 .PHONY: all

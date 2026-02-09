@@ -1,14 +1,23 @@
-import time
-import random
+cases = [
+    # stamp         sec  min  h md  m  y   wd yd dst
+    (-2,          "{-2, 0, 0, 1, 0, 70, 0, 0, 0}"),
+    (-7345677,    "{-7345677, 0, 0, 1, 0, 70, 0, 0, 0}"),   # normalized : {3,  32, 23, 7, 9, 69, 2, 279, 0, 0}
+    (-734567789,  "{-734567789, 0, 0, 1, 0, 70, 0, 0, 0}"), # normalized : {31, 23, 1, 22, 8, 46, 0, 264, 0, 0}
 
-N = 2000
+    (-2240611200, "{0,   0,   0, 0, 0, -1, -1, 0, 0}"),
+    (-2240596965, "{255, 233, 0, 0, 0, -1, -1, 0, 0}"),
 
-for _ in range(N):
-    stamp = random.getrandbits(32)
-    tm = time.gmtime(stamp)
-    print(
-        f"{{{stamp}, "
-        f"{{ {tm.tm_sec}, {tm.tm_min}, {tm.tm_hour}, "
-        f"{tm.tm_mday}, {tm.tm_mon - 1}, {tm.tm_year - 1900}, "
-        f"{tm.tm_wday}, {tm.tm_yday} }} }},"
-    )
+    # thresholds
+    (-5640495754486928, "{-2147483648, -2147483648, 2147483647, 1, -2147483648, -23987, 0, 0, 0, 0}"),
+]
+
+def fmt(stamp, struct: str):
+    return f"{{{stamp}, 1, {struct} }},"
+
+def main():
+    for c in cases:
+        print(fmt(*c))
+    print(f"// number of cases: {len(cases)}")
+
+if __name__ == "__main__":
+    main()
