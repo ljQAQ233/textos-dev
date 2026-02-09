@@ -99,6 +99,8 @@ struct tm *gmtime_r(const time_t *restrict t, struct tm *restrict tm)
 
     /* utc 没有 dst */
     tm->tm_isdst = 0;
+    tm->tm_gmtoff = 0;
+    tm->tm_zone = "GMT";
     return tm;
 
 overflow:
