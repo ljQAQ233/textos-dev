@@ -13,6 +13,7 @@ extern void dev_init();
 extern void fbdev_init();
 extern void keyboard_init();
 extern void ide_init();
+extern void ahci_init();
 extern void buffer_init();
 extern void pci_init();
 extern void socket_init();
@@ -41,6 +42,7 @@ void kernel_main ()
     mm_init();
 
     dev_init();
+    task_init();
     fbdev_init();
     keyboard_init();
     serial_init();
@@ -48,13 +50,12 @@ void kernel_main ()
     tty_init();
     buffer_init();
     pci_init();
+    ahci_init();
     ide_init();
     fpu_init();
     hpet_init();
     ktm_init();
     clock_init();
-
-    task_init();
     syscall_init();
     task_create(__init_proc, TC_USER | TC_TSK1);
 

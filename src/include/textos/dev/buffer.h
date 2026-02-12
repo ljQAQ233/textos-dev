@@ -20,12 +20,12 @@ typedef struct
 } buffer_t;
 
 buffer_t *bread(devst_t *dev, blksize_t siz, blkno_t idx);
-
 void bdirty(buffer_t *b, bool dirty);
-
 void bwrite(buffer_t *b);
-
 void brelse(buffer_t *b);
+
+buffer_t *bdma_alloc(blksize_t siz);
+void bdma_free(buffer_t *b);
 
 static inline buffer_t *sb_bread(superblk_t *sb, blkno_t idx)
 {

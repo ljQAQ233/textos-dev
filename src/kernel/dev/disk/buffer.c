@@ -1,8 +1,8 @@
 /**
  * @brief blockdev buffer
  * 
- * rbtree : todo
- * simple LRU (Least Recently Used)
+ * TODO: fix lock
+ * TODO: simple LRU (Least Recently Used)
  */
 
 #include <irq.h>
@@ -150,6 +150,23 @@ void brelse(buffer_t *b)
 {
     bwrite(b);
     lock_release(&b->lock);
+}
+
+buffer_t *bdma_alloc(blksize_t siz)
+{
+    buffer_t *b = find_fre(siz);
+    b->dev = 0;
+    b->idx = 0;
+    b->dirty = false;
+    lock_init(&b->lock);
+    lock_acquire(&b->lock);
+    return b;
+}
+
+void bdma_free(buffer_t *b)
+{
+    lock_release(&b->lock);
+    mark_fre(b);
 }
 
 void buffer_init()
