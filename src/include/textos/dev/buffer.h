@@ -6,7 +6,7 @@
 #include <textos/klib/list.h>
 #include <textos/klib/hlist.h>
 
-typedef struct
+struct buffer
 {
     bool dirty;
     blkno_t idx;
@@ -17,7 +17,7 @@ typedef struct
     lock_t lock;
     list_t list;
     hlist_node_t node;
-} buffer_t;
+};
 
 buffer_t *bread(devst_t *dev, blksize_t siz, blkno_t idx);
 void bdirty(buffer_t *b, bool dirty);

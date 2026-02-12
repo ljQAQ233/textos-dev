@@ -3,6 +3,7 @@
 #include <intr.h>
 #include <textos/dev.h>
 #include <textos/dev/pci.h>
+#include <textos/dev/buffer.h>
 #include <textos/task.h>
 #include <textos/panic.h>
 #include <textos/mm.h>
@@ -183,15 +184,15 @@ static void ide_block(ide_t *pri, u8 mask)
 
 #include <textos/assert.h>
 
-static void ide_setdma(ide_t *pri, void *buf, u8 cmd, uint len)
+static void ide_setdma(ide_t *pri, addr_t buf, u8 cmd, uint len)
 {
     /*
      * 缓冲区在物理空间上必须是连续的,
      * 保证它不跨页是一个临时的措施 (可能临时吧!)
      */
-    ASSERTK(((addr_t)buf + len) <= ((addr_t)buf &~ PAGE_MASK) + PAGE_SIZ);
+    ASSERTK((buf + len) <= (buf &~ PAGE_MASK) + PAGE_SIZ);
 
-    addr_t va = (addr_t)buf;
+    addr_t va = buf;
     addr_t pa = vmap_query(va);
     addr_t pprd = vmap_query((addr_t)&pri->prd);
 
@@ -230,71 +231,89 @@ static void ide_runpio(ide_t *pri, u8 rw)
     outb(pri->iobase + R_SCMD, rw);
 }
 
-static void ide_dma_read(devst_t *dev, u32 lba, void *data, u8 cnt)
+#define MAXCNT 255
+
+static void ide_dma_read(devst_t *dev, blkno_t no, buffer_t *b, blkcnt_t cnt)
 {
     UNINTR_AREA_START();
 
     ide_t *pri = dev->pdata;
-    lba &= 0xFFFFFFF;
-
-    ide_setdma(pri, data, CMD_BMREAD, cnt * SECT_SIZ);
-    ide_select(pri, lba, cnt);
-    ide_rundma(pri, CMD_RDMA);
-    ide_enddma(pri);
-    
-    UNINTR_AREA_END();
-}
-
-static void ide_dma_write(devst_t *dev, u32 lba, void *data, u8 cnt)
-{
-    UNINTR_AREA_START();
-
-    ide_t *pri = dev->pdata;
-    lba &= 0xFFFFFFF;
-
-    ide_setdma(pri, data, CMD_BMWRITE, cnt * SECT_SIZ);
-    ide_select(pri, lba, cnt);
-    ide_rundma(pri, CMD_WDMA);
-    ide_enddma(pri);
-    
-    UNINTR_AREA_END();
-}
-
-static void ide_pio_read(devst_t *dev, u32 lba, void *data, u8 cnt)
-{
-    UNINTR_AREA_START();
-
-    ide_t *pri = dev->pdata;
-    lba &= 0xFFFFFFF;
-
-    ide_select(pri, lba, cnt);
-    ide_runpio(pri, CMD_READ);
-
-    for (int i = 0 ; i < cnt ; i++) {
-        ide_block(pri, STAT_DRQ);
-        read_sector(pri->iobase, data);
-        data += SECT_SIZ;
+    addr_t pa = b->phy;
+    while (cnt != 0) {
+        blkcnt_t rdcnt = MIN(MAXCNT, cnt);
+        ide_setdma(pri, pa, CMD_BMREAD, cnt * SECT_SIZ);
+        ide_select(pri, no, cnt);
+        ide_rundma(pri, CMD_RDMA);
+        ide_enddma(pri);
+        pa += cnt * SECT_SIZ;
+        no += rdcnt;
+        cnt -= rdcnt;
     }
     
     UNINTR_AREA_END();
 }
 
-static void ide_pio_write(devst_t *dev, u32 lba, void *data, u8 cnt)
+static void ide_dma_write(devst_t *dev, blkno_t no, buffer_t *b, blkcnt_t cnt)
 {
     UNINTR_AREA_START();
 
     ide_t *pri = dev->pdata;
-    lba &= 0xFFFFFFF;
-
-    ide_select(pri, lba, cnt);
-    ide_runpio(pri, CMD_WRITE);
-
-    for (int i = 0 ; i < cnt ; i++) {
-        write_sector(pri->iobase, data);
-        data += SECT_SIZ;
-        ide_block(pri, 0);
+    addr_t pa = b->phy;
+    while (cnt != 0) {
+        blkcnt_t wrcnt = MIN(MAXCNT, cnt);
+        ide_setdma(pri, pa, CMD_BMWRITE, cnt * SECT_SIZ);
+        ide_select(pri, no, cnt);
+        ide_rundma(pri, CMD_WDMA);
+        ide_enddma(pri);
+        pa += cnt * SECT_SIZ;
+        no += wrcnt;
+        cnt -= wrcnt;
     }
     
+    UNINTR_AREA_END();
+}
+
+static void ide_pio_read(devst_t *dev, blkno_t no, buffer_t *b, blkcnt_t cnt)
+{
+    UNINTR_AREA_START();
+
+    ide_t *pri = dev->pdata;
+    void *data = b->blk;
+    while (cnt != 0) {
+        blkcnt_t rdcnt = MIN(MAXCNT, cnt);
+        ide_select(pri, no, rdcnt);
+        ide_runpio(pri, CMD_READ);
+        for (int i = 0 ; i < rdcnt ; i++) {
+            ide_block(pri, STAT_DRQ);
+            read_sector(pri->iobase, data);
+            data += SECT_SIZ;
+        }
+        no += rdcnt;
+        cnt -= rdcnt;
+    }
+    
+    UNINTR_AREA_END();
+}
+
+static void ide_pio_write(devst_t *dev, blkno_t no, buffer_t *b, blkcnt_t cnt)
+{
+    UNINTR_AREA_START();
+
+    ide_t *pri = dev->pdata;
+    void *data = b->blk;
+    while (cnt != 0) {
+        blkcnt_t wrcnt = MIN(MAXCNT, cnt);
+        ide_select(pri, no, wrcnt);
+        ide_runpio(pri, CMD_WRITE);
+        for (int i = 0; i < wrcnt; i++) {
+            write_sector(pri->iobase, data);
+            data += SECT_SIZ;
+            ide_block(pri, 0);
+        }
+        no += wrcnt;
+        cnt -= wrcnt;
+    }
+
     UNINTR_AREA_END();
 }
 

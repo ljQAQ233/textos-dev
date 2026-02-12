@@ -59,7 +59,7 @@
 /*
  * it holds internal mmap argument
  */
-typedef struct
+struct vm_region
 {
     addr_t va;
     size_t num;
@@ -67,7 +67,7 @@ typedef struct
     int flgs;
     size_t foff;
     void *fnode;
-} vm_region_t;
+};
 
 #include <textos/file.h>
 #include <textos/klib/list.h>

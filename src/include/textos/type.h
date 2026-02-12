@@ -82,14 +82,17 @@ typedef struct iovec iovec_t;
 
 typedef signed int keysym_t;
 
-struct devst;
-struct node;
-struct dirctx;
-struct superblk;
+#define aka(x) \
+    struct x;  \
+    typedef struct x x##_t
 
-typedef struct devst devst_t;
-typedef struct node node_t;
-typedef struct dirctx dirctx_t;
-typedef struct superblk superblk_t;
+aka(devst);
+aka(node);
+aka(dirctx);
+aka(superblk);
+aka(buffer);
+aka(vm_region);
+
+#undef aka
 
 #endif
