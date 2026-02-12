@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <limits.h>
 
+extern off_t ftello(FILE *f);
+
 long ftell(FILE *f)
 {
     off_t pos = ftello(f);

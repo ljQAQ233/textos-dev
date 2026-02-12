@@ -18,6 +18,11 @@ struct {
     { 0x0102, "Floppy disk controller"                   },
     { 0x0103, "IPI bus controller"                       },
     { 0x0104, "RAID bus controller"                      },
+    { 0x0105, "ATA controller"                           },
+	{ 0x0106, "SATA controller"                          },
+	{ 0x0107, "Serial Attached SCSI controller"          },
+	{ 0x0108, "Non-Volatile memory controller"           },
+	{ 0x0109, "Universal Flash Storage controller"       },
     { 0x0180, "Mass storage controller"                  },
     { 0x0200, "Ethernet controller"                      },
     { 0x0201, "Token ring network controller"            },
@@ -101,11 +106,11 @@ struct {
 
 static const char *get_classname(u16 code)
 {
-    int s = 0, mid, cmp,
-        t = sizeof(pci_class) / sizeof(pci_class[0]);
+    int s = 0;
+    int t = sizeof(pci_class) / sizeof(pci_class[0]) - 1;
     while (s <= t) {
-        mid = (s + t) / 2;
-        cmp = pci_class[mid].code;
+        int mid = (s + t) / 2;
+        int cmp = pci_class[mid].code;
         if (code > cmp)
             s = mid + 1;
         else if (code < cmp)
@@ -234,7 +239,8 @@ static void scan_dev(u8 bus, u8 slot)
             break;
 
         u16 class = get_code(bus, slot, func);
-        DEBUGK(K_INFO | K_CONT, " [%u/%u/%d] %x %x %s\n", bus, slot, func, vendor, devid, get_classname(class));
+        DEBUGK(K_INFO | K_CONT, " [%u/%u/%d] %x %x - %04x %s\n", bus, slot,
+               func, vendor, devid, class, get_classname(class));
 
         pci_idx_t *idx = malloc(sizeof(pci_idx_t));
         idx->bus = bus;

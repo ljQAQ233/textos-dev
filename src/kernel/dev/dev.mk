@@ -24,6 +24,7 @@ SRCS += dev/clock.c
 SRCS += dev/disk/buffer.c
 SRCS += dev/disk/part.c
 SRCS += dev/disk/ide.c
+SRCS += dev/disk/ahci.c
 
 # fpu support
 

@@ -9,7 +9,6 @@ MEM = 64M
 
 # Qemu Common Args
 QEMU_FLAGS := \
-  -hda $(IMG) \
   -cpu qemu64,+x2apic \
   -smp 2 -m $(MEM) \
   -no-reboot \
@@ -36,6 +35,15 @@ else
     -drive if=pflash,format=raw,file=$(BASE)/OVMF_$(1)_$(ARCH).code,readonly=on \
     -drive if=pflash,format=raw,file=$(BASE)/OVMF_$(1)_$(ARCH).vars
   endef
+endif
+
+ifeq (${QEMU_AHCI},true)
+  QEMU_FLAGS += \
+	-device ahci,id=ahci0 \
+	-drive file=$(IMG),if=none,id=sata1 \
+    -device ide-hd,drive=sata1,bus=ahci0.0
+else
+  QEMU_FLAGS += -drive file=$(IMG),if=ide,index=0,media=disk
 endif
 
 QEMU_FLAGS_RUN := \
