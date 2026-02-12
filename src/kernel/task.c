@@ -816,32 +816,6 @@ __SYSCALL_DEFINE1(clock_t, times, struct tms *, buf)
     return arch_us_ran() / CLK_TCK;
 }
 
-#include <textos/dev.h>
-#include <textos/printk.h>
-
-#define N 5000
-
-static int a = 0;
-
-void proc_a ()
-{
-    u8 buf[512];
-    devst_t *ide = dev_lookup_type (DEV_IDE, 0);
-    ide->bread (ide, 0, buf, 1);
-    for (int i = 0 ; i < 512 ; i++)
-        printk ("%02x", buf[i]);
-    printk ("\n");
-
-    while (true) { }
-}
-
-void proc_b ()
-{
-    for (int i = 0 ; i < N ; i++)
-        printk ("PROC[#%d] a = %d\n", task_current()->pid, a++);
-    while (true) { }
-}
-
 void task_init ()
 {
     for (int i = 0; i < TASK_MAX ;i++)
@@ -853,7 +827,4 @@ void task_init ()
 
     _task_kern();
     _curr = 0;
-
-    // task_create (proc_a);
-    // task_create (proc_b);
 }

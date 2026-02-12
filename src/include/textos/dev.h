@@ -1,7 +1,6 @@
 #ifndef __DEV_H__
 #define __DEV_H__
 
-#include <textos/mm/mman.h>
 #include <textos/klib/list.h>
 
 enum dev_type
@@ -45,8 +44,8 @@ struct devst
             int (*read)(devst_t *dev, void *buf, size_t cnt);
         };
         struct {
-            int (*bwrite)(devst_t *dev, u64 addr, void *buf, size_t cnt);
-            int (*bread)(devst_t *dev, u64 addr, void *buf, size_t cnt);
+            int (*bwrite)(devst_t *dev, blkno_t no, buffer_t *buf, blkcnt_t cnt);
+            int (*bread)(devst_t *dev, blkno_t no, buffer_t *buf, blkcnt_t cnt);
         };
     };
     void *(*mmap)(devst_t *dev, vm_region_t *vm);

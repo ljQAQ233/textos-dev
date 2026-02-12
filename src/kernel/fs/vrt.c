@@ -1,10 +1,9 @@
 #include <textos/mm.h>
 #include <textos/fs.h>
+#include <textos/errno.h>
 #include <textos/printk.h>
 #include <textos/fs/inter.h>
-#include <textos/panic.h>
-#include <textos/assert.h>
-#include <textos/errno.h>
+#include <textos/dev/buffer.h>
 
 #include <string.h>
 
@@ -511,18 +510,12 @@ extern void __pipe_init();
 extern node_t *__fs_init_tmpfs();
 extern node_t *__fs_init_procfs();
 
-#include <textos/mm/vmm.h>
-
 void fs_init ()
 {
-    devst_t *hd = dev_lookup_type (DEV_IDE, 0);
-
-    mbr_t *record = vmm_allocpages(1, PE_P | PE_RW);
-    hd->bread (hd, 0, record, 1);
-
-    _init_partitions (hd, record);
-
-    free(record);
+    devst_t *hd = dev_lookup_type(DEV_IDE, 0);
+    buffer_t *recblk = bread(hd, 512, 0);
+    _init_partitions(hd, recblk->blk);
+    brelse(recblk);
 
     // abstract
     __pipe_init();
