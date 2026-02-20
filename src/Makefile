@@ -1,6 +1,30 @@
-ARCH   := X64
+SHELL := bash
+ARCH ?= x86_64
 
 export ARCH
+
+# toolchain
+HOSTCC ?= gcc
+HOSTLD ?= ld
+HOSTOC ?= objcopy
+CROSS_COMPILE ?= ${ARCH}-elf-
+
+CC      := $(CROSS_COMPILE)gcc
+LD      := $(CROSS_COMPILE)ld
+OBJCOPY := $(CROSS_COMPILE)objcopy
+
+export CROSS_COMPILE
+export HOSTCC HOSTLD HOSTOC
+export CC LD OBJCOPY
+
+# available modes:
+#   efi - uefi / ovmf
+#   emulti - qemu multiboot
+BOOT_MODE ?= efi
+
+# === config ends here!!! ===
+
+export BOOT_MODE
 
 include config/main.mk
 include config/image.mk
@@ -37,8 +61,8 @@ qemu: all net
 qemug: all net
 	$(QEMU) $(QEMU_FLAGS_KDBG)
 
-qemubg: export BSRC_DEBUG:=true
-qemubg: export PIPE:=$(shell cat $(UDK_DBG_CFG) | grep -E "^[P ]ort" | awk '{print $$NF}')
+qemubg: export BSRC_DEBUG=true
+qemubg: export PIPE=$(shell cat $(UDK_DBG_CFG) | grep -E "^[P ]ort" | awk '{print $$NF}')
 qemubg: all net
 	mkfifo $(PIPE).in $(PIPE).out
 	$(UDK_DBG_EXEC) 2>&1 &
@@ -47,10 +71,11 @@ qemubg: all net
 
 # toolkits
 compile_commands.json: clean
-	@bear --output utils/compile_commands.json -- make clean all
-	@utils/fix_clcmd.sh utils/compile_commands.json
+	@bear --output ../compile_commands.json -- make all
+	@utils/fix_clcmd.sh ../compile_commands.json
 
 clean:
+	make -C app clean
 	make -C boot clean
 	make -C kernel clean
 	find . -iname "*.status_log" | xargs rm -f

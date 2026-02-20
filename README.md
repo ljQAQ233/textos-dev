@@ -1,9 +1,11 @@
 # TextOS
 
-这是一个 Uefi 引导的 x64 操作系统项目.
+这是一个 Uefi 引导的 x64 操作系统项目, 同时支持 multiboot.
 
 - Boot : SigmaBoot
 - Opearting System : TextOS
+
+---
 
 - [Gitee | canyan233](https://gitee.com/canyan233)
 - [GitHub | ljQAQ233](https://github.com/ljQAQ233)
@@ -14,14 +16,16 @@
 # Feature
 
 - [x] uefi
-    - [x] debug support
-    - [x] bmp display
-    - [x] configuration
-    - [x] memory map
-    - [x] resolution set
-    - [x] elf loader
-    - [x] boot arguments
-    - [ ] cmd line args
+  - [x] debug support
+  - [x] bmp display
+  - [x] configuration
+  - [x] memory map
+  - [x] resolution set
+  - [x] elf loader
+  - [x] boot arguments
+  - [ ] cmd line args
+- [x] multiboot
+- [ ] multiboot2
 
 ---
 
@@ -36,10 +40,10 @@
 
 - 可执行程序
   - [x] ELF 加载
-  - [ ] ELF 动态链接
+  - [x] ELF 动态链接
 
 - 系统调用
-  - `textos/syscall.h`
+  - [`textos/syscall.h`](src/include/textos/syscall.h)
 
 - 设备驱动
   - [ ] event
@@ -57,6 +61,7 @@
   - [x] RTC 时钟
   - [x] PS/2 键盘
   - [x] IDE 硬盘
+  - [ ] AHCI / SATA
   - [x] E1000 网卡
   - [x] RTL8139 网卡
   - [x] FPU 协处理器
@@ -101,6 +106,11 @@
     - [ ] mouse
     - [ ] keyboard
   - [ ] x11
+  
+- 多任务
+  - [x] percpu (mycpu)
+  - [ ] clone
+  - [ ] tls
 
 ---
 
@@ -136,21 +146,26 @@
 
 # make
 
-- `make -C src qemu` -> running on Qemu
-- `make -C src qemug` -> start kernel debugging
-- `make -C src qemubg` -> start uefi debugging
-- `make -C src compile_commands.json` -> AutoGen CompileCommands
+- 测试
+  - `make -C src qemu` -> running on Qemu
+  - `make -C src qemug` -> start kernel debugging
+  - `make -C src qemubg` -> start uefi debugging
+  - `make -C src compile_commands.json` -> AutoGen CompileCommands
 
-- `make -C src ovmf`
-- `make -C src ovmf-debug`
-- `make -C src ovmf-noopt`
+- 固件
+  - `make -C src ovmf`
+  - `make -C src ovmf-debug`
+  - `make -C src ovmf-noopt`
 
 ---
 
-Qemu启动可选项:
-
-- `QEMU_GPY`
-   - false -> 不显示Qemu图形化窗口
+- `QEMU_HOME`
+- `QEMU_GPY` - false -> 不显示Qemu图形化窗口
+- `QEMU_MEM` - 内存大小默认 64M
+- `QEMU_LOG` - QEMU 日志输出到哪?
+- `BOOT_MODE`
+  - `emulti` - `-kernel` 加载 内核 直接启动
+  - `efi` - UEFI / OVMF 环境启动
 
 # 学习 / 开发此项目
 
@@ -170,6 +185,8 @@ edk2 子模块也必须要克隆:
 git submodule update --init --progress
 ```
 
+edk2 编译依赖: 见 [OSDev](https://wiki.osdev.org/EDK2)
+
 ## compile_commands.json
 
 本项目使用 bear + make 进行 `compile_commands.json` 的构建
@@ -183,9 +200,15 @@ sudo pacman -S bear
 make -C src compile_commands.json
 ```
 
-将 `src/utils/compile_commands.json`添加到配置中.
+将 `compile_commands.json`添加到配置中. VSCode 可以配置`includePath`
 
-VSCode可以配置`includePath`
+## NixOS
+
+```shell
+nix-shell shell.nix
+```
+
+即可在 shell 环境中编译项目
 
 # 参考软件版本
 
@@ -215,12 +238,16 @@ VSCode可以配置`includePath`
 
 > 原 [预发布仓库](https://github.com/ljQAQ233/textos-pre) 旨在提前原来的 bilibili 同步仓库 (也就是这一个仓库) 进行提交, 已经被 archive, 因为只有这一个仓库会受到大家的点击 (大概是我将连接放在前面的缘故...) -- 2025/08/03
 
-- <https://github.com/stevenbaby/onix>
-- <https://github.com/Minep/lunaix-os>
+- OS
+  - <https://github.com/Jimx-/lyos/>
+  - <https://github.com/klange/toaruos>
+  - <https://github.com/Minep/lunaix-os>
+  - <https://github.com/stevenbaby/onix>
 
-- <https://gitee.com/tanyugang/UEFI>
-- <https://github.dev/aar10n/osdev>
-- <https://gitee.com/luobing4365/uefi-practical-programming>
+- UEFI
+  - <https://gitee.com/tanyugang/UEFI>
+  - <https://github.dev/aar10n/osdev>
+  - <https://gitee.com/luobing4365/uefi-practical-programming>
 
 ## 视频
 
@@ -237,4 +264,4 @@ VSCode可以配置`includePath`
 
 # LICENSE
 
-[MIT License] (LICENSE)
+[MIT License](./LICENSE)

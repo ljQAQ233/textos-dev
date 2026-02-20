@@ -12,12 +12,10 @@
 .cache
 .stamp
 
-build/
-src/image/
-src/base/*.fd
-src/base/*.code
-src/base/*.vars
+/build
+/src/image/
+/src/base/*.fd
+/src/base/*.code
+/src/base/*.vars
 
-.vscode/settings.json
-src/config/private.mk
-src/utils/compile_commands.json
+/compile_commands.json

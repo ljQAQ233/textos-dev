@@ -44,6 +44,8 @@ static void dummy() { };
 __weak_alias(dummy, __init_stdio);
 __weak_alias(dummy, __init_linker);
 __weak_alias(dummy, __init_wrapper);
+__weak_alias(dummy, _fini);
+__weak_alias(dummy, _init);
 
 __attribute__((constructor))
 void __libc_internal_init()
