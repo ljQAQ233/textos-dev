@@ -11,7 +11,7 @@ CRTO := \
 	$(BUILD)/crti.c.o \
 	$(BUILD)/crtn.c.o
 
-CFLAGS += -nostdinc -nostdlib
+CFLAGS += -nostdinc -nostdlib -Wl,-z,noexecstack
 
 all: $(BUILD)/cc \
 	$(CRTO) \
@@ -26,13 +26,13 @@ all: $(BUILD)/cc \
 $(BUILD)/cc: \
 	$(BUILD)/cc.specs
 	@echo '#!/bin/sh' > $@
-	@echo 'gcc "$$@" -specs=$<' >> $@
+	@echo '$(CC) "$$@" -specs=$<' >> $@
 	@chmod +x $@
 
 $(BUILD)/cc.specs:
 	@mkdir -p $(@D)
-	$(CURDIR)/specs.sh "$(INCLUDE)" "$(BUILD)" "$(LIBRARY)" "/lib/ld-textos.so" > $@
-	@sudo ln -sf $(BUILD)/ld-textos.so /lib/ld-textos.so
+	@$(CURDIR)/specs.sh "$(INCLUDE)" "$(BUILD)" "$(LIBRARY)" "/lib/ld-textos.so" > $@
+	# @sudo ln -sf $(BUILD)/ld-textos.so /lib/ld-textos.so
 	@touch .stamp
 
 $(BUILD)/%.a: $(BUILD)/%.o
@@ -40,7 +40,7 @@ $(BUILD)/%.a: $(BUILD)/%.o
 	@echo -e "\033[032m   AR  \033[0m $@"
 
 $(BUILD)/%.so: $(BUILD)/%.o
-	@$(CC) $(CFLAGS) $^ -o $@ -shared -fPIC
+	@$(LD) $(LDFLAGS) $^ -o $@ -shared -fPIC
 	@echo -e "\033[032m   CC  \033[0m $@"
 
 $(BUILD)/libc.o: $(OBJS)
@@ -48,7 +48,7 @@ $(BUILD)/libc.o: $(OBJS)
 	@echo -e "\033[032m   LD  \033[0m link -> $@"
 
 $(BUILD)/libdl.o: linker/libdl.c linker/linker.c
-	@$(CC) $(CFLAGS) -c $< -o $@ -L$(BUILD) -lc -fPIC
+	@$(CC) $(CFLAGS) -c $< -o $@ -fPIC
 	@echo -e "\033[032m   CC  \033[0m $<"
 
 $(BUILD)/ld-textos.so: linker/ldso.c linker/linker.c $(CRTO)

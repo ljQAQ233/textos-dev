@@ -1,79 +1,41 @@
-OUTPUT    ?= .
-SHELL     := bash
+SHELL := bash
+
+# GCC5 的配置 对于高版本编译器 依然可以 "兼容";
+# NOTE: 不要修改这段代码!!!
+TOOLCHAIN := GCC5
 
 include ../config/boot.mk
+# 每一个 BOOT_MODE 都对应一个 .mk 文件
+# 每一个 .mk 都必须实现 build, update, clean, prepare 目标
+# 分别对应 正式构建, 检测有无改动并触发构建, 清理, 构建前准备
+# 由于 OVMF 与 BOOT_MODE 没有太多关联, 因为你都希望构建了,
+# 那么我阻止也没用呀, 所以安排到了这里
+include ./$(BOOT_MODE).mk
 
-ifeq (${BSRC_DEBUG},true)
- TARGET := DEBUG
-else
- TARGET := RELEASE
-endif
-
-prepare:
-	@ln -snf $(abspath SigmaBootPkg) Edk2/SigmaBootPkg
-
-ovmf: BOOT_OUTPUT:=$(BOOT_OUTPUT)/OVMF_$(ARCH)
+ovmf: BOOT_OUTPUT:=$(BOOT_OUTPUT)/OVMF_$(EFI_ARCH)
 ovmf:
-	@mkdir -p Edk2/Conf
+	mkdir -p Edk2/Conf
 	@echo -e "Update configures for compliler...\n"
-	@export WORKSPACE=$(abspath Edk2) && \
+	export WORKSPACE=$(abspath Edk2) && \
 		source Edk2/BaseTools/BuildEnv && \
 		if ! build --help > /dev/null;then \
 			rm -rf Conf/tools_def.txt \
 			Conf/target.txt \
 			Conf/build_rule.txt \
 		;fi
-	
+
 	@echo -e "Start to build Boot Module...\n"
-	@export WORKSPACE=$(abspath Edk2) && \
+	export WORKSPACE=$(abspath Edk2) && \
 		source Edk2/BaseTools/BuildEnv > /dev/null && \
 		build $(FLAGS) -p OvmfPkg/OvmfPkg.dsc \
-		-a $(ARCH) \
+		-a $(EFI_ARCH) \
 		-t $(TOOLCHAIN) \
 		-b $(TARGET) \
 		-DOUTPUT=$(BOOT_OUTPUT) \
-		-DARCH=$(ARCH)
-	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF.fd $(BASE)/OVMF_$(TARGET)_$(ARCH).fd
-	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_CODE.fd $(BASE)/OVMF_$(TARGET)_$(ARCH).code
-	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_VARS.fd $(BASE)/OVMF_$(TARGET)_$(ARCH).vars
+		-DARCH=$(EFI_ARCH)
+	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF.fd $(BASE)/OVMF_$(TARGET)_$(EFI_ARCH).fd
+	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_CODE.fd $(BASE)/OVMF_$(TARGET)_$(EFI_ARCH).code
+	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_VARS.fd $(BASE)/OVMF_$(TARGET)_$(EFI_ARCH).vars
 
-build: prepare
-	@mkdir -p Edk2/Conf
-	@echo -e "Update configures for compliler...\n"
-	@export WORKSPACE=$(abspath Edk2) && \
-	source Edk2/BaseTools/BuildEnv && \
-		if ! build --help > /dev/null;then \
-			rm -rf Conf/tools_def.txt \
-			Conf/target.txt \
-			Conf/build_rule.txt \
-		;fi
-	
-	@echo -e "Start to build Boot Module...\n"
-	@export WORKSPACE=$(abspath Edk2) && \
-	source Edk2/BaseTools/BuildEnv > /dev/null && \
-		build $(FLAGS) -p $(DSC) \
-		-a $(ARCH) \
-		-t $(TOOLCHAIN) \
-		-b $(TARGET) \
-		-DOUTPUT=$(BOOT_OUTPUT) \
-		-DCFLAGS="$(CFLAGS)" 2>&1
-	@$(UTILS)/chkmodify_unlock.sh $(PROJ)
-	@echo
-
-update: BOOT_OUTPUT:=$(BOOT_OUTPUT)/SIGMA_$(ARCH)
-update: EXEC_OUTPUT:=$(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/$(ARCH)/$(PLATFORM_NAME)
-update:
-	@if ! test -f $(EXEC_OUTPUT).efi ; then \
-		make build \
-	;elif ! $(UTILS)/chkmodify.sh $(PROJ) >/dev/null 2>&1;then \
-		make build \
-	;fi
-	@cp -f $(EXEC_OUTPUT).efi $(BOOT_EXEC)
-	@mkdir -p $(ROOT)/EFI/Boot
-	@cp -f $(BOOT_EXEC) $(ROOT)/EFI/Boot
-
-clean:
-	rm -rf Edk2/SigmaBootPkg
-
-.PHONY: prepare ovmf build update clean
+.PHONY: ovmf
 .DEFAULT_GOAL := update

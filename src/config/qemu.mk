@@ -1,16 +1,15 @@
-# Set Qemu Executable File Path
-QEMU_BINARY = /usr/bin
-
-QEMU = $(QEMU_BINARY)/qemu-system-x86_64
+# Set qemu executable file path
+QEMU_HOME ?= /usr
+QEMU_BIN := $(QEMU_HOME)/bin
+QEMU := $(QEMU_BIN)/qemu-system-x86_64
 
 QEMU_LOG ?= file:$(OUTPUT)/qemu.log
-
-MEM = 64M
+QEMU_MEM ?= 64M
 
 # Qemu Common Args
 QEMU_FLAGS := \
   -cpu qemu64,+x2apic \
-  -smp 2 -m $(MEM) \
+  -smp 2 -m $(QEMU_MEM) \
   -no-reboot \
   -debugcon $(QEMU_LOG) \
   -device isa-debug-exit \
@@ -26,14 +25,14 @@ ifeq (${QEMU_GPY},false)
 endif
 
 # Firmware selection
-ifeq (${QEMU_EFI},false)
+ifeq (${BOOT_MODE},emulti)
   define fw_arg
     -kernel $(KERNEL_EXEC)
   endef
 else
   define fw_arg
-    -drive if=pflash,format=raw,file=$(BASE)/OVMF_$(1)_$(ARCH).code,readonly=on \
-    -drive if=pflash,format=raw,file=$(BASE)/OVMF_$(1)_$(ARCH).vars
+    -drive if=pflash,format=raw,file=$(BASE)/OVMF_$(1)_$(EFI_ARCH).code,readonly=on \
+    -drive if=pflash,format=raw,file=$(BASE)/OVMF_$(1)_$(EFI_ARCH).vars
   endef
 endif
 

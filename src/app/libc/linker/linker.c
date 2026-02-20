@@ -351,10 +351,10 @@ static inline int dochk(struct dl *dl)
         dlerr("wrong machine type");
         return -1;
     }
-    if (hdr->e_type != ET_DYN) {
-        dlerr("ET_SYN needed");
-        return -1;
-    }
+    // if (hdr->e_type != ET_DYN) {
+    //     dlerr("ET_DYN needed");
+    //     return -1;
+    // }
     return 0;
 }
 
