@@ -1,11 +1,3 @@
-ARCH    ?= X64
-
-# Commands
-CC      := gcc
-CPP     := $(CC) -E
-LD      := ld
-OBJCOPY := objcopy
-
 # Include path
 INCLUDE := \
   $(SRC_DIR)/include \
@@ -22,7 +14,7 @@ CFLAGS := \
   -include $(KERNEL_OUTPUT)/autogen.h \
   $(addprefix -I,${INCLUDE})
 
-CFLAGS   += -D__TEXTOS_DEBUG
+CFLAGS += -D__TEXTOS_DEBUG
 
 AFLAGS := \
   -g

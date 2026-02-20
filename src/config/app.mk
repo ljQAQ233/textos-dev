@@ -1,11 +1,3 @@
-ARCH ?= X64
-
-# Commands
-CC      := gcc
-LD      := ld
-OBJCOPY := objcopy
-
-# Include path
 INCLUDE := \
   $(SRC_DIR)/include \
   $(SRC_DIR)/include/arch/$(ARCH) \
@@ -23,6 +15,6 @@ CFLAGS := -g \
   $(addprefix -I,${INCLUDE})
 
 LDFLAGS := \
-  -nostdlib
+  -nostdlib -z noexecstack
 
-export CC LD OBJCOPY INCLUDE LIBRARY CFLAGS LDFLAGS
+export INCLUDE LIBRARY CFLAGS LDFLAGS
