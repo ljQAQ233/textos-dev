@@ -38,8 +38,8 @@ build: prepare
 update: BOOT_OUTPUT:=$(BOOT_OUTPUT)/SIGMA_$(EFI_ARCH)
 update: EXEC_OUTPUT:=$(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/$(EFI_ARCH)/$(PLATFORM_NAME)
 update:
-	@if ! test -f $(EXEC_OUTPUT).efi || \
-		$(UTILS)/chkmodify.sh $(PROJ); then \
+	@if ( ! test -f $(EXEC_OUTPUT).efi ) || \
+		( ! $(UTILS)/chkmodify.sh $(PROJ) ); then \
 		make build \
 	;fi
 	@cp -f $(EXEC_OUTPUT).efi $(BOOT_EXEC)
