@@ -10,13 +10,13 @@ __BEGIN_DECLS
 #include <bits/null.h>
 
 /*
-  The `strlen()` function calculates the 
+  The `strlen()` function calculates the
   length of the string pointed to by `str`,
   excluding the terminating null byte ('\0')
 */
 size_t strlen(const char *__str);
 
-size_t strnlen(const char *str, size_t maxlen);
+size_t strnlen(const char *__str, size_t __maxlen);
 
 /*
   The `strcpy()` function copies the string
@@ -76,7 +76,7 @@ char *strdup(const char *__str);
 /* duplicate a string, limited by `n` */
 char *strndup(const char *__str, size_t __n);
 
-/* 
+/*
   The `memset()` function  fills  the first `n` bytes of the
   memory area pointed to by `str` with the constant byte `c`
 */

@@ -12,6 +12,8 @@
  */
 #pragma once
 
+#include <stdbool.h>
+
 typedef struct list
 {
     struct list *prev;
