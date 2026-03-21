@@ -13,11 +13,9 @@
 #include <assert.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-typedef uint64_t u64;
-#include <stdbool.h>
-#include <../kernel/klib/list.c>
-#include <../kernel/klib/hlist.c>
-#include <../kernel/klib/htable.c>
+#include "../list.h"
+#include "../hlist.h"
+#include "../htable.h"
 
 struct sym
 {
@@ -50,7 +48,7 @@ struct dl
     char *strtab;      // .dynstr
     void *dynsym;      // .dynsym
     void *jmprela;     // .rela.plt
-    size_t entsym;     // .dynsym entry size 
+    size_t entsym;     // .dynsym entry size
     struct htable sym; // symbol hash table
     struct list dep;   // dependent libs
     /*
@@ -88,7 +86,7 @@ static void r_notify(int state)
     dbg.r_state = state;
     _dl_debug_state();
 }
-    
+
 static void r_addlib(struct dl *dl)
 {
     r_notify(RT_ADD);
@@ -340,7 +338,7 @@ static inline int dochk(struct dl *dl)
 {
     void *map = dl->base;
     Elf64_Ehdr *hdr = (Elf64_Ehdr *)map;
-    if (hdr->e_ident[EI_MAG0] != ELFMAG0 || 
+    if (hdr->e_ident[EI_MAG0] != ELFMAG0 ||
         hdr->e_ident[EI_MAG1] != ELFMAG1 ||
         hdr->e_ident[EI_MAG2] != ELFMAG2 ||
         hdr->e_ident[EI_MAG3] != ELFMAG3) {
@@ -391,7 +389,7 @@ static inline int dolkp(struct dl *dl)
      *   - `.dynstr` - DT_STRTAB
      *   - `.rela.dyn` - DT_RELA
      *   - `.rela.plt` - DT_JMPREL
-     *   
+     *
      *   - DT_PLTREL tells the type of plt : REL / RELA
      */
     Elf64_Dyn *dyn = (Elf64_Dyn *)dmap;
@@ -427,7 +425,7 @@ static inline int dolkp(struct dl *dl)
     dl->dynsym = dynsym;
     dl->jmprela = jmprela;
     dl->entsym = entsym;
-    
+
     size_t nrsym;
     nrsym = strtab - (char *)dynsym;
     nrsym /= entsym;
@@ -441,7 +439,7 @@ static inline int dolkp(struct dl *dl)
             ELF64_ST_BIND(sym->st_info) == STB_WEAK)
             addsym(dl, strtab + sym->st_name, dl->virt + sym->st_value);
     }
-    
+
     list_init(&dl->dep);
     dyn = (Elf64_Dyn *)dmap;
     for ( ; dyn->d_tag != DT_NULL ; dyn++)
@@ -528,7 +526,7 @@ static inline int dolkp(struct dl *dl)
             *p += (uintptr_t)dl->virt;
         }
     }
-    
+
     return 0;
 }
 
@@ -828,7 +826,7 @@ static void *dlsymc(struct dl *h, struct dl *c, const char *str, int exclude_c)
         // search in LD_PRELOAD
         if ((res = lkppre(str)))
             return res;
-        // search recursively 
+        // search recursively
         if (!exclude_c && c && (res = lkprec(c, str)))
             return res;
         // search in global loaded libs

@@ -1,9 +1,10 @@
 #pragma once
 
-#include <textos/mm/heap.h>
-#include <textos/klib/hlist.h>
+#include <stdint.h>
+#include <malloc.h>
+#include "hlist.h"
 
-typedef u64 htkey_t;
+typedef uint64_t htkey_t;
 
 typedef struct htable
 {
