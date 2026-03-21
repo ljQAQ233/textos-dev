@@ -27,7 +27,7 @@ OBJS := $(addprefix ${OUTPUT}/,${OBJS})
 
 include ../config/kernel.mk
 
-kernel: $(SRC_DIR)/include/bits/alltypes.h $(KERNEL_OUTPUT) autogen $(KERNEL_EXEC)
+kernel: $(KERNEL_OUTPUT) autogen $(KERNEL_EXEC)
 	@cp $(KERNEL_EXEC) $(ROOT)
 
 autogen:
