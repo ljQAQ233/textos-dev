@@ -2,6 +2,6 @@
 #define _ELF_H
 
 #include <stdint.h>
-#include <textos/user/elf.h>
+#include <bits/elf.h>
 
 #endif
