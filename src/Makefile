@@ -30,9 +30,9 @@ include config/main.mk
 include config/image.mk
 
 all: pre boot kernel app image
-pre: include/bits/alltypes.h
 
 MODS := kernel boot app
+$(MODS): $(ROOT) include/bits/alltypes.h
 
 # ovmf
 ovmf:

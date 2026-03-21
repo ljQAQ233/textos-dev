@@ -59,6 +59,4 @@ MNT2:=$(OUTPUT)/image/$(notdir ${LOOP})p2
 $(ROOT):
 	mkdir -p $@
 
-pre: $(ROOT)
-
 .PHONY: diskmu _img_m_ _img_u_ _img_cp_ _img_new_
