@@ -80,7 +80,6 @@ typedef struct
 
 static void *auxv(void *sp, exeinfo_t *exe, int put)
 {
-    void *osp = sp; // old record
     char *a_path = sp -= align(strlen(exe->path));
     char *a_arch = sp -= align(strlen(ARCH_STRING));
     if (put) {

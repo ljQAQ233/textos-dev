@@ -3,6 +3,7 @@
 
 #define __TEXT_OS__
 
+#include <sys/cdefs.h>
 #include <textos/type.h>
 #include <textos/base.h>
 

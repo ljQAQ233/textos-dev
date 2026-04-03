@@ -1,6 +1,7 @@
 /**
  * @brief minix fs v1 implementation
  */
+#include "textos/noopt.h"
 #include <textos/mm.h>
 #include <textos/fs.h>
 #include <textos/errno.h>
@@ -26,13 +27,13 @@ typedef struct minix_super
 
 typedef struct minix_inode
 {
-    u16 mode;          // 文件类型及权限
-    u16 uid;           // 所有者用户ID
-    u32 size;          // 文件大小(字节)
-    u32 mtime;         // 修改时间(时间戳)
-    u8 gid;            // 所有者组ID
-    u8 nlinks;         // 硬链接数
-    u16 zone[9];       // 数据块指针(0-6直接，7间接，8双间接 v1 不用)
+    u16 mode;    // 文件类型及权限
+    u16 uid;     // 所有者用户ID
+    u32 size;    // 文件大小(字节)
+    u32 mtime;   // 修改时间(时间戳)
+    u8 gid;      // 所有者组ID
+    u8 nlinks;   // 硬链接数
+    u16 zone[9]; // 数据块指针(0-6直接，7间接，8双间接 v1 不用)
 } minix_inode_t;
 
 typedef struct direct
@@ -43,12 +44,12 @@ typedef struct direct
 
 #define MINIX_V1 0x137f
 
-const uint zone_dib = 7;
-const uint zone_ib1 = zone_dib + (BLKSZ / 2);
-const uint zone_ib2 = zone_ib1 + (BLKSZ / 2) * (BLKSZ / 2);
-const uint nodenr_perblk = BLKSZ / sizeof(minix_inode_t);
-const uint xmapnr_perblk = BLKSZ * 8;
-const uint direnr_perblk = BLKSZ / sizeof(minix_direct_t);
+static const uint zone_dib = 7;
+static const uint zone_ib1 = zone_dib + (BLKSZ / 2);
+static const uint zone_ib2 = zone_ib1 + (BLKSZ / 2) * (BLKSZ / 2);
+static const uint nodenr_perblk = BLKSZ / sizeof(minix_inode_t);
+static const uint xmapnr_perblk = BLKSZ * 8;
+static const uint direnr_perblk = BLKSZ / sizeof(minix_direct_t);
 
 #define minix_boot()    (0)
 #define minix_super()   (1)
@@ -67,20 +68,16 @@ static buffer_t *minix_zget(superblk_t *sb, u16 zone[9], uint idx)
     /*
      * zone in `zone[]` 0 - 6 / 7 / 8 ?
      */
-    if (idx < zone_dib)
-    {
-        if (!zone[idx])
-            return NULL;
+    if (idx < zone_dib) {
+        if (!zone[idx]) return NULL;
         return sb_bread(sb, zone[idx]);
     }
-    if (idx < zone_ib1)
-    {
+    if (idx < zone_ib1) {
         buffer_t *ib1_blk = sb_bread(sb, zone[zone_dib]);
         u16 *ib1 = ib1_blk->blk;
         u16 bi = ib1[idx - zone_dib];
         brelse(ib1_blk);
-        if (!bi)
-            return NULL;
+        if (!bi) return NULL;
         return sb_bread(sb, bi);
     }
     DEBUGK(K_WARN, "minix : blk idx out of range : %u\n", idx);
@@ -91,32 +88,28 @@ static u16 minix_zalloc(superblk_t *sb);
 
 /**
  * @brief allocate `ext` blocks and extend zone[]
- * 
+ *
  * @return int number of blockes not allocated
  */
 static uint minix_zext(superblk_t *sb, u16 zone[9], uint ext)
 {
     uint i = 0;
-    for ( ; i < zone_dib && ext ; i++)
-        if (zone[i] == 0)
-            zone[i] = minix_zalloc(sb), ext--;
-    if (!ext)
-        return 0;
+    for (; i < zone_dib && ext; i++)
+        if (zone[i] == 0) zone[i] = minix_zalloc(sb), ext--;
+    if (!ext) return 0;
 
     buffer_t *ib1_blk;
     if (zone[zone_dib])
         ib1_blk = sb_bread(sb, zone[zone_dib]);
-    else
-    {
+    else {
         zone[zone_dib] = minix_zalloc(sb);
         ib1_blk = sb_bread(sb, zone[zone_dib]);
         memset(ib1_blk->blk, 0, BLKSZ);
         bdirty(ib1_blk, true);
     }
     u16 *ib1 = ib1_blk->blk;
-    for ( ; i < zone_ib1 && ext ; i++)
-        if (ib1[i] == 0)
-            ib1[i] = minix_zalloc(sb), ext--;
+    for (; i < zone_ib1 && ext; i++)
+        if (ib1[i] == 0) ib1[i] = minix_zalloc(sb), ext--;
     bdirty(ib1_blk, true);
     brelse(ib1_blk);
     return ext;
@@ -125,15 +118,13 @@ static uint minix_zext(superblk_t *sb, u16 zone[9], uint ext)
 static u16 minix_ialloc(superblk_t *sb)
 {
     minix_super_t *msb = sb->sbi;
-    for (uint i = 0 ; i < msb->inodes ; i += xmapnr_perblk)
-    {
+    for (uint i = 0; i < msb->inodes; i += xmapnr_perblk) {
         uint bi = minix_imap(msb) + i / xmapnr_perblk;
         buffer_t *blk = sb_bread(sb, bi);
         bitmap_t bmp;
         bitmap_init(&bmp, blk->blk, xmapnr_perblk);
         size_t ino = bitmap_find(&bmp);
-        if (ino != -1)
-        {
+        if (ino != -1) {
             bitmap_set(&bmp, ino);
             bdirty(blk, true);
             brelse(blk);
@@ -150,15 +141,13 @@ static u16 minix_ialloc(superblk_t *sb)
 static u16 minix_zalloc(superblk_t *sb)
 {
     minix_super_t *msb = sb->sbi;
-    for (uint i = 0 ; i < msb->zones ; i += xmapnr_perblk)
-    {
+    for (uint i = 0; i < msb->zones; i += xmapnr_perblk) {
         uint bi = minix_zmap(msb) + i / xmapnr_perblk;
         buffer_t *blk = sb_bread(sb, bi);
         bitmap_t bmp;
         bitmap_init(&bmp, blk->blk, xmapnr_perblk);
         size_t blkno = bitmap_find(&bmp);
-        if (blkno != -1)
-        {
+        if (blkno != -1) {
             bitmap_set(&bmp, blkno);
             bdirty(blk, true);
             brelse(blk);
@@ -171,7 +160,6 @@ static u16 minix_zalloc(superblk_t *sb)
 
 static void minix_ifree(superblk_t *sb, u16 ino)
 {
-    minix_super_t *msb = sb->sbi;
     uint bi = ino / xmapnr_perblk + minix_imap(msb);
     uint ii = ino % xmapnr_perblk;
     buffer_t *blk = sb_bread(sb, bi);
@@ -198,11 +186,9 @@ static void minix_zfree(superblk_t *sb, u16 blkno)
 
 static minix_inode_t *minix_iget(superblk_t *sb, u16 ino)
 {
-    if (ino == 0)
-        return NULL;
+    if (ino == 0) return NULL;
     minix_super_t *msb = sb->sbi;
-    if (ino > msb->inodes)
-        return NULL;
+    if (ino > msb->inodes) return NULL;
     ino -= 1;
     uint bidx = ino / nodenr_perblk + minix_inode(msb);
     uint iidx = ino % nodenr_perblk;
@@ -216,8 +202,7 @@ static minix_inode_t *minix_iget(superblk_t *sb, u16 ino)
 static void minix_isync(superblk_t *sb, minix_inode_t *mi, u16 ino)
 {
     minix_super_t *msb = sb->sbi;
-    if (ino > msb->inodes)
-        return;
+    if (ino > msb->inodes) return;
     ino -= 1;
     uint bidx = ino / nodenr_perblk + minix_inode(msb);
     uint iidx = ino % nodenr_perblk;
@@ -247,19 +232,15 @@ static inline u16 minix_dev_make(dev_t dev)
 static u16 minix_lookup(node_t *dir, char *name)
 {
     superblk_t *sb = dir->sb;
-    minix_super_t *msb = sb->sbi;
     minix_inode_t *mdir = dir->pdata;
     uint entmax = mdir->size / sizeof(minix_direct_t);
-    for (uint idx = 0 ; idx < entmax ; idx += sizeof(minix_direct_t))
-    {
+    for (uint idx = 0; idx < entmax; idx += sizeof(minix_direct_t)) {
         uint zidx = idx / direnr_perblk;
         buffer_t *blk = minix_zget(sb, mdir->zone, zidx);
         minix_direct_t *ent = blk->blk;
-        for (int eidx = 0 ; eidx < direnr_perblk ; eidx++)
-        {
+        for (int eidx = 0; eidx < direnr_perblk; eidx++) {
             minix_direct_t *ptr = &ent[eidx];
-            if (strncmp(name, ptr->name, 14) == 0)
-            {
+            if (strncmp(name, ptr->name, 14) == 0) {
                 u16 ino = ptr->ino;
                 brelse(blk);
                 return ino;
@@ -279,37 +260,32 @@ static u16 minix_lookup(node_t *dir, char *name)
 static int minix_eddir(node_t *dir, char *name, u16 ino)
 {
     superblk_t *sb = dir->sb;
-    minix_super_t *msb = sb->sbi;
     minix_inode_t *mdir = dir->pdata;
     /*
-     * align_up is not necessary, because the inner for-loop reads the entire block.
-     * Even if mdir->size is not aligned to BLKSZ, as long as it's larger than a multiple
-     * of BLKSZ, the loop will still cover all directory entries correctly.
+     * align_up is not necessary, because the inner for-loop reads the entire
+     * block. Even if mdir->size is not aligned to BLKSZ, as long as it's larger
+     * than a multiple of BLKSZ, the loop will still cover all directory entries
+     * correctly.
      */
     uint entmax = mdir->size / sizeof(minix_direct_t);
-    for (uint idx = 0 ; idx < entmax ; idx += direnr_perblk)
-    {
+    for (uint idx = 0; idx < entmax; idx += direnr_perblk) {
         uint zidx = idx / direnr_perblk;
         buffer_t *blk = minix_zget(sb, mdir->zone, zidx);
         minix_direct_t *ent = blk->blk;
-        for (int eidx = 0 ; eidx < direnr_perblk ; eidx++)
-        {
+        for (int eidx = 0; eidx < direnr_perblk; eidx++) {
             minix_direct_t *ptr = &ent[eidx];
-            if (!ino && !strncmp(ptr->name, name, 14))
-            {
+            if (!ino && !strncmp(ptr->name, name, 14)) {
                 ptr->ino = 0;
                 bdirty(blk, true);
                 brelse(blk);
-            }
-            else if (ino && ptr->ino == 0)
-            {
+            } else if (ino && ptr->ino == 0) {
                 ptr->ino = ino;
                 strncpy(ptr->name, name, 14);
                 bdirty(blk, true);
                 brelse(blk);
-                uint nsize = (idx * direnr_perblk + eidx + 1) * sizeof(minix_direct_t);
-                if (mdir->size < nsize)
-                {
+                uint nsize =
+                    (idx * direnr_perblk + eidx + 1) * sizeof(minix_direct_t);
+                if (mdir->size < nsize) {
                     mdir->size = nsize;
                     minix_isync(sb, mdir, dir->ino);
                 }
@@ -320,12 +296,15 @@ static int minix_eddir(node_t *dir, char *name, u16 ino)
     }
 
     uint rem = minix_zext(sb, mdir->zone, 1);
-    if (rem != 0)
-        return -ENOSPC;
+    if (rem != 0) return -ENOSPC;
     return minix_eddir(dir, name, ino);
 }
 
-#define _(x) if (x) minix_zfree(sb, x); else break;
+#define _(x)                \
+    if (x)                  \
+        minix_zfree(sb, x); \
+    else                    \
+        break;
 
 /**
  * @brief free data blocks
@@ -333,17 +312,19 @@ static int minix_eddir(node_t *dir, char *name, u16 ino)
 static int minix_trunc(superblk_t *sb, u16 zone[9], uint zmax)
 {
     uint zidx = 0;
-    for ( ; zidx < MIN(zmax, zone_dib) ; zidx++);
-    for ( ; zidx < zone_dib ; zidx++) _(zone[zidx]);
+    for (; zidx < MIN(zmax, zone_dib); zidx++)
+        ;
+    for (; zidx < zone_dib; zidx++)
+        _(zone[zidx]);
 
-    if (zidx < zone_dib)
-        return 0;
+    if (zidx < zone_dib) return 0;
     ASSERTK(zone[zone_dib] != 0);
 
     buffer_t *ib1_blk = sb_bread(sb, zone[zone_dib]);
     u16 *ib1 = ib1_blk->blk;
-    for ( ; zidx < MIN(zmax, zone_ib1) ; zidx++);
-    for ( ; zidx < zone_ib1 ; zidx++)
+    for (; zidx < MIN(zmax, zone_ib1); zidx++)
+        ;
+    for (; zidx < zone_ib1; zidx++)
         _(ib1[zidx - zone_dib]);
     minix_zfree(sb, zone[zone_dib]);
 
@@ -355,8 +336,7 @@ static int minix_trunc(superblk_t *sb, u16 zone[9], uint zmax)
 static int minix_setupdir(superblk_t *sb, u16 zone[9], u16 ino, u16 pino)
 {
     zone[0] = minix_zalloc(sb);
-    if (!zone[0])
-        return -ENOSPC;
+    if (!zone[0]) return -ENOSPC;
     buffer_t *blk = minix_zget(sb, zone, 0);
     minix_direct_t *ent = blk->blk;
 
@@ -364,7 +344,7 @@ static int minix_setupdir(superblk_t *sb, u16 zone[9], u16 ino, u16 pino)
     strcpy(ent[0].name, ".");
     ent[1].ino = pino;
     strcpy(ent[1].name, "..");
-    
+
     bdirty(blk, true);
     brelse(blk);
     return 0;
@@ -375,7 +355,8 @@ static bool minix_isdev(mode_t mode)
     return (S_ISCHR(mode) || S_ISBLK(mode));
 }
 
-static node_t *minix_nodeget(superblk_t *sb, minix_inode_t *mi, u16 ino, char *name)
+static node_t *minix_nodeget(superblk_t *sb, minix_inode_t *mi, u16 ino,
+                             char *name)
 {
     node_t *node = malloc(sizeof(node_t));
     node->name = strdup(name);
@@ -402,35 +383,28 @@ static int minix_namel(char *res, char *name)
         len = strlen(name);
     else
         len = p - name;
-    if (len > 14)
-        return -ENAMETOOLONG;
+    if (len > 14) return -ENAMETOOLONG;
     strncpy(res, name, len);
     res[len] = 0;
     return 0;
 }
 
-static int minix_open(node_t *parent, char *name, u64 args, int mode, node_t **result)
+static int minix_open(node_t *parent, char *name, u64 args, int mode,
+                      node_t **result)
 {
     superblk_t *sb = parent->sb;
-    minix_super_t *msb = sb->sbi;
-    minix_inode_t *mdir = parent->pdata;
 
     char filname[15];
-    if (minix_namel(filname, name) < 0)
-        return -ENAMETOOLONG;
+    if (minix_namel(filname, name) < 0) return -ENAMETOOLONG;
 
     u16 ino = minix_lookup(parent, filname);
     minix_inode_t *mi = minix_iget(sb, ino);
-    if (!mi)
-    {
-        if (args & O_CREAT)
-        {
+    if (!mi) {
+        if (args & O_CREAT) {
             mode &= ~S_IFMT;
             ino = minix_ialloc(sb);
-            if (ino == 0)
-                goto nospace;
-            if (minix_eddir(parent, filname, ino) < 0)
-                goto nospace;
+            if (ino == 0) goto nospace;
+            if (minix_eddir(parent, filname, ino) < 0) goto nospace;
             mi = minix_iget(sb, ino);
             mi->mode = mode;
             mi->uid = 0;
@@ -439,18 +413,15 @@ static int minix_open(node_t *parent, char *name, u64 args, int mode, node_t **r
             mi->gid = 0;
             mi->nlinks = 1;
             memset(mi->zone, 0, sizeof(mi->zone));
-            if (args & O_DIRECTORY)
-            {
+            if (args & O_DIRECTORY) {
                 mi->size = 2 * sizeof(minix_direct_t);
                 mi->mode |= S_IFDIR;
                 if (minix_setupdir(sb, mi->zone, ino, parent->ino) < 0)
                     goto nospace;
-            }
-            else
+            } else
                 mi->mode |= S_IFREG;
             minix_isync(sb, mi, ino);
-        }
-        else
+        } else
             return -ENOENT;
     }
 
@@ -460,26 +431,22 @@ static int minix_open(node_t *parent, char *name, u64 args, int mode, node_t **r
     return 0;
 
 nospace:
-    if (ino)
-        minix_ifree(sb, ino);
-    if (mi)
-        free(mi);
+    if (ino) minix_ifree(sb, ino);
+    if (mi) free(mi);
     return -ENOSPC;
 }
 
-static int minix_mknod(node_t *parent, char *name, dev_t rdev, int mode, node_t **result)
+static int minix_mknod(node_t *parent, char *name, dev_t rdev, int mode,
+                       node_t **result)
 {
     char filname[15];
-    if (minix_namel(filname, name) < 0)
-        return -ENAMETOOLONG;
+    if (minix_namel(filname, name) < 0) return -ENAMETOOLONG;
 
     superblk_t *sb = parent->sb;
     minix_inode_t *mi = NULL;
     u16 ino = minix_ialloc(sb);
-    if (ino == 0)
-        goto nospace;
-    if (minix_eddir(parent, filname, ino) < 0)
-        goto nospace;
+    if (ino == 0) goto nospace;
+    if (minix_eddir(parent, filname, ino) < 0) goto nospace;
     mi = minix_iget(sb, ino);
     mi->mode = mode;
     mi->uid = 0;
@@ -497,15 +464,9 @@ static int minix_mknod(node_t *parent, char *name, dev_t rdev, int mode, node_t 
     return 0;
 
 nospace:
-    if (ino)
-        minix_ifree(sb, ino);
-    if (mi)
-        free(mi);
+    if (ino) minix_ifree(sb, ino);
+    if (mi) free(mi);
     return -ENOSPC;
-}
-
-static int minix_ioctl(node_t *this, int req, void *argp)
-{
 }
 
 static int minix_chown(node_t *this, uid_t owner, gid_t group, bool ap)
@@ -522,7 +483,8 @@ static int minix_chown(node_t *this, uid_t owner, gid_t group, bool ap)
 static int minix_chmod(node_t *this, mode_t mode, bool clrsgid)
 {
     /*
-     * The mode passed to VFS has already been masked to exclude bits unsupported by Minix v1.
+     * The mode passed to VFS has already been masked to exclude bits
+     * unsupported by Minix v1.
      */
     mode &= 0777;
     vfs_m_chmod(this, mode, clrsgid);
@@ -546,8 +508,7 @@ static int minix_remove(node_t *this)
 {
     superblk_t *sb = this->sb;
     minix_inode_t *mi = this->pdata;
-    if (!minix_isdev(this->mode))
-        minix_trunc(sb, mi->zone, 0);
+    if (!minix_isdev(this->mode)) minix_trunc(sb, mi->zone, 0);
     minix_eddir(this->parent, this->name, 0);
     minix_ifree(sb, this->ino);
 
@@ -557,27 +518,22 @@ static int minix_remove(node_t *this)
 
 static int minix_read(node_t *this, void *buf, size_t siz, size_t offset)
 {
-    if (offset >= this->siz)
-        return 0;
+    if (offset >= this->siz) return 0;
 
     superblk_t *sb = this->sb;
     minix_inode_t *mi = this->pdata;
 
     size_t rem = siz;
     size_t tot = 0;
-    while (rem > 0 && offset < mi->size)
-    {
+    while (rem > 0 && offset < mi->size) {
         uint bidx = offset / BLKSZ;
         uint boff = offset % BLKSZ;
         buffer_t *blk = minix_zget(sb, mi->zone, bidx);
-        if (!blk)
-            break;
+        if (!blk) break;
 
         size_t cpysiz = BLKSZ - boff;
-        if (cpysiz > rem)
-            cpysiz = rem;
-        if (cpysiz > mi->size - offset)
-            cpysiz = mi->size - offset;
+        if (cpysiz > rem) cpysiz = rem;
+        if (cpysiz > mi->size - offset) cpysiz = mi->size - offset;
 
         memcpy(buf, blk->blk + boff, cpysiz);
         brelse(blk);
@@ -600,25 +556,20 @@ static int minix_write(node_t *this, void *buf, size_t siz, size_t offset)
     size_t tot = 0;
     char *src = buf;
 
-    while (rem > 0)
-    {
+    while (rem > 0) {
         uint bidx = offset / BLKSZ;
         uint boff = offset % BLKSZ;
-        if (bidx >= zone_ib2)
-            break;
+        if (bidx >= zone_ib2) break;
 
         buffer_t *blk = minix_zget(sb, mi->zone, bidx);
-        if (!blk)
-        {
+        if (!blk) {
             uint err = minix_zext(sb, mi->zone, 1);
-            if (err != 0)
-                break;
+            if (err != 0) break;
             blk = minix_zget(sb, mi->zone, bidx);
         }
 
         size_t cpysiz = BLKSZ - boff;
-        if (cpysiz > rem)
-            cpysiz = rem;
+        if (cpysiz > rem) cpysiz = rem;
 
         memcpy(blk->blk + boff, src, cpysiz);
         bdirty(blk, true);
@@ -630,8 +581,7 @@ static int minix_write(node_t *this, void *buf, size_t siz, size_t offset)
         rem -= cpysiz;
     }
 
-    if (offset > mi->size)
-    {
+    if (offset > mi->size) {
         this->siz = mi->size = offset;
         mi->mtime = arch_time_now();
         minix_isync(sb, mi, this->ino);
@@ -680,10 +630,8 @@ static int minix_dir_emit(dirctx_t *ctx, minix_direct_t *de, minix_inode_t *mi)
 
 static int minix_readdir(node_t *dir, dirctx_t *ctx)
 {
-    if (ctx->stat == ctx_inv)
-        init_ctx(ctx, dir);
-    if (ctx->stat == ctx_end)
-        return EOF;
+    if (ctx->stat == ctx_inv) init_ctx(ctx, dir);
+    if (ctx->stat == ctx_end) return EOF;
     dir->atime = arch_time_now();
 
     superblk_t *sb = dir->sb;
@@ -691,18 +639,14 @@ static int minix_readdir(node_t *dir, dirctx_t *ctx)
     uint zmax = mdir->size / BLKSZ;
     uint zidx = ctx->pos / direnr_perblk;
     uint eidx = ctx->pos % direnr_perblk;
-    for ( ; zidx <= zmax ; zidx++)
-    {
+    for (; zidx <= zmax; zidx++) {
         buffer_t *blk = minix_zget(sb, mdir->zone, zidx);
         minix_direct_t *ent = blk->blk;
-        for ( ; eidx < direnr_perblk ; eidx++)
-        {
+        for (; eidx < direnr_perblk; eidx++) {
             minix_direct_t *ptr = &ent[eidx];
             minix_inode_t *iptr = minix_iget(sb, ptr->ino);
-            if (!ptr->ino)
-                continue;
-            if (!minix_dir_emit(ctx, ptr, iptr))
-            {
+            if (!ptr->ino) continue;
+            if (!minix_dir_emit(ctx, ptr, iptr)) {
                 ctx->stat = ctx_end;
                 brelse(blk);
                 return 0;
@@ -718,13 +662,11 @@ static int minix_readdir(node_t *dir, dirctx_t *ctx)
 
 static int minix_seekdir(node_t *dir, dirctx_t *ctx, size_t *pos)
 {
-    if (ctx->stat == ctx_inv)
-        init_ctx(ctx, dir);
+    if (ctx->stat == ctx_inv) init_ctx(ctx, dir);
 
     minix_inode_t *mdir = dir->pdata;
     uint entmax = mdir->size / sizeof(minix_direct_t);
-    if (*pos < entmax)
-    {
+    if (*pos < entmax) {
         ctx->pos = *pos;
         return 0;
     }
@@ -747,8 +689,7 @@ superblk_t *__fs_init_minix(devst_t *dev)
     memcpy(msb, blk->blk, sizeof(minix_super_t));
     brelse(blk);
 
-    if (msb->magic != MINIX_V1)
-        goto fail;
+    if (msb->magic != MINIX_V1) goto fail;
 
     superblk_t *sb = malloc(sizeof(superblk_t));
     sb->blksz = BLKSZ;
@@ -758,12 +699,11 @@ superblk_t *__fs_init_minix(devst_t *dev)
     sb->sbi = msb;
 
     minix_inode_t *root = minix_iget(sb, 1);
-    node_t *node = sb->root = minix_nodeget(sb, root, 1, "/");
+    sb->root = minix_nodeget(sb, root, 1, "/");
     return sb;
 
 fail:
-    if (msb)
-        free(msb);
+    if (msb) free(msb);
     return NULL;
 }
 
@@ -779,6 +719,6 @@ fs_opts_t __minix1_op = {
     minix_write,
     minix_truncate,
     minix_mmap,
-    minix_ioctl,
+    noopt,
     minix_close,
 };

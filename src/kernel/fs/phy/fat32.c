@@ -8,7 +8,7 @@
 
 #define EOC 0x0FFFFFFF
 // end-of-cluster marker
-#define is_eoc(val) (0x0FFFFFF8 <= val && val <= 0x0FFFFFFF) 
+#define is_eoc(val) (0x0FFFFFF8 <= val && val <= 0x0FFFFFFF)
 
 typedef struct _packed
 {
@@ -204,7 +204,7 @@ static inline void entry_erase(sentry_t *e)
     e->name[0] = 0xe5;
 }
 
-static inline u8 get_cksum(char *sent) 
+static inline u8 get_cksum(char *sent)
 {
     u8 sum = 0;
     u8 *ptr = (u8 *)sent;
@@ -288,7 +288,7 @@ typedef struct
  * 跳表的粒度 根据访问的偏移量增加动态调整, 最开始是 clst_siz,
  * 一旦超过, 就会发生调整, 粒度翻倍, 每一次调整会将 表项 减半
  */
-    
+
 typedef struct
 {
     u32 maxpos; // 当前最大偏移
@@ -530,8 +530,8 @@ static inline char *make_namel(lentry_t *lent, char **buf)
 
 #undef _
 
-static const fat_time_t fat_time_null = { 0, 0, 0 };
-static const fat_date_t fat_date_null = { 0, 0, 0 };
+static const fat_time_t fat_time_null __unused = { 0, 0, 0 };
+static const fat_date_t fat_date_null __unused = { 0, 0, 0 };
 
 static inline time_t parse_time(fat_date_t fdate, fat_time_t ftime)
 {
@@ -604,7 +604,7 @@ static node_t *analyse_entry(superblk_t *sb, stack_t *stk, unsigned *clst)
     else
     {
         n->name = malloc(13 * 2 * cnt);
-        
+
         do {
             char *ptr = n->name;
             while (cnt--)
@@ -614,7 +614,7 @@ static node_t *analyse_entry(superblk_t *sb, stack_t *stk, unsigned *clst)
             }
         } while (false);
     }
-    
+
     // location info
     if (main->clst_low || main->clst_high)
         *clst = main->clst_low | (u32)main->clst_high << 16;
@@ -642,10 +642,10 @@ static stack_t *make_entry(node_t *target, lookup_t *lkp, bool init)
     stack_t *stk = stack_init(NULL);
     stack_set(stk, free, NULL);
     ASSERTK(stk != NULL);
-    
+
     bool longer = false;
 
-    char *name = strdup(target->name);    
+    char *name = strdup(target->name);
     /* 预处理 -> 去除末尾的 `.` */
     for (int i = strlen(name) - 1 ; i >= 0 ; i--) {
         if (name[i] == '.')
@@ -671,12 +671,12 @@ static stack_t *make_entry(node_t *target, lookup_t *lkp, bool init)
             case '+': case ',': case ';':
             case '=': case '[': case ']':
                 name[i] = '_';
-            
+
             case ' ':
             case 'a'...'z':
                 longer = true;
                 goto make;
-            
+
             case '.':
                 if (++dotnr > 1)
                     longer = true;
@@ -685,7 +685,7 @@ static stack_t *make_entry(node_t *target, lookup_t *lkp, bool init)
             default: break;
         }
     }
-    
+
     //
 
     int ext_start, name_start;
@@ -751,7 +751,6 @@ make:
     }
     free(name);
 
-    fat_sbi_t *f = target->sb->sbi;
     sentry_t *sent = calloc(sizeof(sentry_t));
     memcpy(sent->name, _name, 8);
     memcpy(sent->name + 8, _ext, 3);
@@ -786,7 +785,7 @@ make:
             lent->attr = FA_LONG;
             lent->nr = i + 1;
             lent->cksum_short = cksum;
-            
+
             stack_push(stk, lent);
         }
 
@@ -837,7 +836,7 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
     while (true)
     {
         for (uint soff = 0 ; soff < sbi->sec_perclst ; soff++)
-        { 
+        {
             buffer_t *blk = cl_bread(sbi, curr, soff);
             sentry_t *ents = blk->blk;
 
@@ -871,20 +870,19 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
                     if (prev->cksum_short != cksum)
                         DEBUGK(K_WARN, "cksum not matched with short ent\n");
                 }
-                
+
                 // store the short entry so that we can handle
                 // it and its attached ents at the same time
                 stack_push(&lkp->ents, &ents[i]);
 
                 // generate node
                 lkp->node = analyse_entry(sbi->sb, &lkp->ents, &lkp->clst);
-                size_t cmpsiz = (size_t)(strchrnul(name, '/') - name);
                 if (_cmp(name, lkp->node->name)) {
                     wind = true;
                     goto lkp_end;
                 }
 
-            lkp_rst:
+            // lkp_rst:
                 vfs_release(lkp->node);
                 lkp->node = NULL;
                 stack_clear(&lkp->ents);
@@ -1034,7 +1032,7 @@ static void lookup_byctx(dirctx_t *ctx)
                     if (prev->cksum_short != cksum)
                         DEBUGK(K_WARN, "cksum not matched with short ent\n");
                 }
-                
+
                 // store the short entry so that we can handle
                 // it and its attached ents at the same time
                 stack_push(&lkp->ents, &ents[eidx]);
@@ -1053,7 +1051,7 @@ static void lookup_byctx(dirctx_t *ctx)
                     lct_clr(&lkp->link);
                     continue;
                 }
-            
+
             lkp_end:
                 wind = true;
                 break;
@@ -1118,7 +1116,7 @@ static void lookup_alloc(lookup_t *prt, lookup_t *lkp, stack_t *stk)
         if (hit || is_eoc(curr))
             break;
     }
-    
+
     if (!hit)
     {
         expand_to(sbi, &prt->clst, 1, true);
@@ -1289,7 +1287,7 @@ static size_t expand_to(fat_sbi_t *sbi, unsigned *start, size_t cnt, bool append
             break;
         else
             curr = next;
-        
+
         brelse(curblk);
         if (!append)
             if (--cnt == 0)
@@ -1331,7 +1329,7 @@ static size_t expand_to(fat_sbi_t *sbi, unsigned *start, size_t cnt, bool append
                 iend = icur;
             }
             end = curr;
-            
+
             cnt -= 1;
         }
 
@@ -1455,8 +1453,8 @@ done:
     return wrsiz;
 }
 
-static sentry_t dirhead_1 = { ".          ", FA_DIR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-static sentry_t dirhead_2 = { "..         ", FA_DIR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static sentry_t dirhead_1 = { ".          " , FA_DIR, 1 };
+static sentry_t dirhead_2 = { "..         " , FA_DIR, 0 };
 
 static node_t *create(node_t *prt, char *name, int fmt)
 {

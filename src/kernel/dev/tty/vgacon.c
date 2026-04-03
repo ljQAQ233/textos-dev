@@ -19,6 +19,7 @@ static void vga_movcur(int x, int y)
     outb(0x3d5, (pos >> 8) & 0xff);
 }
 
+/* ANSI colors to VGA colors */
 static u16 color[2][8] = {
     {
         0,  // 黑色
@@ -45,7 +46,7 @@ static u16 color[2][8] = {
 static int sgr8(int *argv, u32 *fg, u32 *bg)
 {
     bool modfg;
-    u16 color;
+    u8 color = 0;
     if (argv[0] == 38)
         modfg = true;
     else if (argv[0] == 48)
@@ -57,11 +58,21 @@ static int sgr8(int *argv, u32 *fg, u32 *bg)
     // TODO: fit color
     // 24bit true-color not supported
     // 256 colors not supported
-    if (argv[1] == 2)
+    if (argv[1] == 2) {
+        // since we have linear space colors,
+        // apply Weighted Grayscale Conversion
+        u8 r = argv[2];
+        u8 g = argv[3];
+        u8 b = argv[4];
+        int weight = (r * 299 + g * 587 + b * 114) / 1000;
+        color |= (r > 128) << 2;
+        color |= (g > 128) << 1;
+        color |= (b > 128) << 0;
+        color |= (weight > 128) << 3;
         ret = 5;
-    else if (argv[1] == 5)
+    } else if (argv[1] == 5) {
         ret = 3;
-    else
+    } else
         return 2;
 
     if (modfg)

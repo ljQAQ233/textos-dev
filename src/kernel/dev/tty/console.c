@@ -33,7 +33,6 @@ static void full()
 // TODO : optimize
 static void clrscr(int m)
 {
-    u32 start, end;
     if (m == 0)
     {
         for (u16 x = con.cur_x ; x < con.row ; x++)

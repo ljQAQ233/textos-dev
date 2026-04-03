@@ -36,7 +36,6 @@ __INTR_HANDLER(pagefault_handler)
     {
         if (vma->label == MAPL_FILE)
         {
-            size_t off = addr - vma->s;
             size_t pgbase = align_dn(addr, PAGE_SIZE);
             size_t foff = vma->obj.foff + pgbase - vma->s;
             size_t siz = MIN(vma->obj.node->siz - foff, PAGE_SIZE);
