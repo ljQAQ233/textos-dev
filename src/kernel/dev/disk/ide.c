@@ -17,7 +17,7 @@
 #define BASE_PRI 0x1F0 // Prime
 #define BASE_SEC 0x170 // Secondary
 
-#define R_DATA (0) // 
+#define R_DATA (0) //
 #define R_ERRF (1) // Error or features
 #define R_SECC (2) // Sector count
 #define R_LBAL (3) // LBA low
@@ -81,7 +81,7 @@ static ide_t ide[4];
 #define CMD_WRITE 0x30
 
 #define CMD_RDMA  0xC8 // lba 28
-#define CMD_WDMA  0xCA // lba 28 
+#define CMD_WDMA  0xCA // lba 28
 
 #if CONFIG_IDE_USE_INTR
 
@@ -115,7 +115,7 @@ static void read_sector(u16 port, u16 *data)
 {
     __asm__ volatile (
         "cld\n"
-        "rep insw\n" 
+        "rep insw\n"
         : : "c"(256), "d"(port + R_DATA), "D"(data)
         : "memory"
         );
@@ -125,7 +125,7 @@ static void write_sector(u16 port, u16 *data)
 {
     __asm__ volatile (
         "cld\n"
-        "rep outsw\n" 
+        "rep outsw\n"
         : : "c"(256), "d"(port + R_DATA), "D"(data)
         : "memory"
         );
@@ -220,7 +220,7 @@ static void ide_enddma(ide_t *pri)
 {
     u8 bmcmd = inb(pri->bmbase + R_BMCMD);
     outb(pri->bmbase + R_BMCMD, bmcmd & ~CMD_BMSTART);
-    
+
     u8 status = inb(pri->bmbase + R_BMSTAT);
     status |= STAT_BMERR | STAT_BMINT;
     outb(pri->bmbase + R_BMSTAT, status); // set
@@ -249,7 +249,7 @@ static void ide_dma_read(devst_t *dev, blkno_t no, buffer_t *b, blkcnt_t cnt)
         no += rdcnt;
         cnt -= rdcnt;
     }
-    
+
     UNINTR_AREA_END();
 }
 
@@ -269,7 +269,7 @@ static void ide_dma_write(devst_t *dev, blkno_t no, buffer_t *b, blkcnt_t cnt)
         no += wrcnt;
         cnt -= wrcnt;
     }
-    
+
     UNINTR_AREA_END();
 }
 
@@ -291,7 +291,7 @@ static void ide_pio_read(devst_t *dev, blkno_t no, buffer_t *b, blkcnt_t cnt)
         no += rdcnt;
         cnt -= rdcnt;
     }
-    
+
     UNINTR_AREA_END();
 }
 
@@ -330,6 +330,7 @@ static int ide_ioctl(devst_t *dev, int req, void *argp)
         *((int *)argp) = 512;
         break;
     default:
+        (void)pri;
         return -EINVAL;
     }
     return 0;
@@ -362,7 +363,7 @@ static bool ide_identify(ide_t *pri)
 
     u16 buf[256];
     read_sector(pri->iobase, buf);
-    
+
     for (int i = 0 ; i < 10 ; i++)
     {
         pri->serial_num[i*2  ] = buf[ID_SN + i] >> 8;
@@ -405,7 +406,7 @@ static void init(int x, u16 bmbase)
         pri->iobase = BASE_SEC;
         pri->bmbase = bmbase + 8;
     }
-    
+
     if (!ide_identify(pri))
         return ;
 

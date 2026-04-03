@@ -128,7 +128,7 @@ static void xyputc(char c, u32 x, u32 y)
         con.font,
         x, y, con.fg, con.bg
         );
-    
+
     if (con.strike)
     {
         u32 xl = x;

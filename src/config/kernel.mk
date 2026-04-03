@@ -6,7 +6,7 @@ INCLUDE := \
   $(abspath arch/$(ARCH))
 
 CFLAGS := \
-  -static -nostdlib -nostdinc -g \
+  -static -nostdlib -nostdinc -g -Wall \
   -std=c11 -O0 -fshort-wchar -ffreestanding \
   -fno-builtin -fno-stack-check -fno-stack-protector \
   -mcmodel=large -mno-red-zone \
@@ -20,7 +20,6 @@ AFLAGS := \
   -g
 
 LDFLAGS := \
-  -static -nostdlib \
+  -static -nostdlib -z noexecstack \
   -no-relax -z max-page-size=0x1000 \
   -Map=$(KERNEL_OUTPUT)/system.map
-

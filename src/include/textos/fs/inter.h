@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sys/cdefs.h"
 #include <textos/dev.h>
 
 typedef struct _packed
@@ -68,7 +69,7 @@ extern void noopt_handler();
 /*
  * vfs in-memory node operations used by physical file systems
  */
-static int vfs_m_mknod(node_t *prt, char *name, dev_t rdev, int mode, node_t **result, ino_t ino)
+static int __unused vfs_m_mknod(node_t *prt, char *name, dev_t rdev, int mode, node_t **result, ino_t ino)
 {
     node_t *chd = calloc(sizeof(*chd));
     chd->name = strdup(name);
@@ -77,7 +78,7 @@ static int vfs_m_mknod(node_t *prt, char *name, dev_t rdev, int mode, node_t **r
     chd->uid = task_current()->euid;
     chd->gid = task_current()->egid;
     chd->ino = ino;
-    chd->mode = mode & (S_IFMT | mode &~ task_current()->umask);
+    chd->mode = mode & (S_IFMT | (mode &~ task_current()->umask));
     chd->atime = chd->mtime = chd->ctime = arch_time_now();
     chd->dev = prt->dev;
     chd->rdev = rdev;
@@ -90,7 +91,7 @@ static int vfs_m_mknod(node_t *prt, char *name, dev_t rdev, int mode, node_t **r
     return 0;
 }
 
-static int vfs_m_chown(node_t *this, uid_t owner, gid_t group, bool ap)
+static int __unused vfs_m_chown(node_t *this, uid_t owner, gid_t group, bool ap)
 {
     if (!ap && S_ISREG(this->mode))
         if (this->mode & (S_IXUSR | S_IXGRP | S_IXOTH))
@@ -101,7 +102,7 @@ static int vfs_m_chown(node_t *this, uid_t owner, gid_t group, bool ap)
     return 0;
 }
 
-static int vfs_m_chmod(node_t *this, mode_t mode, bool clrsgid)
+static int __unused vfs_m_chmod(node_t *this, mode_t mode, bool clrsgid)
 {
     this->mode &= ~07777;
     this->mode |= mode & 07777;

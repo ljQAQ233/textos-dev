@@ -22,5 +22,6 @@
 
 #define __weak __attribute__((weak))
 #define __hidden __attribute__((__visibility__("hidden")))
+#define __unused __attribute__((unused))
 
 #endif

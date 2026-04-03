@@ -18,7 +18,7 @@
 #define R_DATA  0     // 0 Receive / Transfer
 #define R_INTR  1     // 0 Interrupt Enable Register
 #define R_LSB   0     // 1 Divisor Baud
-#define R_MSB   1     // 1 
+#define R_MSB   1     // 1
 #define R_FIFO  2     // - Interrupt Identification / FIFO Control Register
 #define R_LCR   3     // - The most significant bit of this register is the DLAB.
 #define R_MCR   4     // - Modem Control Register
@@ -91,7 +91,7 @@ __INTR_HANDLER(serial_handler)
         u8 lsr = inb(srl->base + R_LSR);
         if (~lsr & LSR_DR)
             continue;
-        
+
         char c = sgetc(srl);
         if (srl->tty)
             __tty_rxb(srl->tty, &c, 1);
@@ -110,7 +110,7 @@ static void init(int idx)
     outb(srl->base + R_LCR, 0b11);         // 7 bits for data and 1 stop bit
     outb(srl->base + R_FIFO, 0b00000001);  // Enable FIFO and let trigger level 14
 
-    u8 mcr0 = inb(srl->base + R_MCR);
+    inb(srl->base + R_MCR);
     outb(srl->base + R_MCR, 0b11110);      // start to check
     outb(srl->base + R_DATA, 0xae);
     if (inb(srl->base + R_DATA) != 0xae)
@@ -141,4 +141,3 @@ void serial_init()
     ioapic_rteset(4, _IOAPIC_RTE(INT_SERIAL));
     intr_register(INT_SERIAL, serial_handler);
 }
-

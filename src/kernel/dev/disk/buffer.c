@@ -14,7 +14,7 @@
 htable_define(all, 32);
 
 static list_t fre;
-static list_t lru;
+// static list_t lru;
 
 static lock_t lkall;
 

@@ -26,7 +26,7 @@ static u64 cr3;
 #define L_PG -1
 
 /* Locate entry or others by virtual address */
-#define IDX(addr, level) ((u64)addr >> (level * 9 + 12) & 0x1FF)
+#define IDX(addr, level) (((u64)addr >> (level * 9 + 12)) & 0x1FF)
 #define PML4E_IDX(addr) IDX(addr, L_PML4)
 #define PDPTE_IDX(addr) IDX(addr, L_PDPT)
 #define PDE_IDX(addr) IDX(addr, L_PD)
@@ -111,7 +111,7 @@ static u64 qry_walk(u64 vrt, int lv)
     if (!(entry & PE_P))
         return 0;
     if (!lv || (lv != L_PML4 && (entry & (1 << 7))))
-        return ADDR(entry) | vrt & ((1 << (lv * 9 + 12)) - 1);
+        return ADDR(entry) | (vrt & ((1 << (lv * 9 + 12)) - 1));
     return qry_walk(vrt, lv - 1);
 }
 

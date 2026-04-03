@@ -152,7 +152,6 @@ u16 pci_read_word(u8 bus, u8 slot, u8 func, u8 offset)
 u32 pci_read_dword(u8 bus, u8 slot, u8 func, u8 offset)
 {
     pci_set_addr(bus, slot, func, offset);
-    int low = offset & 0b11;
     u32 tmp = indw(R_DATA);
     return tmp;
 }
@@ -391,7 +390,7 @@ bool pci_has_caplist(pci_idx_t *idx)
 
 /*
  * Supposing the device must have capability list, and traverse the list.
- * 
+ *
  *  - bit 0~7 - id. for MSI, this field is 0x05 what for MSI-X it is 0x11
  *  - bit 8~15 - next pointer. reaches the end when set to be 0
  */
@@ -436,7 +435,7 @@ int pci_set_msi(pci_idx_t *idx, u8 vector)
         ptr,
         mix
     );
-        
+
     u32 addr = 0;
     addr |= 0xFEE << 20; // fixed field
     addr |= 0;           // dest id = 0 / RH = 0 / DM = 0

@@ -20,13 +20,13 @@ typedef struct list
     struct list *next;
 } list_t;
 
-static void list_init(list_t *list)
+static inline void list_init(list_t *list)
 {
     list->prev = list;
     list->next = list;
 }
 
-static void list_insert_after(list_t *list, list_t *node)
+static inline void list_insert_after(list_t *list, list_t *node)
 {
     node->next = list->next;
     node->next->prev = node;
@@ -34,48 +34,48 @@ static void list_insert_after(list_t *list, list_t *node)
     list->next = node;
 }
 
-static void list_insert_before(list_t *list, list_t *node)
+static inline void list_insert_before(list_t *list, list_t *node)
 {
     list_insert_after(list->prev, node);
 }
 
-static void list_insert(list_t *list, list_t *node)
+static inline void list_insert(list_t *list, list_t *node)
 {
     list_insert_after(list, node);
 }
 
-static void list_remove(list_t *list)
+static inline void list_remove(list_t *list)
 {
     if (list->prev == list) return;
     list->prev->next = list->next;
     list->next->prev = list->prev;
 }
 
-static void list_pushhead(list_t *list, list_t *node)
+static inline void list_pushhead(list_t *list, list_t *node)
 {
     list_insert_after(list, node);
 }
 
-static void list_pushback(list_t *list, list_t *node)
+static inline void list_pushback(list_t *list, list_t *node)
 {
     list_insert_before(list, node);
 }
 
-static list_t *list_pophead(list_t *list)
+static inline list_t *list_pophead(list_t *list)
 {
     list_t *head = list->next;
     list_remove(head);
     return head;
 }
 
-static list_t *list_popback(list_t *list)
+static inline list_t *list_popback(list_t *list)
 {
     list_t *back = list->prev;
     list_remove(back);
     return back;
 }
 
-static bool list_empty(list_t *list)
+static inline bool list_empty(list_t *list)
 {
     return list == list->prev;
 }

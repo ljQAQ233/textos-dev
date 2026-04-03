@@ -11,6 +11,7 @@ static int socket_ioctl(node_t *this, int req, void *argp)
     //
     // TODO: handle its own req first here
     //
+    (void)socket;
 
     nif_t *nif = nif_find(ifr->name);
     return nif_ioctl(nif, req, argp);

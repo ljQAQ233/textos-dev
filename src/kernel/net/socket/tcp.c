@@ -3,7 +3,7 @@
  */
 
 #include <textos/net.h>
-#include <textos/net/ip.h>    
+#include <textos/net/ip.h>
 #include <textos/net/tcp.h>
 #include <textos/net/socket.h>
 #include <textos/klib/bitmap.h>
@@ -16,6 +16,14 @@
 #include <string.h>
 
 #include "inter.h"
+
+//
+// HACK: I only implemented a basic version of tcp, which merely allows
+// some http accesses. Error handling is not supported.
+//
+#pragma GCC diagnostic ignored "-Wreturn-type"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-function"
 
 enum state
 {
@@ -46,7 +54,7 @@ typedef struct
     u16 rport;
     int mss;
     bool nagle;  // nagle enabled
-    
+
     int state;
     int shutdown;
     int errno;
@@ -160,7 +168,7 @@ static int tcp_bind(socket_t *s, sockaddr_t *addr, socklen_t len)
 
     tcp_t *t = TCP(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
-        
+
     int port = ntohs(in->port);
     if (port)
     {
@@ -298,7 +306,7 @@ static int tcp_shutdown(socket_t *s, int how)
         tcp_shutdown(s, SHUT_RD);
         tcp_shutdown(s, SHUT_WR);
         break;
-    
+
     default:
         return -EINVAL;
     }
@@ -339,7 +347,7 @@ static void tcp_makeseg(tcp_t *tcp, void *data, size_t len)
             m = mbuf_alloc(MBUF_DEFROOM);
             list_pushback(&tcp->snd_que, &m->list);
         }
-        
+
         size_t cpy;
         cpy = MIN(len, seglen);
         cpy = MIN(cpy, seglen - m->dlen);
@@ -384,7 +392,7 @@ static ssize_t tcp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
         }
         if (tcp->errno < 0)
             return tcp->errno;
-        
+
         list_t *ptr = tcp->buf_que.next;
         mbuf_t *m = LIST_MF(ptr);
         iphdr_t *iph = mbuf_pullhdr(m, iphdr_t);
@@ -479,7 +487,7 @@ int tcp_exit_with(tcp_t *tcp, int errno)
     tcp->errno = errno;
     TRY_UNBLK(tcp->rx_waiter);
     TRY_UNBLK(tcp->syn_waiter);
-    
+
     return errno;
 }
 
@@ -506,7 +514,7 @@ static void tcp_do_xmit(tcp_t *tcp)
         if (tcp->nagle && m->dlen)
             break;
     }
-    
+
     if ((tcp->shutdown & TCP_SHUT_WR) && list_empty(&tcp->snd_que) && list_empty(&tcp->una_que))
     {
         switch (tcp->state)
@@ -712,12 +720,12 @@ int tcp_rx_rcvd(tcp_t *tcp, tcpseg_t *seg)
             return -1;
         }
     }
-    
+
     if (hdr->ack)
     {
         if (TCP_SEQ_LT(tcp->snd_una, hdr->acknr)
             && TCP_SEQ_LE(hdr->acknr, tcp->snd_nxt)) {
-            tcp->state = ESTABLISHED; 
+            tcp->state = ESTABLISHED;
             if (tcp->ptcp) {
                 tcp_t *prt = TCP(tcp->ptcp);
                 list_insert(&prt->acpt, &tcp->acpt);
@@ -735,7 +743,7 @@ int tcp_rx_rcvd(tcp_t *tcp, tcpseg_t *seg)
 
 /*
  * TODO : sort segs
- * 
+ *
  * handle data and send ack
  */
 int tcp_rx_data(tcp_t *tcp, tcpseg_t *seg)
@@ -1139,7 +1147,7 @@ int sock_rx_tcp(iphdr_t *ip, mbuf_t *m)
         case CLOSING:
             tcp_rx_closing(t, &seg);
             break;
-        
+
         case TIME_WAIT:
             tcp_rx_timewait(t, &seg);
             break;
@@ -1176,4 +1184,3 @@ void sock_tcp_init()
     bitmap_set(&bmp, 0);
     sockop_set(SOCK_T_TCP, &op);
 }
-

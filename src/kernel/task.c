@@ -21,12 +21,10 @@ task_t *table[TASK_MAX];
 
 #define TASK_FREE NULL
 
-static int _getfree ()
+static int _getfree()
 {
-    for (int i = 0; i < TASK_MAX ;i++)
-        if (table[i] == TASK_FREE)
-            return i;
-
+    for (int i = 0; i < TASK_MAX; i++)
+        if (table[i] == TASK_FREE) return i;
     return -1;
 }
 
@@ -35,12 +33,10 @@ static task_t *_task_create(int args)
 {
     int pid;
     task_t *tsk;
-    if ((pid = _getfree()) < 0)
-        return NULL;
+    if ((pid = _getfree()) < 0) return NULL;
 
     u16 map_flgs = PE_P | PE_RW;
-    if (args & TC_USER)
-        map_flgs |= PE_US;
+    if (args & TC_USER) map_flgs |= PE_US;
     tsk = vmm_allocpages(TASK_PAGE, map_flgs);
     tsk->ruid = tsk->euid = tsk->suid = 0;
     tsk->rgid = tsk->egid = tsk->sgid = 0;
@@ -58,7 +54,7 @@ static task_t *_task_create(int args)
 #include <gdt.h>
 #include <intr.h>
 
-intr_frame_t *build_iframe (task_t *tsk, void *stack,  int args)
+intr_frame_t *build_iframe(task_t *tsk, void *stack, int args)
 {
     intr_frame_t *iframe = stack - sizeof(intr_frame_t);
 
@@ -69,15 +65,15 @@ intr_frame_t *build_iframe (task_t *tsk, void *stack,  int args)
     iframe->rdx = 0xdddd;
     iframe->rdi = 0x1d1d;
     iframe->rsi = 0x1e1e;
-    iframe->r8  = 0x8888;
-    iframe->r9  = 0x9999;
+    iframe->r8 = 0x8888;
+    iframe->r9 = 0x9999;
     iframe->r10 = 0x1010;
     iframe->r11 = 0x1111;
     iframe->r12 = 0x1212;
     iframe->r13 = 0x1313;
     iframe->r14 = 0x1414;
     iframe->r15 = 0x1515;
-    
+
     iframe->rbp = (u64)stack;
     iframe->rsp = (u64)stack;
 
@@ -88,13 +84,12 @@ intr_frame_t *build_iframe (task_t *tsk, void *stack,  int args)
     else
         iframe->cs = (USER_CODE_SEG << 3) | 3;
 
-    if (args & TC_NINT)
-        iframe->rflags &= ~(1 << 9);
+    if (args & TC_NINT) iframe->rflags &= ~(1 << 9);
 
     return tsk->iframe = iframe;
 }
 
-task_frame_t *build_tframe (task_t *tsk, void *stack, int args)
+task_frame_t *build_tframe(task_t *tsk, void *stack, int args)
 {
     task_frame_t *frame = stack - sizeof(intr_frame_t) - sizeof(task_frame_t);
 
@@ -116,13 +111,14 @@ task_t *task_create(void *main, int args)
     task_t *tsk = _task_create(args);
 
     void *stack, *istack;
-    if (args & (TC_TSK1 | TC_USER))
-    {
+    if (args & (TC_TSK1 | TC_USER)) {
         vmm_phyauto(__user_stack_bot, __user_stack_pages, PE_P | PE_RW | PE_US);
         stack = (void *)__user_stack_top;
-        istack = vmm_allocpages(istk_pages, PE_P | PE_RW) + istk_pages * PAGE_SIZ;
+        istack =
+            vmm_allocpages(istk_pages, PE_P | PE_RW) + istk_pages * PAGE_SIZ;
     } else {
-        stack = vmm_allocpages(4, PE_P | PE_RW) + 4 * PAGE_SIZ; // TODO: replace it
+        stack =
+            vmm_allocpages(4, PE_P | PE_RW) + 4 * PAGE_SIZ; // TODO: replace it
         istack = NULL;
     }
 
@@ -136,11 +132,11 @@ task_t *task_create(void *main, int args)
     tsk->init.rbp = (void *)tsk->iframe->rbp;
     tsk->init.args = args;
 
-    tsk->stat  = TASK_PRE;
-    
+    tsk->stat = TASK_PRE;
+
     tsk->tick = TASK_TICKS;
     tsk->curr = TASK_TICKS;
-    
+
     tsk->pwd = NULL; // root
 
     tsk->pgt = get_kppgt();
@@ -153,7 +149,7 @@ task_t *task_create(void *main, int args)
     tsk->_ustart = 0;
     tsk->_sstart = arch_us_ran();
 
-    for (int i = 0 ; i < MAX_FILE ; i++)
+    for (int i = 0; i < MAX_FILE; i++)
         tsk->files[i] = NULL;
     task_reset_allsigs(tsk);
     return tsk;
@@ -164,7 +160,8 @@ task_t *task_create(void *main, int args)
 
 static int fork_stack(task_t *prt, task_t *chd)
 {
-    void *istk = vmm_allocpages(istk_pages, PE_P | PE_RW) + istk_pages * PAGE_SIZ;
+    void *istk =
+        vmm_allocpages(istk_pages, PE_P | PE_RW) + istk_pages * PAGE_SIZ;
     build_tframe(chd, istk, 0);
     build_iframe(chd, istk, 0);
 
@@ -184,11 +181,9 @@ static int fork_pgt(task_t *prt, task_t *chd)
 
 static int fork_fd(task_t *prt, task_t *chd)
 {
-    for (int i = 0 ; i < MAX_FILE ; i++)
-    {
+    for (int i = 0; i < MAX_FILE; i++) {
         chd->files[i] = prt->files[i];
-        if (chd->files[i])
-            chd->files[i]->refer++;
+        if (chd->files[i]) chd->files[i]->refer++;
     }
     return 0;
 }
@@ -198,7 +193,7 @@ static int fork_sig(task_t *prt, task_t *chd)
     chd->sigcurr = prt->sigcurr;
     chd->sigpend = prt->sigpend;
     chd->sigmask = prt->sigmask;
-    for (int i = 0 ; i < _NSIG ; i++)
+    for (int i = 0; i < _NSIG; i++)
         chd->sigacts[i] = prt->sigacts[i];
     return 0;
 }
@@ -213,14 +208,13 @@ static int fork_id(task_t *prt, task_t *chd)
     chd->sgid = prt->sgid;
     chd->supgids = NULL;
 
-    if (prt->supgids)
-    {
+    if (prt->supgids) {
         int ss = 0;
         while (prt->supgids[ss] != -1)
             ss++;
         chd->supgids = malloc((ss + 1) * sizeof(gid_t));
         chd->supgids[ss] = -1;
-        for (int i = 0 ; i < ss ; i++)
+        for (int i = 0; i < ss; i++)
             chd->supgids[i] = prt->supgids[i];
     }
 
@@ -280,15 +274,14 @@ void task_exit(int val)
     tsk->stat = TASK_DIE; // TODO : ZOMBIE
     tsk->retval = val;
     task_t *prt = table[tsk->ppid];
-    if (prt->stat == TASK_BLK && (prt->waitpid == tsk->pid || prt->waitpid == -1))
-    {
+    if (prt->stat == TASK_BLK &&
+        (prt->waitpid == tsk->pid || prt->waitpid == -1)) {
         task_unblock(prt, 0);
         prt->waitpid = tsk->pid;
     }
     DEBUGK(K_TRACE, "exit %d\n", tsk->pid);
 
-    if (tsk->pid == 1)
-        PANIC("init exited with %d!!!\n", val);
+    if (tsk->pid == 1) PANIC("init exited with %d!!!\n", val);
 
     task_schedule();
 }
@@ -296,31 +289,22 @@ void task_exit(int val)
 int task_wait(int pid, int *stat, int opt, struct rusage *ru)
 {
     task_t *tsk = task_current();
-    if (pid > 0)
-    {
-        if (!table[pid] || table[pid]->ppid != tsk->pid)
-            return -ECHILD;
-    }
-    else if (pid == -1)
-    {
+    if (pid > 0) {
+        if (!table[pid] || table[pid]->ppid != tsk->pid) return -ECHILD;
+    } else if (pid == -1) {
         int has = 0;
-        for (int i = 0 ; i < TASK_MAX ; i++)
-        {
+        for (int i = 0; i < TASK_MAX; i++) {
             if (table[i] && table[i]->stat != TASK_DIE &&
-                table[i]->ppid == tsk->pid)
-            {
+                table[i]->ppid == tsk->pid) {
                 has = 1;
                 break;
             }
         }
-        if (!has)
-            return -ECHILD;
-    }
-    else
-    {
+        if (!has) return -ECHILD;
+    } else {
         PANIC("unsupported pid - %d\n", pid);
     }
-        
+
     tsk->waitpid = pid;
     task_block(NULL, NULL, TASK_BLK, 0);
 
@@ -335,40 +319,34 @@ int task_wait(int pid, int *stat, int opt, struct rusage *ru)
     return termd;
 }
 
-static void _task_kern ()
+static void _task_kern()
 {
-    task_create (NULL, TC_KERN)->stat = TASK_RUN;
+    task_create(NULL, TC_KERN)->stat = TASK_RUN;
 }
 
 static int _curr;
 
-static inline task_t *_getnext ()
+static inline task_t *_getnext()
 {
-    task_t *tsk = NULL;
-
-    for (int i = _curr, j = 0; i < TASK_MAX && j < _curr + TASK_MAX
-            ;i = (i + 1) % TASK_MAX, j++)
-    {
-        if (table[i] == TASK_FREE)
-            continue;
+    for (int i = _curr, j = 0; i < TASK_MAX && j < _curr + TASK_MAX;
+         i = (i + 1) % TASK_MAX, j++) {
+        if (table[i] == TASK_FREE) continue;
         if (table[i]->stat == TASK_PRE) {
             _curr = i;
             return table[i];
         }
     }
-
     return NULL;
 }
 
-task_t *task_current ()
+task_t *task_current()
 {
     return table[_curr];
 }
 
 task_t *task_get(int pid)
 {
-    if (pid < 0 || pid >= TASK_MAX)
-        return NULL;
+    if (pid < 0 || pid >= TASK_MAX) return NULL;
     return table[pid];
 }
 
@@ -379,31 +357,32 @@ extern void __task_switch(task_frame_t *next, task_frame_t **curr);
 void task_schedule()
 {
     task_t *curr, *next;
-    
-    curr = task_current(); /* Get curr first becase _getnext() will change `_curr` */
-    if (!curr)
-        return;
-    
-    if (curr->stat != TASK_RUN)   // If it is not running now, then sched
-        goto Sched;               // Because a running task may have some time ticks
-    if (curr->curr-- == 0)        // Update time ticks, if it is zero after this time, set it to origin ticks
-        curr->curr = curr->tick;  // Recovery -> gain ticks again
+
+    curr = task_current(); /* Get curr first becase _getnext() will change
+                              `_curr` */
+    if (!curr) return;
+
+    if (curr->stat != TASK_RUN) // If it is not running now, then sched
+        goto Sched;        // Because a running task may have some time ticks
+    if (curr->curr-- == 0) // Update time ticks, if it is zero after this time,
+                           // set it to origin ticks
+        curr->curr = curr->tick; // Recovery -> gain ticks again
     else
-        return;                   // It hasn't ran out of all ticks yet, make it run again
+        return; // It hasn't ran out of all ticks yet, make it run again
 
 Sched:
-    if (!(next = _getnext()))
-        return;
+    if (!(next = _getnext())) return;
 
-    if (curr->stat == TASK_RUN)   // The current task may be a sleeping task
-        curr->stat = TASK_PRE;    // Only the running task which will be switched out
+    if (curr->stat == TASK_RUN) // The current task may be a sleeping task
+        curr->stat =
+            TASK_PRE; // Only the running task which will be switched out
     next->stat = TASK_RUN;
 
     fpu_disable();
     __tss_set(next->istk);
     mycpu_var(current_istk) = next->istk;
     write_cr3(next->pgt);
-    __task_switch (next->frame, &curr->frame);
+    __task_switch(next->frame, &curr->frame);
 }
 
 void task_yield()
@@ -421,18 +400,15 @@ static void wake_timeout(void *tsk)
 
 int task_block(task_t *tsk, list_t *blist, int stat, u64 timeout)
 {
-    if (tsk == NULL)
-        tsk = task_current();
+    if (tsk == NULL) tsk = task_current();
 
     tsk->stat = TASK_BLK;
     tsk->retval = 0;
     list_insert(blist ? blist : &list_block, &tsk->blist);
-    
-    if (timeout > 0)
-        ktimer(&tsk->btmr, wake_timeout, tsk, timeout);
 
-    if (tsk == task_current())
-        task_schedule();
+    if (timeout > 0) ktimer(&tsk->btmr, wake_timeout, tsk, timeout);
+
+    if (tsk == task_current()) task_schedule();
     return tsk->retval;
 }
 
@@ -449,15 +425,14 @@ int task_sleep(u64 ms, u64 *rms)
     task_t *curr = task_current();
     task_block(curr, &list_sleep, TASK_SLP, ms);
     task_stime_discard();
-    if (rms)
-        *rms = ktimer_remain(&curr->btmr);
+    if (rms) *rms = ktimer_remain(&curr->btmr);
     return curr->retval;
 }
 
 void task_stime_enter()
 {
     task_t *tsk = task_current();
-    useconds_t us = arch_us_ran(); 
+    useconds_t us = arch_us_ran();
     tsk->_sstart = us;
     tsk->utime += us - tsk->_ustart;
 }
@@ -465,7 +440,7 @@ void task_stime_enter()
 void task_stime_exit()
 {
     task_t *tsk = task_current();
-    useconds_t us = arch_us_ran(); 
+    useconds_t us = arch_us_ran();
     tsk->_ustart = us;
     tsk->stime += us - tsk->_sstart;
 }
@@ -552,12 +527,9 @@ __SYSCALL_DEFINE0(gid_t, getegid)
 __SYSCALL_DEFINE1(int, setuid, uid_t, uid)
 {
     task_t *tsk = task_current();
-    if (tsk->euid == 0)
-    {
+    if (tsk->euid == 0) {
         tsk->ruid = tsk->euid = tsk->suid = uid;
-    }
-    else
-    {
+    } else {
         if (uid == tsk->ruid || uid == tsk->suid)
             tsk->euid = uid;
         else
@@ -569,12 +541,9 @@ __SYSCALL_DEFINE1(int, setuid, uid_t, uid)
 __SYSCALL_DEFINE1(int, setgid, gid_t, gid)
 {
     task_t *tsk = task_current();
-    if (tsk->egid == 0)
-    {
+    if (tsk->egid == 0) {
         tsk->rgid = tsk->egid = tsk->sgid = gid;
-    }
-    else
-    {
+    } else {
         if (gid == tsk->rgid || gid == tsk->sgid)
             tsk->egid = gid;
         else
@@ -590,13 +559,13 @@ __SYSCALL_DEFINE2(int, setreuid, uid_t, ruid, uid_t, euid)
      * A process with appropriate privileges can set either id to any value.
      * Other processes can only set the effective user id if the euid argument
      * is equal to either the real, effective, or saved user id of the process.
-     * POSIX doesn't specify whether the later can change ruid, here we disallow it.
+     * POSIX doesn't specify whether the later can change ruid, here we disallow
+     * it.
      */
-    if (tsk->euid != 0)
-    {
-        if (ruid != -1)
-            return -EPERM;
-        if (euid != -1 && euid != tsk->ruid && euid != tsk->euid && euid != tsk->suid)
+    if (tsk->euid != 0) {
+        if (ruid != -1) return -EPERM;
+        if (euid != -1 && euid != tsk->ruid && euid != tsk->euid &&
+            euid != tsk->suid)
             return -EPERM;
     }
     if (ruid != -1) tsk->ruid = ruid;
@@ -614,12 +583,9 @@ __SYSCALL_DEFINE2(int, setregid, gid_t, rgid, gid_t, egid)
      *   - egid can be set to sgid / rgid
      * Keep this syscall atomic!!!
      */
-    if (tsk->egid != 0)
-    {
-        if (rgid != -1 && rgid != tsk->sgid)
-                return -EPERM;
-        if (egid != -1 && egid != tsk->sgid && egid != tsk->rgid)
-                return -EPERM;
+    if (tsk->egid != 0) {
+        if (rgid != -1 && rgid != tsk->sgid) return -EPERM;
+        if (egid != -1 && egid != tsk->sgid && egid != tsk->rgid) return -EPERM;
     }
     if (rgid != -1) tsk->rgid = rgid;
     if (egid != -1) tsk->egid = egid;
@@ -639,7 +605,7 @@ __SYSCALL_DEFINE2(int, getgroups, int, size, gid_t *, list)
         return -EFAULT;
     else if (size < ss)
         return -EINVAL;
-    for (int i = 0 ; i < ss ; i++)
+    for (int i = 0; i < ss; i++)
         list[i] = tsk->supgids[i];
     return ss;
 }
@@ -647,25 +613,19 @@ __SYSCALL_DEFINE2(int, getgroups, int, size, gid_t *, list)
 __SYSCALL_DEFINE2(int, setgroups, int, size, gid_t *, list)
 {
     task_t *tsk = task_current();
-    if (!size)
-        return getgroups(0, NULL);
-    if (size < 0)
-        return -EINVAL;
-    if (!list)
-        return -EFAULT;
-    if (tsk->euid != 0)
-        return -EPERM;
-    if (tsk->supgids)
-    {
+    if (!size) return getgroups(0, NULL);
+    if (size < 0) return -EINVAL;
+    if (!list) return -EFAULT;
+    if (tsk->euid != 0) return -EPERM;
+    if (tsk->supgids) {
         free(tsk->supgids);
         tsk->supgids = NULL;
     }
-    for (int i = 0 ; i < size ; i++)
-        if (list[i] == -1)
-            return -EINVAL;
+    for (int i = 0; i < size; i++)
+        if (list[i] == -1) return -EINVAL;
     tsk->supgids = malloc(sizeof(gid_t) * (size + 1));
     tsk->supgids[size] = -1;
-    for (int i = 0 ; i < size ; i++)
+    for (int i = 0; i < size; i++)
         tsk->supgids[i] = list[i];
     return 0;
 }
@@ -673,21 +633,17 @@ __SYSCALL_DEFINE2(int, setgroups, int, size, gid_t *, list)
 __SYSCALL_DEFINE1(pid_t, getsid, pid_t, pid)
 {
     task_t *tsk = task_current();
-    if (pid == 0)
-        return tsk->sid;
+    if (pid == 0) return tsk->sid;
     task_t *ptsk = task_get(pid);
-    if (!ptsk)
-        return -ESRCH;
-    if (ptsk->sid != tsk->sid)
-        return -EPERM;
+    if (!ptsk) return -ESRCH;
+    if (ptsk->sid != tsk->sid) return -EPERM;
     return ptsk->sid;
 }
 
 __SYSCALL_DEFINE0(pid_t, setsid)
 {
     task_t *tsk = task_current();
-    if (tsk->pgid == tsk->pid)
-        return -EPERM;
+    if (tsk->pgid == tsk->pid) return -EPERM;
     return tsk->sid = tsk->pgid = tsk->pid;
 }
 
@@ -695,18 +651,15 @@ __SYSCALL_DEFINE1(pid_t, getpgid, pid_t, pid)
 {
     task_t *tsk = task_current();
     task_t *ptsk;
-    if (pid < 0)
-        return -EINVAL;
+    if (pid < 0) return -EINVAL;
 
     if (pid == 0)
         pid = (ptsk = tsk)->pid;
     else
         ptsk = task_get(pid);
-    
-    if (!ptsk)
-        return -ESRCH;
-    if (ptsk->sid != tsk->sid)
-        return -EPERM;
+
+    if (!ptsk) return -ESRCH;
+    if (ptsk->sid != tsk->sid) return -EPERM;
     return ptsk->pgid;
 }
 
@@ -721,8 +674,7 @@ __SYSCALL_DEFINE2(int, setpgid, pid_t, pid, pid_t, pgid)
     task_t *ptsk;
     task_t *ltsk;
 
-    if (pid < 0)
-        return -EINVAL;
+    if (pid < 0) return -EINVAL;
 
     if (pid == 0)
         pid = (ptsk = tsk)->pid;
@@ -733,24 +685,18 @@ __SYSCALL_DEFINE2(int, setpgid, pid_t, pid, pid_t, pgid)
      * Is `ptsk` the calling process itself or one of its child process?
      * Is `ptsk` a leader of a session? -> Forbidden by POSIX.
      */
-    if (!ptsk)
-        return -ESRCH;
-    if (ptsk->pid != tsk->pid && ptsk->ppid != tsk->pid)
-        return -ESRCH;
-    if (ptsk->pid == ptsk->sid)
-        return -EPERM;
+    if (!ptsk) return -ESRCH;
+    if (ptsk->pid != tsk->pid && ptsk->ppid != tsk->pid) return -ESRCH;
+    if (ptsk->pid == ptsk->sid) return -EPERM;
 
     if (pgid == 0)
         pgid = (ltsk = tsk)->pid;
     else
         ltsk = task_get(pgid);
 
-    if (!ltsk)
-        return -ESRCH;
-    if (ptsk->sid != ltsk->sid)
-        return -EPERM;
-    if (ptsk->did_exec)
-        return -EACCES;
+    if (!ltsk) return -ESRCH;
+    if (ptsk->sid != ltsk->sid) return -EPERM;
+    if (ptsk->did_exec) return -EACCES;
 
     ptsk->pgid = pgid;
     return 0;
@@ -770,10 +716,8 @@ __SYSCALL_DEFINE1(void *, brk, void *, ptr)
 {
     addr_t ask = (addr_t)ptr;
     task_t *tsk = task_current();
-    if (ptr == NULL)
-        return MRET(tsk->brk);
-    if (ask < __user_heap_va)
-        return MRET(-ENOMEM);
+    if (ptr == NULL) return MRET(tsk->brk);
+    if (ask < __user_heap_va) return MRET(-ENOMEM);
     ask = (ask + PAGE_SIZE) & PAGE_MASK;
     return MRET(tsk->brk = ask);
 }
@@ -784,7 +728,8 @@ __SYSCALL_DEFINE0(int, yield)
     return 0;
 }
 
-__SYSCALL_DEFINE2(int, nanosleep, const struct timespec *, rqtp, struct timespec *, rmtp)
+__SYSCALL_DEFINE2(int, nanosleep, const struct timespec *, rqtp,
+                  struct timespec *, rmtp)
 {
     int ret;
     u64 ms = 0, rms;
@@ -803,7 +748,7 @@ __SYSCALL_DEFINE1(clock_t, times, struct tms *, buf)
     task_t *tsk = task_current();
     useconds_t cutime = 0;
     useconds_t cstime = 0;
-    for (int i = 0 ; i < TASK_MAX ; i++) {
+    for (int i = 0; i < TASK_MAX; i++) {
         if (task_get(i)->ppid == tsk->pid) {
             cutime += tsk->utime;
             cstime += tsk->stime;
@@ -816,10 +761,9 @@ __SYSCALL_DEFINE1(clock_t, times, struct tms *, buf)
     return arch_us_ran() / CLK_TCK;
 }
 
-void task_init ()
+void task_init()
 {
-    for (int i = 0; i < TASK_MAX ;i++)
-    {
+    for (int i = 0; i < TASK_MAX; i++) {
         table[i] = TASK_FREE;
     }
     list_init(&list_block);

@@ -553,7 +553,6 @@ static int pid_readdir(struct proc_entry *dir, dirctx_t *ctx, int relative_pos)
             break;
         count++;
     }
-end:
     return !count ? EOF : count;
 }
 

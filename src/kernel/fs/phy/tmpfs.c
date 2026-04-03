@@ -26,17 +26,13 @@ typedef struct tmpfs_sbi
 #include <textos/klib/string.h>
 #include <textos/fs/inter.h>
 
-static u64 __tmpfs_ino = 1;
-
-_UTIL_CMP();
-
-#define tmpfs_foreach(ent) \
-    for (node_t *ptr = ent ; ptr ; ptr = ptr->next)
+#define tmpfs_foreach(ent) for (node_t *ptr = ent; ptr; ptr = ptr->next)
 
 static int tmpfs_ent_count(node_t *dir)
 {
     int count = 0;
-    tmpfs_foreach(dir->child) {
+    tmpfs_foreach(dir->child)
+    {
         count++;
     }
     return count;
@@ -50,7 +46,8 @@ static ino_t tmpfs_inoget(superblk_t *sb)
     return sbi->ino_current++;
 }
 
-static node_t *tmpfs_nodenew(superblk_t *sb, char *name, mode_t mode, dev_t rdev)
+static node_t *tmpfs_nodenew(superblk_t *sb, char *name, mode_t mode,
+                             dev_t rdev)
 {
     unsigned ma = sb->dev->major;
     unsigned mi = sb->dev->minor;
@@ -64,8 +61,8 @@ static node_t *tmpfs_nodenew(superblk_t *sb, char *name, mode_t mode, dev_t rdev
     chd->ino = tmpfs_inoget(sb);
     chd->uid = task_current()->euid;
     chd->gid = task_current()->egid;
-    chd->mode = mode &~ task_current()->umask;
-    chd->atime = chd->mtime = chd->atime = arch_time_now();
+    chd->mode = mode & ~task_current()->umask;
+    chd->atime = chd->mtime = chd->ctime = arch_time_now();
     chd->dev = makedev(ma, mi);
     chd->rdev = rdev;
     chd->mount = NULL;
@@ -80,7 +77,8 @@ static node_t *tmpfs_nodenew(superblk_t *sb, char *name, mode_t mode, dev_t rdev
  * FIXME : name may include '/' or other characters, strip them later!!!
  *         all physical file system interfaces of vrtfs has this bug!!!
  */
-static int tmpfs_open(node_t *parent, char *name, u64 args, int mode, node_t **result)
+static int tmpfs_open(node_t *parent, char *name, u64 args, int mode,
+                      node_t **result)
 {
     node_t *node = NULL;
     if (~args & O_CREAT) {
@@ -94,13 +92,13 @@ static int tmpfs_open(node_t *parent, char *name, u64 args, int mode, node_t **r
         mode |= S_IFREG;
     node = tmpfs_nodenew(parent->sb, name, mode, NODEV);
 
-end:
     vfs_regst(node, parent);
     *result = node;
     return 0;
 }
 
-int tmpfs_mknod(node_t *parent, char *name, dev_t rdev, int mode, node_t **result)
+int tmpfs_mknod(node_t *parent, char *name, dev_t rdev, int mode,
+                node_t **result)
 {
     node_t *chd = tmpfs_nodenew(parent->sb, name, mode, rdev);
     vfs_regst(chd, parent);
@@ -158,14 +156,12 @@ static size_t extend(node_t *ent, size_t siz)
     size_t req = DIV_ROUND_UP(siz, PAGE_SIZ);
     size_t has = DIV_ROUND_UP(ent->siz, PAGE_SIZ);
     ASSERTK(req >= has);
-    if (has == req)
-        return ent->siz = siz;
-    
+    if (has == req) return ent->siz = siz;
+
     // TODO: extending limitlessly is not allowed!
     size_t rem = req - has;
     void *vpgs = vmm_allocpages(rem, PE_P | PE_RW);
-    while (rem)
-    {
+    while (rem) {
         tmpfs_page_t *pg = malloc(sizeof(tmpfs_page_t));
         pg->idx = has++;
         pg->vpage = vpgs;
@@ -199,28 +195,25 @@ static int tmpfs_close(node_t *this)
 
 static int tmpfs_remove(node_t *this)
 {
-    if (this->child)
-        return -ENOTEMPTY;
+    if (this->child) return -ENOTEMPTY;
     vfs_unreg(this);
     return 0;
 }
 
 static int tmpfs_read(node_t *this, void *buf, size_t siz, size_t offset)
 {
-    if (siz == 0)
-        return 0;
-    if (offset >= this->siz)
-        return 0;
-    
+    if (siz == 0) return 0;
+    if (offset >= this->siz) return 0;
+
     // adjust to real size
     siz = MIN(this->siz, offset + siz) - offset;
     size_t rem = siz;
     size_t pidx = offset / PAGE_SIZ; // page index
     size_t boff = offset % PAGE_SIZ; // byte offset
-    while (rem)
-    {
+    while (rem) {
         tmpfs_page_t *pg = getblk(this, pidx);
-        size_t cpysiz = MIN(rem, boff != 0 ? PAGE_SIZ - boff : MIN(rem, PAGE_SIZ));
+        size_t cpysiz =
+            MIN(rem, boff != 0 ? PAGE_SIZ - boff : MIN(rem, PAGE_SIZ));
         memcpy(buf, pg->vpage + boff, cpysiz);
         boff = 0;
         rem -= cpysiz;
@@ -234,17 +227,16 @@ static int tmpfs_read(node_t *this, void *buf, size_t siz, size_t offset)
 static int tmpfs_write(node_t *this, void *buf, size_t siz, size_t offset)
 {
     size_t maxpos = siz + offset;
-    if (maxpos > this->siz)
-        this->siz = extend(this, maxpos);
-    
+    if (maxpos > this->siz) this->siz = extend(this, maxpos);
+
     // because of extending, real size is not used yet not
     size_t rem = siz;
     size_t pidx = offset / PAGE_SIZ; // page index
     size_t boff = offset % PAGE_SIZ; // byte offset
-    while (rem)
-    {
+    while (rem) {
         tmpfs_page_t *pg = getblk(this, pidx);
-        size_t cpysiz = MIN(rem, boff != 0 ? PAGE_SIZ - boff : MIN(rem, PAGE_SIZ));
+        size_t cpysiz =
+            MIN(rem, boff != 0 ? PAGE_SIZ - boff : MIN(rem, PAGE_SIZ));
         memcpy(pg->vpage + boff, buf, cpysiz);
         boff = 0;
         rem -= cpysiz;
@@ -257,16 +249,14 @@ static int tmpfs_write(node_t *this, void *buf, size_t siz, size_t offset)
 
 static int tmpfs_truncate(node_t *this, size_t len)
 {
-    if (len == this->siz)
-        return 0;
+    if (len == this->siz) return 0;
 
     if (len > this->siz) {
         this->siz = extend(this, len);
     } else {
         size_t pidx = DIV_ROUND_UP(len, PAGE_SIZ);
         size_t end = DIV_ROUND_UP(this->siz, PAGE_SIZ);
-        while (pidx <= end)
-        {
+        while (pidx <= end) {
             tmpfs_page_t *pg = getblk(this, pidx);
             rbtree_delete(this->pdata, &pg->node);
             pidx++;
@@ -286,26 +276,22 @@ static inline void init_ctx(dirctx_t *ctx, node_t *dir)
 
 static int tmpfs_readdir(node_t *node, dirctx_t *ctx)
 {
-    if (ctx->stat == ctx_inv)
-        init_ctx(ctx, node);
-    if (ctx->stat == ctx_end)
-        return EOF;
+    if (ctx->stat == ctx_inv) init_ctx(ctx, node);
+    if (ctx->stat == ctx_end) return EOF;
 
-    if (ctx->pos == 0)
-    {
-        if (!dir_emit_dot(ctx))
-            goto end;
+    if (ctx->pos == 0) {
+        if (!dir_emit_dot(ctx)) goto end;
         ctx->pos++;
     }
-    if (ctx->pos == 1)
-    {
-        if (!dir_emit_dotdot(ctx))
-            goto end;
+    if (ctx->pos == 1) {
+        if (!dir_emit_dotdot(ctx)) goto end;
         ctx->pos++;
     }
-    
-    tmpfs_foreach(node->child) {
-        if (!dir_emit(ctx, ptr->name, strlen(ptr->name), ptr->ino, dir_get_type(ptr->mode)))
+
+    tmpfs_foreach(node->child)
+    {
+        if (!dir_emit(ctx, ptr->name, strlen(ptr->name), ptr->ino,
+                      dir_get_type(ptr->mode)))
             goto end;
         ctx->pos++;
     }
@@ -320,8 +306,7 @@ end:
 static int tmpfs_seekdir(node_t *this, dirctx_t *ctx, size_t *pos)
 {
     size_t subsz = tmpfs_ent_count(this);
-    if (subsz + 1 >= *pos)
-    {
+    if (subsz + 1 >= *pos) {
         ctx->stat = ctx_pre;
         ctx->pos = *pos;
         return 0;
@@ -359,17 +344,7 @@ node_t *__fs_init_tmpfs()
 }
 
 fs_opts_t __tmpfs_op = {
-    tmpfs_open,
-    tmpfs_mknod,
-    tmpfs_chown,
-    tmpfs_chmod,
-    tmpfs_remove,
-    tmpfs_readdir,
-    tmpfs_seekdir,
-    tmpfs_read,
-    tmpfs_write,
-    tmpfs_truncate,
-    tmpfs_mmap,
-    tmpfs_ioctl,
-    tmpfs_close,
+    tmpfs_open,    tmpfs_mknod,   tmpfs_chown, tmpfs_chmod, tmpfs_remove,
+    tmpfs_readdir, tmpfs_seekdir, tmpfs_read,  tmpfs_write, tmpfs_truncate,
+    tmpfs_mmap,    tmpfs_ioctl,   tmpfs_close,
 };
