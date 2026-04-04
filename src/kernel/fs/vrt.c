@@ -131,7 +131,7 @@ static int _vfs_open(node_t *dir, node_t **node, char *path, u64 args, int mode)
     int ret = 0;
     node_t *res;
 
-    if (_cmp(path, ".")) {
+    if (!path[0] || _cmp(path, ".")) {
         res = dir;
         goto fini;
     } else if (_cmp(path, "..")) {
