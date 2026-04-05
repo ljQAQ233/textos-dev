@@ -1,24 +1,23 @@
+#include <textos/mm/heap.h>
 #include <textos/klib/bitmap.h>
-#include <textos/mm.h>
-#include <textos/assert.h>
+#include <textos/klib/string.h>
 
-#include <string.h>
-
-bitmap_t *bitmap_init(bitmap_t *bmp, void *buf, size_t siz)
+bitmap_t *bitmap_init(bitmap_t *bmp, void *buf, size_t bits)
 {
-    ASSERTK(siz != 0 && siz != -1);
-
-    if (!buf && !(buf = malloc(siz)))
-    {
-        memset(buf, 0, siz / mpembs);
+    void *orig_buf = buf;
+    size_t bytes = DIV_ROUND_UP(bits, mpembs);
+    if (!buf && !(buf = malloc(bytes))) {
         return NULL;
     }
-    
-    if (!bmp && !(bmp = malloc(sizeof(bitmap_t))))
-        return NULL;
-
+    if (!bmp) {
+        if (!(bmp = malloc(sizeof(bitmap_t)))) {
+            if (!orig_buf) free(buf);
+            return NULL;
+        }
+        memset(buf, 0, bytes);
+    }
     bmp->map = buf;
-    bmp->siz = siz;
+    bmp->bits = bits;
     return bmp;
 }
 
@@ -35,26 +34,50 @@ static int poplow(mpunit x)
 #define CLR(x, i) (x &= ~(1 << i))
 #define TEST(x, i) (x &  (1 << i))
 
+size_t bitmap_find_range(bitmap_t *bmp, size_t from, size_t to);
+
 size_t bitmap_find(bitmap_t *bmp)
 {
-    size_t max = bmp->siz / mpembs;
-    mpunit *p  = bmp->map;
+    return bitmap_find_range(bmp, 0, bmp->bits);
+}
 
-    size_t idx;
-    for (idx = 0 ; idx < max ; idx++, p++)
-    {
-        if (*p == mpfull)
+size_t bitmap_find_from(bitmap_t *bmp, size_t from)
+{
+    return bitmap_find_range(bmp, from, bmp->bits);
+}
+
+/*
+ * find an available bit in the range [from, to)
+ */
+size_t bitmap_find_range(bitmap_t *bmp, size_t from, size_t to)
+{
+    ASSERTK(to <= bmp->bits);
+    ASSERTK(from <= to);
+
+    size_t bytes = DIV_ROUND_UP(bmp->bits, mpembs);
+    size_t idx = from / mpembs;
+    mpunit *p = bmp->map + idx;
+
+    mpunit mask = (mpunit)((1 << (from % mpembs)) - 1);
+
+    for (; idx < bytes; idx++, p++) {
+        mpunit unit = *p | mask;
+        if (unit == mpfull) {
+            mask = 0;
             continue;
-        break;
+        }
+
+        int low = poplow(unit);
+        if (idx == bytes - 1 && (bmp->bits % mpembs) != 0 &&
+            low >= (bmp->bits % mpembs)) {
+            return (size_t)-1;
+        }
+
+        SET(*p, low);
+        return low + mpembs * idx;
     }
 
-    if (idx == max)
-        return (size_t)-1;
-    
-    int low = poplow(*p);
-    SET(*p, low);
-
-    return low + mpembs * idx;
+    return (size_t)-1;
 }
 
 bool bitmap_test(bitmap_t *bmp, size_t i)
@@ -84,5 +107,5 @@ void bitmap_reset(bitmap_t *bmp, size_t i)
 
 void bitmap_clear(bitmap_t *bmp)
 {
-    memset(bmp->map, 0, bmp->siz / mpembs);
+    memset(bmp->map, 0, DIV_ROUND_UP(bmp->bits, mpembs));
 }
