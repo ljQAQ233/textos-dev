@@ -2,18 +2,27 @@
 
 #include <textos/klib/list.h>
 
+/*
+ * PCI configuration space read / write helpers.
+ *
+ * All functions require the caller to ensure that `offset`
+ * is properly aligned before invocation.
+ */
+
+//
 u8 pci_read_byte(u8 bus, u8 slot, u8 func, u8 offset);
-
 u16 pci_read_word(u8 bus, u8 slot, u8 func, u8 offset);
-
 u32 pci_read_dword(u8 bus, u8 slot, u8 func, u8 offset);
 
 void pci_write_byte(u8 bus, u8 slot, u8 func, u8 offset, u8 val);
-
 void pci_write_word(u8 bus, u8 slot, u8 func, u8 offset, u16 val);
-
 void pci_write_dword(u8 bus, u8 slot, u8 func, u8 offset, u32 val);
 
+/*
+ * wrapped operations
+ */
+
+//
 typedef struct
 {
     u16 vendor;

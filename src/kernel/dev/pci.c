@@ -122,20 +122,25 @@ static const char *get_classname(u16 code)
     return "Unknown device";
 }
 
+/*
+ * do pack and set address
+ * addr must keep dw-aligned
+ */
 static inline void pci_set_addr(u8 bus, u8 slot, u8 func, u8 offset)
 {
+    ASSERTK((offset & 3) == 0);
     u32 addr = 0;
     addr |= ((u32)bus << 16);
     addr |= ((u32)slot << 11);
     addr |= ((u32)func << 8);
-    addr |= ((u32)offset & 0xFC);
+    addr |= ((u32)offset);
     addr |= (1u << 31);
     outdw(R_ADDR, addr);
 }
 
 u8 pci_read_byte(u8 bus, u8 slot, u8 func, u8 offset)
 {
-    pci_set_addr(bus, slot, func, offset);
+    pci_set_addr(bus, slot, func, offset &~ 3);
     int low = offset & 0b11;
     u32 tmp = indw(R_DATA);
     return ((u8 *)&tmp)[low];
@@ -143,7 +148,8 @@ u8 pci_read_byte(u8 bus, u8 slot, u8 func, u8 offset)
 
 u16 pci_read_word(u8 bus, u8 slot, u8 func, u8 offset)
 {
-    pci_set_addr(bus, slot, func, offset);
+    ASSERTK((offset & 1) == 0);
+    pci_set_addr(bus, slot, func, offset &~ 3);
     int low = offset & 0b11;
     u32 tmp = indw(R_DATA);
     return ((u16 *)&tmp)[low / 2];
@@ -151,7 +157,8 @@ u16 pci_read_word(u8 bus, u8 slot, u8 func, u8 offset)
 
 u32 pci_read_dword(u8 bus, u8 slot, u8 func, u8 offset)
 {
-    pci_set_addr(bus, slot, func, offset);
+    ASSERTK((offset & 3) == 0);
+    pci_set_addr(bus, slot, func, offset &~ 3);
     u32 tmp = indw(R_DATA);
     return tmp;
 }
@@ -159,28 +166,28 @@ u32 pci_read_dword(u8 bus, u8 slot, u8 func, u8 offset)
 #define align_up(x, y) ((y) * ((x + y - 1) / y))
 #define align_down(x, y) ((y) * (x / y))
 
-// TODO: test
 void pci_write_byte(u8 bus, u8 slot, u8 func, u8 offset, u8 val)
 {
     int off = align_down(offset, 4);
     int low = offset % 4;
-    u32 ori = pci_read_dword(bus, slot, func, offset);
+    u32 ori = pci_read_dword(bus, slot, func, off);
     ((u8 *)&ori)[low] = val;
     pci_write_dword(bus, slot, func, off, ori);
 }
 
-// TODO: test
 void pci_write_word(u8 bus, u8 slot, u8 func, u8 offset, u16 val)
 {
+    ASSERTK((offset & 1) == 0);
     int off = align_down(offset, 4);
     int low = offset % 4;
-    u32 ori = pci_read_dword(bus, slot, func, offset);
+    u32 ori = pci_read_dword(bus, slot, func, off);
     ((u16 *)&ori)[low / 2] = val;
     pci_write_dword(bus, slot, func, off, ori);
 }
 
 void pci_write_dword(u8 bus, u8 slot, u8 func, u8 offset, u32 val)
 {
+    ASSERTK((offset & 3) == 0);
     pci_set_addr(bus, slot, func, offset);
     outdw(R_DATA, val);
 }
@@ -204,12 +211,6 @@ static inline u16 get_hdrtype(u8 bus, u8 slot, u8 func)
 static inline u16 get_code(u8 bus, u8 slot, u8 func)
 {
     return pci_read_word(bus, slot, func, 10);
-}
-
-static inline u32 get_bar(u8 bus, u8 slot, u8 func, int x)
-{
-    ASSERTK(0 <= x && x <= 5);
-    return pci_read_dword(bus, slot, func, 16 + x * 4);
 }
 
 static inline u8 get_intr(u8 bus, u8 slot, u8 func)
