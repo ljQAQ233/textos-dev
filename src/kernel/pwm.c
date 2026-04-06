@@ -21,6 +21,7 @@ static void __unused qemu_shutdown()
 static void __unused uefi_shutdown()
 {
     bconfig_t *b = binfo_get();
+    if (!b) return;
     EFI_RUNTIME_SERVICES *rt = b->runtime;
     try(rt->ResetSystem(EfiResetShutdown, EFI_SUCCESS, 0, NULL));
 }
@@ -31,7 +32,12 @@ __SYSCALL_DEFINE0(int, poweroff)
 {
     // TODO: handle tasks
 
-    uefi_shutdown();
+    switch (bmode_get()) {
+    case BOOT_EFI:
+        uefi_shutdown();
+    default:
+        break;
+    }
     qemu_shutdown();
 
     return -1;
