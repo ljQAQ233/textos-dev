@@ -104,18 +104,16 @@ int unsetenv(const char *name)
         return -1;
     }
 
-    if (__environ)
-    {
+    if (__environ) {
         size_t i = 0;
         char **e = (char **)__environ;
-        for ( ; e[i] ; i++) {
+        for (; e[i]; i++) {
             if (!strncmp(e[i], name, l1)) {
                 e[i] = __addenv(e[i], NULL);
-                break;
+                for (; e[i + 1]; i++)
+                    e[i] = e[i + 1];
             }
         }
-        for ( ; e[i+1] ; i++)
-            e[i] = e[i+1];
     }
     return 0;
 }
