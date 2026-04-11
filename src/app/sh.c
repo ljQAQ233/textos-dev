@@ -1,6 +1,7 @@
 // 这一份是我从 jyy 的网站上下载的
 // 2026/04/04 - use wrapped syscall func instead of raw syscall()
 // 2026/04/04 - use execvp in libc to locate executables
+// 2026/04/11 - support running builtin commands (cd) as a part of lists
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,9 +78,30 @@ static inline void print(const char *s, ...)
     va_end(ap);
 }
 
-// cmd is the "abstract syntax tree" (AST) of the command;
-// runcmd() never returns.
+void nakerun(struct cmd *cmd, int replace);
+
 void runcmd(struct cmd *cmd)
+{
+    nakerun(cmd, 0);
+}
+
+// save or restore fd
+void snapfd(int fd, int save)
+{
+    if (save) {
+        dup2(fd, 16 + fd);
+        close(fd);
+    } else {
+        dup2(16 + fd, fd);
+        close(16 + fd);
+    }
+}
+
+// cmd is the "abstract syntax tree" (AST) of the command;
+// if replace == true, then the current process will do exec if needed
+// instead of creating a subshell first, when the func never returns.
+// if exec fails, the process exits with code 1.
+void nakerun(struct cmd *cmd, int replace)
 {
     int p[2];
     struct backcmd *bcmd;
@@ -88,51 +110,66 @@ void runcmd(struct cmd *cmd)
     struct pipecmd *pcmd;
     struct redircmd *rcmd;
 
-    if (cmd == 0) _exit(1);
+    if (cmd == 0) return;
 
     switch (cmd->type) {
     case EXEC:
         ecmd = (struct execcmd *)cmd;
-        if (ecmd->argv[0] == 0) _exit(1);
+        if (ecmd->argv[0] == 0) break;
+        if (strcmp(ecmd->argv[0], "cd") == 0) {
+            if (chdir(ecmd->argv[1]) < 0) {
+                print("cannot cd ", ecmd->argv[1], "\n", NULL);
+                if (replace) _exit(1);
+            }
+            if (replace) _exit(0);
+            break;
+        }
 
-        char *c = ecmd->argv[0];
-        execvp(c, ecmd->argv);
-        print("fail to exec ", c, "\n", NULL);
+        if (replace || fork() == 0) {
+            char *c = ecmd->argv[0];
+            execvp(c, ecmd->argv);
+            print("fail to exec ", c, "\n", NULL);
+            _exit(1);
+        } else {
+            wait4(-1, 0, 0, 0);
+        }
         break;
 
     case REDIR:
         rcmd = (struct redircmd *)cmd;
-        close(rcmd->fd);
+        snapfd(rcmd->fd, 1);
         if (open(rcmd->file, rcmd->mode, 0644) < 0) {
             print("fail to open ", rcmd->file, "\n", NULL);
-            _exit(1);
+            break;
         }
         runcmd(rcmd->cmd);
+        snapfd(rcmd->fd, 0);
         break;
 
     case LIST:
         lcmd = (struct listcmd *)cmd;
-        if (syscall(SYS_fork) == 0) runcmd(lcmd->left);
-        wait4(-1, 0, 0, 0);
+        runcmd(lcmd->left);
         runcmd(lcmd->right);
         break;
 
     case PIPE:
         pcmd = (struct pipecmd *)cmd;
         assert(pipe(p) >= 0);
-        if (syscall(SYS_fork) == 0) {
+        if (fork() == 0) {
             close(1);
             dup(p[1]);
             close(p[0]);
             close(p[1]);
-            runcmd(pcmd->left);
+            nakerun(pcmd->left, 1);
+            exit(0);
         }
-        if (syscall(SYS_fork) == 0) {
+        if (fork() == 0) {
             close(0);
             dup(p[0]);
             close(p[0]);
             close(p[1]);
-            runcmd(pcmd->right);
+            nakerun(pcmd->right, 1);
+            exit(0);
         }
         close(p[0]);
         close(p[1]);
@@ -142,13 +179,12 @@ void runcmd(struct cmd *cmd)
 
     case BACK:
         bcmd = (struct backcmd *)cmd;
-        if (syscall(SYS_fork) == 0) runcmd(bcmd->cmd);
+        if (fork() == 0) runcmd(bcmd->cmd);
         break;
 
     default:
         assert(0);
     }
-    _exit(0);
 }
 
 int getcmd(char *buf, int nbuf)
@@ -188,13 +224,7 @@ void main()
 
     // Read and run input commands.
     while (getcmd(buf, sizeof(buf)) >= 0) {
-        if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
-            // Chdir must be called by the parent, not the child.
-            buf[strlen(buf) - 1] = 0; // chop \n
-            if (chdir(buf + 3) < 0) print("cannot cd ", buf + 3, "\n", NULL);
-            continue;
-        }
-        if (syscall(SYS_fork) == 0) runcmd(parsecmd(buf));
+        runcmd(parsecmd(buf));
         wait4(-1, 0, 0, 0);
     }
 }
