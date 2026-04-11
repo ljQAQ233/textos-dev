@@ -5,6 +5,7 @@
 // 2026/04/11 - error will be reported when wrong syntax is detected
 // 2026/04/11 - migrate from `print` to `dprintf` in libc
 // 2026/04/11 - simple `readline` lib - feat: history
+// 2026/04/11 - use array (not strcmp chains) to systematize built-in cmds
 
 #include <assert.h>
 #include <fcntl.h>
@@ -145,7 +146,6 @@ nocopy:
 
 void rdl_h_write(struct rdlctx *ctx, char *buf)
 {
-    fprintf(stderr, "hist[%d] = %s\n", ctx->hist_r, buf);
     char *slot = ctx->hist[ctx->hist_r % HISTSIZE];
     strcpy(slot, buf);
     ctx->hist_r += 1;
@@ -229,6 +229,43 @@ jmp_buf jmpbuf;
         dprintf(2, "syntax error: " #x "\n"); \
         longjmp(jmpbuf, 1);                   \
     }
+
+#define DEFINE_BUILTIN(name) int name(int argc, char *argv[])
+
+DEFINE_BUILTIN(builtin_cd)
+{
+    if (chdir(argv[1]) < 0) {
+        dprintf(2, "cannot cd %s\n", argv[1]);
+        return 1;
+    }
+    return 0;
+}
+
+DEFINE_BUILTIN(builtin_exit)
+{
+    int s = argc <= 1 ? 0 : atoi(argv[1]);
+    _exit(s);
+}
+
+struct builtin
+{
+    const char *name;
+    int (*main)(int argc, char *argv[]);
+} builtins[] = {
+    {"cd", builtin_cd},
+    {"exit", builtin_exit},
+};
+
+struct builtin *builtin_lookup(char *name)
+{
+    int nr = sizeof(builtins) / sizeof(builtins[0]);
+    for (int i = 0; i < nr; i++) {
+        if (strcmp(builtins[i].name, name) == 0) {
+            return builtins + i;
+        }
+    }
+    return 0;
+}
 
 // EXEC:   ls
 // REDIR:  ls > a.txt
@@ -321,10 +358,13 @@ void nakerun(struct cmd *cmd, int replace)
         ecmd = (struct execcmd *)cmd;
         if (ecmd->argv[0] == 0) break;
         if (strcmp(ecmd->argv[0], "cd") == 0) {
-            if (chdir(ecmd->argv[1]) < 0) {
-                dprintf(2, "cannot cd %s\n", ecmd->argv[1]);
-                if (replace) _exit(1);
-            }
+        }
+        struct builtin *bi = builtin_lookup(ecmd->argv[0]);
+        if (bi != 0) {
+            int argc = 0;
+            while (ecmd->argv[argc])
+                argc++;
+            bi->main(argc, ecmd->argv);
             if (replace) _exit(0);
             break;
         }
@@ -393,7 +433,7 @@ void nakerun(struct cmd *cmd, int replace)
 
 int getcmd(char *buf)
 {
-    dprintf(2, "$ ", NULL);
+    dprintf(2, "$ ");
 
 #if CONFIG_READLINE
     static struct rdlctx ctx = {0};
