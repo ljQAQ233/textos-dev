@@ -149,6 +149,8 @@ void rdl_h_write(struct rdlctx *ctx, char *buf)
     char *slot = ctx->hist[ctx->hist_r % HISTSIZE];
     strcpy(slot, buf);
     ctx->hist_r += 1;
+    if (ctx->hist_l <= ctx->hist_r - HISTSIZE)
+        ctx->hist_l = ctx->hist_r - HISTSIZE;
 }
 
 int readline(struct rdlctx *ctx)
