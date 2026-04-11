@@ -2,22 +2,32 @@
 // 2026/04/04 - use wrapped syscall func instead of raw syscall()
 // 2026/04/04 - use execvp in libc to locate executables
 // 2026/04/11 - support running builtin commands (cd) as a part of lists
+// 2026/04/11 - error will be reported when wrong syntax is detected
 
+#include <assert.h>
+#include <fcntl.h>
+#include <malloc.h>
+#include <setjmp.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
-#include <assert.h>
 #include <string.h>
-#include <stdarg.h>
-#include <malloc.h>
-#include <unistd.h>
-#include <sys/wait.h>
 #include <sys/syscall.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+// Error handling
+jmp_buf jmpbuf;
+#define expect(x)                                  \
+    if (!(x)) {                                    \
+        fprintf(stderr, "syntax error: " #x "\n"); \
+        longjmp(jmpbuf, 1);                        \
+    }
 
 // EXEC:   ls
 // REDIR:  ls > a.txt
 // PIPE:   ls | wc -l
-// LIST:   (ls ; ls)
+// LIST:   ls ; ls
 enum
 {
     EXEC = 1,
@@ -224,8 +234,10 @@ void main()
 
     // Read and run input commands.
     while (getcmd(buf, sizeof(buf)) >= 0) {
-        runcmd(parsecmd(buf));
-        wait4(-1, 0, 0, 0);
+        if (setjmp(jmpbuf) == 0) {
+            runcmd(parsecmd(buf));
+            wait4(-1, 0, 0, 0);
+        }
     }
 }
 
@@ -358,7 +370,7 @@ struct cmd *parsecmd(char *s)
     es = s + strlen(s);
     cmd = parseline(&s, es);
     peek(&s, es, "");
-    assert(s == es);
+    expect(s == es);
     nulterminate(cmd);
     return cmd;
 }
@@ -398,7 +410,7 @@ struct cmd *parseredirs(struct cmd *cmd, char **ps, char *es)
 
     while (peek(ps, es, "<>")) {
         tok = gettoken(ps, es, 0, 0);
-        assert(gettoken(ps, es, &q, &eq) == 'a');
+        expect(gettoken(ps, es, &q, &eq) == 'a');
         switch (tok) {
         case '<':
             cmd = redircmd(cmd, q, eq, O_RDONLY, 0);
@@ -418,10 +430,10 @@ struct cmd *parseblock(char **ps, char *es)
 {
     struct cmd *cmd;
 
-    assert(peek(ps, es, "("));
+    expect(peek(ps, es, "("));
     gettoken(ps, es, 0, 0);
     cmd = parseline(ps, es);
-    assert(peek(ps, es, ")"));
+    expect(peek(ps, es, ")"));
     gettoken(ps, es, 0, 0);
     cmd = parseredirs(cmd, ps, es);
     return cmd;
@@ -443,10 +455,10 @@ struct cmd *parseexec(char **ps, char *es)
     ret = parseredirs(ret, ps, es);
     while (!peek(ps, es, "|)&;")) {
         if ((tok = gettoken(ps, es, &q, &eq)) == 0) break;
-        assert(tok == 'a');
+        expect(tok == 'a');
         cmd->argv[argc] = q;
         cmd->eargv[argc] = eq;
-        assert(++argc < MAXARGS);
+        expect(++argc < MAXARGS);
         ret = parseredirs(ret, ps, es);
     }
     cmd->argv[argc] = 0;
