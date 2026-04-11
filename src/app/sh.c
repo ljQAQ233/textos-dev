@@ -3,12 +3,12 @@
 // 2026/04/04 - use execvp in libc to locate executables
 // 2026/04/11 - support running builtin commands (cd) as a part of lists
 // 2026/04/11 - error will be reported when wrong syntax is detected
+// 2026/04/11 - migrate from `print` to `dprintf` in libc
 
 #include <assert.h>
 #include <fcntl.h>
 #include <malloc.h>
 #include <setjmp.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,10 +18,10 @@
 
 // Error handling
 jmp_buf jmpbuf;
-#define expect(x)                                  \
-    if (!(x)) {                                    \
-        fprintf(stderr, "syntax error: " #x "\n"); \
-        longjmp(jmpbuf, 1);                        \
+#define expect(x)                             \
+    if (!(x)) {                               \
+        dprintf(2, "syntax error: " #x "\n"); \
+        longjmp(jmpbuf, 1);                   \
     }
 
 // EXEC:   ls
@@ -76,18 +76,6 @@ struct backcmd
 };
 
 struct cmd *parsecmd(char *);
-
-static inline void print(const char *s, ...)
-{
-    va_list ap;
-    va_start(ap, s);
-    while (s) {
-        write(2, s, strlen(s));
-        s = va_arg(ap, const char *);
-    }
-    va_end(ap);
-}
-
 void nakerun(struct cmd *cmd, int replace);
 
 void runcmd(struct cmd *cmd)
@@ -128,7 +116,7 @@ void nakerun(struct cmd *cmd, int replace)
         if (ecmd->argv[0] == 0) break;
         if (strcmp(ecmd->argv[0], "cd") == 0) {
             if (chdir(ecmd->argv[1]) < 0) {
-                print("cannot cd ", ecmd->argv[1], "\n", NULL);
+                dprintf(2, "cannot cd %s\n", ecmd->argv[1]);
                 if (replace) _exit(1);
             }
             if (replace) _exit(0);
@@ -138,7 +126,7 @@ void nakerun(struct cmd *cmd, int replace)
         if (replace || fork() == 0) {
             char *c = ecmd->argv[0];
             execvp(c, ecmd->argv);
-            print("fail to exec ", c, "\n", NULL);
+            dprintf(2, "fail to exec %s\n", c);
             _exit(1);
         } else {
             wait4(-1, 0, 0, 0);
@@ -149,7 +137,7 @@ void nakerun(struct cmd *cmd, int replace)
         rcmd = (struct redircmd *)cmd;
         snapfd(rcmd->fd, 1);
         if (open(rcmd->file, rcmd->mode, 0644) < 0) {
-            print("fail to open ", rcmd->file, "\n", NULL);
+            dprintf(2, "fail to open %s\n", rcmd->file);
             break;
         }
         runcmd(rcmd->cmd);
@@ -199,7 +187,7 @@ void nakerun(struct cmd *cmd, int replace)
 
 int getcmd(char *buf, int nbuf)
 {
-    print("(sh-xv6) > ", NULL);
+    dprintf(2, "$ ", NULL);
     for (int i = 0; i < nbuf; i++)
         buf[i] = '\0';
 
