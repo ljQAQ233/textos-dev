@@ -4,6 +4,7 @@
 // 2026/04/11 - support running builtin commands (cd) as a part of lists
 // 2026/04/11 - error will be reported when wrong syntax is detected
 // 2026/04/11 - migrate from `print` to `dprintf` in libc
+// 2026/04/11 - simple `readline` lib - feat: history
 
 #include <assert.h>
 #include <fcntl.h>
@@ -14,7 +15,212 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <unistd.h>
+
+#define CONFIG_READLINE 1
+#define HISTSIZE        16
+#define MAXARGS         10
+#define MAXBUFSIZ       100
+
+//
+// readline
+// - rdl_l_ lib
+// - rdl_v_ visual
+// - rdl_h_ history
+//
+
+enum rdl_seq_opt
+{
+    rso_hist_prev,
+    rso_hist_next,
+    // TODO
+    rso_left,
+    rso_right,
+    rso_clear,
+    rso_none,
+};
+
+struct rdl_rso_map
+{
+    const int opt;
+    const char *seq;
+} rso_map[] = {
+    {rso_hist_prev, "[A"},
+    {rso_hist_next, "[B"},
+};
+
+struct rdlctx
+{
+    int times;
+    char buf[MAXBUFSIZ];
+    // [hist_l, hist_r) is used
+    char hist[HISTSIZE][MAXBUFSIZ];
+    int hist_l, hist_r;
+    struct termios oldt;
+    struct termios newt;
+};
+
+void rdl_start(struct rdlctx *ctx)
+{
+    tcgetattr(STDIN_FILENO, &ctx->oldt);
+    ctx->newt = ctx->oldt;
+    ctx->newt.c_lflag &= ~(ICANON | ECHO);
+    ctx->newt.c_cc[VMIN] = 1;  // at least one char
+    ctx->newt.c_cc[VTIME] = 0; // no timeout
+    tcsetattr(STDIN_FILENO, TCSANOW, &ctx->newt);
+}
+
+void rdl_stop(struct rdlctx *ctx)
+{
+    tcsetattr(STDIN_FILENO, TCSANOW, &ctx->oldt);
+}
+
+void rdl_init(struct rdlctx *ctx)
+{
+    ctx->hist_l = 0;
+    ctx->hist_r = 0;
+}
+
+void rdl_getseq(char *seq, int m)
+{
+    char ch;
+    int n = 0;
+    while (n < m - 1) {
+        if (read(0, &ch, 1) <= 0) break;
+        if (n == 0 && ch != '[') break;
+        seq[n++] = ch;
+        if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == '~')
+            break;
+    }
+    seq[n] = '\0';
+}
+
+void rdl_mapseq(char *seq, int *opt)
+{
+    *opt = rso_none;
+    int nr = sizeof(rso_map) / sizeof(rso_map[0]);
+    for (int i = 0; i < nr; i++) {
+        if (strcmp(rso_map[i].seq, seq) == 0) {
+            *opt = rso_map[i].opt;
+        }
+    }
+}
+
+void rdl_v_erase(int n)
+{
+    while (n--)
+        write(1, "\b \b", 3);
+}
+
+void rdl_v_refresh(char *buf)
+{
+    write(1, buf, strlen(buf));
+}
+
+int rdl_l_iswhite(char *str)
+{
+    char whitespace[] = " \t\r\n\v";
+    return str[strspn(str, whitespace)] == '\0';
+}
+
+void rdl_h_shift(struct rdlctx *ctx, int *current, int prev)
+{
+    int cur = *current;
+    if (prev) {
+        if (--cur < ctx->hist_l) {
+            cur = ctx->hist_l;
+            goto nocopy;
+        }
+    } else {
+        if (++cur > ctx->hist_r) {
+            cur = ctx->hist_r;
+            goto nocopy;
+        }
+    }
+    strcpy(ctx->buf, ctx->hist[cur % HISTSIZE]);
+nocopy:
+    *current = cur;
+}
+
+void rdl_h_write(struct rdlctx *ctx, char *buf)
+{
+    fprintf(stderr, "hist[%d] = %s\n", ctx->hist_r, buf);
+    char *slot = ctx->hist[ctx->hist_r % HISTSIZE];
+    strcpy(slot, buf);
+    ctx->hist_r += 1;
+}
+
+int readline(struct rdlctx *ctx)
+{
+    if (ctx->times++ == 0) {
+        rdl_init(ctx);
+    }
+    char ch = 0;
+    char *p = ctx->buf;
+    int n = sizeof(ctx->buf);
+    int histcur = ctx->hist_r;
+    rdl_start(ctx);
+    while (n > 1) {
+        if (read(0, &ch, 1) <= 0) goto rollback;
+        if (ch == '\e') {
+            int opt;
+            char seq[16];
+            rdl_getseq(seq, sizeof(seq));
+            rdl_mapseq(seq, &opt);
+            switch (opt) {
+            case rso_hist_prev:
+                rdl_v_erase(p - ctx->buf);
+                rdl_h_shift(ctx, &histcur, 1);
+                rdl_v_refresh(ctx->buf);
+                p = ctx->buf + strlen(ctx->buf);
+                break;
+            case rso_hist_next:
+                rdl_v_erase(p - ctx->buf);
+                rdl_h_shift(ctx, &histcur, 0);
+                rdl_v_refresh(ctx->buf);
+                p = ctx->buf + strlen(ctx->buf);
+                break;
+            case rso_none:
+                break;
+            default:
+                assert(0);
+            }
+            continue;
+        }
+        if (ch == '\b' || ch == 0x7f) {
+            *p = '\0';
+            if (p > ctx->buf) {
+                p -= 1;
+                rdl_v_erase(1);
+            }
+            continue;
+        }
+        write(1, &ch, 1);
+        if (ch == '\n') {
+            *p = '\0';
+            if (!rdl_l_iswhite(ctx->buf)) {
+                rdl_h_write(ctx, ctx->buf);
+            }
+            break;
+        }
+        *p++ = ch;
+        n--;
+    }
+
+    *p = '\0';
+    rdl_stop(ctx);
+    return n;
+rollback:
+
+    *p = '\0';
+    rdl_stop(ctx);
+    return -1;
+}
+
+//
+// shell
+//
 
 // Error handling
 jmp_buf jmpbuf;
@@ -185,9 +391,18 @@ void nakerun(struct cmd *cmd, int replace)
     }
 }
 
-int getcmd(char *buf, int nbuf)
+int getcmd(char *buf)
 {
     dprintf(2, "$ ", NULL);
+
+#if CONFIG_READLINE
+    static struct rdlctx ctx = {0};
+    readline(&ctx);
+    strcpy(buf, ctx.buf);
+    return 0;
+#endif
+
+    int nbuf = MAXBUFSIZ;
     for (int i = 0; i < nbuf; i++)
         buf[i] = '\0';
 
@@ -196,9 +411,7 @@ int getcmd(char *buf, int nbuf)
     while (nbuf > 1 && ch != '\n') {
         int nread = read(0, &ch, 1);
         if (nread < 0) return -1;
-
         if (ch == '\t') ch = ' ';
-
         if (ch == '\e') {
             *p = '\0';
             continue;
@@ -221,7 +434,7 @@ void main()
     static char buf[100];
 
     // Read and run input commands.
-    while (getcmd(buf, sizeof(buf)) >= 0) {
+    while (getcmd(buf) >= 0) {
         if (setjmp(jmpbuf) == 0) {
             runcmd(parsecmd(buf));
             wait4(-1, 0, 0, 0);
