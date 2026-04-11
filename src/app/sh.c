@@ -6,6 +6,7 @@
 // 2026/04/11 - migrate from `print` to `dprintf` in libc
 // 2026/04/11 - simple `readline` lib - feat: history
 // 2026/04/11 - use array (not strcmp chains) to systematize built-in cmds
+// 2026/04/11 - new builtins: history, putenv, unsetenv
 
 #include <assert.h>
 #include <fcntl.h>
@@ -144,6 +145,17 @@ nocopy:
     *current = cur;
 }
 
+int rdl_histcnt(struct rdlctx *ctx)
+{
+    return ctx->hist_r - ctx->hist_l;
+}
+
+char *rdl_histget(struct rdlctx *ctx, int idx)
+{
+    if (rdl_histcnt(ctx) <= idx || idx < 0) return 0;
+    return ctx->hist[(ctx->hist_l + idx) % HISTSIZE];
+}
+
 void rdl_h_write(struct rdlctx *ctx, char *buf)
 {
     char *slot = ctx->hist[ctx->hist_r % HISTSIZE];
@@ -223,9 +235,8 @@ rollback:
 //
 // shell
 //
-
-// Error handling
-jmp_buf jmpbuf;
+struct rdlctx gctx = {0};
+jmp_buf jmpbuf; // Error handling
 #define expect(x)                             \
     if (!(x)) {                               \
         dprintf(2, "syntax error: " #x "\n"); \
@@ -249,6 +260,44 @@ DEFINE_BUILTIN(builtin_exit)
     _exit(s);
 }
 
+DEFINE_BUILTIN(builtin_history)
+{
+    char *res;
+    int cur;
+    if (argc <= 1) {
+        cur = 0;
+    } else if (argc == 2) {
+        int n = atoi(argv[1]);
+        cur = rdl_histcnt(&gctx) - n;
+        if (cur < 0) cur = 0;
+    } else {
+        return 1;
+    }
+    while ((res = rdl_histget(&gctx, cur++)))
+        dprintf(1, "% 4d %s\n", cur, res);
+    return 0;
+}
+
+DEFINE_BUILTIN(builtin_putenv)
+{
+    if (argc != 2) return 1;
+    if (putenv(argv[1]) < 0) {
+        perror("putenv");
+        return 1;
+    }
+    return 0;
+}
+
+DEFINE_BUILTIN(builtin_unsetenv)
+{
+    if (argc != 2) return 1;
+    if (unsetenv(argv[1]) < 0) {
+        perror("unsetenv");
+        return 1;
+    }
+    return 0;
+}
+
 struct builtin
 {
     const char *name;
@@ -256,6 +305,9 @@ struct builtin
 } builtins[] = {
     {"cd", builtin_cd},
     {"exit", builtin_exit},
+    {"history", builtin_history},
+    {"putenv", builtin_putenv},
+    {"unsetenv", builtin_unsetenv},
 };
 
 struct builtin *builtin_lookup(char *name)
@@ -438,9 +490,8 @@ int getcmd(char *buf)
     dprintf(2, "$ ");
 
 #if CONFIG_READLINE
-    static struct rdlctx ctx = {0};
-    readline(&ctx);
-    strcpy(buf, ctx.buf);
+    readline(&gctx);
+    strcpy(buf, gctx.buf);
     return 0;
 #endif
 
