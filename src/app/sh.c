@@ -7,6 +7,7 @@
 // 2026/04/11 - simple `readline` lib - feat: history
 // 2026/04/11 - use array (not strcmp chains) to systematize built-in cmds
 // 2026/04/11 - new builtins: history, putenv, unsetenv
+// 2026/04/16 - new builtin - help, rename builtin-(helpers) -> bi-(helpers)
 
 #include <assert.h>
 #include <fcntl.h>
@@ -243,7 +244,38 @@ jmp_buf jmpbuf; // Error handling
         longjmp(jmpbuf, 1);                   \
     }
 
-#define DEFINE_BUILTIN(name) int name(int argc, char *argv[])
+struct builtin
+{
+    const char *name;
+    int (*main)(int argc, char *argv[], struct builtin *self);
+    const char *usage;
+};
+
+struct builtin *bi_lookup(char *name);
+void bi_help(struct builtin *bi);
+
+#define DEFINE_BUILTIN(name) int name(int argc, char *argv[], struct builtin *self)
+#define DECLARE_BUILTIN(name) DEFINE_BUILTIN(name)
+
+DECLARE_BUILTIN(builtin_cd);
+DECLARE_BUILTIN(builtin_exit);
+DECLARE_BUILTIN(builtin_help);
+DECLARE_BUILTIN(builtin_history);
+DECLARE_BUILTIN(builtin_putenv);
+DECLARE_BUILTIN(builtin_unsetenv);
+
+// 
+struct builtin builtins[] = {
+    // clang-format off
+    // name         function            synopsis
+    { "cd",         builtin_cd,         "<dir>" },
+    { "exit",       builtin_exit,       "[status]" },
+    { "help",       builtin_help,       "[name]..." },
+    { "history",    builtin_history,    "[number]" },
+    { "putenv",     builtin_putenv,     "[string]" },
+    { "unsetenv",   builtin_unsetenv,   "[varname]" },
+    // clang-format on
+};
 
 DEFINE_BUILTIN(builtin_cd)
 {
@@ -258,6 +290,27 @@ DEFINE_BUILTIN(builtin_exit)
 {
     int s = argc <= 1 ? 0 : atoi(argv[1]);
     _exit(s);
+}
+
+DEFINE_BUILTIN(builtin_help)
+{
+    static const char *fmt = " %- 8s %s\n";
+    if (argc <= 1) {
+        int nr = sizeof(builtins) / sizeof(builtins[0]);
+        for (int i = 0; i < nr; i++)
+            dprintf(2, fmt, builtins[i].name, builtins[i].usage);
+        return 0;
+    }
+
+    for (int i = 1 ; i < argc ; i++) {
+        struct builtin *bi;
+        if ((bi = bi_lookup(argv[i]))) {
+            dprintf(2, fmt, bi->name, bi->usage);
+        } else {
+            dprintf(2, fmt, argv[i], "not found");
+        }
+    }
+    return 0;
 }
 
 DEFINE_BUILTIN(builtin_history)
@@ -298,19 +351,15 @@ DEFINE_BUILTIN(builtin_unsetenv)
     return 0;
 }
 
-struct builtin
+//
+// internal utils
+//
+void bi_help(struct builtin *bi)
 {
-    const char *name;
-    int (*main)(int argc, char *argv[]);
-} builtins[] = {
-    {"cd", builtin_cd},
-    {"exit", builtin_exit},
-    {"history", builtin_history},
-    {"putenv", builtin_putenv},
-    {"unsetenv", builtin_unsetenv},
-};
+    dprintf(2, "Usage: %s %s\n", bi->name, bi->usage);
+}
 
-struct builtin *builtin_lookup(char *name)
+struct builtin *bi_lookup(char *name)
 {
     int nr = sizeof(builtins) / sizeof(builtins[0]);
     for (int i = 0; i < nr; i++) {
@@ -413,12 +462,12 @@ void nakerun(struct cmd *cmd, int replace)
         if (ecmd->argv[0] == 0) break;
         if (strcmp(ecmd->argv[0], "cd") == 0) {
         }
-        struct builtin *bi = builtin_lookup(ecmd->argv[0]);
+        struct builtin *bi = bi_lookup(ecmd->argv[0]);
         if (bi != 0) {
             int argc = 0;
             while (ecmd->argv[argc])
                 argc++;
-            bi->main(argc, ecmd->argv);
+            bi->main(argc, ecmd->argv, bi);
             if (replace) _exit(0);
             break;
         }
