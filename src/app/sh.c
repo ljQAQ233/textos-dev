@@ -582,17 +582,33 @@ int getcmd(char *buf)
     return 0;
 }
 
-void main()
+int main(int argc, char *argv[])
 {
-    static char buf[100];
+    static char buf[MAXBUFSIZ];
 
-    // Read and run input commands.
+    int c;
+    while ((c = getopt(argc, argv, "hc:")) != -1) {
+        switch (c) {
+        case 'c':
+            if (setjmp(jmpbuf) == 0) {
+                runcmd(parsecmd(optarg));
+                wait4(-1, 0, 0, 0);
+            }
+            break;
+        case 'h':
+        case '?':
+            dprintf(1, "Usage: %s [-h | -c cmd [arg...] ]\n", argv[0]);
+            return 1;
+        }
+    }
+
     while (getcmd(buf) >= 0) {
         if (setjmp(jmpbuf) == 0) {
             runcmd(parsecmd(buf));
             wait4(-1, 0, 0, 0);
         }
     }
+    return 0;
 }
 
 // Constructors
