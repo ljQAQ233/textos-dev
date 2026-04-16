@@ -8,6 +8,7 @@
 // 2026/04/11 - use array (not strcmp chains) to systematize built-in cmds
 // 2026/04/11 - new builtins: history, putenv, unsetenv
 // 2026/04/16 - new builtin - help, rename builtin-(helpers) -> bi-(helpers)
+// 2026/04/16 - new builtin - exec
 
 #include <assert.h>
 #include <fcntl.h>
@@ -259,6 +260,7 @@ void bi_help(struct builtin *bi);
 
 DECLARE_BUILTIN(builtin_cd);
 DECLARE_BUILTIN(builtin_exit);
+DECLARE_BUILTIN(builtin_exec);
 DECLARE_BUILTIN(builtin_help);
 DECLARE_BUILTIN(builtin_history);
 DECLARE_BUILTIN(builtin_putenv);
@@ -270,6 +272,7 @@ struct builtin builtins[] = {
     // name         function            synopsis
     { "cd",         builtin_cd,         "<dir>" },
     { "exit",       builtin_exit,       "[status]" },
+    { "exec",       builtin_exec,       "[cmd [arg]...]" },
     { "help",       builtin_help,       "[name]..." },
     { "history",    builtin_history,    "[number]" },
     { "putenv",     builtin_putenv,     "[string]" },
@@ -290,6 +293,14 @@ DEFINE_BUILTIN(builtin_exit)
 {
     int s = argc <= 1 ? 0 : atoi(argv[1]);
     _exit(s);
+}
+
+DEFINE_BUILTIN(builtin_exec)
+{
+    if (argc <= 1) _exit(0);
+    char *c = argv[1];
+    execvp(c, argv + 1);
+    assert(0);
 }
 
 DEFINE_BUILTIN(builtin_help)
