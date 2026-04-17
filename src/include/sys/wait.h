@@ -13,6 +13,14 @@ int wait(int *stat);
 
 #include <sys/resource.h>
 
+#define WNOHANG   1
+#define WUNTRACED 2
+
+#define WSTOPPED   2
+#define WEXITED    4
+#define WCONTINUED 8
+#define WNOWAIT    0x1000000
+
 /* os-specified */
 int wait4(pid_t pid, int *stat, int opt, void *rusage);
 

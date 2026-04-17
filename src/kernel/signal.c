@@ -2,8 +2,7 @@
 #include <textos/errno.h>
 #include <textos/signal.h>
 #include <textos/syscall.h>
-
-#include <string.h>
+#include <textos/klib/string.h>
 
 int sigemptyset(sigset_t *set)
 {
@@ -63,6 +62,14 @@ static void sig_ignore(int sig)
 {
 }
 
+static void sig_stop(int sig)
+{
+}
+
+static void sig_cont(int sig)
+{
+}
+
 static sighandler_t sig_def[] = {
     [SIGHUP]    = sig_term,
     [SIGINT]    = sig_term,
@@ -80,11 +87,11 @@ static sighandler_t sig_def[] = {
     [SIGALRM]   = sig_term,
     [SIGTERM]   = sig_term,
     [SIGCHLD]   = sig_ignore,
-    [SIGCONT]   = sig_ignore,
+    [SIGCONT]   = sig_cont,
     [SIGSTOP]   = NULL,
-    [SIGTSTP]   = sig_term,
-    [SIGTTIN]   = sig_term,
-    [SIGTTOU]   = sig_term,
+    [SIGTSTP]   = sig_stop,
+    [SIGTTIN]   = sig_stop,
+    [SIGTTOU]   = sig_stop,
     [SIGURG]    = sig_ignore,
     [SIGXCPU]   = sig_core,
     [SIGXFSZ]   = sig_core,
@@ -244,6 +251,11 @@ __SYSCALL_DEFINE3(int, sigprocmask, int, how, const sigset_t *, set, sigset_t *,
     return 0;
 }
 
+static void notify_parent(task_t *tsk)
+{
+    kill(tsk->ppid, SIGCHLD);
+}
+
 __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
 {
     if (sig < 0 || sig >= _NSIG)
@@ -291,16 +303,23 @@ __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
     if (sig == 0)
         return 0;
     sigaddset(&ptsk->sigpend, sig);
-    if (sig == SIGSTOP)
-    {
-        ptsk->stat = TASK_STP;
-        if (ptsk == tsk)
-            task_yield();
-        return 0;
+
+    if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
+        if (ptsk->stat == TASK_PRE || ptsk->stat == TASK_RUN ||
+            ptsk->stat == TASK_SLP || ptsk->stat == TASK_BLK) {
+            ptsk->stat_before_stop = ptsk->stat;
+            ptsk->stat = TASK_STP;
+            ptsk->retval = make_stat_stopped(sig);
+            notify_parent(ptsk);
+            if (ptsk == tsk) task_yield();
+        }
     }
-    if (sig == SIGKILL)
-    {
+    if (sig == SIGKILL) {
         int status = make_stat_signal(SIGKILL, 0);
+        /*
+         * wake up the proc, stimulating it to release the resources it holds.
+         * after releasing, before escape from kernel space, SIGKILL works.
+         */
         if (ptsk->stat == TASK_SLP || ptsk->stat == TASK_BLK)
             task_unblock(ptsk, status);
         if (ptsk->stat == TASK_STP)
@@ -308,8 +327,11 @@ __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
     }
     if (sig == SIGCONT)
     {
-        if (ptsk->stat == TASK_STP)
-            ptsk->stat = TASK_PRE;
+        if (ptsk->stat == TASK_STP) {
+            ptsk->stat = ptsk->stat_before_stop;
+            ptsk->retval = make_stat_continued();
+            notify_parent(ptsk);
+        }
     }
 
     return 0;
