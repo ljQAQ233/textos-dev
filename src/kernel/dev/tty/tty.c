@@ -97,6 +97,7 @@ repeat:
             if (cnt >= cc[VMIN]) {
                 break;
             }
+            tty->iwaiter = task_current();
             task_block(NULL, NULL, TASK_BLK, 0);
             continue;
         }
@@ -284,9 +285,11 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
         }
         iputc(tty, *p);
         if (!FC_LFLAG(tty, ICANON)) {
+            // reset timer
             if (cc[VTIME] && cc[VMIN])
                 ktimer(&tty->timer, tty_nc_timeout, tty, cc[VTIME] * 100);
-            if ((tty->reqlen && !--tty->reqlen) || tty_buf_full(&tty->ibuf))
+            if (tty_buf_chrs(&tty->ibuf) == tty->reqlen // live up to request
+                || tty_buf_full(&tty->ibuf))            // no space to rx chars
                 task_unblock(tty->iwaiter, 0);
         }
         if (FC_LFLAG(tty, ECHO)) opost(tty, *p);
