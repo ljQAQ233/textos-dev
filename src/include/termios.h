@@ -85,6 +85,8 @@ struct termios
 
 int tcgetattr(int __fd, struct termios *__tio);
 int tcsetattr(int __fd, int __act, const struct termios *__tio);
+int tcsetpgrp(int __fd, pid_t __pgrp);
+pid_t tcgetpgrp(int __fd);
 
 __END_DECLS
 
