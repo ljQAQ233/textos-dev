@@ -1,30 +1,24 @@
+#ifdef __wrapper
+
 #include <string.h>
 #include <stdint.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 
-long syscall(int num, ...);
-
-#if defined(__x86_64__)
-#define __NR_statx 332
-#else
-#error "not supported arch"
-#endif
-
-#define STATX_TYPE 1U
-#define STATX_MODE 2U
-#define STATX_NLINK 4U
-#define STATX_UID 8U
-#define STATX_GID 0x10U
-#define STATX_ATIME 0x20U
-#define STATX_MTIME 0x40U
-#define STATX_CTIME 0x80U
-#define STATX_INO 0x100U
-#define STATX_SIZE 0x200U
-#define STATX_BLOCKS 0x400U
+#define STATX_TYPE        1U
+#define STATX_MODE        2U
+#define STATX_NLINK       4U
+#define STATX_UID         8U
+#define STATX_GID         0x10U
+#define STATX_ATIME       0x20U
+#define STATX_MTIME       0x40U
+#define STATX_CTIME       0x80U
+#define STATX_INO         0x100U
+#define STATX_SIZE        0x200U
+#define STATX_BLOCKS      0x400U
 #define STATX_BASIC_STATS 0x7ffU
-#define STATX_BTIME 0x800U
-#define STATX_ALL 0xfffU
+#define STATX_BTIME       0x800U
+#define STATX_ALL         0xfffU
 
 struct statx_timestamp
 {
@@ -57,8 +51,8 @@ struct statx
     uint64_t __pad1[14];
 };
 
-#define AT_EMPTY_PATH 0x1000
-#define AT_FDCWD (-100)
+#define AT_EMPTY_PATH       0x1000
+#define AT_FDCWD            (-100)
 #define AT_SYMLINK_NOFOLLOW 0x100
 
 static int convert(const struct statx *stx, struct stat *st)
@@ -80,36 +74,35 @@ static int convert(const struct statx *stx, struct stat *st)
     return 0;
 }
 
-static int statx(int dirfd, const char *restrict pathname, int flags,
-            unsigned int mask, struct statx *restrict statxbuf)
+static int w_statx(int dirfd, const char *restrict pathname, int flags,
+                   unsigned int mask, struct statx *restrict statxbuf)
 {
-    return syscall(__NR_statx, dirfd, pathname, flags, mask, statxbuf);
+    return w_syscall(332, dirfd, pathname, flags, mask, statxbuf);
 }
 
-int __libc_linux_stat(const char *path, struct stat *sb)
+static int w_stat(const char *path, struct stat *sb)
 {
     struct statx stx;
-    int ret = statx(AT_FDCWD, path, 0, STATX_BASIC_STATS, &stx);
-    if (ret != 0)
-        return ret;
+    int ret = w_statx(AT_FDCWD, path, 0, STATX_BASIC_STATS, &stx);
+    if (ret != 0) return ret;
     return convert(&stx, sb);
 }
 
-int __libc_linux_fstat(int fd, struct stat *sb)
+static int w_fstat(int fd, struct stat *sb)
 {
     struct statx stx;
-    int ret = statx(fd, "", AT_EMPTY_PATH, STATX_BASIC_STATS, &stx);
-    if (ret != 0)
-        return ret;
+    int ret = w_statx(fd, "", AT_EMPTY_PATH, STATX_BASIC_STATS, &stx);
+    if (ret != 0) return ret;
     return convert(&stx, sb);
 }
 
-int __libc_linux_lstat(const char *path, struct stat *sb)
+static int w_lstat(const char *path, struct stat *sb)
 {
     struct statx stx;
-    int ret = statx(AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, 
-                   STATX_BASIC_STATS, &stx);
-    if (ret != 0)
-        return ret;
+    int ret =
+        w_statx(AT_FDCWD, path, AT_SYMLINK_NOFOLLOW, STATX_BASIC_STATS, &stx);
+    if (ret != 0) return ret;
     return convert(&stx, sb);
 }
+
+#endif
