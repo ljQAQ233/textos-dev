@@ -9,6 +9,8 @@
 // 2026/04/11 - new builtins: history, putenv, unsetenv
 // 2026/04/16 - new builtin - help, rename builtin-(helpers) -> bi-(helpers)
 // 2026/04/16 - new builtin - exec
+// 2026/04/16 - receive cmd-line args: -h / -c
+// 2026/04/17 - add exit-status indicator
 
 #include <assert.h>
 #include <fcntl.h>
@@ -237,6 +239,7 @@ rollback:
 //
 // shell
 //
+int status;
 struct rdlctx gctx = {0};
 jmp_buf jmpbuf; // Error handling
 #define expect(x)                             \
@@ -478,7 +481,7 @@ void nakerun(struct cmd *cmd, int replace)
             int argc = 0;
             while (ecmd->argv[argc])
                 argc++;
-            bi->main(argc, ecmd->argv, bi);
+            status = bi->main(argc, ecmd->argv, bi);
             if (replace) _exit(0);
             break;
         }
@@ -489,7 +492,9 @@ void nakerun(struct cmd *cmd, int replace)
             dprintf(2, "fail to exec %s\n", c);
             _exit(1);
         } else {
-            wait4(-1, 0, 0, 0);
+            int ws;
+            wait4(-1, &ws, 0, 0);
+            status = WEXITSTATUS(ws);
         }
         break;
 
@@ -547,7 +552,8 @@ void nakerun(struct cmd *cmd, int replace)
 
 int getcmd(char *buf)
 {
-    dprintf(2, "$ ");
+    if (status) dprintf(2, "\033[31m$ \033[0m");
+    else dprintf(2, "\033[32m$ \033[0m");
 
 #if CONFIG_READLINE
     readline(&gctx);
@@ -605,7 +611,6 @@ int main(int argc, char *argv[])
     while (getcmd(buf) >= 0) {
         if (setjmp(jmpbuf) == 0) {
             runcmd(parsecmd(buf));
-            wait4(-1, 0, 0, 0);
         }
     }
     return 0;
