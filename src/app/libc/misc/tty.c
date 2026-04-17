@@ -16,3 +16,15 @@ int tcsetattr(int fd, int act, const struct termios *tio)
     }
     return ioctl(fd, TCSETS + act, tio);
 }
+
+int tcsetpgrp(int fd, pid_t pgrp)
+{
+    return ioctl(fd, TIOCSPGRP, pgrp);
+}
+
+pid_t tcgetpgrp(int fd)
+{
+    pid_t pgrp;
+    if (ioctl(fd, TIOCGPGRP, &pgrp) < 0) return -1;
+    return pgrp;
+}
