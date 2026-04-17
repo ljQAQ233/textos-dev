@@ -39,7 +39,7 @@ int tty_buf_putc(tty_buf_t *b, char c)
  * 
  * @param b tty buffer
  * @param c where to store?
- * @return int -1 is returned if no more space. or flag is returned on success
+ * @return int -1 is returned if nothing to read. or flag is returned on success
  */
 int tty_buf_getc(tty_buf_t *b, char *c)
 {
