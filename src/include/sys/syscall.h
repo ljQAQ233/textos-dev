@@ -7,7 +7,7 @@ __BEGIN_DECLS
 
 #include <bits/syscall.h>
 
-long syscall(int num, ...);
+long syscall(long num, ...);
 
 __END_DECLS
 

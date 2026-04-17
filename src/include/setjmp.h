@@ -5,7 +5,7 @@
 
 __BEGIN_DECLS
 
-#include <jmp.h>
+#include <bits/a-jmp.h>
 
 typedef __jmp_buf jmp_buf;
 int setjmp(jmp_buf __env) __attribute__((returns_twice));

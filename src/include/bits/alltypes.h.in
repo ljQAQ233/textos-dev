@@ -2,7 +2,7 @@
  * sed -f utils/mkalltypes.sed %
  */
 
-#include <arch.h>
+#include <bits/arch.h>
 
 __typeaka int64_t;
 __typeaka int32_t;

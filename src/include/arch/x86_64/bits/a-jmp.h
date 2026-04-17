@@ -1,22 +1,21 @@
-#ifndef __JMP_ARC_H__
-#define __JMP_ARC_H__
+#pragma once
 
 // rsp, rbp, rbx, r12, r13, r14, r15, rip
 typedef unsigned long long __jmp_buf[8];
 
 // rdi : env
-#define _ASM_SETJMP               \
-    "    leaq 8(%rsp), %rax\n"    \
-    "    movq %rax, 0(%rdi)\n"    \
-    "    movq %rbp, 8(%rdi)\n"    \
-    "    movq %rbx, 16(%rdi)\n"   \
-    "    movq %r12, 24(%rdi)\n"   \
-    "    movq %r13, 32(%rdi)\n"   \
-    "    movq %r14, 40(%rdi)\n"   \
-    "    movq %r15, 48(%rdi)\n"   \
-    "    movq (%rsp), %rax\n"     \
-    "    movq %rax, 56(%rdi)\n"   \
-    "    xor %eax, %eax\n"        \
+#define _ASM_SETJMP             \
+    "    leaq 8(%rsp), %rax\n"  \
+    "    movq %rax, 0(%rdi)\n"  \
+    "    movq %rbp, 8(%rdi)\n"  \
+    "    movq %rbx, 16(%rdi)\n" \
+    "    movq %r12, 24(%rdi)\n" \
+    "    movq %r13, 32(%rdi)\n" \
+    "    movq %r14, 40(%rdi)\n" \
+    "    movq %r15, 48(%rdi)\n" \
+    "    movq (%rsp), %rax\n"   \
+    "    movq %rax, 56(%rdi)\n" \
+    "    xor %eax, %eax\n"      \
     "    ret\n"
 
 #define _ASM_LONGJMP            \
@@ -34,4 +33,3 @@ typedef unsigned long long __jmp_buf[8];
     "1:\n"                      \
     "    jmp *56(%rdi)\n"
 
-#endif

@@ -11,9 +11,10 @@
 #include <sys/socket.h>
 #include <sys/utsname.h>
 #include <sys/syscall.h>
+#include <bits/a-sc.h>
 
 extern int errno;
-extern int __is_linux;
+extern long (*__sc_redir[])(long, long, long, long, long, long);
 
 // According to the SysV ABI :
 // Returning from the syscall, register %rax contains the result of the system-call. A
@@ -28,26 +29,25 @@ static long syscall_ret(long ret)
     return ret;
 }
 
-long syscall(int num, ...)
+long syscall(long num, ...)
 {
     va_list ap;
     va_start(ap, num);
-    register long a0 asm ("rax") = num;
-    register long a1 asm ("rdi") = va_arg(ap, long);
-    register long a2 asm ("rsi") = va_arg(ap, long);
-    register long a3 asm ("rdx") = va_arg(ap, long);
-    register long a4 asm ("r10") = va_arg(ap, long);
-    register long a5 asm ("r8") = va_arg(ap, long);
-    register long a6 asm ("r9") = va_arg(ap, long);
+    __sc_type a0 = num;
+    __sc_type a1 = va_arg(ap, __sc_type);
+    __sc_type a2 = va_arg(ap, __sc_type);
+    __sc_type a3 = va_arg(ap, __sc_type);
+    __sc_type a4 = va_arg(ap, __sc_type);
+    __sc_type a5 = va_arg(ap, __sc_type);
+    __sc_type a6 = va_arg(ap, __sc_type);
     va_end(ap);
-    asm volatile(
-        "syscall"
-        : "+r"(a0) : "r"(a1), "r"(a2), "r"(a3), "r"(a4), "r"(a5), "r"(a6)
-        : "memory");
-    return a0;
-}
 
-#define syscall(nr, ARGS...) syscall_ret((syscall)(nr, ##ARGS))
+    long r;
+    r = __sc_redir[a0] // redir if needed
+            ? __sc_redir[a0](a1, a2, a3, a4, a5, a6)
+            : __syscall(a0, a1, a2, a3, a4, a5, a6);
+    return syscall_ret(r);
+}
 
 int fork()
 {
@@ -221,22 +221,16 @@ extern int __libc_linux_lstat(const char *path, struct stat *sb);
 
 int stat(const char *path, struct stat *sb)
 {
-    if (__is_linux)
-        return __libc_linux_stat(path, sb);
     return syscall(SYS_stat, path, sb);
 }
 
 int lstat(const char *path, struct stat *sb)
 {
-    if (__is_linux)
-        return __libc_linux_lstat(path, sb);
     return -ENOSYS;
 }
 
 int fstat(int fd, struct stat *sb)
 {
-    if (__is_linux)
-        return __libc_linux_fstat(fd, sb);
     return syscall(SYS_fstat, sb);
 }
 
