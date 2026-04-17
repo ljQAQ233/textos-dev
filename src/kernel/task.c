@@ -274,48 +274,88 @@ void task_exit(int val)
     tsk->stat = TASK_DIE; // TODO : ZOMBIE
     tsk->retval = val;
     task_t *prt = table[tsk->ppid];
-    if (prt->stat == TASK_BLK &&
-        (prt->waitpid == tsk->pid || prt->waitpid == -1)) {
+    if (prt->waitpid == tsk->pid || prt->waitpid == -1) {
+        ASSERTK(prt->stat == TASK_BLK);
         task_unblock(prt, 0);
         prt->waitpid = tsk->pid;
     }
     DEBUGK(K_TRACE, "exit %d\n", tsk->pid);
 
     if (tsk->pid == 1) PANIC("init exited with %d!!!\n", val);
+    
+    /* notify the parent */
+    // kill(tsk->ppid, SIGCHLD);
 
     task_schedule();
+}
+
+static bool match_wopt(int retval, int opt)
+{
+    int expect = 0;
+    expect |= WIFSTOPPED(retval) ? WSTOPPED : 0;
+    expect |= WIFEXITED(retval) ? WEXITED : 0;
+    expect |= WIFCONTINUED(retval) ? WCONTINUED : 0;
+    return expect & opt;
 }
 
 int task_wait(int pid, int *stat, int opt, struct rusage *ru)
 {
     task_t *tsk = task_current();
+
+    // do check
     if (pid > 0) {
-        if (!table[pid] || table[pid]->ppid != tsk->pid) return -ECHILD;
+        if (!task_get(pid) || table[pid]->ppid != tsk->pid) return -ECHILD;
     } else if (pid == -1) {
-        int has = 0;
+        int haschd = 0;
         for (int i = 0; i < TASK_MAX; i++) {
             if (table[i] && table[i]->stat != TASK_DIE &&
                 table[i]->ppid == tsk->pid) {
-                has = 1;
+                haschd = 1;
                 break;
             }
         }
-        if (!has) return -ECHILD;
+        if (!haschd) return -ECHILD;
     } else {
         PANIC("unsupported pid - %d\n", pid);
     }
-
+    
+    int termd = -1;
     tsk->waitpid = pid;
-    task_block(NULL, NULL, TASK_BLK, 0);
-
-    int termd = tsk->waitpid;
+    if (~opt & WNOHANG) {
+        task_block(NULL, NULL, TASK_BLK, 0);
+        termd = tsk->waitpid;
+    } else {
+        if (pid > 0) {
+            task_t *chd = task_get(pid);
+            if (WIFEXITED(chd->retval) // wait4 default
+                || match_wopt(chd->retval, opt)) {
+                termd = pid;
+            }
+        } else {
+            for (int i = 0; i < TASK_MAX; i++) {
+                if (table[i] && table[i]->stat != TASK_DIE &&
+                    table[i]->ppid == tsk->pid &&
+                    match_wopt(table[i]->retval, opt)) {
+                    termd = table[i]->pid;
+                    break;
+                }
+            }
+        }
+    }
     tsk->waitpid = 0;
+
+    // no child matched
+    if (termd == -1) {
+        return 0;
+    }
 
     task_t *chd = table[termd];
     if (ru) task_look_rusage(chd, ru);
     if (stat) *stat = chd->retval;
-    table[termd] = NULL;
-
+    if (!(opt & WNOWAIT) && chd->stat == TASK_DIE) {
+        // not to peek, destroy it
+        table[termd] = NULL;
+    }
     return termd;
 }
 
