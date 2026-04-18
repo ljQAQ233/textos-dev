@@ -19,7 +19,7 @@ int tcsetattr(int fd, int act, const struct termios *tio)
 
 int tcsetpgrp(int fd, pid_t pgrp)
 {
-    return ioctl(fd, TIOCSPGRP, pgrp);
+    return ioctl(fd, TIOCSPGRP, &pgrp);
 }
 
 pid_t tcgetpgrp(int fd)

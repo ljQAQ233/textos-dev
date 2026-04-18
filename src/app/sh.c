@@ -11,7 +11,8 @@
 // 2026/04/16 - new builtin - exec
 // 2026/04/16 - receive cmd-line args: -h / -c
 // 2026/04/17 - add exit-status indicator
-// TODO 2026/04/17 - simple job control
+// 2026/04/18 - simple job control
+// 2026/04/19 - readline reset non-block flag.
 
 #include <assert.h>
 #include <fcntl.h>
@@ -72,12 +73,22 @@ struct rdlctx
 
 void rdl_start(struct rdlctx *ctx)
 {
-    tcgetattr(STDIN_FILENO, &ctx->oldt);
+    // set terminal mode for readline
+    assert(tcgetattr(STDIN_FILENO, &ctx->oldt) >= 0);
     ctx->newt = ctx->oldt;
     ctx->newt.c_lflag &= ~(ICANON | ECHO);
     ctx->newt.c_cc[VMIN] = 1;  // at least one char
     ctx->newt.c_cc[VTIME] = 0; // no timeout
-    tcsetattr(STDIN_FILENO, TCSANOW, &ctx->newt);
+    assert(tcsetattr(STDIN_FILENO, TCSANOW, &ctx->newt) >= 0);
+
+    // reset non-block flag
+    // if disabled, bug found as running `vi &`
+#if 1
+    int fl;
+    assert((fl = fcntl(0, F_GETFL)) >= 0);
+    fl &= ~O_NONBLOCK;
+    assert(fcntl(0, F_SETFL, fl) >= 0);
+#endif
 }
 
 void rdl_stop(struct rdlctx *ctx)
@@ -262,6 +273,7 @@ enum
 struct job
 {
     int jstat;
+    int serial;
     pid_t pid;
     char *pick;
 };
@@ -287,11 +299,14 @@ void jfree(struct job *j);
 int jid(struct job *j);
 char *jcode(struct job *j);
 void jlog(struct job *j, char code[], int showpick);
-int jmake(int pid, char pick[]);
+int jmake(pid_t pid, char pick[]);
+void tswitch(pid_t pid);
 
+DECLARE_BUILTIN(builtin_bg);
 DECLARE_BUILTIN(builtin_cd);
 DECLARE_BUILTIN(builtin_exit);
 DECLARE_BUILTIN(builtin_exec);
+DECLARE_BUILTIN(builtin_fg);
 DECLARE_BUILTIN(builtin_help);
 DECLARE_BUILTIN(builtin_history);
 DECLARE_BUILTIN(builtin_jobs);
@@ -302,9 +317,11 @@ DECLARE_BUILTIN(builtin_unsetenv);
 struct builtin builtins[] = {
     // clang-format off
     // name         function            synopsis
+    { "bg",         builtin_bg,         "[%jid]" },
     { "cd",         builtin_cd,         "<dir>" },
     { "exit",       builtin_exit,       "[status]" },
     { "exec",       builtin_exec,       "[cmd [arg]...]" },
+    { "fg",         builtin_fg,         "[%jid]" },
     { "help",       builtin_help,       "[name]..." },
     { "history",    builtin_history,    "[number]" },
     { "jobs",       builtin_jobs,       "[%jid]..." },
@@ -319,6 +336,32 @@ struct rdlctx gctx = {0};
 struct job jobs[MAXJOBS];
 struct job *jcurr;
 struct job *jprev;
+
+DEFINE_BUILTIN(builtin_bg)
+{
+    if (argc != 1 && argc != 2) {
+        bi_help(self);
+        return 1;
+    }
+
+    struct job *j;
+    if (argc == 1)
+        j = (jcurr && jcurr->jstat != JNONE) ? jcurr : jprev;
+    else
+        j = jfrom_str(argv[1]);
+    if (!j || j->jstat == JNONE) {
+        dprintf(2, "%s: %s: no such job\n", argv[0],
+                argv[1] ? argv[1] : "+ or -");
+        return 127;
+    }
+    if (j->jstat != JSTOPPED) {
+        dprintf(2, "%s: %d: job already in background\n", argv[0], jid(j));
+        return 1;
+    }
+    j->jstat = JBACKGND;
+    kill(j->pid, SIGCONT);
+    return 0;
+}
 
 DEFINE_BUILTIN(builtin_cd)
 {
@@ -342,6 +385,45 @@ DEFINE_BUILTIN(builtin_exec)
     if (argc <= 1) _exit(0);
     nakexec(argv + 1);
     assert(0);
+}
+
+DEFINE_BUILTIN(builtin_fg)
+{
+    if (argc != 1 && argc != 2) {
+        bi_help(self);
+        return 1;
+    }
+
+    struct job *j;
+    if (argc == 1)
+        j = (jcurr && jcurr->jstat != JNONE) ? jcurr : jprev;
+    else
+        j = jfrom_str(argv[1]);
+    if (!j || j->jstat == JNONE) {
+        dprintf(2, "%s: %s: no such job\n", argv[0],
+                argv[1] ? argv[1] : "+ or -");
+        return 127;
+    }
+    j->jstat = JFOREGND;
+
+    int ws;
+    int status;
+    pid_t chd = j->pid;
+    kill(chd, SIGCONT);
+    tswitch(chd);
+    wait4(chd, &ws, WUNTRACED, 0);
+    tswitch(0);
+    if (WIFSTOPPED(ws)) {
+        jlog(j, "stopped", 1);
+        status = 128 + WSTOPSIG(ws);
+    } else if (WIFEXITED(ws)) {
+        status = WEXITSTATUS(ws);
+    } else if (WIFSIGNALED(ws)) {
+        status = 128 + WTERMSIG(ws);
+    } else {
+        assert(!"how did you arrive here?");
+    }
+    return status;
 }
 
 DEFINE_BUILTIN(builtin_help)
@@ -488,6 +570,8 @@ struct job *jalloc()
 void jfree(struct job *j)
 {
     j->jstat = JNONE;
+    if (jprev == j) jprev = 0;
+    if (jcurr == j) jcurr = 0;
 }
 
 int jid(struct job *j)
@@ -518,7 +602,7 @@ void jlog(struct job *j, char code[], int showpick)
             showpick ? j->pick : "");
 }
 
-int jmake(int pid, char pick[])
+int jmake(pid_t pid, char pick[])
 {
     struct job *j;
     if ((j = jalloc()) == 0) {
@@ -531,6 +615,25 @@ int jmake(int pid, char pick[])
     jprev = jcurr;
     jcurr = j;
     return jid(j);
+}
+
+void tswitch(pid_t pid)
+{
+    assert(tcsetpgrp(0, pid != 0 ? pid : getpgid(0)) >= 0);
+}
+
+void ignore_stp()
+{
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+}
+
+void default_stp()
+{
+    signal(SIGTSTP, SIG_DFL);
+    signal(SIGTTOU, SIG_DFL);
+    signal(SIGTTIN, SIG_DFL);
 }
 
 // EXEC:   ls
@@ -648,14 +751,26 @@ void nakerun(struct cmd *cmd, int replace)
         } else {
             int chd = fork();
             if (chd == 0) {
+                default_stp();
+                setpgid(0, 0);
                 nakexec(ecmd->argv);
             } else {
                 int ws;
+                setpgid(chd, chd);
+                tswitch(chd);
                 wait4(chd, &ws, WUNTRACED, 0);
+                tswitch(0);
                 if (WIFSTOPPED(ws)) {
+                    struct job *j;
+                    int jid;
                     char pick[MAXBUFSIZ];
                     sprintf(pick, "%s [...]", ecmd->argv[0]);
-                    jmake(chd, pick);
+                    jid = jmake(chd, pick);
+                    j = jfrom_jid(jid);
+                    if (j) {
+                        jlog(j, "stopped", 1);
+                        j->jstat = JSTOPPED;
+                    }
                     status = 128 + WSTOPSIG(ws);
                 } else if (WIFEXITED(ws)) {
                     status = WEXITSTATUS(ws);
@@ -690,6 +805,8 @@ void nakerun(struct cmd *cmd, int replace)
         assert(pipe(p) >= 0);
         lchd = fork();
         if (lchd == 0) {
+            default_stp();
+            setpgid(0, 0);
             close(1);
             dup(p[1]);
             close(p[0]);
@@ -699,6 +816,8 @@ void nakerun(struct cmd *cmd, int replace)
         }
         rchd = fork();
         if (rchd == 0) {
+            default_stp();
+            setpgid(0, 0);
             close(0);
             dup(p[0]);
             close(p[0]);
@@ -706,6 +825,8 @@ void nakerun(struct cmd *cmd, int replace)
             nakerun(pcmd->right, 1);
             _exit(status);
         }
+        setpgid(lchd, lchd);
+        setpgid(rchd, rchd);
         close(p[0]);
         close(p[1]);
         wait4(lchd, 0, 0, 0);
@@ -716,9 +837,12 @@ void nakerun(struct cmd *cmd, int replace)
         bcmd = (struct backcmd *)cmd;
         pid_t chd = fork();
         if (chd == 0) {
+            default_stp();
+            setpgid(0, 0);
             nakerun(bcmd->cmd, 1);
             _exit(0);
         } else {
+            setpgid(chd, chd);
             jmake(chd, bcmd->pick);
             jlog(jfrom_pid(chd), "", 1);
         }
@@ -790,6 +914,7 @@ void do_sigchld(int sig)
         jfree(j);
     } else if (WIFSTOPPED(ws)) {
         jlog(j, "stopped", 1);
+        j->jstat = JSTOPPED;
     } else if (WIFCONTINUED(ws)) {
         jlog(j, "continue", 1);
     }
@@ -815,10 +940,22 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* protect our shell */
+    ignore_stp();
     signal(SIGINT, do_sigint);
     signal(SIGCHLD, do_sigchld);
 
+    setpgid(0, 0);
+    tswitch(0);
+
     while (getcmd(buf) >= 0) {
+        if (buf[0] == '\0') {
+            // char *sh_run[] = {
+            //     "sh",
+            //     NULL
+            // };
+            // nakexec(sh_run);
+            continue; }
         if (setjmp(jmpbuf) == 0) {
             runcmd(parsecmd(buf));
         }
