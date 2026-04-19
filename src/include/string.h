@@ -100,6 +100,8 @@ void *memcpy(void *__dest, const void *__src, size_t __n);
 
 char *strerror(int __errnum);
 
+char *strsignal(int __sig);
+
 // TODO : Other functions in string.h
 
 __END_DECLS
