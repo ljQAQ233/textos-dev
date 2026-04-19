@@ -13,6 +13,7 @@
 // 2026/04/17 - add exit-status indicator
 // 2026/04/18 - simple job control
 // 2026/04/19 - readline reset non-block flag.
+// 2026/04/19 - fixes some bugs & add exit flag in builtin_exit
 
 #include <assert.h>
 #include <fcntl.h>
@@ -276,6 +277,8 @@ struct job
     int serial;
     pid_t pid;
     char *pick;
+    struct job *prev;
+    struct job *next;
 };
 
 #define expect(x)                             \
@@ -291,6 +294,9 @@ struct job
 struct builtin *bi_lookup(char *name);
 void bi_help(struct builtin *bi);
 
+struct job *jfrom_prev();
+struct job *jfrom_curr();
+struct job *jfrom_corp();
 struct job *jfrom_jid(int jid);
 struct job *jfrom_pid(pid_t pid);
 struct job *jfrom_str(char *s);
@@ -300,6 +306,7 @@ int jid(struct job *j);
 char *jcode(struct job *j);
 void jlog(struct job *j, char code[], int showpick);
 int jmake(pid_t pid, char pick[]);
+void jdealwait(struct job *j, int ws, int *status);
 void tswitch(pid_t pid);
 
 DECLARE_BUILTIN(builtin_bg);
@@ -331,11 +338,14 @@ struct builtin builtins[] = {
 };
 
 int status;
+int serial;
 jmp_buf jmpbuf; // Error handling
 struct rdlctx gctx = {0};
 struct job jobs[MAXJOBS];
-struct job *jcurr;
-struct job *jprev;
+struct job head = {
+    .prev = &head,
+    .next = &head,
+};
 
 DEFINE_BUILTIN(builtin_bg)
 {
@@ -346,7 +356,7 @@ DEFINE_BUILTIN(builtin_bg)
 
     struct job *j;
     if (argc == 1)
-        j = (jcurr && jcurr->jstat != JNONE) ? jcurr : jprev;
+        j = jfrom_prev();
     else
         j = jfrom_str(argv[1]);
     if (!j || j->jstat == JNONE) {
@@ -359,6 +369,7 @@ DEFINE_BUILTIN(builtin_bg)
         return 1;
     }
     j->jstat = JBACKGND;
+    // TODO: killpg
     kill(j->pid, SIGCONT);
     return 0;
 }
@@ -374,7 +385,16 @@ DEFINE_BUILTIN(builtin_cd)
 
 DEFINE_BUILTIN(builtin_exit)
 {
+    static int last = -2;
     int s = argc <= 1 ? 0 : atoi(argv[1]);
+    if (last != serial - 1) {
+        if (head.next != &head) {
+            last = serial;
+            dprintf(2, "\nThere are jobs leaked:\n\n");
+            builtin_jobs(1, 0, 0);
+            return 1;
+        }
+    }
     _exit(s);
 }
 
@@ -396,7 +416,7 @@ DEFINE_BUILTIN(builtin_fg)
 
     struct job *j;
     if (argc == 1)
-        j = (jcurr && jcurr->jstat != JNONE) ? jcurr : jprev;
+        j = jfrom_corp();
     else
         j = jfrom_str(argv[1]);
     if (!j || j->jstat == JNONE) {
@@ -413,16 +433,7 @@ DEFINE_BUILTIN(builtin_fg)
     tswitch(chd);
     wait4(chd, &ws, WUNTRACED, 0);
     tswitch(0);
-    if (WIFSTOPPED(ws)) {
-        jlog(j, "stopped", 1);
-        status = 128 + WSTOPSIG(ws);
-    } else if (WIFEXITED(ws)) {
-        status = WEXITSTATUS(ws);
-    } else if (WIFSIGNALED(ws)) {
-        status = 128 + WTERMSIG(ws);
-    } else {
-        assert(!"how did you arrive here?");
-    }
+    jdealwait(j, ws, &status);
     return status;
 }
 
@@ -530,6 +541,28 @@ struct builtin *bi_lookup(char *name)
 //
 // job control
 //
+struct job *jfrom_prev()
+{
+    if (head.next == &head)
+        return 0;
+    if (head.next->next == &head)
+        return 0;
+    return head.next->next;
+}
+
+struct job *jfrom_curr()
+{
+    if (head.next == &head)
+        return 0;
+    return head.next;
+}
+
+// curr or prev
+struct job *jfrom_corp()
+{
+    return jfrom_curr() ? jfrom_curr() : jfrom_prev();
+}
+
 struct job *jfrom_jid(int jid)
 {
     return jid <= 0 || jid > MAXJOBS ? 0 : &jobs[jid - 1];
@@ -551,9 +584,9 @@ struct job *jfrom_str(char *s)
     }
     struct job *j = 0;
     if (s[1] == '+')
-        j = jcurr;
+        j = jfrom_curr();
     else if (s[1] == '-')
-        j = jprev;
+        j = jfrom_prev();
     else
         j = jfrom_jid(atoi(s + 1));
     return j;
@@ -561,17 +594,27 @@ struct job *jfrom_str(char *s)
 
 struct job *jalloc()
 {
+    struct job *j = 0;
     for (int i = 0; i < MAXJOBS; i++) {
-        if (jobs[i].jstat == JNONE) return &jobs[i];
+        if (jobs[i].jstat == JNONE) {
+            j = &jobs[i];
+            break;
+        }
     }
-    return 0;
+    if (j == 0) return 0;
+    j->prev = &head;
+    j->next = head.next;
+    head.next->prev = j;
+    head.next = j;
+    return j;
 }
 
 void jfree(struct job *j)
 {
+    assert(j->jstat != JNONE);
     j->jstat = JNONE;
-    if (jprev == j) jprev = 0;
-    if (jcurr == j) jcurr = 0;
+    j->prev->next = j->next;
+    j->next->prev = j->prev;
 }
 
 int jid(struct job *j)
@@ -594,9 +637,9 @@ char *jcode(struct job *j)
 void jlog(struct job *j, char code[], int showpick)
 {
     char mark = ' ';
-    if (j == jcurr)
+    if (j == jfrom_curr())
         mark = '+';
-    else if (j == jprev)
+    else if (j == jfrom_prev())
         mark = '-';
     dprintf(2, "[%d]%c %d %- 10s %s\n", jid(j), mark, j->pid, code,
             showpick ? j->pick : "");
@@ -612,9 +655,27 @@ int jmake(pid_t pid, char pick[])
     j->jstat = JBACKGND;
     j->pid = pid;
     j->pick = strdup(pick);
-    jprev = jcurr;
-    jcurr = j;
     return jid(j);
+}
+
+void jdealwait(struct job *j, int ws, int *status)
+{
+    if (WIFEXITED(ws)) {
+        char code[8];
+        snprintf(code, sizeof(code), "exit %d", WEXITSTATUS(ws));
+        jlog(j, code, 1);
+        jfree(j);
+    } else if (WIFSTOPPED(ws)) {
+        jlog(j, "stopped", 1);
+        j->jstat = JSTOPPED;
+    } else if (WIFSIGNALED(ws)) {
+        char code[8];
+        snprintf(code, sizeof(code), "sig %d", WTERMSIG(ws));
+        jlog(j, code, 1);
+        jfree(j);
+    } else if (WIFCONTINUED(ws)) {
+        jlog(j, "continue", 1);
+    }
 }
 
 void tswitch(pid_t pid)
@@ -907,17 +968,9 @@ void do_sigchld(int sig)
     struct job *j = jfrom_pid(pid);
     if (!j) return;
     /* handle it only if this shell is in charge of it */
-    if (WIFEXITED(ws)) {
-        char code[8];
-        snprintf(code, sizeof(code), "exit %d", WEXITSTATUS(ws));
-        jlog(j, code, 1);
-        jfree(j);
-    } else if (WIFSTOPPED(ws)) {
-        jlog(j, "stopped", 1);
-        j->jstat = JSTOPPED;
-    } else if (WIFCONTINUED(ws)) {
-        jlog(j, "continue", 1);
-    }
+    int status;
+    (void)status;
+    jdealwait(j, ws, &status);
 }
 
 int main(int argc, char *argv[])
@@ -949,13 +1002,7 @@ int main(int argc, char *argv[])
     tswitch(0);
 
     while (getcmd(buf) >= 0) {
-        if (buf[0] == '\0') {
-            // char *sh_run[] = {
-            //     "sh",
-            //     NULL
-            // };
-            // nakexec(sh_run);
-            continue; }
+        serial += 1;
         if (setjmp(jmpbuf) == 0) {
             runcmd(parsecmd(buf));
         }
