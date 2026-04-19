@@ -22,6 +22,8 @@ __BEGIN_DECLS
 #define O_APPEND 02000 // 末尾追加
 #define O_DIRECTORY 0200000
 
+#define O_NONBLOCK 04000 // 非阻塞 TODO
+
 int open(const char *__path, int __flgs, ...);
 
 #define F_RDLCK 0
