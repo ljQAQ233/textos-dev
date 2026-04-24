@@ -14,7 +14,7 @@
 #include <bits/a-sc.h>
 
 extern int errno;
-extern long (*__sc_redir[])(long, long, long, long, long, long);
+extern long (**__sc_redir)(long, long, long, long, long, long);
 
 // According to the SysV ABI :
 // Returning from the syscall, register %rax contains the result of the system-call. A
@@ -43,7 +43,7 @@ long syscall(long num, ...)
     va_end(ap);
 
     long r;
-    r = __sc_redir[a0] // redir if needed
+    r = __sc_redir && __sc_redir[a0] // redir if needed
             ? __sc_redir[a0](a1, a2, a3, a4, a5, a6)
             : __syscall(a0, a1, a2, a3, a4, a5, a6);
     return syscall_ret(r);
