@@ -3,11 +3,12 @@
 #include <sys/utsname.h>
 #include <sys/cdefs.h>
 
+void *__sc_redir = 0;
+
 #ifdef __x86_64__
     #include "x86_64/arch.c"
 #else
-void *__sc_redir[512];
-static void __arch_init_wrapper() {};
+static void __arch_init_wrapper(void **tab) {};
 #endif
 
 int __is_linux;
@@ -22,7 +23,10 @@ void __init_wrapper()
         __is_linux = 1;
     else
         return;
-    // musl libc gives us the value 100
-    __sysconfs[_SC_CLK_TCK] = 100;
-    __arch_init_wrapper();
+
+    if (__is_linux) {
+        // musl libc gives us the value 100
+        __sysconfs[_SC_CLK_TCK] = 100;
+        __arch_init_wrapper(&__sc_redir);
+    }
 }

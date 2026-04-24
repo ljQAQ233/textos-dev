@@ -22,13 +22,14 @@ static long w_syscall(long num, ...)
 #include "sig.c"
 #include "stat.c"
 
-void *__sc_redir[512] = {
+void *__sc_redir_x86_64[512] = {
     [SYS_sigaction] = w_sigaction,
     [SYS_stat] = w_stat,
     [SYS_fstat] = w_fstat,
 };
 
-void __arch_init_wrapper()
+void __arch_init_wrapper(void **tab)
 {
     (void)w_syscall;
+    *tab = __sc_redir_x86_64;
 }
