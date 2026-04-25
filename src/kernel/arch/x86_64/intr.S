@@ -57,7 +57,7 @@ intr_caller:
     leaq (%rax, %rdi, 8), %rax
     call *(%rax)
 
-    lea 15 * 8(%rsp), %rdi
+    movq %rsp, %rdi        /* intr context */
     call __handle_signal
 
 intr_exit:

@@ -278,13 +278,13 @@ void task_exit(int val)
         ASSERTK(prt->stat == TASK_BLK);
         task_unblock(prt, 0);
         prt->waitpid = tsk->pid;
+    } else {
+        /* notify the parent if not waited */
+        kill(tsk->ppid, SIGCHLD);
     }
     DEBUGK(K_TRACE, "exit %d\n", tsk->pid);
 
     if (tsk->pid == 1) PANIC("init exited with %d!!!\n", val);
-    
-    /* notify the parent */
-    // kill(tsk->ppid, SIGCHLD);
 
     task_schedule();
 }
@@ -308,8 +308,7 @@ int task_wait(int pid, int *stat, int opt, struct rusage *ru)
     } else if (pid == -1) {
         int haschd = 0;
         for (int i = 0; i < TASK_MAX; i++) {
-            if (table[i] && table[i]->stat != TASK_DIE &&
-                table[i]->ppid == tsk->pid) {
+            if (table[i] && table[i]->ppid == tsk->pid) {
                 haschd = 1;
                 break;
             }
@@ -333,8 +332,7 @@ int task_wait(int pid, int *stat, int opt, struct rusage *ru)
             }
         } else {
             for (int i = 0; i < TASK_MAX; i++) {
-                if (table[i] && table[i]->stat != TASK_DIE &&
-                    table[i]->ppid == tsk->pid &&
+                if (table[i] && table[i]->ppid == tsk->pid &&
                     match_wopt(table[i]->retval, opt)) {
                     termd = table[i]->pid;
                     break;
@@ -355,6 +353,7 @@ int task_wait(int pid, int *stat, int opt, struct rusage *ru)
     if (!(opt & WNOWAIT) && chd->stat == TASK_DIE) {
         // not to peek, destroy it
         table[termd] = NULL;
+        DEBUGK(K_TRACE, "task %d destroyed\n", termd);
     }
     return termd;
 }

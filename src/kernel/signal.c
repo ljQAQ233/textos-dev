@@ -111,7 +111,7 @@ void __handle_signal(intr_frame_t *iframe)
     *sig &= ~tsk->sigmask;
     if (*sig == 0)
         return ;
-    if (!sigismember(sig, SIGKILL))
+    if (sigismember(sig, SIGKILL))
         task_exit(make_stat_signal(SIGKILL, 0));
 
     for (int i = 1 ; i <= _NSIG ; i++) {
@@ -303,6 +303,7 @@ __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
     if (sig == 0)
         return 0;
     sigaddset(&ptsk->sigpend, sig);
+    DEBUGK(K_TRACE, "signal %d sent to pid=%d well\n", sig, ptsk->pid);
 
     if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
         if (ptsk->stat == TASK_PRE || ptsk->stat == TASK_RUN ||
