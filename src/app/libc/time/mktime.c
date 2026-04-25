@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <assert.h>
 
-// SEE: docs/kernel/5.设备/048 时钟.md
+// SEE: docs/kernel/device/clock.md
 // tm::tm_year 使用天文纪年, y = 0 -> BC1
 time_t mktime(struct tm *tm)
 {

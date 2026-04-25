@@ -10,7 +10,7 @@
 >  file system specified in UEFI 2.0. It can also be used to abstract a file  
 >  system other than FAT.
 
-打开及使用详见 `docs/boot/3.Protocol/005 Simple File System.md`
+打开及使用详见 `docs/boot/protocol/sfs.md`
 
 # Overview
 
