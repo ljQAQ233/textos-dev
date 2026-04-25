@@ -14,6 +14,10 @@
 
 # Feature
 
+- 较为完备的文档
+  - [索引](./docs/bili.md)
+  - 注释
+
 - [x] uefi
   - [x] debug support
   - [x] bmp display
@@ -116,6 +120,11 @@
   - [ ] tls
 
 ## 关于用户态
+
+- 用户名: `local`
+- 密码: `local`
+
+---
 
 > - app 大多可以直接在 linux 上运行 ~~因为我直接把 linux 的 syscall number 搬过来了~~ (二进制兼容)
 > - app 使用自制的 C library, wrapper 提供 amd64 linux 上的系统调用兼容, 理论上可以实现任意架构 / 系统 wrapper
