@@ -14,6 +14,7 @@
 // 2026/04/18 - simple job control
 // 2026/04/19 - readline reset non-block flag.
 // 2026/04/19 - fixes some bugs & add exit flag in builtin_exit
+// 2026/04/25 - allow SIGINT to interrupt readline
 
 #include <assert.h>
 #include <fcntl.h>
@@ -64,16 +65,20 @@ struct rdl_rso_map
 struct rdlctx
 {
     int times;
+    int interrupt;
     char buf[MAXBUFSIZ];
     // [hist_l, hist_r) is used
     char hist[HISTSIZE][MAXBUFSIZ];
     int hist_l, hist_r;
+    struct sigaction oact[_NSIG];
     struct termios oldt;
     struct termios newt;
 };
 
 void rdl_start(struct rdlctx *ctx)
 {
+    // SIGINT
+    ctx->interrupt = 0;
     // set terminal mode for readline
     assert(tcgetattr(STDIN_FILENO, &ctx->oldt) >= 0);
     ctx->newt = ctx->oldt;
@@ -90,11 +95,24 @@ void rdl_start(struct rdlctx *ctx)
     fl &= ~O_NONBLOCK;
     assert(fcntl(0, F_SETFL, fl) >= 0);
 #endif
+
+    struct sigaction act;
+    assert(sigaction(SIGINT, 0, &act) >= 0);
+    ctx->oact[SIGINT] = act;
+    act.sa_flags &= ~SA_RESTART;
+    assert(sigaction(SIGINT, &act, &act) >= 0);
+}
+
+void rdl_interrupt(struct rdlctx *ctx)
+{
+    ctx->interrupt = 1;
 }
 
 void rdl_stop(struct rdlctx *ctx)
 {
     tcsetattr(STDIN_FILENO, TCSANOW, &ctx->oldt);
+
+    assert(sigaction(SIGINT, 0, &ctx->oact[SIGINT]) >= 0);
 }
 
 void rdl_init(struct rdlctx *ctx)
@@ -184,18 +202,25 @@ void rdl_h_write(struct rdlctx *ctx, char *buf)
         ctx->hist_l = ctx->hist_r - HISTSIZE;
 }
 
-int readline(struct rdlctx *ctx)
+int readline(struct rdlctx *ctx, int *nread)
 {
     if (ctx->times++ == 0) {
         rdl_init(ctx);
     }
+    int err = 0;
     char ch = 0;
     char *p = ctx->buf;
     int n = sizeof(ctx->buf);
     int histcur = ctx->hist_r;
     rdl_start(ctx);
     while (n > 1) {
-        if (read(0, &ch, 1) <= 0) goto rollback;
+        if (read(0, &ch, 1) <= 0) {
+            err = 1;
+            if (ctx->interrupt) {
+                p = ctx->buf;
+            }
+            goto rollback;
+        }
         if (ch == '\e') {
             int opt;
             char seq[16];
@@ -241,14 +266,11 @@ int readline(struct rdlctx *ctx)
         n--;
     }
 
-    *p = '\0';
-    rdl_stop(ctx);
-    return n;
 rollback:
-
-    *p = '\0';
+    *p++ = '\0';
+    *nread = p - ctx->buf;
     rdl_stop(ctx);
-    return -1;
+    return !err ? 0 : -1;
 }
 
 //
@@ -543,17 +565,14 @@ struct builtin *bi_lookup(char *name)
 //
 struct job *jfrom_prev()
 {
-    if (head.next == &head)
-        return 0;
-    if (head.next->next == &head)
-        return 0;
+    if (head.next == &head) return 0;
+    if (head.next->next == &head) return 0;
     return head.next->next;
 }
 
 struct job *jfrom_curr()
 {
-    if (head.next == &head)
-        return 0;
+    if (head.next == &head) return 0;
     return head.next;
 }
 
@@ -922,9 +941,15 @@ int getcmd(char *buf)
         dprintf(2, "\033[32m$ \033[0m");
 
 #if CONFIG_READLINE
-    readline(&gctx);
-    strcpy(buf, gctx.buf);
-    return 0;
+    int nread;
+    if (readline(&gctx, &nread) < 0) {
+        buf[0] = 0;
+        status = 1;
+        dprintf(2, "\n");
+        return 0;
+    }
+    strncpy(buf, gctx.buf, nread);
+    return nread;
 #endif
 
     int nbuf = MAXBUFSIZ;
@@ -955,12 +980,14 @@ int getcmd(char *buf)
 }
 
 void do_sigint(int sig)
-{}
+{
+    rdl_interrupt(&gctx);
+}
 
 void do_sigchld(int sig)
 {
     int ws;
-    int pid = wait4(-1, &ws, WNOHANG | WUNTRACED | WCONTINUED, 0);
+    int pid = wait4(-1, &ws, WNOHANG | WUNTRACED | WCONTINUED | WEXITED, 0);
     if (pid <= 0) {
         return;
     }
