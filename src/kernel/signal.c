@@ -215,21 +215,18 @@ __SYSCALL_DEFINE0(int, sigreturn)
 __SYSCALL_DEFINE3(int, sigaction, int, signum, const sigaction_t *, act, sigaction_t *, oldact)
 {
     task_t *tsk = task_current();
-    if (signum <= 0 || signum >= _NSIG)
-        return -EINVAL;
-    if (signum == SIGKILL || signum == SIGSTOP)
-        return -EINVAL;
-    if (!act)
-        return -EINVAL;
-
-    if (oldact)
-        memcpy(oldact, &tsk->sigacts[signum-1], sizeof(sigaction_t));
-
-    sigaction_t *newact = &tsk->sigacts[signum-1];
-    newact->sa_handler = act->sa_handler;
-    newact->sa_flags = act->sa_flags;
-    newact->sa_restorer = act->sa_restorer;
-    newact->sa_mask = act->sa_mask;
+    if (signum <= 0 || signum >= _NSIG) return -EINVAL;
+    if (signum == SIGKILL || signum == SIGSTOP) return -EINVAL;
+    if (oldact) {
+        memcpy(oldact, &tsk->sigacts[signum - 1], sizeof(sigaction_t));
+    }
+    if (act) {
+        sigaction_t *newact = &tsk->sigacts[signum - 1];
+        newact->sa_handler = act->sa_handler;
+        newact->sa_flags = act->sa_flags;
+        newact->sa_restorer = act->sa_restorer;
+        newact->sa_mask = act->sa_mask;
+    }
     return 0;
 }
 
