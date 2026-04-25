@@ -102,13 +102,16 @@ void (*signal(int signum, void (*handler)(int)))(int)
 
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
-    struct sigaction __act = {
-        .sa_handler = act->sa_handler,
-        .sa_flags = act->sa_flags | SA_RESTORER,
-        .sa_mask = act->sa_mask,
-        .sa_restorer = __restorer
-    };
-    return syscall(SYS_sigaction, signum, &__act, oldact);
+    if (act) {
+        struct sigaction __act = {
+            .sa_handler = act->sa_handler,
+            .sa_flags = act->sa_flags | SA_RESTORER,
+            .sa_mask = act->sa_mask,
+            .sa_restorer = __restorer
+        };
+        return syscall(SYS_sigaction, signum, &__act, oldact);
+    }
+    return syscall(SYS_sigaction, signum, 0, oldact);
 }
 
 int sigprocmask(int how, const sigset_t *set, sigset_t *oset)
