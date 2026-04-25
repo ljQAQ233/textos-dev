@@ -1,0 +1,41 @@
+# 退出启动时服务
+
+# Overview
+
+```c++
+/**
+  Terminates all boot services.
+
+  @param[in]  ImageHandle       Handle that identifies the exiting image.
+  @param[in]  MapKey            Key to the latest memory map.
+
+  @retval EFI_SUCCESS           Boot services have been terminated.
+  @retval EFI_INVALID_PARAMETER MapKey is incorrect.
+
+**/
+typedef
+EFI_STATUS
+(EFIAPI *EFI_EXIT_BOOT_SERVICES)(
+  IN  EFI_HANDLE                   ImageHandle,
+  IN  UINTN                        MapKey
+  );
+```
+
+所以我们首先需要获取 MapKey
+
+```c++
+typedef
+EFI_STATUS
+(EFIAPI *EFI_GET_MEMORY_MAP)(
+  IN OUT UINTN                       *MemoryMapSize,
+  IN OUT EFI_MEMORY_DESCRIPTOR       *MemoryMap,
+  OUT    UINTN                       *MapKey,
+  OUT    UINTN                       *DescriptorSize,
+  OUT    UINT32                      *DescriptorVersion
+  );
+```
+
+退出启动时服务后, 所有的启动时服务将无效, 变得无法调用, 在此之后 运行时服务 可以继续使用, 从这时开始, 电脑就是属于我的了! 在这之后, 你必须记住, 一切都需要自己打造, 这是你的世界!
+
+# Start here!
+
