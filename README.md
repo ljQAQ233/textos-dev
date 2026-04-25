@@ -7,11 +7,10 @@
 
 ---
 
-- [Gitee | canyan233](https://gitee.com/canyan233)
 - [GitHub | ljQAQ233](https://github.com/ljQAQ233)
 - [Bilibili | maouai233](https://space.bilibili.com/503518259)
 
-在B站不定期更新,有错误什么的请提交issue/PR,谢谢!学生党,更新慢,请见谅.
+在B站不定期更新, 有错误什么的请提交 **issue / PR** , 谢谢! 学生党, 更新慢.
 
 # Feature
 
@@ -32,6 +31,9 @@
 - 内存管理
   - [x] 物理内存管理
   - [ ] 虚拟内存管理
+    - [ ] mmap
+      - [x] 懒加载
+      - [ ] 写时复制
   - [x] 内核堆内存管理
   - [x] 内核重映射
 
@@ -62,6 +64,7 @@
   - [x] PS/2 键盘
   - [x] IDE 硬盘
   - [ ] AHCI / SATA
+    - [x] detect
   - [x] E1000 网卡
   - [x] RTL8139 网卡
   - [x] FPU 协处理器
@@ -105,19 +108,17 @@
     - [x] framebuffer
     - [ ] mouse
     - [ ] keyboard
-  - [ ] x11
+  - [ ] x11 (maybe?)
   
 - 多任务
   - [x] percpu (mycpu)
   - [ ] clone
   - [ ] tls
 
----
+## 关于用户态
 
-- app 大多可以直接在 linux 上运行 ~~因为我直接把 linux 的 syscall number 搬过来了~~ (二进制兼容)
-- app 使用自制的 C library
-
-## 系统调用
+> - app 大多可以直接在 linux 上运行 ~~因为我直接把 linux 的 syscall number 搬过来了~~ (二进制兼容)
+> - app 使用自制的 C library, wrapper 提供 amd64 linux 上的系统调用兼容, 理论上可以实现任意架构 / 系统 wrapper
 
 # 目录结构
 
@@ -125,20 +126,27 @@
 
 现在就很相同了 [why](docs/history.md)
 
-- build 构建输出
-- docs 文档
-- src
-   - app            用户程序
-   - base           开发资源
-   - boot    
-     - Edk2         基于EDKII项目改,使用makefile
-     - SigmaBootPkg Boot源码
-   - config         Makefile配置
-   - include        头文件目录
-      - boot        SigmaBootPkg的头文件
-   - utils          工具
-   - kernel         内核源代码
-   - resource       资源文件
+```
+├── build/ 构建输出
+├── docs/  文档
+├── init/  初始配置
+├── src/   源码
+│   ├── app/      用户程序
+│   │   ├── libc/ 不标准库
+│   │   ├── libm/ 数学库 openlibm
+│   │   ├── lvgl/ 图形化
+│   │   └── test/ 测试用例
+│   ├── base/     开发资源
+│   ├── boot/     引导程序
+│   ├── config/   构建配置
+│   ├── include/  头文件
+│   ├── kernel/   内核源码
+│   ├── resource/ 用户资源
+│   └── utils/    好用的东西
+├── test/ 实验室
+├── LICENSE
+└── README.md
+```
 
 ---
 
@@ -146,11 +154,11 @@
 
 # make
 
-- 测试
+- 运行
   - `make -C src qemu` -> running on Qemu
   - `make -C src qemug` -> start kernel debugging
   - `make -C src qemubg` -> start uefi debugging
-  - `make -C src compile_commands.json` -> AutoGen CompileCommands
+  - `make -C src compile_commands.json` -> AutoGen compile-database
 
 - 固件
   - `make -C src ovmf`
@@ -179,7 +187,7 @@
 git clone https://github.com/ljqaq233/textos-pre
 ```
 
-edk2 子模块也必须要克隆:
+edk2, lvgl 等子模块也必须要克隆:
 
 ```shell
 git submodule update --init --progress
@@ -212,9 +220,9 @@ nix-shell shell.nix
 
 # 参考软件版本
 
-- Provide
+- 内建提供
    - EDKII - vUDK2018
-- Private
+- 个人配置
    - GCC - `gcc 14.2.1`
    - GDB - `gdb 15.1` (with `expat`)
    - QEMU - `QEMU emulator version 9.0.2`
@@ -224,9 +232,8 @@ nix-shell shell.nix
 ## 文档
 
 - docs
-
-- [Intel® 64 and IA-32 Architectures Software Developer’s Manual](https://www.intel.cn/content/www/cn/zh/developer/articles/technical/intel-sdm.html)
-- [Unified Extensible Firmware Interface (UEFI) Specification Version 2.9 March 2021](https://uefi.org/specifications)
+  - [Intel® 64 and IA-32 Architectures Software Developer’s Manual](https://www.intel.cn/content/www/cn/zh/developer/articles/technical/intel-sdm.html)
+  - [Unified Extensible Firmware Interface (UEFI) Specification Version 2.9 March 2021](https://uefi.org/specifications)
 
 **注: Uefi文档与当前版本有出入**
 
@@ -258,9 +265,17 @@ nix-shell shell.nix
 
 ## git commit format
 
+> 这个我早就想要改掉了
+
 ```
 [doc|fix|update|bili] (details)
 ```
+
+## AI 使用
+
+代码 **大多** 为本人亲自编写, 由 agent 编写的会标注 **模型名称**
+
+合理使用 agent, plz.
 
 # LICENSE
 
