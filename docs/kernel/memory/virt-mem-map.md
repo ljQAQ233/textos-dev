@@ -1,0 +1,10 @@
+# 虚拟内存映射
+
+# 扩高地址
+
+![./images/canonical.svg](./images/canonical.svg)
+
+> 扩高 (Canonical)
+
+- 0x0000000000000000 ~ 0x00007FFFFFFFFFFF
+- 0xFFFF800000000000 ~ 0xFFFFFFFFFFFFFFFF

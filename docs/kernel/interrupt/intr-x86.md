@@ -1,0 +1,18 @@
+# 中断
+
+# IVT
+
+> Interrupt Vector Table
+
+# IDT
+
+> Interrupt Descriptor Table
+
+# Qemu
+
+检测 **中断** 与 **Cpu reset**:
+
+```
+-d int,cpu_reset
+```
+

@@ -1,0 +1,49 @@
+# 权限 与 ID
+
+# 权限设置
+
+| 名称   | 含义             | 谁来设置                             | 用途和作用                                    |
+| ------ | ---------------- | ------------------------------------ | --------------------------------------------- |
+| `ruid` | 真实用户 ID      | 程序启动时由内核设置                 | 表示进程的**原始用户**是谁(谁执行了这个程序)  |
+| `euid` | 有效用户 ID      | 可以由 `setuid()` / `seteuid()` 设置 | 内核用来进行**权限检查**(如读文件、开 socket) |
+| `suid` | 保存的 setuid 值 | 程序是 setuid 时由系统自动保存       | 可以**来回切换权限**(euid <-> suid)           |
+
+# 详细说明
+
+> RTFM!!!!
+>
+> man setuid
+>
+> man seteuid
+
+- [difference between euid, suid and ruid in linux systems | stackoverflow](https://stackoverflow.com/questions/33982789/difference-between-euid-suid-and-ruid-in-linux-systems)
+
+---
+
+举个例子:
+
+现在是 纯正的 root:
+
+- ruid = 0
+- euid = 0
+
+降权: `seteuid(1000)`
+
+然后可以提权: `seteuid(0)`
+
+但是如果放弃 root: `setuid(0)`
+
+这时候就换不回去了...
+
+# chown
+
+只有 `euid` 等于 `file->uid` 的进程，或者拥有 **相应权限(例如 root 权限)** 的进程, 才可以更改文件所有权。如果 path 对应的路径开启了 `_POSIX_CHOWN_RESTRICTED` 选项, 那么就会有以下限制喔:
+
+* 更改 `uid` 只允许有权限的进程做.
+* 更改 `gid` 允许当下进程的 `euid` 等于 `file->uid`, 并且:
+    - owner 等于 `euid` 或等于 `-1` => 不改变 owner
+    - group 等于该进程的 `egid`  或属于它的 `附加群组` 之一
+
+* uid 只能由 root 改
+* gid 可以由文件拥有者改, 但只能改成自己所属的组之一
+

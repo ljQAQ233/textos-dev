@@ -1,0 +1,18 @@
+# 显示器分辨率设置
+
+# Protocol
+
+- `Protocol/GraphicsOutput.h`
+
+# Overview
+
+选择最相近的分辨率并设置.
+
+```c++
+EFI_STATUS GraphicsResolutionSet (
+  IN UINTN Hor,
+  IN UINTN Ver
+);
+```
+
+- `src/boot/SigmaBootPkg/Graphics.c`
