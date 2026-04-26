@@ -51,11 +51,11 @@ static int __putenv(char *s, size_t l)
     size_t i;
     char **e = (char **)__environ;
     for (i = 0 ; e[i] ; i++) {
-        if (strncmp(e[i], s, l))
-            continue;
-        e[i] = s;
-        __addenv(e[i], s);
-        return 0;
+        if (!strncmp(e[i], s, l) && e[i][l] == '=') {
+            e[i] = s;
+            __addenv(e[i], s);
+            return 0;
+        }
     }
 
     // clone
@@ -108,10 +108,11 @@ int unsetenv(const char *name)
         size_t i = 0;
         char **e = (char **)__environ;
         for (; e[i]; i++) {
-            if (!strncmp(e[i], name, l1)) {
-                e[i] = __addenv(e[i], NULL);
+            if (!strncmp(e[i], name, l1) && e[i][l1] == '=') {
+                __addenv(e[i], NULL);
                 for (; e[i + 1]; i++)
                     e[i] = e[i + 1];
+                e[i] = NULL;
             }
         }
     }
@@ -123,12 +124,9 @@ char *getenv(const char *name)
     char **e = __environ;
     size_t len = strchrnul(name, '=') - name;
     if (len && !name[len] && e) {
-        for (int i = 0 ; e[i] ; i++) {
-            if (strncmp(e[i], name, len))
-                continue;
-            if (e[i][len] != '=')
-                continue;
-            return (char *)&e[i][len + 1];
+        for (int i = 0; e[i]; i++) {
+            if (!strncmp(e[i], name, len) && e[i][len] == '=')
+                return (char *)&e[i][len + 1];
         }
     }
     return NULL;
