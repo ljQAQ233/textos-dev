@@ -1,14 +1,6 @@
 #include <stdlib.h>
 #include <sys/cdefs.h>
 
-__weak __hidden int main(
-    int argc,
-    const char *argv[],
-    const char *envp[])
-{
-    return 0;
-}
-
 extern char **__environ;
 extern const void **__auxv;
 
@@ -59,8 +51,10 @@ void __libc_internal_init()
         init = 1;
     }
 }
+    
+int (*__main)(int, const char **, const char **);
 
-void __libc_start_main(long *args)
+void __libc_start_main(long *args, void *main)
 {
     int argc = args[0];
     const char **argv = (void *)&args[1];
@@ -72,7 +66,8 @@ void __libc_start_main(long *args)
     __auxv = auxv;
     __libc_internal_init();
     __libc_start_init();
-    int ret = main(argc, argv, envp);
+    __main = main;
+    int ret = __main(argc, argv, envp);
     exit(ret);
 
     asm("ud2");
