@@ -15,6 +15,7 @@
 // 2026/04/19 - readline reset non-block flag.
 // 2026/04/19 - fixes some bugs & add exit flag in builtin_exit
 // 2026/04/25 - allow SIGINT to interrupt readline
+// 2026/04/26 - fixes 'putenv' -> 'setenv' which allocates memory itself
 
 #include <assert.h>
 #include <fcntl.h>
@@ -336,10 +337,11 @@ DECLARE_BUILTIN(builtin_cd);
 DECLARE_BUILTIN(builtin_exit);
 DECLARE_BUILTIN(builtin_exec);
 DECLARE_BUILTIN(builtin_fg);
+DECLARE_BUILTIN(builtin_getenv);
 DECLARE_BUILTIN(builtin_help);
 DECLARE_BUILTIN(builtin_history);
 DECLARE_BUILTIN(builtin_jobs);
-DECLARE_BUILTIN(builtin_putenv);
+DECLARE_BUILTIN(builtin_setenv);
 DECLARE_BUILTIN(builtin_unsetenv);
 
 //
@@ -351,10 +353,11 @@ struct builtin builtins[] = {
     { "exit",       builtin_exit,       "[status]" },
     { "exec",       builtin_exec,       "[cmd [arg]...]" },
     { "fg",         builtin_fg,         "[%jid]" },
+    { "getenv",     builtin_getenv,     "[varname]"},
     { "help",       builtin_help,       "[name]..." },
     { "history",    builtin_history,    "[number]" },
     { "jobs",       builtin_jobs,       "[%jid]..." },
-    { "putenv",     builtin_putenv,     "[string]" },
+    { "setenv",     builtin_setenv,     "[string]" },
     { "unsetenv",   builtin_unsetenv,   "[varname]" },
     // clang-format on
 };
@@ -459,6 +462,18 @@ DEFINE_BUILTIN(builtin_fg)
     return status;
 }
 
+DEFINE_BUILTIN(builtin_getenv)
+{
+    if (argc != 2) return 1;
+    char *s = getenv(argv[1]);
+    if (!s) {
+        perror("getenv");
+        return 1;
+    }
+    puts(s);
+    return 0;
+}
+
 DEFINE_BUILTIN(builtin_help)
 {
     static const char *fmt = " %- 8s %s\n";
@@ -521,11 +536,11 @@ DEFINE_BUILTIN(builtin_jobs)
     return 0;
 }
 
-DEFINE_BUILTIN(builtin_putenv)
+DEFINE_BUILTIN(builtin_setenv)
 {
-    if (argc != 2) return 1;
-    if (putenv(argv[1]) < 0) {
-        perror("putenv");
+    if (argc != 3) return 1;
+    if (setenv(argv[1], argv[2], 1) < 0) {
+        perror("setenv");
         return 1;
     }
     return 0;
