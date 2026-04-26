@@ -19,6 +19,7 @@
 
 struct sym
 {
+    int weak;
     char *str;
     void *ptr;
     struct hlist_node node; // linked to dl::sym
@@ -49,6 +50,8 @@ struct dl
     void *dynsym;      // .dynsym
     void *jmprela;     // .rela.plt
     size_t entsym;     // .dynsym entry size
+    uint32_t *hash;    // .hash
+    uint32_t *ghash;   // .gnu.hash
     struct htable sym; // symbol hash table
     struct list dep;   // dependent libs
     /*
@@ -157,19 +160,20 @@ static uint32_t hash(const char *s0)
 	return h & 0xfffffff;
 }
 
-static void addsym(struct dl *dl, char *str, void *ptr)
+static void addsym(struct dl *dl, char *str, void *ptr, int weak)
 {
     struct sym *sym = malloc(sizeof(struct sym));
+    sym->weak = weak;
     sym->str = str;
     sym->ptr = ptr;
     htkey_t key = hash(str);
     htable_add(&dl->sym, &sym->node, key);
-    dllog("addsym %s [%p]\n", str, ptr);
+    dllog("addsym %s [%p] %s\n", str, ptr, weak ? "WEAK" : "");
 }
 
 static void addhook(char *str, void *ptr)
 {
-    addsym(&ldso, str, ptr);
+    addsym(&ldso, str, ptr, 0);
 }
 
 #define X(record, type, mb) \
@@ -177,15 +181,20 @@ static void addhook(char *str, void *ptr)
 
 static inline void *lkpsym(struct dl *dl, const char *str)
 {
+    void *ptr = 0, *weakptr = 0;
     struct hlist_node *hptr;
     htkey_t key = hash(str);
     HTABLE_FOREACH(hptr, &dl->sym, key)
     {
         struct sym *sym = X(hptr, struct sym, node);
-        if (strcmp(sym->str, str) == 0)
-            return sym->ptr;
+        if (strcmp(sym->str, str) == 0) {
+            /* find the earliest strong symbol, if no strong
+             * symbol matched, the first weak symbol is used */
+            if (!sym->weak) return sym->ptr;
+            if (!weakptr) weakptr = sym->ptr;
+        }
     }
-    return NULL;
+    return weakptr;
 }
 
 // look up symbols recursively
@@ -365,8 +374,7 @@ void *__ld_resolver(void *dlptr, int reloc)
     Elf64_Sym *sym = dl->dynsym + dl->entsym * ELF64_R_SYM(r->r_info);
     char *name = dl->strtab + sym->st_name;
     void *val = dlsymc(RTLD_DEFAULT, dl, name, 0);
-    if (!val)
-    {
+    if (!val) {
         dllog("couldn't find %s\n", name);
         exit(1);
     }
@@ -402,6 +410,8 @@ static inline int dolkp(struct dl *dl)
             dllog("pltrel %d used\n", dyn->d_un.d_val);
         if (dyn->d_tag == DT_DEBUG)
             dyn->d_un.d_ptr = (uintptr_t)&dbg;
+        if (dyn->d_tag == DT_GNU_HASH)
+            dl->ghash = dl->virt + dyn->d_un.d_ptr;
     }
     #define setif(x) dl->array[x] ? dl->virt + dl->array[x] : 0
     char *strtab = setif(DT_STRTAB);
@@ -409,6 +419,8 @@ static inline int dolkp(struct dl *dl)
     void *pltgot = setif(DT_PLTGOT);
     void *dynrela = setif(DT_RELA);
     void *jmprela = setif(DT_JMPREL);
+    uint32_t *hash = setif(DT_HASH);
+    uint32_t *ghash = dl->ghash;
     #undef setif
     size_t entsym = dl->array[DT_SYMENT];
     size_t szrela = dl->array[DT_RELASZ];
@@ -426,9 +438,22 @@ static inline int dolkp(struct dl *dl)
     dl->jmprela = jmprela;
     dl->entsym = entsym;
 
-    size_t nrsym;
+#if 1
+    size_t nrsym = 0;
+    if (hash) {
+        /* u32 nbuckets;  u32 nchains;
+         * u32 buckets[]; u32 chains[] */
+        nrsym = hash[1];
+    } else {
+        // TODO
+        assert(0);
+    }
+#else
     nrsym = strtab - (char *)dynsym;
     nrsym /= entsym;
+#endif
+
+    dllog("* total number of symbols = %d\n", nrsym);
     htable_init(&dl->sym, 32);
     for (int i = 1 ; i < nrsym ; i++)
     {
@@ -437,7 +462,8 @@ static inline int dolkp(struct dl *dl)
             continue;
         if (ELF64_ST_BIND(sym->st_info) == STB_GLOBAL ||
             ELF64_ST_BIND(sym->st_info) == STB_WEAK)
-            addsym(dl, strtab + sym->st_name, dl->virt + sym->st_value);
+            addsym(dl, strtab + sym->st_name, dl->virt + sym->st_value,
+                   ELF64_ST_BIND(sym->st_info) == STB_WEAK);
     }
 
     list_init(&dl->dep);
@@ -540,11 +566,9 @@ void doinit(struct dl *dl)
     if (dl->array[DT_INIT_ARRAY])
     {
         size_t n = dl->array[DT_FINI_ARRAYSZ] / sizeof(fn);
-        for (size_t i = 0 ; i < n ; i++)
-        {
-            fn *inits = dl->virt + dl->array[DT_INIT_ARRAY];
-            call(inits);
-        }
+        fn *inits = dl->virt + dl->array[DT_INIT_ARRAY];
+        for (size_t i = 0; i < n; i++)
+            call(inits[i]);
     }
 }
 
@@ -555,11 +579,9 @@ void dofini(struct dl *dl)
     if (dl->array[DT_FINI_ARRAY])
     {
         size_t n = dl->array[DT_FINI_ARRAYSZ] / sizeof(fn);
-        for (size_t i = 0 ; i < n ; i)
-        {
-            fn *finis = dl->virt + dl->array[DT_INIT_ARRAY];
-            call(finis[i]);
-        }
+        fn *finis = dl->virt + dl->array[DT_FINI_ARRAY];
+        for (size_t i = 0; i < n; i++)
+            call(finis[n - i - 1]);
     }
 }
 
