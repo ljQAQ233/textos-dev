@@ -80,6 +80,7 @@ static size_t tty_fetch_nc(tty_t *tty, char *buf, size_t len)
     int reset = cc[VTIME] * cc[VMIN];
     char c;
     int flag;
+    int reason = 0;
     size_t cnt = 0;
     tty->reqlen = len;
     tty->timeout = false;
@@ -98,13 +99,15 @@ repeat:
                 break;
             }
             tty->iwaiter = task_current();
-            task_block(NULL, NULL, TASK_BLK, 0);
+            reason = task_block(NULL, NULL, TASK_BLK, 0);
+            if (reason < 0) break;
             continue;
         }
         *buf++ = (char)c;
         cnt++, tty->reqlen--;
         if (reset && FC(flag, TTY_BF_END)) break;
     }
+    if (reason < 0) return reason;
     /*
      * if a timer has been set before and there has been a timeout, it must
      * return here, otherwise it must repeat it to read again until living up to
@@ -120,18 +123,22 @@ repeat:
 static size_t tty_fetch(tty_t *tty, char *buf, size_t len)
 {
     char c;
+    int reason = 0;
     size_t cnt = 0;
     while (cnt < len) {
         int flag = tty_buf_getc(&tty->ibuf, &c);
         if (flag < 0) {
             tty->iwaiter = task_current();
-            task_block(NULL, NULL, TASK_BLK, 0);
+            if ((reason = task_block(NULL, NULL, TASK_BLK, 0)) < 0) // intr?
+                break;
             flag = tty_buf_getc(&tty->ibuf, &c);
+            if (flag < 0) break;
         }
         *buf++ = (char)c;
         cnt++;
         if (FC(flag, TTY_BF_END)) break;
     }
+    if (reason < 0) return reason;
     return cnt;
 }
 
@@ -187,7 +194,7 @@ static inline void opost(tty_t *tty, char c)
     tputc(tty, c);
 }
 
-void tdeliver(tty_t *tty)
+static void tdeliver(tty_t *tty)
 {
     tty_buf_mark(&tty->ibuf, TTY_BF_END);
     if (tty->iwaiter >= 0) {
