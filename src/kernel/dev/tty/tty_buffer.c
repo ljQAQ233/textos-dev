@@ -52,6 +52,13 @@ int tty_buf_getc(tty_buf_t *b, char *c)
     return (int)flag;
 }
 
+/**
+ * @brief add a flag to the final character in the buffer
+ *
+ * @param b tty buffer
+ * @param flag flag to add
+ * @return -1 is returned if empty, or 0 means success
+ */
 int tty_buf_mark(tty_buf_t *b, u8 flag)
 {
     if (b->head == b->tail)
