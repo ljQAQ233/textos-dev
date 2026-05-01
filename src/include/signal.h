@@ -26,7 +26,7 @@ void (*signal(int __signum, void (*__handler)(int)))(int);
 #define SA_NOCLDWAIT  2          // TODO 不产生僵尸进程, 内核直接回收
 #define SA_SIGINFO    4          // TODO 用拓展信号处理函数
 #define SA_ONSTACK    0x08000000 // TODO 使用备用栈
-#define SA_RESTART    0x10000000 // TODO 被打断的系统调用自动恢复执行
+#define SA_RESTART    0x10000000 // 被打断的系统调用自动恢复执行
 #define SA_NODEFER    0x40000000 // 不阻塞自身
 #define SA_RESETHAND  0x80000000 // 一次性调用, 恢复 handler
 #define SA_RESTORER   0x04000000 // TODO 使用用户提供的 restorer

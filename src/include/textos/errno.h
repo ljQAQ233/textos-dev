@@ -4,6 +4,7 @@
 #define EPERM        1   // Operation not permitted
 #define ENOENT       2   // No that file or dir
 #define ESRCH        3   // No such process
+#define EINTR        4   // Interrupted system call
 #define EBADF        9   // Bad file descriptor
 #define ENOEXEC      8   // Exec format error
 #define ECHILD       10  // No child process

@@ -18,12 +18,19 @@ typedef struct
     u64 ss;
 } intr_frame_t;
 
-typedef struct
+// signal frame flags
+struct signal_ffl {
+    u64 sysret : 1;
+    int syscall;
+};
+
+typedef struct signal_frame
 {
     void *restorer;
     u64 signum;
     u64 sigprv;
     u64 sigmask;
+    struct signal_ffl sigffl;
 
     u64 r15, r14, r13, r12, r11, r10, r9, r8;
     u64 rdi, rsi;

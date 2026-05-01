@@ -58,6 +58,7 @@ intr_caller:
     call *(%rax)
 
     movq %rsp, %rdi        /* intr context */
+    movq $-1, %rsi         /* not a syscall */
     call __handle_signal
 
 intr_exit:

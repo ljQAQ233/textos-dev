@@ -37,10 +37,15 @@ msyscall_handler:
     pushq %r15
     call task_stime_enter
 
-    mov 15 * 8(%rsp), %rdi
-    mov 16 * 8(%rsp), %rsi
+    mov 14*8(%rsp), %rbx
+    mov 15*8(%rsp), %rdi
+    mov 16*8(%rsp), %rsi
     mov %rsp, %rdx
     call syscall_handler
+
+    mov %rsp, %rdi /* intr context */
+    mov %rbx, %rsi /* syscall number */
+    call __handle_signal
 
 msyscall_exit:
     call task_stime_exit
