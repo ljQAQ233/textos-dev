@@ -103,44 +103,56 @@ static sighandler_t sig_def[] = {
     [SIGSYS]    = sig_core,
 };
 
-void __handle_signal(intr_frame_t *iframe)
+/**
+ * @brief handle pending signals of this task
+ *
+ * @param iframe interrupt context
+ * @param nr syscall number if called from syscall, or -1 if from interrupts
+ */
+void __handle_signal(intr_frame_t *iframe, int nr)
 {
     task_t *tsk = task_current();
     sigset_t *sig = &tsk->sigpend;
 
     *sig &= ~tsk->sigmask;
-    if (*sig == 0)
-        return ;
-    if (sigismember(sig, SIGKILL))
-        task_exit(make_stat_signal(SIGKILL, 0));
+    if (*sig == 0) return;
+    if (sigismember(sig, SIGKILL)) task_exit(make_stat_signal(SIGKILL, 0));
 
     for (int i = 1 ; i <= _NSIG ; i++) {
-        if (!sigismember(sig, i))
-            continue;
+        if (!sigismember(sig, i)) continue;
         sigdelset(sig, i);
 
         sigaction_t *act = &tsk->sigacts[i-1];
         sighandler_t handler = act->sa_handler;
+        sigset_t blk = act->sa_mask;
         if (handler == SIG_IGN)
-            return ;
+            return;
         else if (handler == SIG_DFL) {
             sig_def[i](i);
-            return ;
+            return;
         }
 
-        if (act->sa_flags & SA_RESETHAND)
-            act->sa_handler = SIG_DFL;
+        if (act->sa_flags & SA_RESETHAND) act->sa_handler = SIG_DFL;
+        if (~act->sa_flags & SA_NODEFER) sigaddset(&blk, i);
 
-        sigset_t blk = act->sa_mask;
-        if (~act->sa_flags & SA_NODEFER)
-            sigaddset(&blk, i);
+        struct signal_ffl ffl = {
+            .sysret = 0,
+            .syscall = -1,
+        };
+        if (nr >= 0) {
+            ffl.sysret = 1;
+            if (tsk->sframe->rax == -EINTR && (act->sa_flags & SA_RESTART))
+                ffl.syscall = nr;
+        }
 
+        /* save stack frame - note that we must keep a region for compiler
+         * to store variables, i.e.  the red zone (128 bytes) */
         signal_frame_t *frame = (void *)iframe->rsp - sizeof(signal_frame_t) - 128;
-
         frame->restorer = act->sa_restorer;
         frame->signum = i;
         frame->sigprv = tsk->sigcurr;
         frame->sigmask = tsk->sigmask;
+        frame->sigffl = ffl;
         frame->r15 = iframe->r15;
         frame->r14 = iframe->r14;
         frame->r13 = iframe->r13;
@@ -185,15 +197,17 @@ __SYSCALL_DEFINE0(int, sigreturn)
 {
     task_t *tsk = task_current();
     intr_frame_t *sframe = tsk->sframe;
+    /*
+     * signal handler 最后的 ret 会调用 restorer, 有点像 ROP 攻击...
+     * 所以 rsp 刚好指向 restorer 之后, 故 -8 获得原来的 信号帧.
+     */
     signal_frame_t *frame = (void *)sframe->rsp - 8;
 
     if (frame->signum != tsk->sigcurr)
         PANIC("signum error\n");
-    
     if (frame->cs != ((USER_CODE_SEG << 3) | 3) ||
         frame->ss != ((USER_DATA_SEG << 3) | 3))
         PANIC("ss / cs error\n");
-
     if (~frame->rflags & (1 << 9))
         PANIC("eflags error\n");
 
@@ -201,14 +215,26 @@ __SYSCALL_DEFINE0(int, sigreturn)
     tsk->sigmask = frame->sigmask;
 
     addr_t rsp = (addr_t)&frame->r15;
-    __asm__ volatile(
+    void *return_ip = 0;
+    intr_frame_t *iframe = (intr_frame_t *)rsp;
+    if (frame->sigffl.syscall >= 0) {
+        /*
+         * re-invoke syscall instruction with the initial arg0,
+         * which take up 2 bytes on x86 platforms.
+         */
+        iframe->rip -= 2;
+        iframe->rax = frame->sigffl.syscall;
+    }
+    if (frame->sigffl.sysret)
+        return_ip = (void *)msyscall_exit;
+    else
+        return_ip = (void *)intr_exit;
+    __asm__ volatile( // reset stack
         "movq %0, %%rsp\n"
-        "jmp intr_exit\n"
+        "jmp *%1\n"
         :
-        : "r" (rsp)
-        : "memory"
-    );
-
+        : "r"(rsp), "r"(return_ip)
+        : "memory");
     __builtin_unreachable();
 }
 
@@ -311,6 +337,7 @@ __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
             notify_parent(ptsk);
             if (ptsk == tsk) task_yield();
         }
+        return 0;
     }
     if (sig == SIGKILL) {
         int status = make_stat_signal(SIGKILL, 0);
@@ -322,6 +349,7 @@ __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
             task_unblock(ptsk, status);
         if (ptsk->stat == TASK_STP)
             ptsk->stat = TASK_PRE;
+        return 0;
     }
     if (sig == SIGCONT)
     {
@@ -330,6 +358,16 @@ __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
             ptsk->retval = make_stat_continued();
             notify_parent(ptsk);
         }
+        return 0;
+    }
+
+    /*
+     * wake up it if it is blocked, forcing it to handle the signal
+     * send to it. a syscall (if-so) might return EINTR.
+     * TODO: is it interruptible?
+     */
+    if (ptsk->stat == TASK_BLK || ptsk->stat == TASK_SLP) {
+        task_unblock(ptsk, -EINTR);
     }
 
     return 0;
