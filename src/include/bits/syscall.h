@@ -76,7 +76,7 @@
     _(yield, 502)       \
     _(seekdir, 503)     \
     _(test, 510)        \
-    _(maxium, 511)
+    _(maximum, 511)
 
 #define _(name, num) SYS_##name = num,
 enum sys_syscall
