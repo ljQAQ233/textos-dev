@@ -509,7 +509,7 @@ int gettimeofday(struct timeval *tp, void *restrict tzp)
 /* time.h */
 time_t time(time_t *tp)
 {
-    return syscall(SYS_time);
+    return syscall(SYS_time, tp);
 }
 
 int nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
@@ -522,5 +522,5 @@ int nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
 /* sys/times.h */
 clock_t times(struct tms *buf)
 {
-    syscall(SYS_times, buf);
+    return syscall(SYS_times, buf);
 }
