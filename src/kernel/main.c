@@ -1,35 +1,31 @@
-#include <textos/printk.h>
+#include <irq.h>
 #include <textos/task.h>
 
-extern void console_init();
-extern void tty_init();
-extern void gdt_init();
-extern void idt_init();
-extern void serial_init();
-extern void mm_init();
-extern void acpi_init();
-extern void apic_init();
-extern void dev_init();
-extern void fbdev_init();
-extern void keyboard_init();
-extern void ide_init();
-extern void ahci_init();
-extern void buffer_init();
-extern void pci_init();
-extern void socket_init();
-extern void e1000_init();
-extern void fpu_init();
-extern void hpet_init();
-extern void ktm_init();
-extern void clock_init();
-extern void task_init();
-extern void syscall_init();
-extern void mycpu_init();
-extern void ap_init();
-
-static void __init_proc();
-
-#include <irq.h>
+void gdt_init();
+void idt_init();
+void acpi_init();
+void apic_init();
+void mm_init();
+void dev_init();
+void task_init();
+void fbdev_init();
+void keyboard_init();
+void serial_init();
+void console_init();
+void tty_init();
+void buffer_init();
+void pci_init();
+void ahci_init();
+void ide_init();
+void fpu_init();
+void hpet_init();
+void ktm_init();
+void clock_init();
+void syscall_init();
+void mycpu_init();
+void ap_init();
+void initproc();
+void initproc2();
 
 void kernel_main ()
 {
@@ -57,7 +53,7 @@ void kernel_main ()
     ktm_init();
     clock_init();
     syscall_init();
-    task_create(__init_proc, TC_USER | TC_TSK1);
+    task_create(initproc, TC_USER | TC_TSK1);
 
     mycpu_init();
     ap_init();
@@ -66,15 +62,14 @@ void kernel_main ()
     while (true);
 }
 
-#include <gdt.h>
-#include <textos/panic.h>
-#include <textos/user/exec.h>
-
-extern int close(int);
 extern void fs_init();
+extern void socket_init();
+extern void e1000_init();
 extern void dev_initnod();
 
-static void __init_proc()
+#include <textos/printk.h>
+
+void initproc()
 {
     fs_init();
     socket_init();
@@ -86,14 +81,7 @@ static void __init_proc()
     printk("QwQ\tCiallo~\n");
     printk("Kawaii\twatashi~\n");
     printk("Kawaii\r\nwatashi~\n");
-    
-    close(0);
-    close(1);
-    close(2);
 
-    exeinfo_t exe;
-    task_t *curr = task_current();
-    elf_load("/bin/init", &exe, false);
-    arch_goto_user(curr->init.rbp, exe.entry);
-    PANIC("init exiting...\n");
+    // enter 2nd phase
+    initproc2();
 }
