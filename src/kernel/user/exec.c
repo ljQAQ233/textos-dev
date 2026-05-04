@@ -173,20 +173,23 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
 {
     int errno;
     exeinfo_t info;
-    char **argvk = duparg(argv),
-         **envpk = duparg(envp);
+    char *nullist[] = {
+        NULL,
+    }; /* On many systems, null argv or envp are treated as {0} */
+    char **argvk = duparg(argv ? argv : nullist),
+         **envpk = duparg(envp ? envp : nullist);
     task_t *curr = task_current();
     path = strdup(path);
     /*
      * create a new pagetable. elf_load may cause #PF which will be handled with
-     * the current address space and its vma. if execve fails, the oldpgt will be applied
+     * the current address space and its vma. if execve fails, the oldpgt will
+     * be applied
      */
     addr_t oldpgt = curr->pgt;
     vm_space_t *oldvsp = curr->vsp;
     curr->vsp = vmm_new_space(0);
     write_cr3(curr->pgt = new_pgt());
-    if ((errno = elf_load(path, &info, true)))
-        goto fail;
+    if ((errno = elf_load(path, &info, true))) goto fail;
 
     void *bp, *sp;
     sp = bp = stack();
@@ -200,8 +203,7 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     clear_pgt(oldpgt);
     vmm_free_space(oldvsp);
     curr->did_exec = true;
-    if (info.dlstart)
-        arch_goto_user(sp, info.dlstart);
+    if (info.dlstart) arch_goto_user(sp, info.dlstart);
     arch_goto_user(sp, info.entry);
 
 fail:
