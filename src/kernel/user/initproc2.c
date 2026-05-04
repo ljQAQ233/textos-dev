@@ -7,8 +7,6 @@
 #include <bits/a-sc.h>
 #include <bits/syscall.h>
 
-#define asm __asm__
-
 static void run_init(char *init)
 {
     /*
