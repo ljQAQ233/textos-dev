@@ -40,7 +40,7 @@ int exec(char *tty)
     return 0;
 }
 
-void _start()
+int main()
 {
     // test code
     mkdir("/mnt", 0777);
