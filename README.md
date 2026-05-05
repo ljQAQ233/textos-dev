@@ -274,11 +274,28 @@ nix-shell shell.nix
 
 ## git commit format
 
+遵循 [Conventional Commits](https://www.conventionalcommits.org)
+
+scope 规则:
+- 可以看懂即可, 尽量有层次
+- 内核直接点明模块即可
+- 用户程序 - app/ 前缀
+- 引导程序 - boot/ 前缀
+- 只改头文件的, 写出路径
+- 不能归类可以用 chore
+
+<details>
+<summary>本项目曾用格式</summary>
+
 > 这个我早就想要改掉了
 
 ```
 [doc|fix|update|bili] (details)
 ```
+
+**自 2026-05-05 起正式弃用**
+
+</details>
 
 ## AI 使用
 
