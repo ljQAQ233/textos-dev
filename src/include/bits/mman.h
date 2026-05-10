@@ -20,6 +20,11 @@
 #define MAP_ANONYMOUS MAP_ANON
 
 /*
+ * map flags (os-specific)
+ */
+#define MAP_POPULATE  0x8000
+
+/*
  * on x86 platform, the page table doesn't provide a native method to implement only `PROT_WRITE`,
  * in our OS-implementation, we choose to ignore it because support it may occupy more resource.
  * i.e. page-fault can absolutely do it, cpu would whisper that -> :)

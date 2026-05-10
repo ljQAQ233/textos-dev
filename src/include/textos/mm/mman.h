@@ -89,6 +89,8 @@ typedef struct
 
 void *mmap_file(vm_region_t *vm);
 void *mmap_anon(vm_region_t *vm, int label);
+void mmap_populate(vm_region_t *vm);
+void __mmap_populate_cond(vm_region_t *vm);
 
 addr_t vmm_fitaddr(addr_t addr, size_t num);
 
