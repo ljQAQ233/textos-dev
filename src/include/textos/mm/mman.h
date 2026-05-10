@@ -1,41 +1,12 @@
 #pragma once
 
-/*
- * map flags (POSIX):
- *  - MAP_SHARED
- *    changes would be shared and be applied to underlying object
- *  - MAP_PRIVATE
- *    changed would be only visible to the current proc and not applied
- *  - MAP_TYPE
- *    only a mask for internal using
- *  - MAP_FIXED
- *    parse addr exactly, `addr` % PAGE_SIZE == off % PAGE_SIZE
- *  - MAP_ANON
- *    anonymous memory region, mapping is not backed by any file, the contents
- *    are initialized to 0. make sure `fd` is -1 with `off` set to 0!!!
- */
-#define MAP_SHARED    0x1  // TODO
-#define MAP_PRIVATE   0x2
-#define MAP_TYPE      0xf
-#define MAP_FIXED     0x10
-#define MAP_ANON      0x20
-#define MAP_ANONYMOUS MAP_ANON
+#include <bits/mman.h>
 
 #define MAPL_USER 0
 #define MAPL_FILE 1
 #define MAPL_STACK 2
 #define MAPL_HEAP 3
 #define MAPL_BSS 4
-
-/*
- * on x86 platform, the page table doesn't provide a native method to implement only `PROT_WRITE`,
- * in our OS-implementation, we choose to ignore it because support it may occupy more resource.
- * i.e. page-fault can absolutely do it, cpu would whisper that -> :)
- */
-#define PROT_NONE  0
-#define PROT_READ  1
-#define PROT_WRITE 2
-#define PROT_EXEC  4
 
 #define mapprot(p) \
     (((p) & PROT_READ  ? 0 : 0) \
