@@ -4,6 +4,9 @@
 #include <textos/syscall.h>
 #include <textos/klib/string.h>
 
+static void notify_parent(task_t *tsk);
+static int kill_safe(int pid, int sig, bool safe);
+
 int sigemptyset(sigset_t *set)
 {
     if (!set)
@@ -186,8 +189,113 @@ void __handle_signal(intr_frame_t *iframe, int nr)
     }
 }
 
+static void notify_parent(task_t *tsk)
+{
+    kill_safe(tsk->ppid, SIGCHLD, 1);
+}
+
+static int kill_safe(int pid, int sig, bool safe)
+{
+    if (sig < 0 || sig >= _NSIG)
+        return -EINVAL;
+
+    if (pid <= 0)
+    {
+        if (pid == 0)
+            pid = -task_current()->pgid;
+        int found = 0;
+        int killed = 0;
+        for (int i = 1 ; i < TASK_MAX ; i++)
+        {
+            if (!table[i] || table[i]->pgid != -pid)
+                continue;
+            found = 1;
+            if (kill_safe(table[i]->pid, sig, safe) < 0)
+                continue;
+            killed = 1;
+        }
+        if (!found)
+            return -ESRCH;
+        if (!killed)
+            return -EPERM;
+        return 0;
+    }
+
+    task_t *tsk = task_current();
+    task_t *ptsk = task_get(pid);
+    if (!ptsk) return -ESRCH;
+
+    /*
+     * safe means the signal is sent from kernel, requiring
+     * no permission checking, to be executed forcedly
+     */
+    if (!safe && tsk->euid != 0 && tsk->euid != ptsk->ruid &&
+        tsk->euid != ptsk->suid && tsk->ruid != ptsk->ruid &&
+        tsk->ruid != ptsk->suid)
+        return -EPERM;
+
+    /*
+     * If sig is 0 (the  null  signal), error checking is performed but no signal
+     * is actually sent. The null signal can be used to check the validity of pid.
+     * If sig is SIGKILL, it's necessary to wait for its exit from a syscall, i.e.
+     * release system resources. Handle it in `__handle_signal`!
+     */
+    if (sig == 0)
+        return 0;
+    sigaddset(&ptsk->sigpend, sig);
+    DEBUGK(K_TRACE, "signal %d sent to pid=%d well\n", sig, ptsk->pid);
+
+    if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
+        if (ptsk->stat == TASK_PRE || ptsk->stat == TASK_RUN ||
+            ptsk->stat == TASK_SLP || ptsk->stat == TASK_BLK) {
+            ptsk->stat_before_stop = ptsk->stat;
+            ptsk->stat = TASK_STP;
+            ptsk->retval = make_stat_stopped(sig);
+            notify_parent(ptsk);
+            if (ptsk == tsk) task_yield();
+        }
+        return 0;
+    }
+    if (sig == SIGKILL) {
+        int status = make_stat_signal(SIGKILL, 0);
+        /*
+         * wake up the proc, stimulating it to release the resources it holds.
+         * after releasing, before escape from kernel space, SIGKILL works.
+         */
+        if (ptsk->stat == TASK_SLP || ptsk->stat == TASK_BLK)
+            task_unblock(ptsk, status);
+        if (ptsk->stat == TASK_STP)
+            ptsk->stat = TASK_PRE;
+        return 0;
+    }
+    if (sig == SIGCONT)
+    {
+        if (ptsk->stat == TASK_STP) {
+            ptsk->stat = ptsk->stat_before_stop;
+            ptsk->retval = make_stat_continued();
+            notify_parent(ptsk);
+        }
+        return 0;
+    }
+
+    /*
+     * wake up it if it is blocked, forcing it to handle the signal
+     * send to it. a syscall (if-so) might return EINTR.
+     * TODO: is it interruptible?
+     */
+    if (ptsk->stat == TASK_BLK || ptsk->stat == TASK_SLP) {
+        task_unblock(ptsk, -EINTR);
+    }
+
+    return 0;
+}
+
+int fkill(int pid, int sig)
+{
+    return kill_safe(pid, sig, 1);
+}
+
 #include <gdt.h>
-#include <textos/panic.h>
 
 /*
  * restorer 调用之后来到这里, 此时 rsp 指向 signal_frame_t::restorer 的
@@ -274,101 +382,8 @@ __SYSCALL_DEFINE3(int, sigprocmask, int, how, const sigset_t *, set, sigset_t *,
     return 0;
 }
 
-static void notify_parent(task_t *tsk)
-{
-    kill(tsk->ppid, SIGCHLD);
-}
-
 __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
 {
-    if (sig < 0 || sig >= _NSIG)
-        return -EINVAL;
-
-    if (pid <= 0)
-    {
-        if (pid == 0)
-            pid = -task_current()->pgid;
-        int found = 0;
-        int killed = 0;
-        for (int i = 1 ; i < TASK_MAX ; i++)
-        {
-            if (!table[i] || table[i]->pgid != -pid)
-                continue;
-            found = 1;
-            if (kill(table[i]->pid, sig) < 0)
-                continue;
-            killed = 1;
-        }
-        if (!found)
-            return -ESRCH;
-        if (!killed)
-            return -EPERM;
-        return 0;
-    }
-
-    task_t *tsk = task_current();
-    task_t *ptsk = task_get(pid);
-    if (!ptsk)
-        return -ESRCH;
-    if (tsk->euid != 0 &&
-        tsk->euid != ptsk->ruid &&
-        tsk->euid != ptsk->suid &&
-        tsk->ruid != ptsk->ruid &&
-        tsk->ruid != ptsk->suid)
-        return -EPERM;
-    
-    /*
-     * If sig is 0 (the  null  signal), error checking is performed but no signal
-     * is actually sent. The null signal can be used to check the validity of pid.
-     * If sig is SIGKILL, it's necessary to wait for its exit from a syscall, i.e.
-     * release system resources. Handle it in `__handle_signal`!
-     */
-    if (sig == 0)
-        return 0;
-    sigaddset(&ptsk->sigpend, sig);
-    DEBUGK(K_TRACE, "signal %d sent to pid=%d well\n", sig, ptsk->pid);
-
-    if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
-        if (ptsk->stat == TASK_PRE || ptsk->stat == TASK_RUN ||
-            ptsk->stat == TASK_SLP || ptsk->stat == TASK_BLK) {
-            ptsk->stat_before_stop = ptsk->stat;
-            ptsk->stat = TASK_STP;
-            ptsk->retval = make_stat_stopped(sig);
-            notify_parent(ptsk);
-            if (ptsk == tsk) task_yield();
-        }
-        return 0;
-    }
-    if (sig == SIGKILL) {
-        int status = make_stat_signal(SIGKILL, 0);
-        /*
-         * wake up the proc, stimulating it to release the resources it holds.
-         * after releasing, before escape from kernel space, SIGKILL works.
-         */
-        if (ptsk->stat == TASK_SLP || ptsk->stat == TASK_BLK)
-            task_unblock(ptsk, status);
-        if (ptsk->stat == TASK_STP)
-            ptsk->stat = TASK_PRE;
-        return 0;
-    }
-    if (sig == SIGCONT)
-    {
-        if (ptsk->stat == TASK_STP) {
-            ptsk->stat = ptsk->stat_before_stop;
-            ptsk->retval = make_stat_continued();
-            notify_parent(ptsk);
-        }
-        return 0;
-    }
-
-    /*
-     * wake up it if it is blocked, forcing it to handle the signal
-     * send to it. a syscall (if-so) might return EINTR.
-     * TODO: is it interruptible?
-     */
-    if (ptsk->stat == TASK_BLK || ptsk->stat == TASK_SLP) {
-        task_unblock(ptsk, -EINTR);
-    }
-
-    return 0;
+    return kill_safe(pid, sig, 0);
 }
+

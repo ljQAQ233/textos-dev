@@ -58,7 +58,7 @@ __INTR_HANDLER(pagefault_handler)
 segv:
     if (i != 1)
     {
-        kill(tsk->pid, SIGSEGV);
+        fkill(tsk->pid, SIGSEGV);
     }
 }
 
