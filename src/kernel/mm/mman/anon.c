@@ -5,9 +5,6 @@
 
 void *mmap_anon(vm_region_t *vm, int label)
 {
-    int mapflg = 0;
-    mapflg |= PE_P | PE_US;
-    mapflg |= mapprot(vm->prot);
     vm_area_t *vma = vmm_new_vma(0);
     vma->s = vm->va;
     vma->t = vm->va + vm->num * PAGE_SIZE;
@@ -15,5 +12,6 @@ void *mmap_anon(vm_region_t *vm, int label)
     vma->prot = vm->prot;
     vma->label = label;
     vmm_sp_regst(task_current()->vsp, vma);
+    __mmap_populate_cond(vm);
     return MRET(vma->s);
 }
