@@ -66,6 +66,11 @@ void _exit(int stat)
     __builtin_unreachable();
 }
 
+int pause()
+{
+    return syscall(SYS_pause);
+}
+
 int wait4(int pid, int *stat, int opt, void *rusage)
 {
     return syscall(SYS_wait4, pid, stat, opt, rusage);
