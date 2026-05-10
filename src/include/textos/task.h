@@ -80,6 +80,9 @@ typedef struct task
     sigset_t sigpend;
     sigset_t sigmask;
     sigaction_t sigacts[_NSIG];
+
+    // debug
+    bool dbg_byemu;
 } task_t;
 
 #define TASK_DIE  0 // Dead

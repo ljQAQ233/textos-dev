@@ -152,6 +152,8 @@ task_t *task_create(void *main, int args)
     for (int i = 0; i < MAX_FILE; i++)
         tsk->files[i] = NULL;
     task_reset_allsigs(tsk);
+
+    tsk->dbg_byemu = false;
     return tsk;
 }
 
