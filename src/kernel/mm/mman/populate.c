@@ -1,3 +1,4 @@
+#include <textos/task.h>
 #include <textos/mm/mman.h>
 
 void mmap_populate(vm_region_t *vm)
@@ -14,5 +15,11 @@ void mmap_populate(vm_region_t *vm)
  */
 void __mmap_populate_cond(vm_region_t *vm)
 {
-    if (vm->flgs & MAP_POPULATE) mmap_populate(vm);
+    // either explicitly requested via MAP_POPULATE, or forced by task flag.
+    // when debugging user apps under qemu, executing unmapped code will trap
+    // into kernel, which disturbs the debugging experience. :(
+    if ((vm->flgs & MAP_POPULATE) ||
+        ((vm->prot & PROT_EXEC) && task_current()->dbg_byemu)) {
+        mmap_populate(vm);
+    }
 }
