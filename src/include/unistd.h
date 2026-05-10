@@ -58,6 +58,7 @@ char *getcwd(char *__buf, size_t __size);
 pid_t fork();
 int execve(const char *__path, char *const __argv[], char *const __envp[]);
 _Noreturn void _exit(int __stat);
+int pause();
 
 /*
  * exec family suffix:
