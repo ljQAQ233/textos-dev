@@ -247,7 +247,7 @@ __SYSCALL_DEFINE3(ssize_t, writev, int, fd, const iovec_t *, iov, int, iovcnt)
         return -EINVAL;
 
     int accm = file->flgs & O_ACCMODE;
-    if (accm == O_WRONLY)
+    if (accm == O_RDONLY)
         return -EBADF;
 
     size_t oldoff = file->offset;
