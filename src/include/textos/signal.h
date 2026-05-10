@@ -36,7 +36,8 @@ int sigreturn();
 
 int sigprocmask(int how, const sigset_t *set, sigset_t *oset);
 
-int kill(int pid, int sig);
+int kill(int pid, int sig);  // with permission check
+int fkill(int pid, int sig); // without permisson check
 
 #define SA_NOCLDSTOP 1          // TODO 只关心子进程结束
 #define SA_NOCLDWAIT 2          // TODO 不产生僵尸进程, 内核直接回收

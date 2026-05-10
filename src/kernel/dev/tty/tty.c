@@ -223,7 +223,7 @@ static void tstop(tty_t *tty, int st)
 static void tsig(tty_t *tty, int sig)
 {
     if (!FC_LFLAG(tty, NOFLSH)) tty_buf_kill(&tty->ibuf);
-    if (FC_LFLAG(tty, ISIG)) kill(-tty->pgrp, sig);
+    if (FC_LFLAG(tty, ISIG)) fkill(-tty->pgrp, sig);
 }
 
 /*

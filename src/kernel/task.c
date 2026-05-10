@@ -282,7 +282,7 @@ void task_exit(int val)
         prt->waitpid = tsk->pid;
     } else {
         /* notify the parent if not waited */
-        kill(tsk->ppid, SIGCHLD);
+        fkill(tsk->ppid, SIGCHLD);
     }
     DEBUGK(K_TRACE, "exit %d\n", tsk->pid);
 
@@ -526,6 +526,13 @@ __SYSCALL_DEFINE1(RETVAL(void), exit, int, stat)
 __SYSCALL_DEFINE4(int, wait4, int, pid, int *, stat, int, opt, void *, rusage)
 {
     return task_wait(pid, stat, opt, rusage);
+}
+
+__SYSCALL_DEFINE0(int, pause)
+{
+    int ret = task_block(NULL, NULL, TASK_BLK, 0);
+    assert(ret == -EINTR);
+    return ret;
 }
 
 __SYSCALL_DEFINE2(int, getrusage, int, who, struct rusage *, ru)
