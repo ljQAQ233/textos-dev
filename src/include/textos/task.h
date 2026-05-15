@@ -76,6 +76,7 @@ typedef struct task
 
     ktimer_t btmr;
     list_t blist;
+    int bretval;
     int sigcurr;
     sigset_t sigpend;
     sigset_t sigmask;
@@ -122,6 +123,8 @@ void task_exit(int val);
 #define WEXITED    4
 #define WCONTINUED 8
 #define WNOWAIT    0x1000000
+
+#define WNOSTATUS -1
 
 int task_wait(int pid, int *stat, int opt, struct rusage *ru);
 
