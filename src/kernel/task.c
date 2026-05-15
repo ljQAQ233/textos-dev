@@ -144,6 +144,8 @@ task_t *task_create(void *main, int args)
     tsk->vsp = vmm_new_space(0);
     tsk->istk = (addr_t)istack;
 
+    tsk->retval = WNOSTATUS;
+
     tsk->utime = 0;
     tsk->stime = 0;
     tsk->_ustart = 0;
@@ -293,6 +295,7 @@ void task_exit(int val)
 
 static bool match_wopt(int retval, int opt)
 {
+    if (retval == WNOSTATUS) return false;
     int expect = 0;
     expect |= WIFSTOPPED(retval) ? WSTOPPED : 0;
     expect |= WIFEXITED(retval) ? WEXITED : 0;
@@ -320,23 +323,23 @@ int task_wait(int pid, int *stat, int opt, struct rusage *ru)
         PANIC("unsupported pid - %d\n", pid);
     }
     
-    int termd = -1;
+    int target = -1;
     tsk->waitpid = pid;
     if (~opt & WNOHANG) {
         task_block(NULL, NULL, TASK_BLK, 0);
-        termd = tsk->waitpid;
+        target = tsk->waitpid;
     } else {
         if (pid > 0) {
             task_t *chd = task_get(pid);
             if (WIFEXITED(chd->retval) // wait4 default
                 || match_wopt(chd->retval, opt)) {
-                termd = pid;
+                target = pid;
             }
         } else {
             for (int i = 0; i < TASK_MAX; i++) {
                 if (table[i] && table[i]->ppid == tsk->pid &&
                     match_wopt(table[i]->retval, opt)) {
-                    termd = table[i]->pid;
+                    target = table[i]->pid;
                     break;
                 }
             }
@@ -345,19 +348,20 @@ int task_wait(int pid, int *stat, int opt, struct rusage *ru)
     tsk->waitpid = 0;
 
     // no child matched
-    if (termd == -1) {
+    if (target == -1) {
         return 0;
     }
 
-    task_t *chd = table[termd];
+    task_t *chd = table[target];
     if (ru) task_look_rusage(chd, ru);
     if (stat) *stat = chd->retval;
+    chd->retval = WNOSTATUS;
     if (!(opt & WNOWAIT) && chd->stat == TASK_DIE) {
         // not to peek, destroy it
-        table[termd] = NULL;
-        DEBUGK(K_TRACE, "task %d destroyed\n", termd);
+        table[target] = NULL;
+        DEBUGK(K_TRACE, "task %d destroyed\n", target);
     }
-    return termd;
+    return target;
 }
 
 static void _task_kern()
@@ -444,19 +448,19 @@ int task_block(task_t *tsk, list_t *blist, int stat, u64 timeout)
     if (tsk == NULL) tsk = task_current();
 
     tsk->stat = TASK_BLK;
-    tsk->retval = 0;
+    tsk->bretval = 0;
     list_insert(blist ? blist : &list_block, &tsk->blist);
 
     if (timeout > 0) ktimer(&tsk->btmr, wake_timeout, tsk, timeout);
 
     if (tsk == task_current()) task_schedule();
-    return tsk->retval;
+    return tsk->bretval;
 }
 
 void task_unblock(task_t *tsk, int reason)
 {
     ASSERTK(tsk != NULL);
-    tsk->retval = reason;
+    tsk->bretval = reason;
     tsk->stat = TASK_PRE;
     task_stime_discard();
 }
@@ -464,10 +468,10 @@ void task_unblock(task_t *tsk, int reason)
 int task_sleep(u64 ms, u64 *rms)
 {
     task_t *curr = task_current();
-    task_block(curr, &list_sleep, TASK_SLP, ms);
+    int ret = task_block(curr, &list_sleep, TASK_SLP, ms);
     task_stime_discard();
     if (rms) *rms = ktimer_remain(&curr->btmr);
-    return curr->retval;
+    return ret;
 }
 
 void task_stime_enter()
