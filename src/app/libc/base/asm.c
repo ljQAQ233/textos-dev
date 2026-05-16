@@ -59,7 +59,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     return syscall(SYS_execve, path, argv, envp);
 }
 
-__attribute((noreturn))
+__attribute__((noreturn))
 void _exit(int stat)
 {
     syscall(SYS_exit, stat);
