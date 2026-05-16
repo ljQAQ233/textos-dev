@@ -529,3 +529,22 @@ clock_t times(struct tms *buf)
 {
     return syscall(SYS_times, buf);
 }
+
+/* picked from musl */
+/* sys/ptrace.h */
+long ptrace(int req, ...)
+{
+    va_list args;
+    pid_t pid;
+    void *addr, *data;
+    long ret, result;
+    va_start(args, req);
+    va_end(args);
+    pid = va_arg(args, pid_t);
+    addr = va_arg(args, void *);
+    data = va_arg(args, void *);
+    if (req - 1U < 3) data = &result;
+    ret = syscall(SYS_ptrace, req, pid, addr, data);
+    if (ret < 0 || req - 1U >= 3) return ret;
+    return result;
+}
