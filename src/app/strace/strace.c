@@ -43,8 +43,8 @@ int main(int argc, char *argv[])
     }
     int status;
     struct type *fun;
-    struct regs regs, regs_out;
-    struct user_regs_struct uregs;
+    struct regs regs;
+    struct user_regs_struct uregs, uregs_out;
     wait(&status);
     chkst(status);
     for (;;) {
@@ -53,29 +53,29 @@ int main(int argc, char *argv[])
         // syscall entry
         chkst(status);
         ptrace(PTRACE_GETREGS, pid, NULL, &uregs);
-        collect_args(&regs, &uregs);
 
         ptrace(PTRACE_SYSCALL, pid, NULL, NULL);
         wait(&status);
         // syscall exit
         chkst(status);
-        collect_args(&regs_out, &uregs);
+        ptrace(PTRACE_GETREGS, pid, NULL, &uregs_out);
+        collect_args(&regs, &uregs, &uregs_out);
 
         // summarize
-        regs.a0 = regs_out.a0;
         fun = 0;
         if (regs.nr < MAP_MAX)
             fun = map[regs.nr].func;
         else
             fprintf(stderr, "unknown syscall - %ld\n", (long)regs.nr);
         if (fun == 0)
-            fprintf(stderr, "syscall(%d, %lx, %lx, %lx, %lx, %lx, %lx)\n",
-                    (int)regs.nr, regs.a0, regs.a2, regs.a3, regs.a4, regs.a5,
-                    regs.a6);
+            fprintf(stderr, "syscall(%d, %lx, %lx, %lx, %lx, %lx, %lx) = %d\n",
+                    (int)regs.nr, regs.a1, regs.a2, regs.a3, regs.a4, regs.a5,
+                    regs.a6, regs.ret);
         else
             fun->printer(stderr, fun, &regs);
     }
     return 0;
 exited:
     fprintf(stderr, "child exited with code %d\n", WEXITSTATUS(status));
+    return 0;
 }

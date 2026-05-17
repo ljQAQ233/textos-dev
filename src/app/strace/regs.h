@@ -6,7 +6,7 @@
 struct regs
 {
     size_t nr;
-    size_t a0;
+    size_t ret;
     union
     {
         struct
@@ -22,4 +22,5 @@ struct regs
     };
 };
 
-extern void collect_args(struct regs *r, struct user_regs_struct *ur);
+void collect_args(struct regs *r, struct user_regs_struct *ur,
+                  struct user_regs_struct *uro);
