@@ -1,6 +1,7 @@
 LVGL_PATH ?= ${shell pwd}/lvgl
 LVGL_CONF ?= $(shell pwd)/lv_conf.h
 
+CC := $(ORIG_CC)
 TARG := lvgl.o
 SRCS := $(shell find $(LVGL_PATH)/src -type f -name '*.S')
 SRCS += $(shell find $(LVGL_PATH)/src -type f -name '*.c')

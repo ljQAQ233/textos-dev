@@ -11,7 +11,11 @@ CRTO := \
 	$(BUILD)/crti.c.o \
 	$(BUILD)/crtn.c.o
 
+CC := $(ORIG_CC)
 CFLAGS += -nostdinc -nostdlib -Wl,-z,noexecstack
+CFLAGS += -std=c11 -fshort-wchar -ffreestanding \
+  -fno-builtin -fno-stack-check -fno-stack-protector \
+  -include $(SRC_DIR)/include/bits/compiler.h
 
 all: $(BUILD)/cc \
 	$(CRTO) \

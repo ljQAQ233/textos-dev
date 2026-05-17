@@ -9,12 +9,10 @@ LIBRARY := \
   $(APP_OUTPUT)/libm
 
 CFLAGS := -g \
-  -std=c11 -fshort-wchar -ffreestanding \
-  -fno-builtin -fno-stack-check -fno-stack-protector \
-  -include $(SRC_DIR)/include/bits/compiler.h \
   $(addprefix -I,${INCLUDE})
 
 LDFLAGS := \
-  -nostdlib -z noexecstack
+  -nostdlib -z noexecstack \
+  -L$(ROOT)/lib
 
 export INCLUDE LIBRARY CFLAGS LDFLAGS
