@@ -2,10 +2,11 @@
 #include <sys/user.h>
 
 #ifdef __x86_64__
-void collect_args(struct regs *r, struct user_regs_struct *ur)
+void collect_args(struct regs *r, struct user_regs_struct *ur,
+                  struct user_regs_struct *uro)
 {
     r->nr = ur->orig_rax;
-    r->a0 = ur->rax;
+    r->ret = uro->rax;
     r->a1 = ur->rdi;
     r->a2 = ur->rsi;
     r->a3 = ur->rcx;

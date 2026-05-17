@@ -69,6 +69,6 @@ def_printer(proto_printer)
         if (param[r + 1].name) fprintf(o, ", ");
     }
     fprintf(o, ") = ");
-    proto->type->printer(o, proto->type, &regs->a0);
+    proto->type->printer(o, proto->type, &regs->ret);
     fprintf(o, "\n");
 }
