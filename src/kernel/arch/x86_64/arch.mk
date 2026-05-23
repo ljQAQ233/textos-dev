@@ -11,5 +11,6 @@ SRCS += $(ARCH_DIR)/intr.c
 SRCS += $(ARCH_DIR)/intr.S
 SRCS += $(ARCH_DIR)/irq.S
 SRCS += $(ARCH_DIR)/time.c
+SRCS += $(ARCH_DIR)/ptrace.c
 
 $(OUTPUT)/$(ARCH_DIR)/multi.c.o: CFLAGS += -fno-asynchronous-unwind-tables

@@ -86,6 +86,10 @@ typedef struct task
 
     // debug
     bool dbg_byemu;
+    bool dbg_traced;  // PTRACE_TRACEME is set
+    bool dbg_waiting; // wait for tracing
+    int dbg_options;  // setoptions or internal flags
+    struct task *dbg_tracer;
 } task_t;
 
 #define TASK_DIE  0 // Dead

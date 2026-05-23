@@ -1,5 +1,6 @@
 #include <textos/mm.h>
 #include <textos/task.h>
+#include <textos/ptrace.h>
 #include <textos/syscall.h>
 #include <textos/user/elf.h>
 #include <textos/user/exec.h>
@@ -10,10 +11,11 @@
 static char **duparg(char *const arr[])
 {
     int n = 0;
-    for ( ; arr[n] ; n++) ;
+    for (; arr[n]; n++)
+        ;
 
-    char **p = malloc(sizeof(void *) * (n+1));
-    for (int i = 0 ; i < n ; i++)
+    char **p = malloc(sizeof(void *) * (n + 1));
+    for (int i = 0; i < n; i++)
         p[i] = strdup(arr[i]);
 
     p[n] = NULL;
@@ -22,7 +24,7 @@ static char **duparg(char *const arr[])
 
 static void brkarg(char **arr)
 {
-    for (int i = 0 ; arr[i] ; i++)
+    for (int i = 0; arr[i]; i++)
         free(arr[i]);
     free(arr);
 }
@@ -36,16 +38,15 @@ static inline int align(int x)
 
 // 1. count length and number of arr
 // 2. copy string : arr[x] -> new
-static void copyarg(void *idx[], void *new, char *const arr[], int *len, int *cnt)
+static void copyarg(void *idx[], void *new, char *const arr[], int *len,
+                    int *cnt)
 {
     int l = 0, i = 0, x;
     void *p = new;
-    while (arr[i])
-    {
+    while (arr[i]) {
         x = align(strlen(arr[i]));
         l += x;
-        if (idx)
-        {
+        if (idx) {
             idx[i] = p;
             strcpy(p, arr[i]);
             p += x;
@@ -53,8 +54,7 @@ static void copyarg(void *idx[], void *new, char *const arr[], int *len, int *cn
         i++;
     }
 
-    if (idx)
-        idx[i] = NULL;
+    if (idx) idx[i] = NULL;
 
     *len = l;
     *cnt = i;
@@ -106,13 +106,14 @@ static void *auxv(void *sp, exeinfo_t *exe, int put)
 }
 
 // build args
-static void *build(void *sp, char *const argv[], char *const envp[], exeinfo_t *exe)
+static void *build(void *sp, char *const argv[], char *const envp[],
+                   exeinfo_t *exe)
 {
     int len;
     int nargc, nenvc;
     void **nargv, **nenvp;
     void **str_argv, **str_envp;
-    
+
     // count
     copyarg(NULL, NULL, envp, &len, &nenvc);
     sp -= len;
@@ -124,9 +125,8 @@ static void *build(void *sp, char *const argv[], char *const envp[], exeinfo_t *
 
     int lauxv = sp - auxv(sp, exe, 0);
     int rem = 1 + nargc + 1 + nenvc + 1;
-    if ((((addr_t)sp - rem * N - lauxv) & 0xf) != 0)
-        sp -= N;
-    
+    if ((((addr_t)sp - rem * N - lauxv) & 0xf) != 0) sp -= N;
+
     // auxv
     sp = auxv(sp, exe, 1);
     // copy
@@ -152,7 +152,8 @@ static void *heap()
         __user_heap_pages,
         PROT_READ | PROT_WRITE,
         MAP_FIXED | MAP_PRIVATE | MAP_ANON,
-        0, 0
+        0,
+        0,
     };
     return mmap_anon(&vm, MAPL_HEAP);
 }
@@ -164,7 +165,8 @@ static void *stack()
         __user_stack_pages,
         PROT_READ | PROT_WRITE,
         MAP_FIXED | MAP_PRIVATE | MAP_ANON,
-        0, 0
+        0,
+        0,
     };
     return mmap_anon(&vm, MAPL_STACK) + __user_stack_pages * PAGE_SIZE;
 }
@@ -203,6 +205,7 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     clear_pgt(oldpgt);
     vmm_free_space(oldvsp);
     curr->did_exec = true;
+    ptrace_event(PTRACE_EVENT_EXEC);
     if (info.dlstart) arch_goto_user(sp, info.dlstart);
     arch_goto_user(sp, info.entry);
 

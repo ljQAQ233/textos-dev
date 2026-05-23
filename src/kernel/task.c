@@ -156,6 +156,10 @@ task_t *task_create(void *main, int args)
     task_reset_allsigs(tsk);
 
     tsk->dbg_byemu = false;
+    tsk->dbg_traced = false;
+    tsk->dbg_waiting = false;
+    tsk->dbg_options = 0;
+    tsk->dbg_tracer = NULL;
     return tsk;
 }
 

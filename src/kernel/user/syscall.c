@@ -3,6 +3,7 @@
 #include <intr.h>
 #include <irq.h>
 #include <textos/errno.h>
+#include <textos/ptrace.h>
 #include <textos/panic.h>
 #include <textos/syscall.h>
 #include <textos/task.h>
@@ -31,8 +32,10 @@ __INTR_HANDLER(syscall_handler)
     task_current()->syscallno = nr;
     func = sys_handlers[nr];
 
+    ptrace_event(PTRACE_EVENT_SCENTRY);
     ret = func(frame->rdi, frame->rsi, frame->rdx, //
                frame->r10, frame->r8, frame->r9);
+    ptrace_event(PTRACE_EVENT_SCEXIT);
 out:
     frame->rax = ret;
 }
