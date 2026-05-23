@@ -300,6 +300,13 @@ static bool wstat_match_wopt(int retval, int opt)
 
 static bool wstat_match_task(task_t *tsk, int opt)
 {
+    /*
+     * Since that we take linux as our example, as per wait(2): Status for
+     * traced child which have stopped fits though WUNTRACED is not specified.
+     */
+    if (tsk->dbg_traced && WIFSTOPPED(tsk->retval)) {
+        return true;
+    }
     return wstat_match_wopt(tsk->retval, opt);
 }
 
