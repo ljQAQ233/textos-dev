@@ -277,23 +277,14 @@ void task_exit(int val)
     task_t *tsk = task_current();
     tsk->stat = TASK_DIE; // TODO : ZOMBIE
     tsk->retval = val;
-    task_t *prt = table[tsk->ppid];
-    if (prt->waitpid == tsk->pid || prt->waitpid == -1) {
-        ASSERTK(prt->stat == TASK_BLK);
-        task_unblock(prt, 0);
-        prt->waitpid = tsk->pid;
-    } else {
-        /* notify the parent if not waited */
-        fkill(tsk->ppid, SIGCHLD);
-    }
+    task_report_wstat(tsk);
     DEBUGK(K_TRACE, "exit %d\n", tsk->pid);
-
     if (tsk->pid == 1) PANIC("init exited with %d!!!\n", val);
 
     task_schedule();
 }
 
-static bool match_wopt(int retval, int opt)
+static bool wstat_match_wopt(int retval, int opt)
 {
     if (retval == WNOSTATUS) return false;
     int expect = 0;
@@ -301,6 +292,27 @@ static bool match_wopt(int retval, int opt)
     expect |= WIFEXITED(retval) ? WEXITED : 0;
     expect |= WIFCONTINUED(retval) ? WCONTINUED : 0;
     return expect & opt;
+}
+
+static bool wstat_match_task(task_t *tsk, int opt)
+{
+    return wstat_match_wopt(tsk->retval, opt);
+}
+
+void task_report_wstat(task_t *tsk)
+{
+    DEBUGK(K_TRACE, "task %d wstatus changed to %x\n", tsk->pid, tsk->retval);
+    task_t *prt = table[tsk->ppid];
+    if (prt->waitpid == tsk->pid || prt->waitpid == -1) {
+        if (wstat_match_task(tsk, prt->waitopt)) {
+            ASSERTK(prt->stat == TASK_BLK);
+            task_unblock(prt, 0);
+            prt->waitpid = tsk->pid;
+        }
+    } else {
+        /* notify the parent if not waited */
+        fkill(tsk->ppid, SIGCHLD);
+    }
 }
 
 int task_wait(int pid, int *stat, int opt, struct rusage *ru)
@@ -322,30 +334,33 @@ int task_wait(int pid, int *stat, int opt, struct rusage *ru)
     } else {
         PANIC("unsupported pid - %d\n", pid);
     }
-    
+
     int target = -1;
-    tsk->waitpid = pid;
-    if (~opt & WNOHANG) {
-        task_block(NULL, NULL, TASK_BLK, 0);
-        target = tsk->waitpid;
+    if (pid > 0) {
+        task_t *chd = task_get(pid);
+        if (WIFEXITED(chd->retval) // wait4 default
+            || wstat_match_task(chd, opt)) {
+            target = pid;
+        }
     } else {
-        if (pid > 0) {
-            task_t *chd = task_get(pid);
-            if (WIFEXITED(chd->retval) // wait4 default
-                || match_wopt(chd->retval, opt)) {
-                target = pid;
-            }
-        } else {
-            for (int i = 0; i < TASK_MAX; i++) {
-                if (table[i] && table[i]->ppid == tsk->pid &&
-                    match_wopt(table[i]->retval, opt)) {
-                    target = table[i]->pid;
-                    break;
-                }
+        for (int i = 0; i < TASK_MAX; i++) {
+            if (table[i] && table[i]->ppid == tsk->pid &&
+                wstat_match_task(table[i], opt)) {
+                target = table[i]->pid;
+                break;
             }
         }
     }
-    tsk->waitpid = 0;
+
+    if (target == -1) {
+        if (opt & WNOHANG) return 0;
+        // stop to wait
+        tsk->waitpid = pid;
+        tsk->waitopt = opt;
+        task_block(NULL, NULL, TASK_BLK, 0);
+        target = tsk->waitpid;
+        tsk->waitpid = 0;
+    }
 
     // no child matched
     if (target == -1) {

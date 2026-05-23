@@ -69,6 +69,7 @@ typedef struct task
 
     int retval;
     int waitpid;
+    int waitopt;
     u64 utime;
     u64 stime;
     u64 _ustart;
@@ -124,8 +125,9 @@ void task_exit(int val);
 #define WCONTINUED 8
 #define WNOWAIT    0x1000000
 
-#define WNOSTATUS -1
+#define WNOSTATUS   -1
 
+void task_report_wstat(task_t *tsk);
 int task_wait(int pid, int *stat, int opt, struct rusage *ru);
 
 #define WEXITSTATUS(s)  (((s) & 0xff00) >> 8)
