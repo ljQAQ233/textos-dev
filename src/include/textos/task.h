@@ -32,6 +32,7 @@ typedef struct task
     intr_frame_t *iframe;
     intr_frame_t *sframe;
     addr_t oldsp;
+    int syscallno;
     
     uid_t ruid; // real uid
     uid_t euid; // effective uid
