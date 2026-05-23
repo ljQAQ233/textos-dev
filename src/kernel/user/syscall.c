@@ -28,6 +28,7 @@ __INTR_HANDLER(syscall_handler)
     }
 
     task_current()->sframe = frame;
+    task_current()->syscallno = nr;
     func = sys_handlers[nr];
 
     ret = func(frame->rdi, frame->rsi, frame->rdx, //
