@@ -1,7 +1,7 @@
 #ifndef __CPU_H__
 #define __CPU_H__
 
-typedef struct
+typedef struct intr_frame
 {
     u64 r15, r14, r13, r12, r11, r10, r9, r8;
     u64 rdi, rsi;
