@@ -1,8 +1,8 @@
 #include <time.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include "unity/unity.h"
 
-struct test
+static struct test
 {
     time_t stamp;
     int valid;
@@ -20,7 +20,7 @@ static inline int eq(const struct tm *t1, const struct tm *t2)
            t1->tm_min == t2->tm_min && t1->tm_sec == t2->tm_sec;
 }
 
-int main(int argc, char *argv[])
+void libc_gmtime()
 {
     putenv("TZ=UTC");
     for (int i = 0; i < len(tests); i++) {
@@ -28,13 +28,7 @@ int main(int argc, char *argv[])
         struct tm *e = &tests[i].tm;
         if (r == NULL && !tests[i].valid)
             continue;
-        if (!eq(r, e)) {
-            printf("failed %d: \n", i);
-            printf("  result %s", asctime(r));
-            printf("  expect %s", asctime(e));
-            return 1;
-        }
+        TEST_ASSERT(eq(r, e));
     }
-    printf("all test cases (%d) passed!\n", (int)len(tests));
-    return 0;
 }
+//!register=libc_gmtime
