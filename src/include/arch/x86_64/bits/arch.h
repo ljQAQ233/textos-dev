@@ -39,4 +39,8 @@ typedef int __wchar_t;
 // endian
 #define __BYTE_ORDER 1234
 
+#ifndef __LONG_MAX__
+    #define __LONG_MAX__ 0x7fffffffffffffff
+#endif
+
 #endif
