@@ -196,7 +196,7 @@
 /* Define this to enable the unity formatted print macro:
  * "TEST_PRINTF"
  */
-/* #define UNITY_INCLUDE_PRINT_FORMATTED */
+#define UNITY_INCLUDE_PRINT_FORMATTED
 
 
 /* *************************** TOOLSET CUSTOMIZATION ***************************
@@ -247,6 +247,10 @@
  * TEST - PASS (10 ms)
  */
 /* #define UNITY_INCLUDE_EXEC_TIME */
+
+#define UNITY_OUTPUT_COLOR
+#define UNITY_USE_COMMAND_LINE_ARGS
+#define UNITY_INCLUDE_PRINT_FORMATTED
 
 #endif /* UNITY_CONFIG_H */
 
