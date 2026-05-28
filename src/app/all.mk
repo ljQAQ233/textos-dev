@@ -12,11 +12,11 @@ $(APP_OUTPUT)/%.c.o: %.c
 
 ifeq ($(suffix $(TARG)),.o)
 $(TARG): $(OBJS)
-	@$(LD) $(LDFLAGS) $^ -r -o $@
+	@$(LD) $^ $(LDFLAGS) -r -o $@
 	@touch .stamp
 else
 $(TARG): $(OBJS)
-	@$(CC) $(CFLAGS) $^ -o $@
+	@$(CC) $^ $(CFLAGS) -o $@
 	@touch .stamp
 	@cp $@ $(ROOT)/bin
 endif
