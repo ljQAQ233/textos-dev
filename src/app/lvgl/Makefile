@@ -1,11 +1,13 @@
-LVGL_PATH ?= ${shell pwd}/lvgl
+LVGL_SHORT_PATH ?= lvgl
 LVGL_CONF ?= $(shell pwd)/lv_conf.h
 
 CC := $(ORIG_CC)
 TARG := lvgl.o
-SRCS := $(shell find $(LVGL_PATH)/src -type f -name '*.S')
-SRCS += $(shell find $(LVGL_PATH)/src -type f -name '*.c')
-SRCS += $(shell find $(LVGL_PATH)/src -type f -name '*.cpp')
+SRCS := $(shell find $(LVGL_SHORT_PATH)/src -type f -name '*.S')
+SRCS += $(shell find $(LVGL_SHORT_PATH)/src -type f -name '*.c')
+SRCS += $(shell find $(LVGL_SHORT_PATH)/src -type f -name '*.cpp')
+
+LVGL_PATH := $(realpath ${LVGL_SHORT_PATH})
 
 AFLAGS   := -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CONF_PATH="\"$(LVGL_CONF)\""
 CFLAGS   := -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CONF_PATH="\"$(LVGL_CONF)\""
