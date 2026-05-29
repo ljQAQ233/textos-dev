@@ -8,8 +8,8 @@ static struct test
     int valid;
     struct tm tm;
 } tests[] = {
-#include "auto/mktime.h"
-#include "auto/gmtime.h"
+#include "auto/libc_mktime.h"
+#include "auto/libc_gmtime.h"
 };
 
 #define len(x) (sizeof(x) / sizeof(x[0]))
@@ -24,4 +24,4 @@ void libc_mktime()
         TEST_ASSERT_EQUAL(e, r);
     }
 }
-//!register=libc_mktime
+//! register=libc_mktime
