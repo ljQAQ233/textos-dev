@@ -15,11 +15,6 @@ CXXFLAGS := -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CO
 
 include ../all.mk
 
-$(APP_OUTPUT)/%.c.o: %.c
-	@mkdir -p $(@D)
-	@$(CC) $(CFLAGS) -c $< -o $@
-	@echo -e "\033[032m   CC  \033[0m $<"
-
 $(APP_OUTPUT)/%.cpp.o: %.cpp
 	@mkdir -p $(@D)
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
