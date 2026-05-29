@@ -19,7 +19,7 @@ $(for d in $libdir; do printf -- "-L %s " "$d"; done) -lc
 libgcc.a%s
 
 *startfile:
-$crtdir/crt1.c.o $crtdir/crti.c.o
+%{!shared:$crtdir/crt1.c.o} $crtdir/crti.c.o
 
 *endfile:
 $crtdir/crtn.c.o
