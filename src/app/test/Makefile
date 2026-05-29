@@ -20,13 +20,14 @@ BINS := $(wildcard bin/*.c)
 SOLIBS := $(wildcard solib/*.c)
 
 CC := $(APP_OUTPUT)/libc/cc
-LDFLAGS += -static
+CFLAGS += -g
 
 include ../all.mk
 
-$(OBJS): CFLAGS := -I$(CURDIR)/unity
+$(OBJS): CFLAGS += -I$(CURDIR)/unity
 $(OBJS): CFLAGS += -DUNITY_INCLUDE_CONFIG_H
-$(TARG): LDLIBS += -lm
+$(TARG): LDLIBS += -lm -ldl
+$(TARG): LDFLAGS += -static
 
 BTARS := $(BINS:%.c=${APP_OUTPUT}/%)
 SOTARS := $(SOLIBS:%.c=${APP_OUTPUT}/%.so)
@@ -62,6 +63,9 @@ $(APP_OUTPUT)/solib/%.so: solib/%.c
 	$(call compile-cc,$<,$@,-shared -fPIC)
 
 $(APP_OUTPUT)/bin/dlopen: LDLIBS += -ldl
+$(APP_OUTPUT)/solib/add.so: $(APP_OUTPUT)/solib/dep.so
+$(APP_OUTPUT)/solib/add.so: LDFLAGS += -nostdlib
+$(APP_OUTPUT)/solib/dep.so: LDFLAGS += -nostdlib
 
 .DEFAULT_GOAL := all
 .PHONY: all
