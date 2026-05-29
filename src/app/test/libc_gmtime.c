@@ -8,7 +8,7 @@ static struct test
     int valid;
     struct tm tm;
 } tests[] = {
-    #include "auto/gmtime.h"
+#include "auto/libc_gmtime.h"
 };
 
 #define len(x) (sizeof(x) / sizeof(x[0]))
@@ -26,9 +26,8 @@ void libc_gmtime()
     for (int i = 0; i < len(tests); i++) {
         struct tm *r = gmtime(&tests[i].stamp);
         struct tm *e = &tests[i].tm;
-        if (r == NULL && !tests[i].valid)
-            continue;
+        if (r == NULL && !tests[i].valid) continue;
         TEST_ASSERT(eq(r, e));
     }
 }
-//!register=libc_gmtime
+//! register=libc_gmtime
