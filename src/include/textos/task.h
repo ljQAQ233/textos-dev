@@ -27,13 +27,27 @@ typedef struct
 
 typedef struct task
 {
+    // context - DO NOT EDIT THOSE FIELDS!!!
     addr_t istk; // tss
     task_frame_t *frame;
     intr_frame_t *iframe;
     intr_frame_t *sframe;
-    addr_t oldsp;
     int syscallno;
-    
+    void *fpu;
+
+    int stat;
+    int stat_before_stop;
+    u64 tick; // default ticks it has
+    u64 curr; // current ticks it has
+    ktimer_t btmr;
+    list_t blist;
+    int bretval; // block return value
+    bool did_exec;
+
+    int retval;  // retval is the wstatus
+    int waitpid; // child to wait or accepted child, 0 means not waiting
+    int waitopt; // wait4 options
+
     uid_t ruid; // real uid
     uid_t euid; // effective uid
     uid_t suid; // saved set-uid
@@ -46,13 +60,6 @@ typedef struct task
     int sid;
     int ppid;
     int pgid;
-    int stat;
-    int stat_before_stop;
-    u64 tick;  // default ticks it has
-    u64 curr;  // current ticks it has
-
-    node_t *pwd;
-    file_t *files[MAX_FILE];
 
     struct
     {
@@ -60,29 +67,26 @@ typedef struct task
         void *main;
         void *rbp;
     } init;
-    bool did_exec;
+
+    node_t *pwd;
+    file_t *files[MAX_FILE];
 
     addr_t pgt;
     addr_t mmap;
     addr_t brk;
     vm_space_t *vsp;
-    void *fpu;
 
-    int retval;
-    int waitpid;
-    int waitopt;
-    u64 utime;
-    u64 stime;
-    u64 _ustart;
-    u64 _sstart;
-
-    ktimer_t btmr;
-    list_t blist;
-    int bretval;
+    // signal
     int sigcurr;
     sigset_t sigpend;
     sigset_t sigmask;
     sigaction_t sigacts[_NSIG];
+
+    // perf
+    u64 utime;
+    u64 stime;
+    u64 _ustart;
+    u64 _sstart;
 
     // debug
     bool dbg_byemu;
@@ -92,13 +96,13 @@ typedef struct task
     struct task *dbg_tracer;
 } task_t;
 
-#define TASK_DIE  0 // Dead
-#define TASK_PRE  1 // Prepared
-#define TASK_RUN  2 // Running
-#define TASK_SLP  3 // Sleep
-#define TASK_BLK  4 // Blocked
-#define TASK_STP  5 // Stoped
-#define TASK_INI  6 // Initializing
+#define TASK_DIE 0 // Dead
+#define TASK_PRE 1 // Prepared
+#define TASK_RUN 2 // Running
+#define TASK_SLP 3 // Sleep
+#define TASK_BLK 4 // Blocked
+#define TASK_STP 5 // Stoped
+#define TASK_INI 6 // Initializing
 
 void task_schedule();
 void task_yield();
@@ -130,7 +134,7 @@ void task_exit(int val);
 #define WCONTINUED 8
 #define WNOWAIT    0x1000000
 
-#define WNOSTATUS   -1
+#define WNOSTATUS -1
 
 void task_report_wstat(task_t *tsk);
 int task_wait(int pid, int *stat, int opt, struct rusage *ru);
