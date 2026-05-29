@@ -34,21 +34,10 @@ static task_t *_task_create(int args)
     int pid;
     task_t *tsk;
     if ((pid = _getfree()) < 0) return NULL;
-
     u16 map_flgs = PE_P | PE_RW;
     if (args & TC_USER) map_flgs |= PE_US;
     tsk = vmm_allocpages(TASK_PAGE, map_flgs);
-    memset(tsk, 0, sizeof(task_t));
-    tsk->ruid = tsk->euid = tsk->suid = 0;
-    tsk->rgid = tsk->egid = tsk->sgid = 0;
-    tsk->supgids = NULL;
-    tsk->umask = 0022;
     tsk->pid = pid;
-    tsk->sid = 0;
-    tsk->ppid = 0;
-    tsk->pgid = 0;
-    tsk->stat = TASK_INI;
-    ktimer_init(&tsk->btmr);
     return table[pid] = tsk;
 }
 
@@ -110,7 +99,7 @@ void task_reset_allsigs(task_t *tsk)
 task_t *task_create(void *main, int args)
 {
     task_t *tsk = _task_create(args);
-
+    
     void *stack, *istack;
     if (args & (TC_TSK1 | TC_USER)) {
         vmm_phyauto(__user_stack_bot, __user_stack_pages, PE_P | PE_RW | PE_US);
@@ -123,38 +112,50 @@ task_t *task_create(void *main, int args)
         istack = NULL;
     }
 
-    // keep 16-byte alignment of sp
-    stack -= sizeof(long);
-
+    tsk->istk = (addr_t)istack;
+    stack -= sizeof(long); // keep 16-byte alignment of sp
     build_iframe(tsk, stack, args)->rip = (u64)main;
     build_tframe(tsk, stack, args);
+    tsk->syscallno = -1;
+
+    // schedule
+    tsk->stat = TASK_PRE;
+    tsk->tick = TASK_TICKS;
+    tsk->curr = TASK_TICKS;
+    ktimer_init(&tsk->btmr);
+    tsk->did_exec = false;
+
+    tsk->retval = WNOSTATUS;
+    tsk->waitpid = 0;
+    tsk->waitopt = 0;
+
+    tsk->ruid = tsk->euid = tsk->suid = 0;
+    tsk->rgid = tsk->egid = tsk->sgid = 0;
+    tsk->supgids = NULL;
+    tsk->umask = 0022;
+    tsk->sid = 0;
+    tsk->ppid = 0;
+    tsk->pgid = 0;
 
     tsk->init.main = main;
     tsk->init.rbp = (void *)tsk->iframe->rbp;
     tsk->init.args = args;
 
-    tsk->stat = TASK_PRE;
-
-    tsk->tick = TASK_TICKS;
-    tsk->curr = TASK_TICKS;
-
     tsk->pwd = NULL; // root
+    for (int i = 0; i < MAX_FILE; i++)
+        tsk->files[i] = NULL;
 
     tsk->pgt = get_kppgt();
     tsk->mmap = __user_mmap_va;
+    tsk->brk = 0;
     tsk->vsp = vmm_new_space(0);
-    tsk->istk = (addr_t)istack;
 
-    tsk->retval = WNOSTATUS;
+    task_reset_allsigs(tsk);
 
     tsk->utime = 0;
     tsk->stime = 0;
     tsk->_ustart = 0;
     tsk->_sstart = arch_us_ran();
-
-    for (int i = 0; i < MAX_FILE; i++)
-        tsk->files[i] = NULL;
-    task_reset_allsigs(tsk);
 
     tsk->dbg_byemu = false;
     tsk->dbg_traced = false;
@@ -239,10 +240,7 @@ int task_fork()
 {
     task_t *prt = task_current();
     task_t *chd = _task_create(prt->init.args);
-
-    // page table
-    fork_pgt(prt, chd);
-
+    
     // context
     fork_stack(prt, chd);
     if (prt->sframe->vector == INT_MSYSCALL)
@@ -250,32 +248,39 @@ int task_fork()
     else
         chd->frame->rip = (u64)intr_exit;
     chd->iframe->rax = 0; // 子进程返回 0
-
-    // files
-    fork_fd(prt, chd);
-
-    // signals
-    fork_sig(prt, chd);
-
-    // ids
-    fork_id(prt, chd);
-
+    chd->syscallno = SYS_fork;
+    
+    chd->stat = TASK_PRE;
     chd->tick = prt->tick;
     chd->curr = prt->curr;
-    chd->ppid = prt->pid;
-    chd->pwd = prt->pwd;
-    chd->stat = TASK_PRE;
+    ktimer_init(&chd->btmr);
+    chd->did_exec = false;
 
     chd->retval = WNOSTATUS;
-
+    chd->waitpid = 0;
+    chd->waitopt = 0;
+    
+    fork_id(prt, chd);
     chd->init = prt->init;
-    chd->did_exec = false;
+    fork_fd(prt, chd);
+    fork_pgt(prt, chd);
+    fork_sig(prt, chd);
+
+    chd->ppid = prt->pid;
+    chd->pwd = prt->pwd;
+
     chd->utime = 0;
     chd->stime = 0;
     chd->_ustart = 0;
     chd->_sstart = arch_us_ran();
-    DEBUGK(K_TRACE, "fork %d -> child=%d\n", prt->pid, chd->pid);
 
+    chd->dbg_byemu = false;
+    chd->dbg_traced = false;
+    chd->dbg_waiting = false;
+    chd->dbg_options = 0;
+    chd->dbg_tracer = NULL;
+
+    DEBUGK(K_TRACE, "fork %d -> child=%d\n", prt->pid, chd->pid);
     return chd->pid; // 父进程返回子进程号
 }
 
