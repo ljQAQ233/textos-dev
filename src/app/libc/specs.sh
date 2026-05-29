@@ -13,7 +13,7 @@ cat <<EOF
 
 
 *link_libgcc:
-$(for d in $libdir; do printf -- "-L %s " "$d"; done) -lc
+$(for d in $libdir; do printf -- "-L %s " "$d"; done) %{!nostdlib:-lc}
 
 *libgcc:
 libgcc.a%s
