@@ -50,8 +50,8 @@ auto/%.h: %.py
 auto/unity.h: $(TEST_SRCS)
 	@mkdir -p $(@D)
 	@printf '#define TESTS' > $@
-	@grep '//!register=' $^ -Hn | \
-		sed 's/\/\/!register=//' | \
+	@grep '// *! *register=' $^ -Hn | \
+		sed 's/\/\/ *! *register *= *//' | \
 		awk -F: '{printf " \\\n_(\"%s\",%s,\"%s\",%d)",$$1,$$3,$$3,$$2}' >> $@
 	@printf '\n' >> $@
 	@echo -e "\033[032m   OK  \033[0m $@"
