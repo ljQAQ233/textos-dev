@@ -2,6 +2,8 @@ SRCS := $(wildcard *.c */*.c)
 SRCS := $(filter-out linker/%,$(SRCS))
 SRCS := $(filter-out crt1.c crtn.c crti.c, $(SRCS))
 
+include $(dir $(lastword $(MAKEFILE_LIST)))/../cmd.mk
+
 BUILD := $(APP_OUTPUT)/$(notdir ${CURDIR})
 
 OBJS := $(addsuffix .o,${SRCS})
@@ -16,6 +18,7 @@ CFLAGS += -nostdinc -nostdlib -Wl,-z,noexecstack
 CFLAGS += -std=c11 -fshort-wchar -ffreestanding \
   -fno-builtin -fno-stack-check -fno-stack-protector \
   -include $(SRC_DIR)/include/bits/compiler.h
+LDFLAGS += -nostdlib
 
 all: $(BUILD)/cc \
 	$(CRTO) \
@@ -40,20 +43,16 @@ $(BUILD)/cc.specs:
 	@touch .stamp
 
 $(BUILD)/%.a: $(BUILD)/%.o
-	@ar rcs $@ $^
-	@echo -e "\033[032m   AR  \033[0m $@"
+	$(call compile-ar,$^,$@)
 
 $(BUILD)/%.so: $(BUILD)/%.o
-	@$(LD) $(LDFLAGS) $^ -o $@ -shared -fPIC
-	@echo -e "\033[032m   CC  \033[0m $@"
+	$(call compile-so,$^,$@)
 
 $(BUILD)/libc.o: $(OBJS)
-	@$(LD) $(LDFLAGS) $^ -r -o $@
-	@echo -e "\033[032m   LD  \033[0m link -> $@"
+	$(call compile-merge,$^,$@)
 
 $(BUILD)/libdl.o: linker/libdl.c linker/linker.c
-	@$(CC) $(CFLAGS) -c $< -o $@ -fPIC
-	@echo -e "\033[032m   CC  \033[0m $<"
+	$(call compile-obj,$<,$@,-fPIC)
 
 $(BUILD)/ld-textos.so: linker/ldso.c linker/linker.c $(CRTO)
 	@$(CC) $(CFLAGS) $< $(CRTO) -o $@ -static -L$(BUILD) -lc \
@@ -61,8 +60,6 @@ $(BUILD)/ld-textos.so: linker/ldso.c linker/linker.c $(CRTO)
 	@echo -e "\033[032m   CC  \033[0m ldso -> $@"
 
 $(BUILD)/%.c.o: %.c
-	@mkdir -p $(@D)
-	@$(CC) $(CFLAGS) -c $< -o $@ -fPIC
-	@echo -e "\033[032m   CC  \033[0m $<"
+	$(call compile-obj,$<,$@,-fPIC)
 
 .PHONY: all

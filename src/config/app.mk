@@ -12,7 +12,7 @@ CFLAGS := -g \
   $(addprefix -I,${INCLUDE})
 
 LDFLAGS := \
-  -nostdlib -z noexecstack \
+  -z noexecstack \
   -L$(ROOT)/lib
 
 export INCLUDE LIBRARY CFLAGS LDFLAGS
