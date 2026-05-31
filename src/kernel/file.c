@@ -398,22 +398,23 @@ __SYSCALL_DEFINE3(off_t, lseek, int, fd, off_t, off, int, whence)
     return file->offset;
 }
 
+int __file_dec_ref(file_t *file)
+{
+    if (--file->refer > 0) return 0;
+    int ret = file->node->opts->close(file->node);
+    free(file);
+    return ret;
+}
+
 __SYSCALL_DEFINE1(int, close, int, fd)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    task_t *tsk = task_current();
+    file_t *file = tsk->files[fd];
+    if (!file) return -EBADF;
 
-    if (--file->refer > 0) {
-        task_current()->files[fd] = NULL;
-        return 0;
-    }
-
-    int ret = file->node->opts->close(file->node);
-    
-    free(file);
-    task_current()->files[fd] = NULL;
-    DEBUGK(K_TRACE, "task[#%d] close %d\n", task_current()->pid, fd);
+    int ret = __file_dec_ref(file);
+    tsk->files[fd] = NULL;
+    DEBUGK(K_TRACE, "task[#%d] close %d\n", tsk->pid, fd);
     return ret;
 }
 

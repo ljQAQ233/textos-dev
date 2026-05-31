@@ -1567,8 +1567,8 @@ end:
 static int fat32_close(node_t *this)
 {
     lookup_t *lkp = this->pdata;
+    if (lkp->clst == 2) return 0;
     node_update(this);
-    return 0;
     vfs_release(this);
     lct_clr(&lkp->link);
     free(lkp);
