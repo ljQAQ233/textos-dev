@@ -14,7 +14,6 @@ typedef struct
     dirctx_t *dirctx;
     int flgs;
     int fdfl;
-    int spec;
     int refer;
 } file_t;
 
