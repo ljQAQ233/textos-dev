@@ -158,6 +158,19 @@ task_t *task_create(void *main, int flag)
     return tsk;
 }
 
+extern int __file_dec_ref(file_t *);
+
+void task_destroy(task_t *tsk)
+{
+    assert(tsk->stat == TASK_DIE);
+    for (int i = 0; i < MAX_FILE; i++) {
+        if (tsk->files[i]) {
+            DEBUGK(K_TRACE, "exited task[#%d] close %d\n", tsk->pid, i);
+            __file_dec_ref(tsk->files[i]);
+        }
+    }
+}
+
 #include <textos/mm.h>
 #include <textos/mm/pvpage.h>
 
@@ -386,6 +399,7 @@ int task_wait(int pid, int *stat, int opt, struct rusage *ru)
     chd->retval = WNOSTATUS;
     if (!(opt & WNOWAIT) && chd->stat == TASK_DIE) {
         // not to peek, destroy it
+        task_destroy(chd);
         table[target] = NULL;
         DEBUGK(K_TRACE, "task %d destroyed\n", target);
     }
