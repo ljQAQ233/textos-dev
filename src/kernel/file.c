@@ -530,20 +530,20 @@ __SYSCALL_DEFINE1(int, pipe, int *, fds)
     ASSERTK(file_get(&fd0, &f0, 0) >= 0);
     ASSERTK(file_get(&fd1, &f1, 0) >= 0);
 
-    node_t *n = malloc(sizeof(*n));
-    ASSERTK(n != NULL);
+    node_t *n0 = malloc(sizeof(*n0));
+    ASSERTK(n0 != NULL);
+    node_t *n1 = malloc(sizeof(*n1));
+    ASSERTK(n1 != NULL);
 
-    pipe_init(n);
+    pipe_init(n0, n1);
 
-    f0->node = n;
-    f1->refer = 1;
-    f0->spec = S_PIPE_R;
+    f0->node = n0;
+    f0->refer = 1;
     f0->flgs = O_RDONLY;
 
-    f1->node = n;
-    f0->refer = 1;
+    f1->node = n1;
+    f1->refer = 1;
     f1->flgs = O_WRONLY;
-    f1->spec = S_PIPE_W;
 
     fds[0] = fd0;
     fds[1] = fd1;
