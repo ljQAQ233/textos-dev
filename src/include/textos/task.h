@@ -61,13 +61,6 @@ typedef struct task
     int ppid;
     int pgid;
 
-    struct
-    {
-        int args;
-        void *main;
-        void *rbp;
-    } init;
-
     node_t *pwd;
     file_t *files[MAX_FILE];
 
@@ -110,10 +103,9 @@ void task_yield();
 task_t *task_current();
 task_t *task_get(int pid);
 
-#define TC_KERN (0 << 0) // ring 0 (kernel)
-#define TC_USER (1 << 0) // ring 3 (init / app)
-#define TC_TSK1 (1 << 1) // init proc
-#define TC_NINT (1 << 2) // mask interrupt :(
+#define TC_USER 0
+#define TC_TSK1 1
+#define TC_KERN 2
 
 void task_reset_allsigs(task_t *tsk);
 task_t *task_create(void *main, int args);

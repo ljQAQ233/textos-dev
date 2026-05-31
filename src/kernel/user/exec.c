@@ -198,7 +198,6 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     sp = build(sp, argvk, envpk, &info);
 
     task_reset_allsigs(curr);
-    curr->init.main = info.entry;
     curr->brk = (addr_t)heap();
     brkarg(argvk);
     brkarg(envpk);

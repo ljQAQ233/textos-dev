@@ -29,13 +29,12 @@ static int _getfree()
 }
 
 /* Register tasks into table */
-static task_t *_task_create(int args)
+static task_t *_task_create()
 {
     int pid;
     task_t *tsk;
     if ((pid = _getfree()) < 0) return NULL;
     u16 map_flgs = PE_P | PE_RW;
-    if (args & TC_USER) map_flgs |= PE_US;
     tsk = vmm_allocpages(TASK_PAGE, map_flgs);
     tsk->pid = pid;
     return table[pid] = tsk;
@@ -44,7 +43,7 @@ static task_t *_task_create(int args)
 #include <gdt.h>
 #include <intr.h>
 
-intr_frame_t *build_iframe(task_t *tsk, void *stack, int args)
+intr_frame_t *build_iframe(task_t *tsk, void *stack, int flag)
 {
     intr_frame_t *iframe = stack - sizeof(intr_frame_t);
 
@@ -69,17 +68,15 @@ intr_frame_t *build_iframe(task_t *tsk, void *stack, int args)
 
     iframe->rflags = (1 << 9);
 
-    if (args & (TC_KERN | TC_TSK1))
-        iframe->cs = KERN_CODE_SEG << 3;
+    if (flag == TC_KERN || flag == TC_TSK1)
+        iframe->cs = (KERN_CODE_SEG << 3);
     else
         iframe->cs = (USER_CODE_SEG << 3) | 3;
-
-    if (args & TC_NINT) iframe->rflags &= ~(1 << 9);
 
     return tsk->iframe = iframe;
 }
 
-task_frame_t *build_tframe(task_t *tsk, void *stack, int args)
+task_frame_t *build_tframe(task_t *tsk, void *stack, int flag)
 {
     task_frame_t *frame = stack - sizeof(intr_frame_t) - sizeof(task_frame_t);
 
@@ -96,12 +93,12 @@ void task_reset_allsigs(task_t *tsk)
     memset(tsk->sigacts, 0, sizeof(tsk->sigacts));
 }
 
-task_t *task_create(void *main, int args)
+task_t *task_create(void *main, int flag)
 {
-    task_t *tsk = _task_create(args);
+    task_t *tsk = _task_create();
     
     void *stack, *istack;
-    if (args & (TC_TSK1 | TC_USER)) {
+    if (flag == TC_USER || flag == TC_TSK1) {
         vmm_phyauto(__user_stack_bot, __user_stack_pages, PE_P | PE_RW | PE_US);
         stack = (void *)__user_stack_top;
         istack =
@@ -114,8 +111,8 @@ task_t *task_create(void *main, int args)
 
     tsk->istk = (addr_t)istack;
     stack -= sizeof(long); // keep 16-byte alignment of sp
-    build_iframe(tsk, stack, args)->rip = (u64)main;
-    build_tframe(tsk, stack, args);
+    build_iframe(tsk, stack, flag)->rip = (u64)main;
+    build_tframe(tsk, stack, flag);
     tsk->syscallno = -1;
 
     // schedule
@@ -136,10 +133,6 @@ task_t *task_create(void *main, int args)
     tsk->sid = 0;
     tsk->ppid = 0;
     tsk->pgid = 0;
-
-    tsk->init.main = main;
-    tsk->init.rbp = (void *)tsk->iframe->rbp;
-    tsk->init.args = args;
 
     tsk->pwd = NULL; // root
     for (int i = 0; i < MAX_FILE; i++)
@@ -239,7 +232,7 @@ static int fork_id(task_t *prt, task_t *chd)
 int task_fork()
 {
     task_t *prt = task_current();
-    task_t *chd = _task_create(prt->init.args);
+    task_t *chd = _task_create();
     
     // context
     fork_stack(prt, chd);
@@ -261,7 +254,6 @@ int task_fork()
     chd->waitopt = 0;
     
     fork_id(prt, chd);
-    chd->init = prt->init;
     fork_fd(prt, chd);
     fork_pgt(prt, chd);
     fork_sig(prt, chd);
