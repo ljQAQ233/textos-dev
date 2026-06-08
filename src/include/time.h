@@ -12,6 +12,8 @@ __BEGIN_DECLS
 #include <bits/null.h>
 #include <bits/alltypes.h>
 
+double difftime(time_t __time1, time_t __time0);
+
 time_t time(time_t /* _Nullable */ *__tp);
 
 int nanosleep(const struct timespec *__rqtp, struct timespec *__rmtp);
