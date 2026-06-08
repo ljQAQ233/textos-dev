@@ -47,6 +47,8 @@ int vsprintf(char *__buf, const char *__format, va_list __ap);
 int vsnprintf(char *__buf, size_t n, const char *__format, va_list __ap);
 void perror(const char *__s);
 
+int remove(const char *__path);
+
 int fileno(FILE *__f);
 FILE *fopen(const char *__path, const char *__mode);
 FILE *fdopen(int __fd, const char *__mode);
