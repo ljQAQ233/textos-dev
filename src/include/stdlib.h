@@ -50,6 +50,8 @@ long long atoll(const char *__str);
 
 _Noreturn void abort();
 
+int system(const char *__cmd);
+
 // random
 
 /* Reentrant versions of the `random' family of functions.
