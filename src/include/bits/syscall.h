@@ -1,4 +1,4 @@
-#define _SYSCALL         \
+#define _SYSCALL        \
     _(read, 0)          \
     _(write, 1)         \
     _(open, 2)          \
@@ -46,6 +46,7 @@
     _(chdir, 80)        \
     _(mkdir, 83)        \
     _(rmdir, 84)        \
+    _(unlink, 87)       \
     _(chmod, 90)        \
     _(fchmod, 91)       \
     _(chown, 92)        \

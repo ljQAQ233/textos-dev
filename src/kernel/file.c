@@ -418,6 +418,17 @@ __SYSCALL_DEFINE1(int, close, int, fd)
     return ret;
 }
 
+__SYSCALL_DEFINE1(int, unlink, const char *, path)
+{
+    int ret;
+    node_t *node;
+    if ((ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node)) < 0)
+        return ret;
+    if (S_ISDIR(node->mode)) return -EISDIR;
+    ret = vfs_remove(node);
+    return ret;
+}
+
 static void fillsb(node_t *node, stat_t *sb)
 {
     sb->st_dev = node->dev;
