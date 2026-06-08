@@ -346,7 +346,8 @@ __SYSCALL_DEFINE0(int, sigreturn)
     __builtin_unreachable();
 }
 
-__SYSCALL_DEFINE3(int, sigaction, int, signum, const sigaction_t *, act, sigaction_t *, oldact)
+__SYSCALL_DEFINE3(int, sigaction, int, signum, const sigaction_t *, act,
+                  sigaction_t *, oldact)
 {
     task_t *tsk = task_current();
     if (signum <= 0 || signum >= _NSIG) return -EINVAL;
@@ -364,20 +365,23 @@ __SYSCALL_DEFINE3(int, sigaction, int, signum, const sigaction_t *, act, sigacti
     return 0;
 }
 
-__SYSCALL_DEFINE3(int, sigprocmask, int, how, const sigset_t *, set, sigset_t *, oset)
+__SYSCALL_DEFINE3(int, sigprocmask, int, how, const sigset_t *, set, sigset_t *,
+                  oset)
 {
     task_t *tsk = task_current();
     if (oset) *oset = tsk->sigmask;
     if (!set) return 0;
 
     switch (how) {
-        case SIG_BLOCK:
-            tsk->sigmask |= *set;
-        case SIG_UNBLOCK:
-            tsk->sigmask &= ~*set;
-        case SIG_SETMASK:
-            tsk->sigmask = *set;
-            break;
+    case SIG_BLOCK:
+        tsk->sigmask |= *set;
+        break;
+    case SIG_UNBLOCK:
+        tsk->sigmask &= ~*set;
+        break;
+    case SIG_SETMASK:
+        tsk->sigmask = *set;
+        break;
     }
     return 0;
 }
@@ -386,4 +390,3 @@ __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
 {
     return kill_safe(pid, sig, 0);
 }
-
