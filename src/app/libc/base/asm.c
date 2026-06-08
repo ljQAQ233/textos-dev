@@ -327,6 +327,11 @@ int rmdir(const char *path)
     return syscall(SYS_rmdir, path);
 }
 
+int unlink(const char *path)
+{
+    return syscall(SYS_unlink, path);
+}
+
 char *getcwd(char *buf, size_t size)
 {
     // syscall_ret will handle errno
