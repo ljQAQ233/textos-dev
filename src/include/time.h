@@ -45,7 +45,10 @@ struct tm *gmtime_r(const time_t *restrict __t, struct tm *restrict __tm);
 struct tm *localtime(const time_t *__t);
 struct tm *localtime_r(const time_t *restrict __t, struct tm *restrict __tm);
 
-time_t mktime(struct tm *tm);
+size_t strftime(char *restrict __s, size_t __max, const char *restrict __format,
+                const struct tm *restrict __tm);
+
+time_t mktime(struct tm *__tm);
 
 #ifdef _POSIX_C_SOURCE
 extern char *tzname[2];
