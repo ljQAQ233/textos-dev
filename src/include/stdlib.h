@@ -94,6 +94,9 @@ long int random();
 // POSIX.1-2001. Obsolete in POSIX.1-2008.
 int rand_r(unsigned *__seed);
 
+int mkstemp(char *__template);
+int mkostemp(char *__template, int __flags);
+int mkstemps(char *__template, int __suffixlen);
 int mkostemps(char *__template, int __suffixlen, int __flags);
 
 __END_DECLS
