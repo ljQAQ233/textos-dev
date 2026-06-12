@@ -125,7 +125,7 @@ unsigned alarm(unsigned __seconds);
 
 long sysconf(int name);
 
-#define CLK_TCK sysconf(_SC_CLK_TCK);
+#define CLK_TCK sysconf(_SC_CLK_TCK)
 
 __END_DECLS
 
