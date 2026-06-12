@@ -60,6 +60,12 @@ extern long timezone;
 extern int daylight;
 #endif
 
+// XSI (X/Open System Interface) requires that CLOCKS_PER_SEC
+// equals 1000000 independent of the actual resolution.
+#define CLOCKS_PER_SEC 1000000
+
+clock_t clock();
+
 __END_DECLS
 
 #endif
