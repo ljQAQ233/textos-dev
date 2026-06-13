@@ -1,5 +1,5 @@
 // float.h
-#include <openlibm_fenv.h>
+#include <fenv.h>
 
 int __flt_rounds()
 {
