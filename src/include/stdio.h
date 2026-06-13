@@ -5,11 +5,11 @@
 
 __BEGIN_DECLS
 
+#include <bits/null.h>
 #include <stdarg.h>
 #include <stddef.h>
-#include <bits/null.h>
 
-#define EOF ((int)-1)
+#define EOF    ((int)-1)
 #define BUFSIZ 4096
 
 #define __NEED_off_t
@@ -32,8 +32,10 @@ int puts(const char *__s);
 int getc(FILE *__f);
 int getchar();
 
-ssize_t getline(char **restrict __lineptr, size_t *restrict __n, FILE *restrict __f);
-ssize_t getdelim(char **restrict __lineptr, size_t *restrict __n, int __delim, FILE *restrict __f);
+ssize_t getline(char **restrict __lineptr, size_t *restrict __n,
+                FILE *restrict __f);
+ssize_t getdelim(char **restrict __lineptr, size_t *restrict __n, int __delim,
+                 FILE *restrict __f);
 
 int printf(const char *__format, ...);
 int fprintf(FILE *f, const char *format, ...);
@@ -66,7 +68,7 @@ int ferror(FILE *__f);
 long ftell(FILE *f);
 int fseek(FILE *__f, long __offset, int __whence);
 
-#if _FILE_OFFSET_BITS == 64 ||  _POSIX_C_SOURCE >= 200112L
+#if _FILE_OFFSET_BITS == 64 || _POSIX_C_SOURCE >= 200112L
 off_t ftello(FILE *f);
 int fseeko(FILE *__f, off_t __offset, int __whence);
 #endif
@@ -74,8 +76,10 @@ int fseeko(FILE *__f, off_t __offset, int __whence);
 int fgetc(FILE *__f);
 int fputc(int __c, FILE *__f);
 
-size_t fread(void *restrict __ptr, size_t __size, size_t __nmemb, FILE *restrict __f);
-size_t fwrite(const void *restrict __ptr, size_t __size, size_t __nmemb, FILE *restrict __f);
+size_t fread(void *restrict __ptr, size_t __size, size_t __nmemb,
+             FILE *restrict __f);
+size_t fwrite(const void *restrict __ptr, size_t __size, size_t __nmemb,
+              FILE *restrict __f);
 
 int fputs(const char *restrict __s, FILE *restrict __f);
 char *fgets(char *restrict __s, int __n, FILE *restrict __f);
@@ -86,6 +90,8 @@ char *fgets(char *restrict __s, int __n, FILE *restrict __f);
 
 int setvbuf(FILE *__f, char *__buf, int __mode, size_t __size);
 void setbuf(FILE *__f, char *__buf);
+
+FILE *tmpfile();
 
 __END_DECLS
 
