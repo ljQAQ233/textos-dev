@@ -5,6 +5,11 @@ struct _IO_FILE;
 
 #include <stdio.h>
 
+// POSIX: One byte of push-back shall be provided. 尽管使用超过 1
+// 字节的 ungetc 这种操作不可移植, 但是很多软件都这么用 (｀ε´)ﾑｩｰ!
+// glibc 实现了动态拓展的 ungetc buffer.
+#define MAX_UNGETC 8
+
 #define F_PERM 1
 #define F_NORD 2
 #define F_NOWR 4

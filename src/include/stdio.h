@@ -31,6 +31,7 @@ int putchar(int __c);
 int puts(const char *__s);
 int getc(FILE *__f);
 int getchar();
+int ungetc(int __c, FILE *__f);
 
 ssize_t getline(char **restrict __lineptr, size_t *restrict __n,
                 FILE *restrict __f);
