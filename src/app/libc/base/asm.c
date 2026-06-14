@@ -76,11 +76,6 @@ int wait4(int pid, int *stat, int opt, void *rusage)
     return syscall(SYS_wait4, pid, stat, opt, rusage);
 }
 
-int wait(int *stat)
-{
-    return wait4(-1, stat, 0, NULL);
-}
-
 __attribute__((naked))
 __attribute__((noreturn))
 void __restorer()

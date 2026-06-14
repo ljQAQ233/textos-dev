@@ -24,6 +24,10 @@ int wait(int *stat);
 /* os-specified */
 int wait4(pid_t pid, int *stat, int opt, void *rusage);
 
+/* POSIX */
+pid_t wait(int *stat);
+pid_t waitpid(pid_t pid, int *stat, int opt);
+
 #define WEXITSTATUS(s)  (((s) & 0xff00) >> 8)
 #define WTERMSIG(s)     ((s) & 0x7f)
 #define WSTOPSIG(s)     WEXITSTATUS(s)
