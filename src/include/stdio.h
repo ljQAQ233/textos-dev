@@ -54,6 +54,7 @@ int remove(const char *__path);
 int fileno(FILE *__f);
 FILE *fopen(const char *__path, const char *__mode);
 FILE *fdopen(int __fd, const char *__mode);
+FILE *freopen(const char *__path, const char *__mode, FILE *__f);
 int fflush(FILE *__f);
 int fclose(FILE *__f);
 void clearerr(FILE *__f);
