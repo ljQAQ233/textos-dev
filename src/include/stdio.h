@@ -94,6 +94,9 @@ void setbuf(FILE *__f, char *__buf);
 
 FILE *tmpfile();
 
+FILE *popen(const char *__cmd, const char *__type);
+int pclose(FILE *__f);
+
 __END_DECLS
 
 #endif

@@ -1,3 +1,4 @@
+#define __NEED_pid_t
 #define __DEFINED_struct__IO_FILE
 
 struct _IO_FILE;
@@ -24,6 +25,7 @@ struct _IO_FILE
     {
         void *cookie;
         void *tmppath; // tmpfile
+        pid_t peerpid; // popen
     };
     off_t (*seek)(FILE *f, off_t off, int whence);
     size_t (*read)(FILE *f, unsigned char *buf, size_t len);
