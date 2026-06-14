@@ -6,31 +6,35 @@
 FILE *__fdopen(int fd, int flgs)
 {
     FILE *f = malloc(sizeof(FILE));
-    if (!f)
-        return NULL;
+    if (!f) return 0;
 
     int fl = 0;
-    switch (flgs & O_ACCMODE)
-    {
-    case O_RDONLY: fl |= F_NOWR; break;
-    case O_WRONLY: fl |= F_NORD; break;
-    default: break;
+    switch (flgs & O_ACCMODE) {
+    case O_RDONLY:
+        fl |= F_NOWR;
+        break;
+    case O_WRONLY:
+        fl |= F_NORD;
+        break;
+    default:
+        break;
     }
-    if (flgs & O_APPEND)
-        fl |= F_APP;
-    
+    if (flgs & O_APPEND) fl |= F_APP;
+
+    void *area = malloc(BUFSIZ + MAX_UNGETC);
+    if (!area) return 0;
     f->fd = fd;
     f->fl = fl | F_ALOC;
     f->lbf = '\n';
     f->bufsz = BUFSIZ;
-    f->buf = malloc(BUFSIZ);
+    f->buf = area + MAX_UNGETC;
     f->read = __stdio_read;
     f->write = __stdio_write;
     f->close = __stdio_close;
     if (!f->bufsz)
     {
         free(f);
-        return NULL;
+        return 0;
     }
     return f;
 }
