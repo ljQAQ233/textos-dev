@@ -1,17 +1,14 @@
 #include "stdio.h"
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
 
 int __fmode(const char *mode)
 {
-    if (!mode)
-        return -EINVAL;
+    if (!mode) return -EINVAL;
     int rw = 0;
-    int flg = 0;
-    while (*mode)
-    {
-        switch (*mode++)
-        {
+    int flg = 0, b = 0;
+    while (*mode) {
+        switch (*mode++) {
         case 'r':
             rw |= 1;
             break;
@@ -26,6 +23,9 @@ int __fmode(const char *mode)
             rw |= 2;
             flg |= O_CREAT | O_APPEND;
             break;
+        case 'b':
+            b = 1;
+            break;
         default:
             return -EINVAL;
         }
@@ -36,7 +36,7 @@ int __fmode(const char *mode)
         flg |= O_WRONLY;
     else if (rw == 3)
         flg |= O_RDWR;
-    else
+    else if (!b)
         return -EINVAL;
     return flg;
 }
