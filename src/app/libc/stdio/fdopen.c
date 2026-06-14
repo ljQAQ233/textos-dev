@@ -1,6 +1,6 @@
 #include "stdio.h"
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <malloc.h>
 
 FILE *__fdopen(int fd, int flgs)
@@ -32,8 +32,7 @@ FILE *__fdopen(int fd, int flgs)
     f->read = __stdio_read;
     f->write = __stdio_write;
     f->close = __stdio_close;
-    if (!f->bufsz)
-    {
+    if (!f->bufsz) {
         free(f);
         return 0;
     }
@@ -49,14 +48,12 @@ int __fmode(const char *mode);
 FILE *fdopen(int fd, const char *mode)
 {
     int flgs = __fmode(mode);
-    if (flgs < 0)
-        goto inv;
+    if (flgs < 0) goto inv;
     int accm = flgs & O_ACCMODE;
-    int orig = fcntl(fd, F_GETFD);
-    if (orig != accm)
-        goto inv;
+    int orig = fcntl(fd, F_GETFL) & O_ACCMODE;
+    if (orig != accm) goto inv;
     return __fdopen(fd, flgs);
-    
+
 inv:
     errno = EINVAL;
     return NULL;
