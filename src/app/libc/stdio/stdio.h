@@ -49,4 +49,7 @@ size_t __stdio_read(FILE *f, unsigned char *buf, size_t len);
 size_t __stdio_write(FILE *f, const unsigned char *buf, size_t len);
 int __stdio_close(FILE *f);
 
-size_t __fwritex(const unsigned char *restrict buf, size_t len, FILE *restrict f);
+size_t __fwritex(const unsigned char *restrict buf, size_t len,
+                 FILE *restrict f);
+
+int __updbuf(FILE *f, void *buf, size_t size, int alloc);
