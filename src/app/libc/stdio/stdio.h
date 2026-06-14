@@ -20,7 +20,11 @@ struct _IO_FILE
     size_t pos; // TODO
     size_t bufsz;
     void *buf;
-    void *cookie;
+    union
+    {
+        void *cookie;
+        void *tmppath; // tmpfile
+    };
     off_t (*seek)(FILE *f, off_t off, int whence);
     size_t (*read)(FILE *f, unsigned char *buf, size_t len);
     size_t (*write)(FILE *f, const unsigned char *buf, size_t len);
