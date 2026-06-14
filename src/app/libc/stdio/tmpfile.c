@@ -1,22 +1,16 @@
 #include "stdio.h"
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <malloc.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 static const char template[] = "/tmp/tmpfile_XXXXXX";
 
-struct cookie
-{
-    char path[sizeof(template)];
-};
-
 static int tmpfile_close(FILE *f)
 {
-    struct cookie *c = f->cookie;
     __stdio_close(f);
-    unlink(c->path);
-    free(c);
+    unlink(f->tmppath);
+    free(f->tmppath);
     return 0;
 }
 
@@ -26,22 +20,22 @@ static int tmpfile_close(FILE *f)
  */
 FILE *tmpfile()
 {
-    struct cookie *c = malloc(sizeof(struct cookie));
-    if (!c) return 0;
-    memcpy(c->path, template, sizeof(template));
-    int fd = mkstemp(c->path);
+    char *path = strdup(template);
+    if (!path) return 0;
+    memcpy(path, template, sizeof(template));
+    int fd = mkstemp(path);
     if (fd < 0) {
-        free(c);
+        free(path);
         return 0;
     }
     FILE *f = fdopen(fd, "w+b");
     if (!f) {
         close(fd);
-        unlink(c->path);
-        free(c);
+        unlink(path);
+        free(path);
         return 0;
     }
     f->close = tmpfile_close;
-    f->cookie = c;
+    f->tmppath = path;
     return f;
 }
