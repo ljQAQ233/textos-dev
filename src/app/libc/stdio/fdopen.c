@@ -28,6 +28,7 @@ FILE *__fdopen(int fd, int flgs)
     f->lbf = '\n';
     f->bufsz = BUFSIZ;
     f->buf = area + MAX_UNGETC;
+    f->seek = __stdio_seek;
     f->read = __stdio_read;
     f->write = __stdio_write;
     f->close = __stdio_close;
