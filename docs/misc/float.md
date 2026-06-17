@@ -59,6 +59,18 @@ $$
 
 计算好像一个大整数除法就结束了, 最难的部分 (据说), 是舍入. 但是对于 libc 而言, 标准 并没有要求精确舍入 ( ￣ー￣)σ
 
+## 建模
+
+### `big_pow2` 预处理表
+
+假设 $e = 10 = (1010)_2 = 2^1 + 2^3 $
+
+### `big_div` 小数位数
+
+设 $y = \frac{x}{2^e}$ ($x$ 为变量, $0 \le x \le 2^e$), 求 y 的小数点后最多有几位小数?
+
+> $\frac{1}{2^e} = \frac{5^e}{10^e} \Rightarrow y = \frac{x \cdot 5^e}{10^e}$, 则 $y$ 小数点后最多有 $e$ 位小数
+
 # references
 
 - <https://en.wikipedia.org/wiki/Double-precision_floating-point_format>
