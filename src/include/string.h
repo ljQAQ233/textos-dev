@@ -102,6 +102,9 @@ char *strerror(int __errnum);
 
 char *strsignal(int __sig);
 
+int strcoll(const char *__str1, const char *__str2);
+size_t strxfrm(char *__dest, const char *__src, size_t __n);
+
 // TODO : Other functions in string.h
 
 __END_DECLS
