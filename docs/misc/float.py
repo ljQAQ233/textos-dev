@@ -1,10 +1,38 @@
+import sys
 import struct
 from math import log2, ceil
+
+sys.set_int_max_str_digits(10000)
+
+STRIDE = 128
+# x87 fpu
+# MAXFRACBITS = 64
+# MAXEXPOBITS = 14
+
+# double
+MAXFRACBITS = 52
+MAXEXPOBITS = 11
+
+# do not edit those constants!!!
+MAXEXPONENT = 2 ** MAXEXPOBITS
+EXPOBIAS = 2 ** (MAXEXPOBITS - 1) - 1
+MAXPOW = MAXEXPONENT - EXPOBIAS - MAXFRACBITS
+
+if 1:
+    print("the length of power of 2:")
+    last = -STRIDE
+    for i in range(0, MAXPOW):
+        r = 2 ** i
+        l = len(str(r))
+        if l - last >= STRIDE:
+            last = l
+            print(f"{{ {i}, {l} }},")
+    print("=============")
 
 if 1:
     sum = 0
     print("the pow of the pow of 2:")
-    for i in range(0, ceil(log2(16383))):
+    for i in range(0, ceil(log2(MAXPOW))):
         r = 2 ** (2 ** i)
         s = str(r)
         sum += len(s)

@@ -1,315 +1,87 @@
 #include "stdio.h"
+#include <malloc.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#define TMP_BUFFER_SIZE 64
+#include "big.h"
 
 enum
 {
     LEFT = 1,
-    SIGN = 1 << 1,
-    ZERO = 1 << 2,
-    SPECIAL = 1 << 3,
-    SPACE = 1 << 4,
+    SIGN = 2,
+    ZERO = 4,
+    SPECIAL = 8,
+    SPACE = 16,
 };
 
-#define is_digit(c) ('0' <= (char)c && (char)c <= '9')
-
 #define out(c)                 \
-    {                          \
+    do {                       \
         int ret = fputc(c, f); \
         if (ret < 0) return n; \
         n++;                   \
-    }
+    } while (0)
 
-static int _int(char *ptr, int *width)
-{
-    int i = 0;
-    int l = 0;
-
-    while (is_digit(*ptr)) {
-        i = i * 10 + *ptr++ - '0';
-        l++;
-    }
-
-    *width = i;
-
-    return l;
-}
-
-static const char upstr[] = "0123456789ABCDEF";
-static const char lwstr[] = "0123456789abcdef";
-
-static int fmt_num(char *buffer, uint64_t num, int base, bool upper)
-{
-    const char *letters = upper ? upstr : lwstr;
-    int siz = 0;
-    char tmp[TMP_BUFFER_SIZE];
-    char *ptr = tmp;
-
-    if (num == 0) {
-        *ptr++ = '0';
-        siz++;
-    } else {
-        while (num != 0) {
-            *ptr++ = letters[num % base];
-            num /= base;
-            siz++;
-        }
-    }
-
-    ptr--;
-    int i = 0;
-    while (i < siz) {
-        buffer[i++] = *ptr--;
-    }
-    buffer[i] = '\0';
-
-    return siz;
-}
-
-typedef struct {
-    // int sign;
-    int len;
-    char *s;
-} big;
-
-#define big_new(name)                   \
-    char _big_s_##name[1024 + 8] = {0}; \
-    big name = {0, _big_s_##name + 8}
-
-static int big_print(FILE* f, big *a, int dot, int sign)
+static void stoint(const char **ptr, int *r)
 {
     int n = 0;
-    if (sign) out('-');
-    for (int i = 0; i < a->len; i++) {
-        if (dot == i) out('.');
-        out('0' + a->s[i]);
-    }
-    return n;
+    const char *p = *ptr;
+    while (*p == '0')
+        p++;
+    while ('0' <= *p && *p <= '9')
+        n = n * 10 + *p++ - '0';
+    *r = n;
+    *ptr = p;
 }
 
-// test l >= r
-static bool big_ge(const big *l, const big *r)
+static int fmt_num(char *buf, char *prefix, int len, char spec, int flgs,
+                   va_list *ap, int *size)
 {
-    if (l->len > r->len)
-        return true;
-    else if (l->len < r->len)
-        return false;
-    for (int i = 0; i < l->len; i++) {
-        if (l->s[i] > r->s[i])
-            return true;
-        else if (l->s[i] < r->s[i])
-            return false;
-    }
-    return true;
-}
+    uint64_t v;
+    bool minus = false;
+    bool sign = spec == 'i' || spec == 'd';
+    static const char upstr[] = "0123456789ABCDEF";
+    static const char lwstr[] = "0123456789abcdef";
+    const char *letters = spec & 32 ? lwstr : upstr;
+    int base = (spec | 32) == 'x' ? 16 : spec == 'o' ? 8 : 10;
 
-// used rarely
-static void big_pad(big *a, int target_len)
-{
-    int zeros = target_len - a->len;
-    memmove(a->s + zeros, a->s, a->len);
-    for (int i = 0; i < zeros; i++)
-        a->s[i] = 0;
-}
+    // clang-format off
+#define X(L, T)                         \
+    (len == L) {                        \
+        v = sizeof(T) < 4               \
+          ? va_arg(*ap, int)            \
+          : va_arg(*ap, T);             \
+        if (sign && (T)v < 0)           \
+            minus = true, v = -(T)v; }
+    if X(-2, char)
+    else if X(-1, short)
+    else if X(0, int)
+    else if X(1, long)
+    else if X(2, long long);
+#undef X
+    // clang-format on
 
-// calc a + b -> a
-// assert (a) > 0, (b) > 0
-// assert a->len >= b->len
-static void big_add(big *a, const big *b)
-{
-    int carry = 0;
-    for (int j = 0; j < a->len; j++) {
-        int tmp = a->s[a->len - j - 1] +
-                  (j >= b->len ? 0 : b->s[b->len - j - 1]) + carry;
-        if (tmp >= 10)
-            tmp -= 10, carry = +1;
-        else
-            carry = 0;
-        a->s[a->len - j - 1] = tmp;
-    }
-    if (carry) {
-        *--a->s = 1;
-        ++a->len;
-    }
-}
-
-// calc a - b -> a
-// assert a >= b => a->len >= b->len
-//   => no carry at last
-static void big_sub(big *a, const big *b)
-{
-    int carry = 0;
-    for (int j = 0; j < a->len; j++) {
-        int tmp = a->s[a->len - j - 1] -
-                  (j >= b->len ? 0 : b->s[b->len - j - 1]) + carry;
-        if (tmp < 0)
-            tmp += 10, carry = -1;
-        else
-            carry = 0;
-        a->s[a->len - j - 1] = tmp;
-    }
-    while (a->s[0] == 0 && a->len)
-        a->s++, a->len--;
-}
-
-static int big_push_u64(big *a, uint64_t num)
-{
-    if (num == 0) {
-        a->s[a->len++] = 0;
-        return 1;
+    if (flgs & SPECIAL) {
+        strcpy(prefix, spec == 'x'   ? "0x"
+                       : spec == 'X' ? "0X"
+                       : spec == 'o' ? "0"
+                                     : "");
     }
 
     int ndigits = 0;
-    for (uint64_t n = num; n; n /= 10)
-        ndigits++;
-    a->len += ndigits;
-    for (int i = 0; i < ndigits; i++, num /= 10)
-        a->s[a->len - i - 1] = num % 10;
-    return ndigits;
-}
-
-// assume pushing doesn't cause overflow
-static int big_push_str(big *a, char *str)
-{
-    char *s = str;
-    for (; *s; s++)
-        a->s[a->len++] = *s - '0';
-    while (a->s[0] == 0 && a->len)
-        a->s++, a->len--;
-    return s - str;
-}
-
-// calc a / b -> r
-// assert r->len == 0
-static void big_div(big *a, const big *b, big *r, int *dot, int prec)
-{
-    // integer part
-    int inte = 0;
-    while (big_ge(a, b)) {
-        big_sub(a, b);
-        inte++;
+    if (v == 0) {
+        ndigits = 1;
+        buf[0] = '0';
+    } else {
+        for (uint64_t n = v; n; n /= base)
+            ndigits++;
+        for (int i = 0; i < ndigits; i++, v /= base)
+            buf[ndigits - i - 1] = letters[v % base];
     }
-    *dot = big_push_u64(r, inte);
-
-    if (a->len != 0) {
-        // calc (prec + 1) numbers after the dot
-        for (int k = 0; k < prec + 1; k++) {
-            a->s[a->len++] = 0;
-            if (!big_ge(a, b)) {
-                r->s[r->len++] = 0;
-                continue;
-            }
-            int current = 0;
-            while (big_ge(a, b)) {
-                big_sub(a, b);
-                current++;
-            }
-            r->s[r->len++] = current;
-            if (a->len == 0) break;
-        }
-    }
-
-    while (r->len - *dot < prec + 1)
-        r->s[r->len++] = 0;
-
-    int carry = 0;
-    if (r->s[r->len - 1] > 5)
-        carry = 1;
-    else if (r->s[r->len - 1] == 5 && (r->s[r->len - 2] & 1))
-        carry = 1;
-    r->len--;
-    for (int j = 0; j < r->len; j++) {
-        r->s[r->len - j - 1] += carry;
-        if (r->s[r->len - j - 1] >= 10) {
-            r->s[r->len - j - 1] -= 10;
-            carry = 1;
-        } else
-            carry = 0;
-    }
-    if (carry) {
-        *--r->s = 1;
-        ++r->len;
-        ++*dot;
-    }
-}
-
-// calc a x b -> r
-// assert (a) x (b) != 0 => r excludes leading zeros
-static void big_mul(big *a, const big *b, big *r)
-{
-    r->len = a->len + b->len;
-    for (int i = 0; i < r->len; i++)
-        r->s[i] = 0;
-
-    for (int i = a->len - 1; i >= 0; i--) {
-        int carry = 0;
-        for (int j = b->len - 1; j >= 0; j--) {
-            int tmp = a->s[i] * b->s[j] + r->s[i + j + 1] + carry;
-            r->s[i + j + 1] = tmp % 10;
-            carry = tmp / 10;
-        }
-        r->s[i] = carry;
-    }
-    while (r->s[0] == 0 && r->len)
-        r->s++, r->len--;
-}
-
-// calc 2 ^ x -> r (tested, resonating with python)
-static void big_pow2(unsigned x, big *r)
-{
-    static const big powtab[] = {
-        {1, "\x02"},
-        {1, "\x04"},
-        {2, "\x01\x06"},
-        {3, "\x02\x05\x06"},
-        {5, "\x06\x05\x05\x03\x06"},
-        {10, "\x04\x02\x09\x04\x09\x06\x07\x02\x09\x06"},
-        {20, "\x01\x08\x04\x04\x06\x07\x04\x04\x00\x07\x03\x07\x00\x09\x05\x05"
-             "\x01\x06\x01\x06"},
-        {39, "\x03\x04\x00\x02\x08\x02\x03\x06\x06\x09\x02\x00\x09\x03\x08\x04"
-             "\x06\x03\x04\x06\x03\x03\x07\x04\x06\x00\x07\x04\x03\x01\x07\x06"
-             "\x08\x02\x01\x01\x04\x05\x06"},
-        {78, "\x01\x01\x05\x07\x09\x02\x00\x08\x09\x02\x03\x07\x03\x01\x06\x01"
-             "\x09\x05\x04\x02\x03\x05\x07\x00\x09\x08\x05\x00\x00\x08\x06\x08"
-             "\x07\x09\x00\x07\x08\x05\x03\x02\x06\x09\x09\x08\x04\x06\x06\x05"
-             "\x06\x04\x00\x05\x06\x04\x00\x03\x09\x04\x05\x07\x05\x08\x04\x00"
-             "\x00\x07\x09\x01\x03\x01\x02\x09\x06\x03\x09\x09\x03\x06"},
-        {155, "\x01\x03\x04\x00\x07\x08\x00\x07\x09\x02\x09\x09\x04\x02\x05\x09"
-              "\x07\x00\x09\x09\x05\x07\x04\x00\x02\x04\x09\x09\x08\x02\x00\x05"
-              "\x08\x04\x06\x01\x02\x07\x04\x07\x09\x03\x06\x05\x08\x02\x00\x05"
-              "\x09\x02\x03\x09\x03\x03\x07\x07\x07\x02\x03\x05\x06\x01\x04\x04"
-              "\x03\x07\x02\x01\x07\x06\x04\x00\x03\x00\x00\x07\x03\x05\x04\x06"
-              "\x09\x07\x06\x08\x00\x01\x08\x07\x04\x02\x09\x08\x01\x06\x06\x09"
-              "\x00\x03\x04\x02\x07\x06\x09\x00\x00\x03\x01\x08\x05\x08\x01\x08"
-              "\x06\x04\x08\x06\x00\x05\x00\x08\x05\x03\x07\x05\x03\x08\x08\x02"
-              "\x08\x01\x01\x09\x04\x06\x05\x06\x09\x09\x04\x06\x04\x03\x03\x06"
-              "\x04\x09\x00\x00\x06\x00\x08\x04\x00\x09\x06"},
-    };
-    if (x == 0) {
-        r->s[0] = 1;
-        r->len = 1;
-    }
-    big_new(tmp);
-    big *save = r, *fac = &tmp;
-    tmp.s[0] = 1;
-    tmp.len = 1;
-    for (int i = 0; x; i++) {
-        if (x & 1) {
-            big_mul(fac, &powtab[i], save);
-            big *swap_save = save;
-            save = fac;
-            fac = swap_save;
-        }
-        x >>= 1;
-    }
-    if (fac != r) {
-        r->len = tmp.len;
-        memcpy(r->s, tmp.s, tmp.len);
-    }
+    buf[ndigits] = 0;
+    *size = ndigits;
+    return minus ? -1 : 1;
 }
 
 // binary64
@@ -322,34 +94,49 @@ static void xfp_double(void *p, uint64_t *sign, uint64_t *expo, uint64_t *frac)
 }
 
 // do dragon4-like algorithm
-static int fmt_fp(FILE *f, void *p, int prec,
+static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
+                  va_list *ap, int *size, int *prec,
                   void (*xfp)(void *, uint64_t *, uint64_t *, uint64_t *))
 {
     static const big pow2_52 = {
         16, "\x4\x5\x0\x3\x5\x9\x9\x6\x2\x7\x3\x7\x0\x4\x9\x6"};
     int dot = 0, e2;
+    double v_d;
     uint64_t sign, expo, frac;
-    xfp(p, &sign, &expo, &frac);
-    fprintf(stderr, "sign = %llu\n", sign);
-    fprintf(stderr, "expo = %llu\n", expo);
-    fprintf(stderr, "frac = %llu\n", frac);
+
+    if (len == 0) {
+        double v = va_arg(*ap, double);
+        xfp(&v, &sign, &expo, &frac);
+    } else {
+        long double v = va_arg(*ap, long double);
+        xfp(&v, &sign, &expo, &frac);
+    }
 
     big_new(bigfrac);
     big_push_u64(&bigfrac, frac);
     big_pad(&bigfrac, pow2_52.len);
     big_add(&bigfrac, &pow2_52);
 
-    big_new(power);
     big_new(result);
     e2 = expo - 1023 - 52;
     if (e2 < 0) {
-        big_pow2(-e2, &power);
-        big_div(&bigfrac, &power, &result, &dot, prec);
+        // 因为 除以的是 2 的幂, 这个大整数最终肯定可以除完, 这时候 div 会返回,
+        // 也就意味着, 计算结束后 prec 可能仍然没有 "满足", 这时候需要在末尾填上
+        // 0. fmp_fp 返回 prec 是还剩余的 0 的个数.
+        big_a_div_pow2(&bigfrac, -e2, &result, &dot, *prec);
+        *prec -= result.len - dot;
     } else {
-        big_pow2(e2, &power);
-        big_mul(&bigfrac, &power, &result);
+        big_a_mul_pow2(&bigfrac, e2, &result);
     }
-    return big_print(f, &result, dot, sign);
+    *prefix = 0;
+    // *prec > 0, 在 *fpbuf 输出之后结果需要补 0. 考虑 1.0, *fpbuf = "1", 显然,
+    // 如果没有小数点, 这个结果就是错误的, 于是小数点刚好落在末尾 时特殊处理.
+    *size = big_tostr(fpbuf, &result, dot);
+    if (*prec > 0 && dot == result.len) {
+        (*fpbuf)[(*size)++] = '.';
+        (*fpbuf)[(*size)] = '\0';
+    }
+    return sign ? -1 : 1;
 }
 
 #define pad_left()          \
@@ -361,108 +148,71 @@ static int fmt_fp(FILE *f, void *p, int prec,
         while (width-- > 0) \
             out(' ');
 
-int vfprintf(FILE *f, const char *format, va_list ap)
+// 下列 label:  |  flgs |       args          |
+// % [parameter] [flags] [width] [.prec] [len] specifier
+// ↑         ↑       ↑       ↑       ↑     ↑        ↑
+// 开始符 参数位置 标志位 字段宽度 精度 长度修饰符 转换说明符
+int vfprintf(FILE *f, const char *format, va_list _ap)
 {
     int n = 0;
-    int flgs;
-    char *ptr = (char *)format;
-    while (*ptr) {
-        if (*ptr != '%') {
-            char *nxt = strchr(ptr, '%');
-            if (!nxt) nxt = ptr + strlen(ptr);
-            int ret = fwrite(ptr, 1, nxt - ptr, f);
+    const char *fmt = (char *)format;
+    va_list ap; // we need a pointer to it
+    va_copy(ap, _ap);
+
+    while (*fmt) {
+        if (*fmt != '%') {
+            char *nxt = strchr(fmt, '%');
+            if (!nxt) nxt = (char *)fmt + strlen(fmt);
+            int ret = fwrite(fmt, 1, nxt - fmt, f);
             if (ret < 0) return n;
             n += ret;
-            ptr += ret;
+            fmt += ret;
             continue;
         }
 
-        flgs = 0;
-    parse_flgs:
-        ptr++;
-        switch (*ptr) {
+        int flgs = 0;
+    flag:
+        fmt++;
+        switch (*fmt) {
         case '#': // 与 o,x或X 一起使用时,非零值前面会分别显示 0,0x或0X
             flgs |= SPECIAL;
-            goto parse_flgs;
+            goto flag;
         case '0': // 在指定填充的数字左边放置0,而不是空格
             if (flgs & ZERO) {
                 break; // 再有就是宽度
             }
             flgs |= ZERO;
-            goto parse_flgs;
+            goto flag;
         case '-': // 在给定的字段宽度内左对齐,默认是右对齐
             flgs |= LEFT;
-            goto parse_flgs;
+            goto flag;
         case ' ': // 如果没有写入任何符号,则在该值前面填空格
             flgs |= SPACE;
-            goto parse_flgs;
+            goto flag;
         case '+': // 如果是正数,则在最前面加一个正号
             flgs |= SIGN;
-            goto parse_flgs;
+            goto flag;
         default:
             break;
         }
-        ptr--;
 
-        int offset = 0;
-        int radix = 10;
-        int len = 0;
-        int width = 0;
-        bool sign = false, upper = false;
-    parse_args:
-        ptr++;
-        switch (*ptr) {
+        // TODO: tmp needs to hold float
+        char *s, prefix[4], tmp[32], *fptmp = 0;
+        int len = 0, prec = 6, width = 0;
+        bool gotdot = false;
+    args:
+        switch (*fmt) {
         case '%':
-            out(*ptr++);
+            out(*fmt++);
             continue;
+        case 'h':
+        case 'H':
+            len--, fmt++;
+            goto args;
         case 'l':
         case 'L':
-            len = 1;
-            if (*(ptr + 1) == 'l' || *(ptr + 1) == 'L') {
-                ptr++;
-                len = 2;
-            }
-            goto parse_args;
-
-        case 'X':
-            upper = true;
-        case 'x':
-            radix = 16;
-            break;
-        case 'o':
-            radix = 8;
-            break;
-        case 'd':
-        case 'i':
-            sign = true;
-        case 'u':
-            radix = 10;
-            break;
-        case 'c':
-            /* Includes the char */
-            if (width > 1) pad_left();
-            out((char)va_arg(ap, int));
-            if (width > 1) pad_right();
-
-            ptr++;
-            continue;
-        case 's': {
-            char *src = (char *)va_arg(ap, char *);
-            if (src == NULL) src = "(null)";
-            for (char *p = src; p && *p; p++)
-                width--;
-            pad_left();
-            while (*src)
-                out(*src++);
-            pad_right();
-            ptr++;
-            continue;
-        }
-        case 'p':
-            radix = 16;
-            len = 2;
-            flgs |= SPECIAL;
-            break;
+            len++, fmt++;
+            goto args;
 
         case '1':
         case '2':
@@ -474,88 +224,99 @@ int vfprintf(FILE *f, const char *format, va_list ap)
         case '8':
         case '9':
         case '0':
-            offset = _int(ptr, &width);
-            ptr += offset - 1;
-            goto parse_args;
+            stoint(&fmt, gotdot ? &prec : &width);
+            goto args;
+        case '.':
+            gotdot = true;
+            fmt++;
+            goto args;
         case '*':
-            width = va_arg(ap, int);
-            if (width < 0) flgs |= LEFT; // 左对齐
-            goto parse_args;
-        }
-
-        uint64_t val;
-        bool minus = false;
-
-        if (len == 0) {
-            val = va_arg(ap, unsigned int);
-            if (sign && (int)val < 0) {
-                minus = true;
-                val = -(int)val; // 符号位将在最后于字符串上添上.
+            if (gotdot) {
+                prec = va_arg(ap, int);
+            } else {
+                width = va_arg(ap, int);
+                if (width < 0) {
+                    flgs |= LEFT;
+                    width = -width;
+                }
             }
-        } else if (len == 1) {
-            val = va_arg(ap, unsigned long);
-            if (sign && (long)val < 0) {
-                minus = true;
-                val = -(long)val;
-            }
-        } else if (len == 2) {
-            val = va_arg(ap, unsigned long long);
-            if (sign && (long long)val < 0) {
-                minus = true;
-                val = -(long long)val;
-            }
+            fmt++;
+            goto args;
+        default:
+            break;
         }
 
-        /* 每一次添加字符('+','-',' '...)都会导致 Siz 减小,
-           这么做在于最后可以直接使用 Siz 来进行填充操作. */
-        int siz = width;
-        char tmp[TMP_BUFFER_SIZE];
-        siz -= fmt_num(tmp, val, radix, upper);
+        int sign;
+        int size;
+        switch (*fmt | 32) {
+        case 'c':
+            if (width > 1) pad_left();
+            out((char)va_arg(ap, int));
+            if (width > 1) pad_right();
+            fmt++;
+            continue;
+        case 's': {
+            char *src = (char *)va_arg(ap, char *);
+            if (src == NULL) src = "(null)";
+            for (char *p = src; p && *p; p++)
+                width--;
+            pad_left();
+            while (*src)
+                out(*src++);
+            pad_right();
+            fmt++;
+            continue;
+        }
+        case 'x':
+        case 'o':
+        case 'd':
+        case 'i':
+        case 'u':
+            sign = fmt_num(s = tmp, prefix, len, *fmt++, flgs, &ap, &size);
+            break;
+        case 'p':
+            // FIXME: in other architectures, not long long
+            sign = fmt_num(s = tmp, prefix, 2, 'x', flgs | SPECIAL, &ap, &size);
+            fmt++;
+            break;
+        case 'g':
+        case 'e':
+        case 'f':
+        case 'a':
+            sign = fmt_fp(&fptmp, prefix, len, *fmt++, flgs, &ap, &size, &prec,
+                          xfp_double);
+            s = fptmp;
+            break;
 
-        char prefix = 0;
-        if (radix == 10) {
-            if (minus && siz--) prefix = '-';
-            /* 以下是正数的情况 */
-            else if (sign && flgs & SIGN && siz--)
-                prefix = '+';
-            else if (flgs & SPACE && siz--)
-                prefix = ' ';
+        default:
+            continue;
         }
 
-        if (flgs & SPECIAL) {
-            siz -= (radix == 16) ? 2 : (radix == 8) ? 1 : 0;
-        }
-
-        if (flgs & ZERO) {
-            if (prefix) out(prefix);
-            /* "0x" "0X" "0" for SPECIAL */
-            if (flgs & SPECIAL && radix != 10) {
-                out('0');
-                if (radix == 16) out(upper ? 'X' : 'x');
-            }
-        }
-
-        /* Padding */
-        if (!(flgs & LEFT) && siz > 0) {
-            char pad = flgs & ZERO ? '0' : ' ';
-            while (siz--)
+        size += strlen(prefix);
+        bool left = flgs & LEFT;
+        char pad = flgs & ZERO ? '0' : ' ';
+        int padsz = fptmp ? width - size - prec : width - size;
+        if (pad == ' ' && !left)
+            while (padsz-- > 0)
                 out(pad);
-        }
-
-        /* Symbol and others after padding if that is not filled with '0' -> "
-         * 0x91d" */
-        if (!(flgs & ZERO)) {
-            if (prefix) out(prefix);
-            /* "0x" "0X" "0" for SPECIAL */
-            if (flgs & SPECIAL && radix != 10) {
+        if (sign < 0)
+            out('-');
+        else if (flgs & SIGN)
+            out('+');
+        else if (flgs & SPACE)
+            out(' ');
+        fputs(prefix, f);
+        if (pad == '0')
+            while (padsz-- > 0)
+                out(pad);
+        fputs(s, f);
+        if (fptmp)
+            while (prec-- > 0)
                 out('0');
-                if (radix == 16) out(upper ? 'X' : 'x');
-            }
-        }
-
-        for (char *p = tmp; *p;)
-            out(*p++);
-        ptr++;
+        if (pad == ' ' && left)
+            while (padsz-- > 0)
+                out(pad);
+        n += size;
     }
 
     return n;
