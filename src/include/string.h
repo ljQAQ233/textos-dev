@@ -97,6 +97,7 @@ void *memchr(const void *__ptr, int __c, size_t __n);
   from memory area `src` to memory area `dest`
 */
 void *memcpy(void *__dest, const void *__src, size_t __n);
+void *memmove(void *__dest, const void *__src, size_t __n);
 
 char *strerror(int __errnum);
 

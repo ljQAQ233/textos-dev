@@ -256,7 +256,6 @@ void *memchr(const void *ptr, int c, size_t n)
         }
         p++;
     }
-
     return 0;
 }
 
@@ -265,10 +264,23 @@ void *memchr(const void *ptr, int c, size_t n)
  */
 void *memcpy(void *dest, const void *src, size_t n)
 {
-    char *p = dest;
+    unsigned char *p = dest;
     while (n--)
-        *p++ = *(char *)src++;
+        *p++ = *(unsigned char *)src++;
+    return dest;
+}
 
+void *memmove(void *dest, const void *src, size_t n)
+{
+    unsigned char *d = dest;
+    unsigned char *s = (unsigned char *)src;
+    if (src < dest) {
+        for (size_t i = 0; i < n; i++)
+            d[n - i - 1] = s[n - i - 1];
+    } else {
+        for (size_t i = 0; i < n; i++)
+            d[i] = s[i];
+    }
     return dest;
 }
 
