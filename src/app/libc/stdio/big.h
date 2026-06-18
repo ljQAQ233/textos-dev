@@ -57,6 +57,22 @@ static void big_trim_zero(big *a)
     a->len -= z;
 }
 
+static void big_mul_small(const big *a, int d, BIGNIL big *r)
+{
+    big_alloc(r, a->len + 1);
+    int carry = 0;
+    for (int i = a->len - 1; i >= 0; i--) {
+        int tmp = a->s[i] * d + carry;
+        r->s[i + 1] = tmp % 10;
+        carry = tmp / 10;
+    }
+    r->s[0] = carry;
+    if (!carry) {
+        memmove(r->s, r->s + 1, a->len);
+        r->len--;
+    }
+}
+
 static int big_tostr(char **buf, big *a, int dot)
 {
     *buf = malloc(a->len + 4);
@@ -151,17 +167,6 @@ static int big_push_u64(BIGNIL big *a, uint64_t num)
     return ndigits;
 }
 
-// TODO: handle nil
-// assume pushing doesn't cause overflow
-static int big_push_str(BIGNIL big *a, char *str)
-{
-    char *s = str;
-    for (; *s; s++)
-        a->s[a->len++] = *s - '0';
-    big_trim_zero(a);
-    return s - str;
-}
-
 // calc a x b -> r
 // assert (a) x (b) != 0
 static void big_mul(big *a, const big *b, BIGNIL big *r)
@@ -243,22 +248,41 @@ static void big_a_mul_pow2(big *a, int e, BIGNIL big *r)
     big_nil(pow);
     big_pow2(e, &pow);
     big_mul(a, &pow, r);
+    big_free(&pow);
 }
 
 static void big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
 {
     big_nil(pow);
     big_pow2(e, &pow);
-    
-    // integer part
-    // TODO: optimize
-    int inte = 0;
-    while (big_ge(a, &pow)) {
-        big_sub(a, &pow);
-        inte++;
+    big_nil(tmp);
+    big_new(mid_big);
+    big_nil(spow);
+
+    // integer part via binary search
+    uint64_t inte = 0;
+    if (big_ge(a, &pow)) {
+        uint64_t lo = 1, hi = 1ULL << 53;
+        while (lo < hi) {
+            uint64_t mid = lo + (hi - lo + 1) / 2;
+            mid_big.len = 0;
+            big_push_u64(&mid_big, mid);
+            big_free(&tmp);
+            big_mul(&mid_big, &pow, &tmp);
+            if (big_ge(a, &tmp))
+                lo = mid;
+            else
+                hi = mid - 1;
+        }
+        inte = lo;
+        mid_big.len = 0;
+        big_push_u64(&mid_big, inte);
+        big_free(&tmp);
+        big_mul(&mid_big, &pow, &tmp);
+        big_sub(a, &tmp);
     }
     *dot = big_push_u64(r, inte);
-    if (a->len == 0) return;
+    if (a->len == 0) goto cleanup;
     big_extend(a, e);
 
     // calc (prec + 1) numbers after the dot
@@ -268,12 +292,20 @@ static void big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
             r->s[r->len++] = 0;
             continue;
         }
-        int current = 0;
-        while (big_ge(a, &pow)) {
-            big_sub(a, &pow);
-            current++;
+        int lo = 1, hi = 9;
+        while (lo < hi) {
+            int mid = (lo + hi + 1) >> 1;
+            big_free(&spow);
+            big_mul_small(&pow, mid, &spow);
+            if (big_ge(a, &spow))
+                lo = mid;
+            else
+                hi = mid - 1;
         }
-        r->s[r->len++] = current;
+        r->s[r->len++] = lo;
+        big_free(&spow);
+        big_mul_small(&pow, lo, &spow);
+        big_sub(a, &spow);
         if (a->len == 0) break;
     }
 
@@ -298,4 +330,9 @@ static void big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
             ++*dot;
         }
     }
+
+cleanup:
+    big_free(&tmp);
+    big_free(&spow);
+    big_free(&pow);
 }
