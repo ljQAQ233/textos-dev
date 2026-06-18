@@ -40,7 +40,6 @@ $(BUILD)/cc.specs:
 	@mkdir -p $(@D)
 	@$(CURDIR)/specs.sh "$(INCLUDE)" "$(BUILD)" "$(LIBRARY)" "/lib/ld-textos.so" > $@
 	# @sudo ln -sf $(BUILD)/ld-textos.so /lib/ld-textos.so
-	@touch .stamp
 
 $(BUILD)/%.a: $(BUILD)/%.o
 	$(call compile-ar,$^,$@)
@@ -50,6 +49,7 @@ $(BUILD)/%.so: $(BUILD)/%.o
 
 $(BUILD)/libc.o: $(OBJS)
 	$(call compile-merge,$^,$@)
+	@touch .stamp
 
 $(BUILD)/libdl.o: linker/libdl.c linker/linker.c
 	$(call compile-obj,$<,$@,-fPIC)
