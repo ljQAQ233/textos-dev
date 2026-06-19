@@ -1,4 +1,5 @@
 #include "stdio.h"
+#include <limits.h>
 #include <malloc.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -6,6 +7,12 @@
 #include <string.h>
 
 #include "big.h"
+
+#if SIZE_MAX == UINT_MAX
+    #define LEN_PTR 0
+#elif SIZE_MAX == ULLONG_MAX
+    #define LEN_PTR 2
+#endif
 
 enum
 {
@@ -278,8 +285,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
             sign = fmt_num(s = tmp, prefix, len, *fmt++, flgs, &ap, &size);
             break;
         case 'p':
-            // FIXME: in other architectures, not long long
-            sign = fmt_num(s = tmp, prefix, 2, 'x', flgs | SPECIAL, &ap, &size);
+            sign = fmt_num(s = tmp, prefix, LEN_PTR, 'x', flgs | SPECIAL, &ap, &size);
             fmt++;
             break;
         case 'g':
