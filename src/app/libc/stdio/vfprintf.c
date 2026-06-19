@@ -1,7 +1,6 @@
 #include "stdio.h"
 #include <limits.h>
 #include <malloc.h>
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -91,35 +90,64 @@ static int fmt_num(char *buf, char *prefix, int len, char spec, int flgs,
     return minus ? -1 : 1;
 }
 
+enum
+{
+    FP_CL_NAN = 0,
+    FP_CL_INF = 1,
+    FP_CL_NORM = 2,
+    FP_CL_SUBNORM = 3,
+    FP_CL_ZERO = 4,
+};
+
 // binary64
-static void xfp_double(void *p, uint64_t *sign, uint64_t *expo, big *frac)
+static void xfp_double(void *p, int *sign, int *expo, big *frac, int *class)
 {
     uint64_t u64 = *(uint64_t *)p;
-    *sign = u64 >> 63;
-    *expo = (u64 >> 52) & 0x7ff;
+    *sign = (int)(u64 >> 63);
+    *expo = (int)((u64 >> 52) & 0x7ff);
     big_push_u64(frac, u64 & 0xfffffffffffff);
+    if (*expo == 0) {
+        *class = big_is_zero(frac) ? FP_CL_ZERO : FP_CL_SUBNORM;
+    } else if (*expo == 0x7ff) {
+        *class = big_is_zero(frac) ? FP_CL_INF : FP_CL_NAN;
+    } else {
+        *class = FP_CL_NORM;
+    }
 }
 
 // do dragon4-like algorithm
 static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
                   va_list *ap, int *size, int *prec,
-                  void (*xfp)(void *, uint64_t *, uint64_t *, big *),
-                  void (*lxfp)(void *, uint64_t *, uint64_t *, big *))
+                  void (*xfp)(void *, int *, int *, big *, int *),
+                  void (*lxfp)(void *, int *, int *, big *, int *))
 {
     static const big pow2_52 = {
         16, "\x4\x5\x0\x3\x5\x9\x9\x6\x2\x7\x3\x7\x0\x4\x9\x6"};
     int dot, e2;
-    double v_d;
-    uint64_t sign, expo;
+    int sign, expo, cl;
+    bool lower = (spec & 32) == 32;
     big_new(bigfrac);
     big_new(result);
     
     if (len == 0) {
         double v = va_arg(*ap, double);
-        xfp(&v, &sign, &expo, &bigfrac);
+        xfp(&v, &sign, &expo, &bigfrac, &cl);
     } else {
         long double v = va_arg(*ap, long double);
-        lxfp(&v, &sign, &expo, &bigfrac);
+        lxfp(&v, &sign, &expo, &bigfrac, &cl);
+    }
+
+    *prefix = 0;
+    if (cl == FP_CL_INF || cl == FP_CL_NAN) {
+        static const char *inf_nan[][2] = {
+            {"NAN", "nan"},
+            {"INF", "inf"},
+        };
+        const char *str = inf_nan[cl][lower];
+        *fpbuf = strdup(str);
+        *size = 3;
+        *prec = 0;
+        goto ret_sign;
     }
 
     // 0x1.DIGITSp[+-]e: e.g. 0x1.23p+0
@@ -131,7 +159,14 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
         int hidsz, hexsz, expsz;
         int e = expo - 1023;
 
-        hexsz = prec <= 0 ? 0 : big_tohex(&hex, &bigfrac, spec & 32, expo, prec);
+        if (cl == FP_CL_ZERO) {
+            *fpbuf = strdup("0p+0");
+            *size = 4;
+            *prec -= 1;
+            if (*prec < 0) *prec = 0;
+            goto ret_sign;
+        }
+        hexsz = prec <= 0 ? 0 : big_tohex(&hex, &bigfrac, lower, expo, prec);
         hid[0] = '1';
         hid[1] = hexsz > 0 || (flgs & SPECIAL) ? '.' : '\0';
         hidsz = hexsz > 0 || (flgs & SPECIAL) ? 2 : 1;
@@ -156,7 +191,7 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
         strcpy(*fpbuf, hid);
         strcpy(*fpbuf + hidsz, hex);
         strcpy(*fpbuf + hidsz + hexsz, exp);
-        return sign ? -1 : 1;
+        goto ret_sign;
     }
 
     if (*prec < 0) *prec = 6;
@@ -176,7 +211,6 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
         // 应该设置成 整数后面
         dot = result.len;
     }
-    *prefix = 0;
     // *prec > 0, 在 *fpbuf 输出之后结果需要补 0. 考虑 1.0, *fpbuf = "1", 显然,
     // 如果没有小数点, 这个结果就是错误的, 于是小数点刚好落在末尾 时特殊处理.
     *size = big_tostr(fpbuf, &result, dot);
@@ -184,6 +218,7 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
         (*fpbuf)[(*size)++] = '.';
         (*fpbuf)[(*size)] = '\0';
     }
+ret_sign:
     return sign ? -1 : 1;
 }
 

@@ -21,6 +21,11 @@ typedef struct
 #define BIGHOLE  8
 #define BIGNIL
 
+static bool big_is_zero(big *a)
+{
+    return !a->len;
+}
+
 static void big_free(big *a)
 {
     if (a->mem) {
