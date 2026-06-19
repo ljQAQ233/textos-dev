@@ -206,7 +206,6 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
             break;
         }
 
-        // TODO: tmp needs to hold float
         char *s, prefix[4], tmp[32], *fptmp = 0;
         int len = 0, prec = 6, width = 0;
         bool gotdot = false;
@@ -260,23 +259,19 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         int size;
         switch (*fmt | 32) {
         case 'c':
-            if (width > 1) pad_left();
-            out((char)va_arg(ap, int));
-            if (width > 1) pad_right();
+            // 实际上, %c / %s 如果遇到 %010c 这样的格式都会被视作无效,
+            // 使用空格输出, 这里不做处理
+            tmp[0] = (char)va_arg(ap, int);
+            tmp[1] = '\0';
+            size = 1, s = tmp;
             fmt++;
-            continue;
-        case 's': {
-            char *src = (char *)va_arg(ap, char *);
-            if (src == NULL) src = "(null)";
-            for (char *p = src; p && *p; p++)
-                width--;
-            pad_left();
-            while (*src)
-                out(*src++);
-            pad_right();
+            break;
+        case 's':
+            s = (char *)va_arg(ap, char *);
+            if (!s) s = "(nil)";
+            size = strlen(s);
             fmt++;
-            continue;
-        }
+            break;
         case 'x':
         case 'o':
         case 'd':
