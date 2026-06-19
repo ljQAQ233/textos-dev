@@ -16,7 +16,7 @@ MAXEXPOBITS = 11
 # do not edit those constants!!!
 MAXEXPONENT = 2 ** MAXEXPOBITS
 EXPOBIAS = 2 ** (MAXEXPOBITS - 1) - 1
-MAXPOW = MAXEXPONENT - EXPOBIAS - MAXFRACBITS
+MAXPOW = max(MAXEXPONENT - EXPOBIAS - MAXFRACBITS, abs(1 - EXPOBIAS - MAXFRACBITS))
 
 if 1:
     print("the length of power of 2:")
@@ -32,7 +32,7 @@ if 1:
 if 1:
     sum = 0
     print("the pow of the pow of 2:")
-    for i in range(0, ceil(log2(MAXPOW))):
+    for i in range(0, ceil(log2(MAXPOW)) + 1):
         r = 2 ** (2 ** i)
         s = str(r)
         sum += len(s)

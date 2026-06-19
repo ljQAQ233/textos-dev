@@ -143,6 +143,8 @@ static void xfp_binary64(void *p, int *sign, int *expo, big *frac, int *class,
         XFP(&_v, ##__VA_ARGS__)
 #endif
 
+// TODO: add "suffix" because of incorrect %A
+
 // do dragon4-like algorithm
 static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
                   va_list *ap, int *size, int *prec)
@@ -182,21 +184,24 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
         prefix[1] = 'X' | (spec & 32);
         prefix[2] = '\0';
         char hid[2], *buf, *hex, exp[32];
-        int hidsz, hexsz, expsz;
-        int e = expo - bias;
+        int m, e, hidsz, hexsz, expsz;
 
         if (cl == FP_CL_ZERO) {
-            *fpbuf = strdup("0p+0");
+            *fpbuf = strdup("0.p+0");
             *size = 4;
             *prec -= 1;
             if (*prec < 0) *prec = 0;
             goto ret_sign;
         }
-        hexsz = prec <= 0 ? 0 : big_tohex(&hex, &bigfrac, lower, expo, prec);
-        hid[0] = '1';
+        hexsz = big_tohex(&hex, &bigfrac, lower, prec);
+        while (hex[hexsz - 1] == '0')
+            hexsz--;
+        m = cl != FP_CL_SUBNORM ? 1 : 0;
+        hid[0] = m + '0';
         hid[1] = hexsz > 0 || (flgs & SPECIAL) ? '.' : '\0';
         hidsz = hexsz > 0 || (flgs & SPECIAL) ? 2 : 1;
 
+        e = cl != FP_CL_SUBNORM ? expo - bias : 1 - bias;
         {
             int ndigits = 0;
             exp[0] = 'p';
@@ -221,10 +226,18 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
     }
 
     if (*prec < 0) *prec = 6;
-    big_pad(&bigfrac, pow2->len);
-    big_add(&bigfrac, pow2);
+    if (cl == FP_CL_ZERO) {
+        // 现在, *prec >= 0
+        *fpbuf = strdup(*prec > 0 ? "0." : "0");
+        *size = *prec > 0 ? 2 : 1;
+        goto ret_sign;
+    }
+    if (cl != FP_CL_SUBNORM) {
+        big_pad(&bigfrac, pow2->len);
+        big_add(&bigfrac, pow2);
+    }
 
-    e2 = expo - bias - fracbits;
+    e2 = cl != FP_CL_SUBNORM ? expo - bias - fracbits : 1 - bias - fracbits;
     if (e2 < 0) {
         // 因为 除以的是 2 的幂, 这个大整数最终肯定可以除完, 这时候 div 会返回,
         // 也就意味着, 计算结束后 prec 可能仍然没有 "满足", 这时候需要在末尾填上
