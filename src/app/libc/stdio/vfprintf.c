@@ -90,7 +90,7 @@ static int fmt_num(char *buf, char *prefix, int len, char spec, int flgs,
     return minus ? -1 : 1;
 }
 
-enum
+enum fp_class
 {
     FP_CL_NAN = 0,
     FP_CL_INF = 1,
@@ -99,9 +99,23 @@ enum
     FP_CL_ZERO = 4,
 };
 
-// binary64
-static void xfp_double(void *p, int *sign, int *expo, big *frac, int *class)
+/**
+ * @brief to acquire infomation about this fp type and values related to `p`
+ *
+ * @param p pointer to the float point number to be outputted
+ * @param sign sign part of `*p`
+ * @param expo exponent part of `*p`
+ * @param frac fraction / significand of `*p`
+ * @param class fp_class
+ * @param bias constant returned as per the document of this type
+ * @param fracbits constant returned as per the document of this type
+ * @param pow2 preprocessed constant of 2 ** fracbits
+ */
+static void xfp_binary64(void *p, int *sign, int *expo, big *frac, int *class,
+                         int *bias, int *fracbits, const big **pow2)
 {
+    static const big pow2_52 = {
+        16, "\x4\x5\x0\x3\x5\x9\x9\x6\x2\x7\x3\x7\x0\x4\x9\x6"};
     uint64_t u64 = *(uint64_t *)p;
     *sign = (int)(u64 >> 63);
     *expo = (int)((u64 >> 52) & 0x7ff);
@@ -113,28 +127,40 @@ static void xfp_double(void *p, int *sign, int *expo, big *frac, int *class)
     } else {
         *class = FP_CL_NORM;
     }
+    *bias = 1023;
+    *fracbits = 52;
+    *pow2 = &pow2_52;
 }
+
+// fallbacks
+#ifndef XFP
+    #define XFP xfp_binary64
+#endif
+
+#ifndef LXFP
+    #define LXFP(v, ...)  \
+        double _v = *(v); \
+        XFP(&_v, ##__VA_ARGS__)
+#endif
 
 // do dragon4-like algorithm
 static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
-                  va_list *ap, int *size, int *prec,
-                  void (*xfp)(void *, int *, int *, big *, int *),
-                  void (*lxfp)(void *, int *, int *, big *, int *))
+                  va_list *ap, int *size, int *prec)
 {
-    static const big pow2_52 = {
-        16, "\x4\x5\x0\x3\x5\x9\x9\x6\x2\x7\x3\x7\x0\x4\x9\x6"};
+    const big *pow2;
     int dot, e2;
     int sign, expo, cl;
+    int bias, fracbits;
     bool lower = (spec & 32) == 32;
     big_new(bigfrac);
     big_new(result);
     
     if (len == 0) {
         double v = va_arg(*ap, double);
-        xfp(&v, &sign, &expo, &bigfrac, &cl);
+        XFP(&v, &sign, &expo, &bigfrac, &cl, &bias, &fracbits, &pow2);
     } else {
         long double v = va_arg(*ap, long double);
-        lxfp(&v, &sign, &expo, &bigfrac, &cl);
+        LXFP(&v, &sign, &expo, &bigfrac, &cl, &bias, &fracbits, &pow2);
     }
 
     *prefix = 0;
@@ -157,7 +183,7 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
         prefix[2] = '\0';
         char hid[2], *buf, *hex, exp[32];
         int hidsz, hexsz, expsz;
-        int e = expo - 1023;
+        int e = expo - bias;
 
         if (cl == FP_CL_ZERO) {
             *fpbuf = strdup("0p+0");
@@ -195,10 +221,10 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
     }
 
     if (*prec < 0) *prec = 6;
-    big_pad(&bigfrac, pow2_52.len);
-    big_add(&bigfrac, &pow2_52);
+    big_pad(&bigfrac, pow2->len);
+    big_add(&bigfrac, pow2);
 
-    e2 = expo - 1023 - 52;
+    e2 = expo - bias - fracbits;
     if (e2 < 0) {
         // 因为 除以的是 2 的幂, 这个大整数最终肯定可以除完, 这时候 div 会返回,
         // 也就意味着, 计算结束后 prec 可能仍然没有 "满足", 这时候需要在末尾填上
@@ -362,8 +388,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         case 'e':
         case 'f':
         case 'a':
-            sign = fmt_fp(&fptmp, prefix, len, *fmt++, flgs, &ap, &size, &prec,
-                          xfp_double, 0);
+            sign = fmt_fp(&fptmp, prefix, len, *fmt++, flgs, &ap, &size, &prec);
             s = fptmp;
             break;
 
