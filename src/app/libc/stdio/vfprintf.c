@@ -100,7 +100,7 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
 {
     static const big pow2_52 = {
         16, "\x4\x5\x0\x3\x5\x9\x9\x6\x2\x7\x3\x7\x0\x4\x9\x6"};
-    int dot = 0, e2;
+    int dot, e2;
     double v_d;
     uint64_t sign, expo, frac;
 
@@ -127,6 +127,9 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
         *prec -= result.len - dot;
     } else {
         big_a_mul_pow2(&bigfrac, e2, &result);
+        // 两个数相乘, 结果 (result) 一定是整数, 这时候 dot 没有设置. dot
+        // 应该设置成 整数后面
+        dot = result.len;
     }
     *prefix = 0;
     // *prec > 0, 在 *fpbuf 输出之后结果需要补 0. 考虑 1.0, *fpbuf = "1", 显然,
