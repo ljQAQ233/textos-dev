@@ -85,6 +85,76 @@ static int big_tostr(char **buf, big *a, int dot)
     return p - *buf - 1;
 }
 
+static int big_tohex(char **buf, big *a, bool lower, uint64_t expo, int *prec)
+{
+    static const char upstr[] = "0123456789ABCDEF";
+    static const char lwstr[] = "0123456789abcdef";
+    const char *letters = !lower ? upstr : lwstr;
+    int len = a->len;
+    if (len == 0) return 0;
+
+    // FIXME: all malloc need error handling
+    char *hex = malloc(len + 1 + 1);
+    int hexsz = 0;
+
+    char *num = malloc(len);
+    memcpy(num, a->s, len);
+    // big int / small int 的长除法, 来模拟短除法. 每运行一轮, num 都除以 16
+    for (int start = 0; start < len;) {
+        int rem = 0;
+        for (int i = start; i < len; i++) {
+            int cur = rem * 10 + num[i];
+            num[i] = cur / 16;
+            rem = cur % 16;
+        }
+        hex[hexsz++] = rem;
+        while (start < len && num[start] == 0)
+            start++;
+    }
+    free(num);
+
+    // 翻转
+    for (int i = 0; i < hexsz / 2; i++) {
+        char tmp = hex[i];
+        hex[i] = hex[hexsz - 1 - i];
+        hex[hexsz - 1 - i] = tmp;
+    }
+    
+    // 约取
+    if (*prec < 0) {
+        *prec = 0;
+    } else if (hexsz > *prec) {
+        if (hex[*prec] > 8)
+            hex[*prec - 1]++;
+        else if (hex[*prec] == 8 && (hex[*prec - 1] & 1))
+            hex[*prec - 1]++;
+        hexsz = *prec;
+        *prec = 0;
+        int carry = 0;
+        for (int i = *prec ; i >= 0 ; i--) {
+            hex[i] += carry;
+            if (hex[i] >= 16) {
+                hex[i] -= 16;
+                carry = 1;
+            } else {
+                carry = 0;
+            }
+        }
+        if (carry) {
+            memmove(hex + 1, hex, hexsz);
+            hex[0] = 1;
+        }
+    } else {
+        *prec -= hexsz;
+    }
+
+    for (int i = 0; i < hexsz; i++)
+        hex[i] = letters[hex[i]];
+    *buf = hex;
+    return hexsz;
+}
+
+
 // test l >= r
 static bool big_ge(const big *l, const big *r)
 {
@@ -151,12 +221,9 @@ static void big_sub(big *a, const big *b)
     big_trim_zero(a);
 }
 
-static int big_push_u64(BIGNIL big *a, uint64_t num)
+static int big_push_u64(big *a, uint64_t num)
 {
-    if (num == 0) {
-        a->s[a->len++] = 0;
-        return 1;
-    }
+    if (num == 0) return 0;
 
     int ndigits = 0;
     for (uint64_t n = num; n; n /= 10)

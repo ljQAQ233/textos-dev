@@ -92,39 +92,77 @@ static int fmt_num(char *buf, char *prefix, int len, char spec, int flgs,
 }
 
 // binary64
-static void xfp_double(void *p, uint64_t *sign, uint64_t *expo, uint64_t *frac)
+static void xfp_double(void *p, uint64_t *sign, uint64_t *expo, big *frac)
 {
     uint64_t u64 = *(uint64_t *)p;
     *sign = u64 >> 63;
     *expo = (u64 >> 52) & 0x7ff;
-    *frac = u64 & 0xfffffffffffff;
+    big_push_u64(frac, u64 & 0xfffffffffffff);
 }
 
 // do dragon4-like algorithm
 static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
                   va_list *ap, int *size, int *prec,
-                  void (*xfp)(void *, uint64_t *, uint64_t *, uint64_t *))
+                  void (*xfp)(void *, uint64_t *, uint64_t *, big *),
+                  void (*lxfp)(void *, uint64_t *, uint64_t *, big *))
 {
     static const big pow2_52 = {
         16, "\x4\x5\x0\x3\x5\x9\x9\x6\x2\x7\x3\x7\x0\x4\x9\x6"};
     int dot, e2;
     double v_d;
-    uint64_t sign, expo, frac;
-
+    uint64_t sign, expo;
+    big_new(bigfrac);
+    big_new(result);
+    
     if (len == 0) {
         double v = va_arg(*ap, double);
-        xfp(&v, &sign, &expo, &frac);
+        xfp(&v, &sign, &expo, &bigfrac);
     } else {
         long double v = va_arg(*ap, long double);
-        xfp(&v, &sign, &expo, &frac);
+        lxfp(&v, &sign, &expo, &bigfrac);
     }
 
-    big_new(bigfrac);
-    big_push_u64(&bigfrac, frac);
+    // 0x1.DIGITSp[+-]e: e.g. 0x1.23p+0
+    if (spec == 'a' || spec == 'A') {
+        prefix[0] = '0';
+        prefix[1] = 'X' | (spec & 32);
+        prefix[2] = '\0';
+        char hid[2], *buf, *hex, exp[32];
+        int hidsz, hexsz, expsz;
+        int e = expo - 1023;
+
+        hexsz = prec <= 0 ? 0 : big_tohex(&hex, &bigfrac, spec & 32, expo, prec);
+        hid[0] = '1';
+        hid[1] = hexsz > 0 || (flgs & SPECIAL) ? '.' : '\0';
+        hidsz = hexsz > 0 || (flgs & SPECIAL) ? 2 : 1;
+
+        {
+            int ndigits = 0;
+            exp[0] = 'p';
+            exp[1] = e >= 0 ? '+' : '-';
+            if (e < 0) e = -e;
+            for (int x = e; x; x /= 10)
+                ndigits++;
+            char *p = exp + 2;
+            for (int i = 0; i < ndigits; i++, e /= 10)
+                p[ndigits - i - 1] = '0' + (e % 10);
+            expsz = ndigits + 2;
+        }
+
+        *size = hidsz;  // 1.
+        *size += hexsz; // DIGITS
+        *size += expsz; // p[+-]e
+        *fpbuf = malloc(*size + 1);
+        strcpy(*fpbuf, hid);
+        strcpy(*fpbuf + hidsz, hex);
+        strcpy(*fpbuf + hidsz + hexsz, exp);
+        return sign ? -1 : 1;
+    }
+
+    if (*prec < 0) *prec = 6;
     big_pad(&bigfrac, pow2_52.len);
     big_add(&bigfrac, &pow2_52);
 
-    big_new(result);
     e2 = expo - 1023 - 52;
     if (e2 < 0) {
         // 因为 除以的是 2 的幂, 这个大整数最终肯定可以除完, 这时候 div 会返回,
@@ -207,7 +245,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         }
 
         char *s, prefix[4], tmp[32], *fptmp = 0;
-        int len = 0, prec = 6, width = 0;
+        int len = 0, prec = -1, width = 0;
         bool gotdot = false;
     args:
         switch (*fmt) {
@@ -261,12 +299,14 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         case 'c':
             // 实际上, %c / %s 如果遇到 %010c 这样的格式都会被视作无效,
             // 使用空格输出, 这里不做处理
+            prefix[0] = 0;
             tmp[0] = (char)va_arg(ap, int);
             tmp[1] = '\0';
             size = 1, s = tmp;
             fmt++;
             break;
         case 's':
+            prefix[0] = 0;
             s = (char *)va_arg(ap, char *);
             if (!s) s = "(nil)";
             size = strlen(s);
@@ -288,7 +328,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         case 'f':
         case 'a':
             sign = fmt_fp(&fptmp, prefix, len, *fmt++, flgs, &ap, &size, &prec,
-                          xfp_double);
+                          xfp_double, 0);
             s = fptmp;
             break;
 
