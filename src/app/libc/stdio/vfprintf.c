@@ -143,12 +143,11 @@ static void xfp_binary64(void *p, int *sign, int *expo, big *frac, int *class,
         XFP(&_v, ##__VA_ARGS__)
 #endif
 
-// TODO: add "suffix" because of incorrect %A
-
 // do dragon4-like algorithm
-static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
-                  va_list *ap, int *size, int *prec)
+static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
+                  int flgs, va_list *ap, int *size, int *prec)
 {
+    // 注意 *size 需要包含 prefix 与 suffix 的长度
     const big *pow2;
     int dot, e2;
     int sign, expo, cl;
@@ -165,7 +164,6 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
         LXFP(&v, &sign, &expo, &bigfrac, &cl, &bias, &fracbits, &pow2);
     }
 
-    *prefix = 0;
     if (cl == FP_CL_INF || cl == FP_CL_NAN) {
         static const char *inf_nan[][2] = {
             {"NAN", "nan"},
@@ -187,15 +185,15 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
         int m, e, hidsz, hexsz, expsz;
 
         if (cl == FP_CL_ZERO) {
-            *fpbuf = strdup("0.p+0");
+            *fpbuf = strdup(*prec > 0 ? "0." : "0");
+            strcpy(suffix, "p+0");
             *size = 4;
-            *prec -= 1;
-            if (*prec < 0) *prec = 0;
             goto ret_sign;
         }
         hexsz = big_tohex(&hex, &bigfrac, lower, prec);
         while (hex[hexsz - 1] == '0')
             hexsz--;
+        hex[hexsz] = '\0';
         m = cl != FP_CL_SUBNORM ? 1 : 0;
         hid[0] = m + '0';
         hid[1] = hexsz > 0 || (flgs & SPECIAL) ? '.' : '\0';
@@ -219,9 +217,9 @@ static int fmt_fp(char **fpbuf, char *prefix, int len, char spec, int flgs,
         *size += hexsz; // DIGITS
         *size += expsz; // p[+-]e
         *fpbuf = malloc(*size + 1);
-        strcpy(*fpbuf, hid);
-        strcpy(*fpbuf + hidsz, hex);
-        strcpy(*fpbuf + hidsz + hexsz, exp);
+        strcpy(*fpbuf, hid);         // hidsz
+        strcpy(*fpbuf + hidsz, hex); // hexsz
+        strcpy(suffix, exp);         // expsz
         goto ret_sign;
     }
 
@@ -318,7 +316,6 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
             break;
         }
 
-        char *s, prefix[4], tmp[32], *fptmp = 0;
         int len = 0, prec = -1, width = 0;
         bool gotdot = false;
     args:
@@ -369,18 +366,19 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
 
         int sign;
         int size;
+        char *s, prefix[4], suffix[32], tmp[32], *fptmp = 0;
+        prefix[0] = suffix[0] = 0;
         switch (*fmt | 32) {
         case 'c':
             // 实际上, %c / %s 如果遇到 %010c 这样的格式都会被视作无效,
             // 使用空格输出, 这里不做处理
-            prefix[0] = 0;
             tmp[0] = (char)va_arg(ap, int);
             tmp[1] = '\0';
             size = 1, s = tmp;
             fmt++;
             break;
         case 's':
-            prefix[0] = 0;
+            prefix[0] = suffix[0] = 0;
             s = (char *)va_arg(ap, char *);
             if (!s) s = "(nil)";
             size = strlen(s);
@@ -401,7 +399,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         case 'e':
         case 'f':
         case 'a':
-            sign = fmt_fp(&fptmp, prefix, len, *fmt++, flgs, &ap, &size, &prec);
+            sign = fmt_fp(&fptmp, prefix, suffix, len, *fmt++, flgs, &ap, &size, &prec);
             s = fptmp;
             break;
 
@@ -430,6 +428,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         if (fptmp)
             while (prec-- > 0)
                 out('0');
+        fputs(suffix, f);
         if (pad == ' ' && left)
             while (padsz-- > 0)
                 out(pad);
