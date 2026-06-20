@@ -155,7 +155,7 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
     bool lower = (spec & 32) == 32;
     big_new(bigfrac);
     big_new(result);
-    
+
     if (len == 0) {
         double v = va_arg(*ap, double);
         XFP(&v, &sign, &expo, &bigfrac, &cl, &bias, &fracbits, &pow2);
@@ -217,9 +217,14 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
         *size += hexsz; // DIGITS
         *size += expsz; // p[+-]e
         *fpbuf = malloc(*size + 1);
+        if (!*fpbuf) {
+            free(hex);
+            goto ret_fail;
+        }
         strcpy(*fpbuf, hid);         // hidsz
         strcpy(*fpbuf + hidsz, hex); // hexsz
         strcpy(suffix, exp);         // expsz
+        free(hex);
         goto ret_sign;
     }
 
@@ -240,10 +245,11 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
         // 因为 除以的是 2 的幂, 这个大整数最终肯定可以除完, 这时候 div 会返回,
         // 也就意味着, 计算结束后 prec 可能仍然没有 "满足", 这时候需要在末尾填上
         // 0. fmp_fp 返回 prec 是还剩余的 0 的个数.
-        big_a_div_pow2(&bigfrac, -e2, &result, &dot, *prec);
+        if (big_a_div_pow2(&bigfrac, -e2, &result, &dot, *prec) < 0)
+            goto ret_fail;
         *prec -= result.len - dot;
     } else {
-        big_a_mul_pow2(&bigfrac, e2, &result);
+        if (big_a_mul_pow2(&bigfrac, e2, &result) < 0) goto ret_fail;
         // 两个数相乘, 结果 (result) 一定是整数, 这时候 dot 没有设置. dot
         // 应该设置成 整数后面
         dot = result.len;
@@ -256,17 +262,17 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
         (*fpbuf)[(*size)] = '\0';
     }
 ret_sign:
+    big_free(&bigfrac);
+    big_free(&result);
     return sign ? -1 : 1;
+ret_fail:
+    *fpbuf = 0;
+    prefix[0] = '\0';
+    suffix[0] = '\0';
+    *size = 0;
+    *prec = 0;
+    return 0;
 }
-
-#define pad_left()          \
-    if (!(flgs & LEFT))     \
-        while (width-- > 0) \
-            out(' ');
-#define pad_right()         \
-    if (flgs & LEFT)        \
-        while (width-- > 0) \
-            out(' ');
 
 // 下列 label:  |  flgs |       args          |
 // % [parameter] [flags] [width] [.prec] [len] specifier
@@ -378,7 +384,6 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
             fmt++;
             break;
         case 's':
-            prefix[0] = suffix[0] = 0;
             s = (char *)va_arg(ap, char *);
             if (!s) s = "(nil)";
             size = strlen(s);
@@ -392,14 +397,21 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
             sign = fmt_num(s = tmp, prefix, len, *fmt++, flgs, &ap, &size);
             break;
         case 'p':
-            sign = fmt_num(s = tmp, prefix, LEN_PTR, 'x', flgs | SPECIAL, &ap, &size);
+            sign = fmt_num(s = tmp, prefix, LEN_PTR, 'x', flgs | SPECIAL, &ap,
+                           &size);
             fmt++;
             break;
         case 'g':
         case 'e':
         case 'f':
         case 'a':
-            sign = fmt_fp(&fptmp, prefix, suffix, len, *fmt++, flgs, &ap, &size, &prec);
+            sign = fmt_fp(&fptmp, prefix, suffix, len, *fmt++, flgs, &ap, &size,
+                          &prec);
+            if (sign == 0) {
+                s = "(fmt_fp ENOMEM)";
+                size = strlen(s);
+                break;
+            }
             s = fptmp;
             break;
 
@@ -432,16 +444,10 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         if (pad == ' ' && left)
             while (padsz-- > 0)
                 out(pad);
+        if (fptmp) free(fptmp);
         n += size;
     }
 
     return n;
 }
 
-#if 0
-void __test_vfprintf_big()
-{
-    double d = 3.1415926535;
-    fmt_fp(stderr, &d, 1000, xfp_double);
-}
-#endif
