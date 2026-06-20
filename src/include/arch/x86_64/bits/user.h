@@ -39,10 +39,13 @@ struct user
     unsigned long u_debugreg[8];
 };
 
-#ifndef PAGE_MASK
-    #define PAGE_MASK (~(PAGESIZE - 1))
-#endif
+#define PAGE_SHIFT 12
+#define PAGE_SIZE  (1 << PAGE_SHIFT)
+#define PAGE_MASK  (PAGE_SIZ - 1)
+#define PAGESIZE   (PAGE_SIZE)
+
 #define NBPG                 PAGESIZE
 #define UPAGES               1
 #define HOST_TEXT_START_ADDR (u.start_code)
 #define HOST_STACK_END_ADDR  (u.start_stack + u.u_ssize * NBPG)
+
