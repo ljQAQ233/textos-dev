@@ -1,7 +1,9 @@
 #include <errno.h>
+#include <sys/user.h> // PAGESIZE
 #include <unistd.h>
 
 long __sysconfs[] = {
+    [_SC_PAGESIZE] = PAGESIZE,
     [_SC_CLK_TCK] = 1000,
 };
 
