@@ -1,9 +1,14 @@
+// this file belongs to vfprintf.c (fmt_fp part)
 #include <assert.h>
 #include <malloc.h>
+#include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
+
+jmp_buf __fmt_fp_nomem;
+
+#define use_retval __attribute__((warn_unused_result))
 
 typedef struct
 {
@@ -36,22 +41,24 @@ static void big_free(big *a)
     }
 }
 
-static void big_alloc(BIGNIL big *a, unsigned len)
+use_retval static int big_alloc(BIGNIL big *a, unsigned len)
 {
     assert(a->mem == NULL);
     a->mem = malloc(len + BIGHOLE);
-    assert(a->mem != NULL);
+    if (!a->mem) return -1;
     a->len = len;
     a->s = a->mem + BIGHOLE;
+    return 0;
 }
 
-static void big_extend(big *a, unsigned addition)
+use_retval static int big_extend(big *a, unsigned addition)
 {
     void *mem = malloc(a->len + addition + BIGHOLE);
     void *s = mem + BIGHOLE;
     memcpy(s, a->s, a->len);
     a->mem = mem;
     a->s = s;
+    return 0;
 }
 
 static void big_trim_zero(big *a)
@@ -63,9 +70,9 @@ static void big_trim_zero(big *a)
     a->len -= z;
 }
 
-static void big_mul_small(const big *a, int d, BIGNIL big *r)
+use_retval static int big_mul_small(const big *a, int d, BIGNIL big *r)
 {
-    big_alloc(r, a->len + 1);
+    if (big_alloc(r, a->len + 1) < 0) return -1;
     int carry = 0;
     for (int i = a->len - 1; i >= 0; i--) {
         int tmp = a->s[i] * d + carry;
@@ -77,11 +84,13 @@ static void big_mul_small(const big *a, int d, BIGNIL big *r)
         memmove(r->s, r->s + 1, a->len);
         r->len--;
     }
+    return 0;
 }
 
-static int big_tostr(char **buf, big *a, int dot)
+use_retval static int big_tostr(char **buf, big *a, int dot)
 {
     *buf = malloc(a->len + 4);
+    if (!*buf) return -1;
     char *p = *buf;
     for (int i = 0; i < a->len; i++) {
         if (dot == i) {
@@ -94,7 +103,7 @@ static int big_tostr(char **buf, big *a, int dot)
     return p - *buf - 1;
 }
 
-static int big_tohex(char **buf, big *a, bool lower, int *prec)
+use_retval static int big_tohex(char **buf, big *a, bool lower, int *prec)
 {
     static const char upstr[] = "0123456789ABCDEF";
     static const char lwstr[] = "0123456789abcdef";
@@ -104,9 +113,14 @@ static int big_tohex(char **buf, big *a, bool lower, int *prec)
 
     // FIXME: all malloc need error handling
     char *hex = malloc(len + 1 + 1);
+    if (!hex) return -1;
     int hexsz = 0;
 
     char *num = malloc(len);
+    if (!num) {
+        free(hex);
+        return -1;
+    }
     memcpy(num, a->s, len);
     // big int / small int 的长除法, 来模拟短除法. 每运行一轮, num 都除以 16
     for (int start = 0; start < len;) {
@@ -244,9 +258,9 @@ static int big_push_u64(big *a, uint64_t num)
 
 // calc a x b -> r
 // assert (a) x (b) != 0
-static void big_mul(big *a, const big *b, BIGNIL big *r)
+use_retval static int big_mul(big *a, const big *b, BIGNIL big *r)
 {
-    big_alloc(r, a->len + b->len);
+    if (big_alloc(r, a->len + b->len) < 0) return -1;
     for (int i = 0; i < r->len; i++)
         r->s[i] = 0;
     for (int i = a->len - 1; i >= 0; i--) {
@@ -259,10 +273,11 @@ static void big_mul(big *a, const big *b, BIGNIL big *r)
         r->s[i] = carry;
     }
     big_trim_zero(r);
+    return 0;
 }
 
 // calc 2 ^ x -> r (tested, resonating with python)
-static void big_pow2(unsigned x, BIGNIL big *r)
+use_retval static int big_pow2(unsigned x, BIGNIL big *r)
 {
     static const big powtab[] = {
         {1, "\x02"},
@@ -351,7 +366,7 @@ static void big_pow2(unsigned x, BIGNIL big *r)
          "\x03\x00\x06\x05\x06"},
     };
     if (x == 0) {
-        big_alloc(r, 1);
+        if (big_alloc(r, 1) < 0) return -1;
         r->s[0] = 1;
         r->len = 1;
     }
@@ -360,7 +375,10 @@ static void big_pow2(unsigned x, BIGNIL big *r)
     big *save = r, *fac = &tmp;
     for (int i = 0; x; i++) {
         if (x & 1) {
-            big_mul(fac, &powtab[i], save);
+            if (big_mul(fac, &powtab[i], save) < 0) {
+                big_free(fac);
+                return -1;
+            }
             big *swap_save = save;
             save = fac;
             fac = swap_save;
@@ -374,20 +392,26 @@ static void big_pow2(unsigned x, BIGNIL big *r)
         r->s = tmp.s;
         r->mem = tmp.mem;
     }
+    return 0;
 }
 
-static void big_a_mul_pow2(big *a, int e, BIGNIL big *r)
+use_retval static int big_a_mul_pow2(big *a, int e, BIGNIL big *r)
 {
     big_nil(pow);
-    big_pow2(e, &pow);
-    big_mul(a, &pow, r);
+    if (big_pow2(e, &pow) < 0) return -1;
+    if (big_mul(a, &pow, r) < 0) {
+        big_free(&pow);
+        return -1;
+    }
     big_free(&pow);
+    return 0;
 }
 
-static void big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
+use_retval static int big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
 {
+    int ret = 0;
     big_nil(pow);
-    big_pow2(e, &pow);
+    if (big_pow2(e, &pow) < 0) goto err;
     big_nil(tmp);
     big_new(mid_big);
     big_nil(spow);
@@ -401,7 +425,7 @@ static void big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
             mid_big.len = 0;
             big_push_u64(&mid_big, mid);
             big_free(&tmp);
-            big_mul(&mid_big, &pow, &tmp);
+            if (big_mul(&mid_big, &pow, &tmp) < 0) goto err;
             if (big_ge(a, &tmp))
                 lo = mid;
             else
@@ -411,12 +435,12 @@ static void big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
         mid_big.len = 0;
         big_push_u64(&mid_big, inte);
         big_free(&tmp);
-        big_mul(&mid_big, &pow, &tmp);
+        if (big_mul(&mid_big, &pow, &tmp) < 0) goto err;
         big_sub(a, &tmp);
     }
     *dot = big_push_u64(r, inte);
     if (a->len == 0) goto cleanup;
-    big_extend(a, e);
+    if (big_extend(a, e) < 0) goto err;
 
     // calc (prec + 1) numbers after the dot
     for (int k = 0; k < prec + 1; k++) {
@@ -429,7 +453,7 @@ static void big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
         while (lo < hi) {
             int mid = (lo + hi + 1) >> 1;
             big_free(&spow);
-            big_mul_small(&pow, mid, &spow);
+            if (big_mul_small(&pow, mid, &spow) < 0) goto err;
             if (big_ge(a, &spow))
                 lo = mid;
             else
@@ -437,7 +461,7 @@ static void big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
         }
         r->s[r->len++] = lo;
         big_free(&spow);
-        big_mul_small(&pow, lo, &spow);
+        if (big_mul_small(&pow, lo, &spow) < 0) goto err;
         big_sub(a, &spow);
         if (a->len == 0) break;
     }
@@ -468,4 +492,8 @@ cleanup:
     big_free(&tmp);
     big_free(&spow);
     big_free(&pow);
+    return ret;
+err:
+    ret = -1;
+    goto cleanup;
 }
