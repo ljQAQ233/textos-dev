@@ -418,9 +418,15 @@ int munmap(void *addr, size_t len)
     return syscall(SYS_munmap, addr, len);
 }
 
-void *brk(void *ptr)
+int brk(void *ptr)
 {
-    return (void *)syscall(SYS_brk, ptr);
+    void *ret = (void *)syscall(SYS_brk, ptr);
+    if (ret < ptr) {
+        errno = ENOMEM;
+        return -1;
+    }
+    return 0;
+}
 }
 
 int getuid()
