@@ -427,6 +427,14 @@ int brk(void *ptr)
     }
     return 0;
 }
+
+void *sbrk(intptr_t inc)
+{
+    void *curr = (void *)syscall(SYS_brk, 0);
+    if (inc && brk(curr + inc) < 0) {
+        return (void *)-1;
+    }
+    return curr;
 }
 
 int getuid()
