@@ -76,6 +76,7 @@ int execvp(const char *__file, char *const __argv[]);
 int execvpe(const char *__file, char *const __argv[], char *const __envp[]);
 
 int brk(void *__ptr);
+void *sbrk(intptr_t __inc);
 
 int getuid();
 int getgid();
