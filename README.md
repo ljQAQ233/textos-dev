@@ -12,7 +12,7 @@
 
 在B站不定期更新, 有错误什么的请提交 **issue / PR** , 谢谢! 学生党, 更新慢.
 
-# Feature
+# feats
 
 - 较为完备的文档
   - [索引](./docs/bili.md)
@@ -49,7 +49,7 @@
   - [x] ELF 动态链接
 
 - 系统调用
-  - [`textos/syscall.h`](src/include/textos/syscall.h)
+  - [`bits/syscall.h`](src/include/bits/syscall.h)
 
 - 设备驱动
   - [ ] event
@@ -64,6 +64,7 @@
     - [x] simple tty driver
     - [x] tty1
     - [x] ttySx
+    - [ ] ptmx
   - [x] RTC 时钟
   - [x] PS/2 键盘
   - [x] IDE 硬盘
@@ -76,7 +77,7 @@
     - [ ] mem
     - [x] zero
     - [x] null 
-    - [ ] full
+    - [x] full
     - [ ] port
   - [x] acpi / lai
   - pci
@@ -121,13 +122,15 @@
 
 ## 关于用户态
 
-- 用户名: `local`
-- 密码: `local`
+- **用户名**: `local`
+- **密码**: `local`
 
 ---
 
-> - app 大多可以直接在 linux 上运行 ~~因为我直接把 linux 的 syscall number 搬过来了~~ (二进制兼容)
-> - app 使用自制的 C library, wrapper 提供 amd64 linux 上的系统调用兼容, 理论上可以实现任意架构 / 系统 wrapper
+> - app 大多可以直接在 linux 上运行
+>   - ~~因为刚开始我直接把 linux 的 syscall number 搬过来了~~ (二进制兼容)
+> - app 使用自制的 C library, wrapper 提供 amd64 linux 上的系统调用兼容
+>   - 但是, 理论上可以实现任意架构 / 系统 wrapper 来原生运行
 
 # 目录结构
 
@@ -138,7 +141,6 @@
 ```
 ├── build/ 构建输出
 ├── docs/  文档
-├── init/  初始配置
 ├── src/   源码
 │   ├── app/      用户程序
 │   │   ├── libc/ 不标准库
