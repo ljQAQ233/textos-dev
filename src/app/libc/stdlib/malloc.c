@@ -1,27 +1,8 @@
-// 这样粗暴的 "堆" 直接集成在 可执行文件中 了 (.bss)
+#include <stddef.h>
 
-#include <errno.h>
-#include <stdint.h>
-#include <malloc.h>
+extern void *__dlm_malloc(size_t);
 
-#define MAXN (1 << 16)
-
-uint8_t heap[MAXN];
-
-void *ap = heap;
-
-void *malloc(size_t siz)
+void *malloc(size_t size)
 {
-    void *ptr = NULL;
-    if (ap + siz < (void *)heap + MAXN) {
-        ptr = ap;
-        ap += siz;
-    } else
-        errno = ENOMEM;
-    return ptr;
-}
-
-void free(void *ptr)
-{
-    // nothing to do
+    return __dlm_malloc(size);
 }
