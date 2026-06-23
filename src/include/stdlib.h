@@ -99,6 +99,11 @@ int mkostemp(char *__template, int __flags);
 int mkstemps(char *__template, int __suffixlen);
 int mkostemps(char *__template, int __suffixlen, int __flags);
 
+void *malloc(size_t __size);
+void free(void *__ptr);
+void *calloc(size_t __nmemb, size_t __size);
+void *realloc(void *__ptr, size_t __size);
+
 __END_DECLS
 
 #endif
