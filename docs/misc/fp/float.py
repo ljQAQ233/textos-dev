@@ -1,22 +1,13 @@
 import sys
-import struct
 from math import log2, ceil
+from bin64 import *
 
 sys.set_int_max_str_digits(10000)
 
 STRIDE = 128
-# x87 fpu
-# MAXFRACBITS = 64
-# MAXEXPOBITS = 14
-
-# double
-MAXFRACBITS = 52
-MAXEXPOBITS = 11
 
 # do not edit those constants!!!
-MAXEXPONENT = 2 ** MAXEXPOBITS
-EXPOBIAS = 2 ** (MAXEXPOBITS - 1) - 1
-MAXPOW = max(MAXEXPONENT - EXPOBIAS - MAXFRACBITS, abs(1 - EXPOBIAS - MAXFRACBITS))
+MAXPOW = max(Emax - Ebias - FRACBITS, abs(1 - Ebias - FRACBITS))
 
 if 1:
     print("the length of power of 2:")
@@ -44,14 +35,6 @@ if 1:
 # python uses binary64 as float
 d: float = 3.1415926
 d: float = 1e300
-
-def xdouble(x):
-    data = struct.pack('>d', x)
-    n = int.from_bytes(data, 'big')
-    S = n >> 63
-    E = (n >> 52) & 0x7ff
-    F = n & 0xFFFFFFFFFFFFF
-    return S, E, F
 
 S, E, F = xdouble(d)
 e = E - 1023

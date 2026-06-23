@@ -26,11 +26,13 @@ int main()
 - E - 11 bit - exponent
 - F - 52 bit - fraction
 
+E 是 **biased exponent**
+
 $$
-(-1)^{S} (1.b_{51}b_{50}\dots b_0)_2 \times 2^{E-2023}
+(-1)^{S} (1.b_{51}b_{50}\dots b_0)_2 \times 2^{E-1023}
 $$
 
-其中, $E - 2023$ 被称为 **exponent bias**
+其中, $1023$ 被称为 **exponent bias**
 
 $$
 (-1)^{\text{S}}\left(1+\sum _{i=1}^{52}b_{52-i}2^{-i}\right)\times 2^{E-1023}
