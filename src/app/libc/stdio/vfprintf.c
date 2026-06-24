@@ -111,7 +111,7 @@ enum fp_class
  * @param fracbits constant returned as per the document of this type
  * @param pow2 preprocessed constant of 2 ** fracbits
  */
-static void xfp_binary64(void *p, int *sign, int *expo, big *frac, int *class,
+void __xfp_binary64(void *p, int *sign, int *expo, big *frac, int *class,
                          int *bias, int *fracbits, const big **pow2)
 {
     static const big pow2_52 = {
@@ -134,7 +134,7 @@ static void xfp_binary64(void *p, int *sign, int *expo, big *frac, int *class,
 
 // fallbacks
 #ifndef XFP
-    #define XFP xfp_binary64
+    #define XFP __xfp_binary64
 #endif
 
 #ifndef LXFP
