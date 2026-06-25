@@ -2,6 +2,12 @@ SRCS := $(wildcard *.c */*.c)
 SRCS := $(filter-out linker/%,$(SRCS))
 SRCS := $(filter-out crt1.c crtn.c crti.c, $(SRCS))
 
+# since we don't have openlibm compiled before libc's building
+# add original source code path here to support fenv.h access
+INCLUDE += \
+	$(SRC_DIR)/app/libm/openlibm/src \
+	$(SRC_DIR)/app/libm/openlibm/include
+
 include $(dir $(lastword $(MAKEFILE_LIST)))/../cmd.mk
 
 BUILD := $(APP_OUTPUT)/$(notdir ${CURDIR})
