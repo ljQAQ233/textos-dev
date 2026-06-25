@@ -47,8 +47,9 @@ $(BUILD)/%.a: $(BUILD)/%.o
 $(BUILD)/%.so: $(BUILD)/%.o
 	$(call compile-so,$^,$@)
 
+# link libgcc directly
 $(BUILD)/libc.o: $(OBJS)
-	$(call compile-merge,$^,$@)
+	$(call compile-merge,$^,$@,-lgcc)
 	@touch .stamp
 
 $(BUILD)/libdl.o: linker/libdl.c linker/linker.c
