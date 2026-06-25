@@ -1,12 +1,11 @@
 // this file belongs to vfprintf.c (fmt_fp part)
 #include <assert.h>
 #include <malloc.h>
-#include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-jmp_buf __fmt_fp_nomem;
+typedef __uint128_t u128;
 
 #define use_retval __attribute__((warn_unused_result))
 
@@ -249,6 +248,19 @@ static int big_push_u64(big *a, uint64_t num)
 
     int ndigits = 0;
     for (uint64_t n = num; n; n /= 10)
+        ndigits++;
+    a->len += ndigits;
+    for (int i = 0; i < ndigits; i++, num /= 10)
+        a->s[a->len - i - 1] = num % 10;
+    return ndigits;
+}
+
+static int big_push_u128(big *a, u128 num)
+{
+    if (num == 0) return 0;
+
+    int ndigits = 0;
+    for (u128 n = num; n; n /= 10)
         ndigits++;
     a->len += ndigits;
     for (int i = 0; i < ndigits; i++, num /= 10)

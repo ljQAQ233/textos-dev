@@ -111,7 +111,7 @@ enum fp_class
  * @param fracbits constant returned as per the document of this type
  * @param pow2 preprocessed constant of 2 ** fracbits
  */
-void __xfp_binary64(void *p, int *sign, int *expo, big *frac, int *class,
+void __xfp_binary64(void *p, int *sign, int *expo, u128 *frac, int *class,
                          int *bias, int *fracbits, const big **pow2)
 {
     static const big pow2_52 = {
@@ -119,11 +119,11 @@ void __xfp_binary64(void *p, int *sign, int *expo, big *frac, int *class,
     uint64_t u64 = *(uint64_t *)p;
     *sign = (int)(u64 >> 63);
     *expo = (int)((u64 >> 52) & 0x7ff);
-    big_push_u64(frac, u64 & 0xfffffffffffff);
+    *frac = u64 & 0xfffffffffffff;
     if (*expo == 0) {
-        *class = big_is_zero(frac) ? FP_CL_ZERO : FP_CL_SUBNORM;
+        *class = !*frac ? FP_CL_ZERO : FP_CL_SUBNORM;
     } else if (*expo == 0x7ff) {
-        *class = big_is_zero(frac) ? FP_CL_INF : FP_CL_NAN;
+        *class = !*frac ? FP_CL_INF : FP_CL_NAN;
     } else {
         *class = FP_CL_NORM;
     }
@@ -149,6 +149,7 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
 {
     // 注意 *size 需要包含 prefix 与 suffix 的长度
     const big *pow2;
+    u128 frac;
     int dot, e2;
     int sign, expo, cl;
     int bias, fracbits;
@@ -158,11 +159,12 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
 
     if (len == 0) {
         double v = va_arg(*ap, double);
-        XFP(&v, &sign, &expo, &bigfrac, &cl, &bias, &fracbits, &pow2);
+        XFP(&v, &sign, &expo, &frac, &cl, &bias, &fracbits, &pow2);
     } else {
         long double v = va_arg(*ap, long double);
-        LXFP(&v, &sign, &expo, &bigfrac, &cl, &bias, &fracbits, &pow2);
+        LXFP(&v, &sign, &expo, &frac, &cl, &bias, &fracbits, &pow2);
     }
+    big_push_u128(&bigfrac, frac);
 
     if (cl == FP_CL_INF || cl == FP_CL_NAN) {
         static const char *inf_nan[][2] = {
