@@ -30,6 +30,12 @@ static bool big_is_zero(big *a)
     return !a->len;
 }
 
+static void big_copy(const big *from, big *to)
+{
+    to->len = from->len;
+    memcpy(to->s, from->s, from->len);
+}
+
 static void big_free(big *a)
 {
     if (a->mem) {
@@ -100,6 +106,61 @@ use_retval static int big_tostr(char **buf, big *a, int dot)
     }
     *p++ = '\0';
     return p - *buf - 1;
+}
+
+use_retval static int big_tou128(u128 *u, int *stikcy, big *a, int *msb)
+{
+    *u = 0;
+    *stikcy = 0;
+    *msb = 0;
+    if (big_is_zero(a)) return 0;
+
+    int len = a->len;
+    char *num = malloc(len);
+    if (!num) return -1;
+    memcpy(num, a->s, len);
+
+    int max_bytes = len * 2;
+    uint8_t *bits = malloc(max_bytes);
+    if (!bits) {
+        free(num);
+        return -1;
+    }
+    memset(bits, 0, max_bytes);
+
+    int total = 0;
+    int start = 0;
+    for (;;) {
+        int rem = 0;
+        for (int i = start; i < len; i++) {
+            int cur = rem * 10 + num[i];
+            num[i] = cur >> 1;
+            rem = cur & 1;
+        }
+        if (rem) bits[total / 8] |= (uint8_t)(128 >> (total % 8));
+        total++;
+        while (start < len && !num[start])
+            start++;
+        if (start == len) break;
+    }
+    free(num);
+
+    *msb = total - 1;
+
+    int n = total < 128 ? total : 128;
+    for (int i = 0; i < n; i++) {
+        int bi = total <= 128 ? i : total - 128 + i;
+        if (bits[bi / 8] & (128 >> (bi % 8)))
+            *u |= (u128)1 << i;
+    }
+    for (int i = 0; total > 128 && i < total - 128; i++) {
+        if (bits[i / 8] & (128 >> (i % 8))) {
+            *stikcy = 1;
+            break;
+        }
+    }
+    free(bits);
+    return 0;
 }
 
 use_retval static int big_tohex(char **buf, big *a, bool lower, int *prec)
@@ -268,9 +329,19 @@ static int big_push_u128(big *a, u128 num)
     return ndigits;
 }
 
+static int big_push_str(big *a, const char *s, int len)
+{
+    // only this case need triming
+    bool trim = !a->len;
+    for (int i = 0; i < len; i++)
+        a->s[a->len++] = *s++ - '0';
+    if (trim) big_trim_zero(a);
+    return len;
+}
+
 // calc a x b -> r
 // assert (a) x (b) != 0
-use_retval static int big_mul(big *a, const big *b, BIGNIL big *r)
+use_retval static int big_mul(const big *a, const big *b, BIGNIL big *r)
 {
     if (big_alloc(r, a->len + b->len) < 0) return -1;
     for (int i = 0; i < r->len; i++)
@@ -285,6 +356,18 @@ use_retval static int big_mul(big *a, const big *b, BIGNIL big *r)
         r->s[i] = carry;
     }
     big_trim_zero(r);
+    return 0;
+}
+
+// square
+use_retval static int big_mul_self(big *a)
+{
+    big_nil(r);
+    if (big_mul(a, a, &r) < 0) return -1;
+    big_free(a);
+    a->len = r.len;
+    a->s = r.s;
+    a->mem = r.mem;
     return 0;
 }
 
@@ -407,6 +490,45 @@ use_retval static int big_pow2(unsigned x, BIGNIL big *r)
     return 0;
 }
 
+// calc a ^ x
+use_retval static int big_pow_fast(unsigned a, unsigned x, BIGNIL big *r)
+{
+    if (x == 0) {
+        if (big_alloc(r, 1) < 0) return -1;
+        r->s[0] = 1;
+        return 0;
+    }
+
+    big_new(base);
+    big_push_u64(&base, a);
+
+    big tmp = {1, "\x01", 0};
+    big *save = r, *fac = &tmp;
+    while (x) {
+        if (x & 1) {
+            if (big_mul(fac, &base, save) < 0) goto fail;
+            big *swap_save = save;
+            save = fac;
+            fac = swap_save;
+            big_free(save);
+        }
+        if (big_mul_self(&base) < 0) goto fail;
+        x >>= 1;
+    }
+    if (fac != r) {
+        // replace r
+        r->len = tmp.len;
+        r->s = tmp.s;
+        r->mem = tmp.mem;
+    }
+    big_free(&base);
+    return 0;
+fail:
+    big_free(&base);
+    big_free(fac);
+    return -1;
+}
+
 use_retval static int big_a_mul_pow2(big *a, int e, BIGNIL big *r)
 {
     big_nil(pow);
@@ -417,6 +539,101 @@ use_retval static int big_a_mul_pow2(big *a, int e, BIGNIL big *r)
     }
     big_free(&pow);
     return 0;
+}
+
+static inline void _big_get_mid(const big *lo, const big *hi, big *mid)
+{
+    big_copy(lo, mid);
+    big_pad(mid, hi->len);
+    big_add(mid, hi);
+
+    int carry = 1;
+    for (int i = mid->len - 1; i >= 0 && carry; i--) {
+        if (mid->s[i] == 9)
+            mid->s[i] = 0;
+        else
+            mid->s[i]++, carry = 0;
+    }
+    if (carry) {
+        *--mid->s = 1;
+        mid->len++;
+    }
+
+    carry = 0;
+    for (int i = 0; i < mid->len; i++) {
+        int cur = carry * 10 + mid->s[i];
+        mid->s[i] = cur / 2;
+        carry = cur & 1;
+    }
+    big_trim_zero(mid);
+}
+
+use_retval static int big_div_rem(big *a, big *b, big *quo, big *rem)
+{
+    big_nil(tmp);
+    big_new(lo);
+    big_new(hi);
+    big_new(mid);
+    char *const mid_s_orig = mid.s;
+
+    if (big_alloc(rem, a->len) < 0) return -1;
+    big_copy(a, rem);
+
+    quo->len = 0;
+    if (!rem->len || !big_ge(rem, b)) return 0;
+
+    // hi = 10^(rem->len - b->len + 1)
+    int qlen = rem->len - b->len + 1;
+    hi.len = qlen + 1;
+    hi.s[0] = 1;
+    for (int i = 1; i < hi.len; i++) hi.s[i] = 0;
+
+    // lo = 1
+    lo.len = 1;
+    lo.s[0] = 1;
+
+    while (!big_ge(&lo, &hi)) {
+        mid.s = mid_s_orig;
+        _big_get_mid(&lo, &hi, &mid);
+
+        // test = mid * b
+        big_free(&tmp);
+        if (big_mul(&mid, b, &tmp) < 0) goto fail;
+
+        if (big_ge(rem, &tmp)) {
+            // lo = mid
+            big_copy(&mid, &lo);
+        } else {
+            // hi = mid - 1
+            big_copy(&mid, &hi);
+            if (hi.len) {
+                int i = hi.len - 1;
+                while (i >= 0 && hi.s[i] == 0) {
+                    hi.s[i] = 9;
+                    i--;
+                }
+                if (i >= 0) hi.s[i]--;
+                big_trim_zero(&hi);
+            }
+        }
+    }
+
+    // quo = lo
+    if (big_alloc(quo, lo.len) < 0) goto fail;
+    big_copy(&lo, quo);
+
+    // rem = a - quo * b
+    big_free(&tmp);
+    if (big_mul(quo, b, &tmp) < 0) goto fail;
+    big_sub(rem, &tmp);
+    big_free(&tmp);
+    return 0;
+
+fail:
+    big_free(&tmp);
+    big_free(rem);
+    big_free(quo);
+    return -1;
 }
 
 use_retval static int big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
@@ -508,4 +725,18 @@ cleanup:
 err:
     ret = -1;
     goto cleanup;
+}
+
+#include <stdio.h>
+
+static void big_debug_dump(big *a)
+{
+    char *buf;
+    if (big_tostr(&buf, a, -1) < 0) {
+        fputs("error converting", stderr);
+        return;
+    }
+    fputs(buf, stderr);
+    fputs("\n", stderr);
+    free(buf);
 }
