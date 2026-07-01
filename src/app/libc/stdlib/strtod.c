@@ -209,7 +209,7 @@ compute:
     // | implicit bit = 1 | fraction | G | R | S |
     // 非正规时多右移 extra_shift, 把隐含位推到 fraction 区
     u128 fgrs = f128;
-    fgrs <<= 127 - msb_f128;
+    if (msb_f128 <= 127) fgrs <<= 127 - msb_f128;
     return packfp(sign, fgrs, biased, sticky, p, endptr);
 }
 
