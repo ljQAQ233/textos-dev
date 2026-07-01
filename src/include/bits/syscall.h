@@ -44,6 +44,7 @@
     _(fcntl, 72)        \
     _(getcwd, 79)       \
     _(chdir, 80)        \
+    _(rename, 82)       \
     _(mkdir, 83)        \
     _(rmdir, 84)        \
     _(unlink, 87)       \

@@ -287,6 +287,11 @@ int pipe(int fds[2])
     return syscall(SYS_pipe, fds);
 }
 
+int rename(const char *oldpath, const char *newpath)
+{
+    return syscall(SYS_rename, oldpath, newpath);
+}
+
 int mknod(const char *path, mode_t mode, dev_t dev)
 {
     return syscall(SYS_mknod, path, mode, dev);
