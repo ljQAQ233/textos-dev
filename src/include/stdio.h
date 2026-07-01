@@ -51,6 +51,7 @@ int vsnprintf(char *__buf, size_t n, const char *__format, va_list __ap);
 void perror(const char *__s);
 
 int remove(const char *__path);
+int rename(const char *__oldpath, const char *__newpath);
 
 int fileno(FILE *__f);
 FILE *fopen(const char *__path, const char *__mode);
