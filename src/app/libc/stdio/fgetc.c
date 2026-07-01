@@ -18,3 +18,6 @@ int fgetc(FILE *f)
 }
 
 __alias(fgetc, getc);
+
+// be lazy if there's no multithread! ≧(´▽｀)≦
+__alias(fgetc, getc_unlocked);
