@@ -33,6 +33,12 @@ int getc(FILE *__f);
 int getchar();
 int ungetc(int __c, FILE *__f);
 
+int getc_unlocked(FILE *stream);
+// TODO
+int getchar_unlocked(void);
+int putc_unlocked(int c, FILE *stream);
+int putchar_unlocked(int c);
+
 ssize_t getline(char **restrict __lineptr, size_t *restrict __n,
                 FILE *restrict __f);
 ssize_t getdelim(char **restrict __lineptr, size_t *restrict __n, int __delim,
