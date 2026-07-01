@@ -44,6 +44,9 @@ unsigned long strtoul(const char *restrict nptr,
 unsigned long long strtoull(const char *restrict nptr,
                             char /* _Nullable */ **restrict __endptr,
                             int __base);
+
+double strtod(const char *__nptr, char **__endptr);
+
 int atoi(const char *__str);
 long atol(const char *__str);
 long long atoll(const char *__str);

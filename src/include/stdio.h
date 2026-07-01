@@ -62,6 +62,10 @@ void clearerr(FILE *__f);
 int feof(FILE *__f);
 int ferror(FILE *__f);
 
+#define flockfile(f)    (void)f
+#define ftrylockfile(f) (void)f
+#define funlockfile(f)  (void)f
+
 // the same as unistd.h
 #define SEEK_SET 0
 #define SEEK_CUR 1
