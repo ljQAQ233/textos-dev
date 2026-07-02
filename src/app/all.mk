@@ -18,6 +18,5 @@ else
 $(TARG): $(OBJS)
 	$(call compile-ld,$^,$@,)
 	@touch .stamp
-	@mkdir -p $(ROOT)/bin
-	@cp $@ $(ROOT)/bin
+	@cp $@ $(ROOT_BIN)
 endif

@@ -8,18 +8,14 @@ include ../config/app.mk
 ELFS := $(patsubst %.c,%,$(wildcard *.c))
 ELFS := $(addprefix ${APP_OUTPUT}/,${ELFS})
 
-MODS := test strace
-LIBS := libc libm lvgl
-
 app: libs mods $(ELFS)
-	@mkdir -p $(ROOT)/bin
-	@cp $(ELFS) $(ROOT)/bin
+	@cp $(ELFS) $(ROOT_BIN)
 
 libs:
-	@for i in ${LIBS}; do cd $$i; make || exit; cd ..; done
+	@for i in ${APP_LIBS}; do cd $$i; make || exit; cd ..; done
 
 mods:
-	@for i in ${MODS}; do cd $$i; make || exit; cd ..; done
+	@for i in ${APP_MODS}; do cd $$i; make || exit; cd ..; done
 
 clean:
 	rm -rf $(APP_OUTPUT)
@@ -27,7 +23,7 @@ clean:
 clean-elfs:
 	rm -f $(ELFS)
 
-$(APP_OUTPUT)/%: %.c $(LIBS:=/.stamp)
+$(APP_OUTPUT)/%: %.c $(APP_LIBS:=/.stamp)
 	@mkdir -p $(@D)
 	@$(CC) -static $(CFLAGS) $< $(addprefix $(APP_OUTPUT)/,$(shell ${UTILS}/fix_libs.sh $<)) -o $@ -L$(APP_OUTPUT)/libc -lc -ldl
 	@echo -e "\033[032m   CC  \033[0m $<"

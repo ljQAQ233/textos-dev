@@ -2,6 +2,10 @@ ROOT = $(OUTPUT)/root
 IMG  = $(OUTPUT)/image.img
 export ROOT IMG
 
+ROOT_BIN = $(ROOT)/bin
+ROOT_LIB = $(ROOT)/lib
+export ROOT_BIN ROOT_LIB
+
 _img_m_:
 	@echo "mounting disk..."
 	mkdir -p $(MNT1)
@@ -58,5 +62,7 @@ MNT2:=$(OUTPUT)/image/$(notdir ${LOOP})p2
 
 $(ROOT):
 	mkdir -p $@
+	mkdir $(ROOT_BIN)
+	mkdir $(ROOT_LIB)
 
 .PHONY: diskmu _img_m_ _img_u_ _img_cp_ _img_new_

@@ -2,12 +2,6 @@ SRCS := $(wildcard *.c */*.c)
 SRCS := $(filter-out linker/%,$(SRCS))
 SRCS := $(filter-out crt1.c crtn.c crti.c, $(SRCS))
 
-# since we don't have openlibm compiled before libc's building
-# add original source code path here to support fenv.h access
-INCLUDE += \
-	$(SRC_DIR)/app/libm/openlibm/src \
-	$(SRC_DIR)/app/libm/openlibm/include
-
 include $(dir $(lastword $(MAKEFILE_LIST)))/../cmd.mk
 
 BUILD := $(APP_OUTPUT)/$(notdir ${CURDIR})
@@ -26,6 +20,11 @@ CFLAGS += -std=c11 -fshort-wchar -ffreestanding \
   -include $(SRC_DIR)/include/bits/compiler.h
 LDFLAGS += -nostdlib
 
+# since we don't have openlibm compiled before libc's building
+# add original source code path here to support fenv.h access
+CFLAGS += -I $(SRC_DIR)/app/libm/openlibm/src
+CFLAGS += -I $(SRC_DIR)/app/libm/openlibm/include
+
 all: $(BUILD)/cc \
 	$(CRTO) \
 	$(BUILD)/libc.a \
@@ -33,8 +32,7 @@ all: $(BUILD)/cc \
 	$(BUILD)/libdl.a \
 	$(BUILD)/libdl.so \
 	$(BUILD)/ld-textos.so
-	@mkdir -p $(ROOT)/lib
-	@cp $(filter %.so,$^) $(ROOT)/lib
+	@cp $(filter %.so,$^) $(ROOT_LIB)
 
 $(BUILD)/cc: \
 	$(BUILD)/cc.specs
