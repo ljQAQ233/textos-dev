@@ -857,11 +857,16 @@ static void *dlsymc(struct dl *h, struct dl *c, const char *str, int exclude_c)
     return lkprec(h, str);
 }
 
-void *dlsym(void *restrict handle, const char *restrict name)
+void *dlsym(void *restrict h, const char *restrict name)
 {
     void *retaddr = __builtin_return_address(0);
     struct dl *caller = byptr((uintptr_t)retaddr);
-    return dlsymc(handle, caller, name, 0);
+    return dlsymc(h, caller, name, 0);
+}
+
+int dlclose(void *h)
+{
+    return 0;
 }
 
 char *dlerror()
