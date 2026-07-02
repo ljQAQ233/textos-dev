@@ -63,6 +63,7 @@ static int fixaddr()
 
 int main(int argc, char *argv[], char *envp[])
 {
+    char **orig_argv = argv;
     char *prog = (char *)getauxval(AT_EXECFN);
     /*
      * is the dynamic loader executed by commands?
@@ -91,13 +92,12 @@ int main(int argc, char *argv[], char *envp[])
     r_addlib(self);
 
 run:
-    asm volatile(
+    asm volatile( // x86_64
         "mov %0, %%rsp\n"
         "jmp *%1\n"
         :
-        : "r"(argv-1), "r"(self->entry)
-        : "memory"
-    );
+        : "r"(orig_argv - 1), "r"(self->entry)
+        : "memory");
 die:
     dprintf(2, "ld.so: %s\n", dlerror());
     return 1;
