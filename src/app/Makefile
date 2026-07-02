@@ -34,3 +34,9 @@ $(APP_OUTPUT)/%: %.c $(APP_LIBS:=/.stamp)
 # - use `make ls` to generate rather than `make path/to/build/ls`!
 %: %.c
 	@$(MAKE) $(APP_OUTPUT)/$@
+
+# 子模块路由：include ../config/subdir.mk 提供 @ 语法
+$(APP_LIBS) $(APP_MODS):
+	$(MAKE) -C $@
+
+include ../config/subdir.mk
