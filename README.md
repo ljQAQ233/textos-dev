@@ -176,6 +176,9 @@
   - `make -C src ovmf-debug`
   - `make -C src ovmf-noopt`
 
+- 子模块用法
+  - ![make/subdir.md](docs/misc/make/subdir.md)
+
 ---
 
 - `QEMU_HOME`
