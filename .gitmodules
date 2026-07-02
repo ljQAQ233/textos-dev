@@ -8,3 +8,6 @@
 [submodule "src/app/libm/openlibm"]
 	path = src/app/libm/openlibm
 	url = https://github.com/JuliaMath/openlibm
+[submodule "src/app/lua/lua"]
+	path = src/app/lua/lua
+	url = https://github.com/lua/lua
