@@ -29,10 +29,11 @@ export BOOT_MODE
 include config/main.mk
 include config/image.mk
 
-all: pre boot kernel app image
+all: boot kernel app image
 
 MODS := kernel boot app
-$(MODS): $(ROOT) include/bits/alltypes.h
+PRETARGETS := $(ROOT) include/bits/alltypes.h
+$(MODS): $(PRETARGETS)
 
 # ovmf
 ovmf:
@@ -82,21 +83,14 @@ clean:
 	find . -iname "*.status_lock" | xargs rm -f
 	rm -rf $(OUTPUT)
 
-.PHONY: all pre image qemu qemug qemubg \
+.PHONY: all image qemu qemug qemubg \
 		clean compile_commands.json $(MODS)
 
-# special target : if the MAKECMDGOALS starts with those targets defined in MODS
-# then it will be seen as calling the submodules and the arguments after it will
-# be passed to the next level makefile. e.g. make -C src app clean-elfs
-# a point worth attention is that although we pass them to the next level, these
-# goals will be also executed after the submodule returns, which leads to an error
-# thrown by this makefile, so %:: provided by GNU is useful to make it shut up :)
-ifneq (,$(filter ${MODS},$(firstword ${MAKECMDGOALS})))
-%::
-	@true
-$(MODS):
-	$(MAKE) -C $@ $(filter-out $@,$(MAKECMDGOALS))
-else
+# 子模块路由：include config/subdir.mk 提供 @ 语法
+#   make -C src app/lua@test      → 递归到 app/lua 执行 test
+#   make -C src @compile_commands → 当前层执行 compile_commands
 $(MODS):
 	$(MAKE) -C $@
-endif
+
+_SUBDIR_PRE  := $(PRETARGETS)
+include config/subdir.mk
