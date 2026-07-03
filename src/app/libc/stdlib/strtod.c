@@ -40,20 +40,22 @@ static bool str_is_nan(const char *s)
 }
 
 // FIXME: might overflow
-static int stoint(const char *p, int *r)
+static int stoint(const char **ptr, int *r)
 {
+    const char *p = *ptr;
     int sign = 1;
-    int accept = 0;
+    int ndigits = 0;
     if (*p == '+' || *p == '-') {
-        sign = ',' - *p++, accept++;
+        sign = ',' - *p++;
     }
     while (*p == '0')
-        p++, accept++;
+        p++, ndigits++;
     *r = 0;
     while ('0' <= *p && *p <= '9')
-        *r = *r * 10 + *p++ - '0', accept++;
+        *r = *r * 10 + *p++ - '0', ndigits++;
     *r *= sign;
-    return accept;
+    *ptr = p;
+    return ndigits;
 }
 
 static inline int xxdigit(int c)
@@ -84,7 +86,7 @@ double __mkfp_binary64(int signbit, u128 frac, int expo)
 
 #define errof() return errno = ERANGE, 0.0
 #define setend(to) \
-    if (endptr) *endptr = (char *)to
+    *endptr = (char *)(to)
 #define errfmt_on(cond)                     \
     if (cond) {                             \
         printf("errfmt!!! %d\n", __LINE__); \
@@ -147,6 +149,7 @@ static double hex2fp(const char *nptr, char **endptr, int sign)
     int elz_first = 0;
     bool gotdot = false;
     u128 f128 = 0;
+    int p_e = 0;
 
     for (;; p++) {
         if (isxdigit(*p)) {
@@ -164,7 +167,6 @@ static double hex2fp(const char *nptr, char **endptr, int sign)
             if (gotdot) goto compute;
             gotdot = true;
         } else {
-            errfmt_on(lz + elz == 0);
             break;
         }
     }
@@ -182,18 +184,19 @@ static double hex2fp(const char *nptr, char **endptr, int sign)
         }
     }
 
+    // exponent:
+    if (*p == 'p' || *p == 'P') {
+        p++;
+        int accept = stoint(&p, &p_e);
+        errfmt_on(accept <= 0);
+    }
+
 compute:
+    errfmt_on(lz + elz == 0);
     if (elz == 0) {
         setend(p);
         return sign < 0 ? -0.0 : 0.0;
     }
-
-    errfmt_on(*p != 'p' && *p != 'P');
-    p++;
-
-    int p_e, accept = stoint(p, &p_e);
-    errfmt_on(accept == 0);
-    p += accept;
 
     assert(elz <= 128 / 4);
     // 计算规范化之后的指数, 对于 HHHH 的内容以及 0.hhhh 的小数 normalize,
@@ -235,19 +238,24 @@ static double dec2fp(const char *nptr, char **endptr, int sign)
 
 exponent:
     if (*p == 'e' || *p == 'E') {
-        int accept = stoint(p + 1, &e_raw);
-        if (accept > 0) p += 1 + accept;
+        p++;
+        int accept = stoint(&p, &e_raw);
+        errfmt_on(accept <= 0);
     }
 
 compute:
+    errfmt_on(lz + inte + frac == 0);
     // FIXME: inte .. frac can exceed the size of M in stack
     if (inte) big_push_str(&M, nptr + lz, inte);
     if (frac) big_push_str(&M, nptr + lz + inte + 1, frac - fbkz);
-    if (big_is_zero(&M)) return sign < 0 ? -0.0 : 0.0;
+    if (big_is_zero(&M)) {
+        setend(p);
+        return sign < 0 ? -0.0 : 0.0;
+    }
     // 先将小数点右移到最右边, 将小数变为整数, 右移 frac 个小数位, 整个数变大,
     // 要使它保持不变, e10 得减. V = M x 10^e10 = (M x 5^e10) << e10, 下面的操作
     // (前面的也是) 大多都是一个操作符一个操作符来的, 写汇编的感觉 (・・；)
-    int e10 = e_raw - frac;
+    int e10 = e_raw - (frac - fbkz);
     int e2;
     u128 fgrs;
     int sticky = 0;
@@ -291,6 +299,7 @@ compute:
 double strtod(const char *nptr, char **endptr)
 {
     int sign = 1;
+    const char *orig_nptr = nptr;
     while (isspace(*nptr))
         nptr++;
     if (*nptr == '+')
@@ -310,7 +319,17 @@ double strtod(const char *nptr, char **endptr)
         return NAN * sign;
     }
 
+    char *end;
+    double fp;
     if (nptr[0] == '0' && (nptr[1] == 'x' || nptr[1] == 'X'))
-        return hex2fp(nptr, endptr, sign);
-    return dec2fp(nptr, endptr, sign);
+        fp = hex2fp(nptr, &end, sign);
+    else
+        fp = dec2fp(nptr, &end, sign);
+    if (endptr) {
+        if (end == nptr)
+            setend(orig_nptr);
+        else
+            setend(end);
+    }
+    return fp;
 }
