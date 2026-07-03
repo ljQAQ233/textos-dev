@@ -15,6 +15,7 @@ size_t fread(void *restrict ptr, size_t size, size_t nmemb, FILE *restrict f)
         memcpy(ptr, f->rpos, bsz);
         ptr += bsz;
         rem -= bsz;
+        f->rpos += bsz;
     }
     while (rem)
     {
