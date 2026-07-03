@@ -46,3 +46,13 @@ void __init_stdio()
     __ofl_add(stdout);
     __ofl_add(stderr);
 }
+    
+void __fini_stdio()
+{
+    FILE *c = __ofl_get(), *n;
+    while (c) {
+        n = c->next;
+        __fclosex(c);
+        c = n;
+    }
+}

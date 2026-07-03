@@ -47,6 +47,7 @@ struct _IO_FILE
 
 FILE *__fdopen(int fd, int flgs);
 int __fmode(const char *mode);
+int __fclosex(FILE *f);
 
 void __ofl_add(FILE *f);
 void __ofl_del(FILE *f);

@@ -51,6 +51,13 @@ void __libc_internal_init()
         init = 1;
     }
 }
+
+__weak_alias(dummy, __fini_stdio);
+
+void __libc_end_fini()
+{
+    __fini_stdio();
+}
     
 int (*__main)(int, const char **, const char **);
 
@@ -68,6 +75,7 @@ void __libc_start_main(long *args, void *main)
     __libc_start_init();
     __main = main;
     int ret = __main(argc, argv, envp);
+    __libc_end_fini();
     exit(ret);
 
     asm("ud2");

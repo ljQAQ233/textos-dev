@@ -2,13 +2,17 @@
 #include <malloc.h>
 #include <unistd.h>
 
-int fclose(FILE *f)
+int __fclosex(FILE *f)
 {
     fflush(f);
-    __ofl_del(f);
     f->close(f);
-    if (f->fl & F_PERM)
-        return 0;
+    if (f->fl & F_PERM) return 0;
     free(f);
     return 0;
+}
+
+int fclose(FILE *f)
+{
+    __ofl_del(f);
+    return __fclosex(f);
 }
