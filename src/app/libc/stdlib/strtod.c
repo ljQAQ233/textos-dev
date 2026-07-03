@@ -129,6 +129,7 @@ static double packfp(int sign, u128 fgrs, int biased, int sticky, // fp info
         setend(current_p);
         return sign < 0 ? -0.0 : 0.0;
     }
+    setend(current_p);
     return MKFP(sign < 0, F, biased);
 }
 
