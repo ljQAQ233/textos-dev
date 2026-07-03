@@ -22,7 +22,10 @@ FILE *__fdopen(int fd, int flgs)
     if (flgs & O_APPEND) fl |= F_APP;
 
     void *area = malloc(BUFSIZ + MAX_UNGETC);
-    if (!area) return 0;
+    if (!area) {
+        free(f);
+        return 0;
+    }
     f->fd = fd;
     f->fl = fl | F_ALOC;
     f->lbf = '\n';
@@ -32,10 +35,8 @@ FILE *__fdopen(int fd, int flgs)
     f->read = __stdio_read;
     f->write = __stdio_write;
     f->close = __stdio_close;
-    if (!f->bufsz) {
-        free(f);
-        return 0;
-    }
+    f->rpos = f->rend = 0;
+    f->wpos = f->wend = f->wbase = 0;
     return f;
 }
 
