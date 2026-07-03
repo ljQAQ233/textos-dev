@@ -12,6 +12,43 @@
 
 [^1]: `HHHH` 代表 一个或者多个 hex 数字.
 
+C 标准 (C11 §6.4.4.2) 中的语法定义如是说:[^2]
+
+```
+hexadecimal-floating-constant:
+    hexadecimal-prefix hexadecimal-fractional-constant binary-exponent-part floating-suffix(opt)
+    hexadecimal-prefix hexadecimal-digit-sequence  binary-exponent-part floating-suffix(opt)
+
+hexadecimal-fractional-constant:
+    hexadecimal-digit-sequence(opt) . hexadecimal-digit-sequence
+    hexadecimal-digit-sequence .
+
+binary-exponent-part:
+    p sign(opt) digit-sequence
+    P sign(opt) digit-sequence
+
+hexadecimal-prefix: 0x | 0X
+hexadecimal-digit-sequence: hex-digit+
+```
+
+[^2]: 需要考证, 来自网络
+
+即至少满足以下之一:
+
+- 有 `.` 和尾随 hex 数字 (eg `0x.1P0`, `0xA.BP0`)
+- 有 hex 数字后跟 `.` (eg `0x1.P0`)
+- 纯整数 hex 数字后跟指数 (eg `0x1P0`)
+
+对比例，十进制浮点第一产生式: `exponent-part(opt)`  指数可选; 十六进制: `binary-exponent-part`  无 `opt` → 指数**必选**。
+
+但 glibc 的 `strtod` **会扩展**, 缺 `p`/`P` 时等效于 `p0`:
+
+```
+0x1.  → 0x1p+0
+0x.f  → 0x1.ep-1
+0x.1  → 0x1p-4
+```
+
 如果 这个数字不能被一个 浮点类型 所表示, 会在十六进制中采取特定的截断方式. 我本以为这个方式很特别, <strike>比如有规律地采样等等, 然而很简单</strike>
 
 要使得这个方式获得的小数最逼近 `nptr`, 高位不能舍弃, 也就要求 **高位截断**
