@@ -10,8 +10,8 @@ size_t fread(void *restrict ptr, size_t size, size_t nmemb, FILE *restrict f)
     if (f->rpos != f->rend)
     {
         size_t bsz = f->rend - f->rpos;
-        if (bsz > size)
-            bsz = size;
+        if (bsz > len)
+            bsz = len;
         memcpy(ptr, f->rpos, bsz);
         ptr += bsz;
         rem -= bsz;
