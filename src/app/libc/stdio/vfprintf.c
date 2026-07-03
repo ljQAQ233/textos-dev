@@ -372,7 +372,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
             break;
         }
 
-        int sign;
+        int sign = 0;
         int size;
         char *s, prefix[4], suffix[32], tmp[32], *fptmp = 0;
         prefix[0] = suffix[0] = 0;
