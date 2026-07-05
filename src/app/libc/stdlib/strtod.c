@@ -119,7 +119,7 @@ static double packfp(int sign, u128 fgrs, int biased, int sticky, // fp info
     // 1 1 * > 0.5 +
     // 1 0 1 > 0.5 +
     if (G && (R || S || sticky || (F & 1))) F++;
-    if (F >= (u128)1 << FRACBITS) F >>= 1, biased++;
+    if (F >= (u128)1 << FRACBITS) F = 0, biased++;
     if (biased >= (1 << EXPOBITS)) {
         errno = ERANGE;
         setend(current_p);
