@@ -433,6 +433,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         }
 
         size += strlen(prefix);
+        size += strlen(suffix);
         bool left = flgs & LEFT;
         char pad = flgs & ZERO ? '0' : ' ';
         int padsz = fptmp ? width - size - prec : width - size;
