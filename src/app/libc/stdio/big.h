@@ -642,9 +642,88 @@ fail:
     return -1;
 }
 
-use_retval static int big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int prec)
+// 0, 1, ... [from, ...
+static int big_dec_round(big *r, int *dot, int from, bool dry)
 {
+    if (from >= r->len) return 0;
+    assert(!big_is_zero(r));
+    assert(from >= 0);
+    int carry = 0;
+    if (r->s[from] > 5)
+        carry = 1;
+    else if (from && r->s[from] == 5 && (r->s[from - 1] & 1))
+        carry = 1;
+    for (int j = 0; j < from; j++) {
+        int curr = r->s[from - j - 1] + carry;
+        if (curr >= 10) {
+            curr -= 10;
+            carry = 1;
+        } else
+            carry = 0;
+        if (!dry) r->s[from - j - 1] = curr;
+    }
+    if (!dry) {
+        if (carry) {
+            *--r->s = 1;
+            ++r->len;
+            ++(*dot);
+        }
+        for (int j = from; j < r->len; j++)
+            r->s[j] = 0;
+        while (!r->s[r->len - 1] && r->len > *dot)
+            r->len--;
+    }
+    return carry;
+}
+
+static int big_first_sig(const big *a)
+{
+    assert(!big_is_zero(a));
+    int first_sig = 0;
+    while (!a->s[first_sig])
+        first_sig++;
+    return first_sig;
+}
+
+static int big_sci_get_X(big *a, int dot, int prec)
+{
+    int first_sig = big_first_sig(a);
+    int e10 = dot - (first_sig + 1);
+    int erupt = big_dec_round(a, &dot, first_sig + prec, true);
+    return e10 + erupt;
+}
+
+// assert !big_is_zero(a)
+static int big_sci_converter(big *a, int *dot, int *prec)
+{
+    int first_sig = big_first_sig(a);
+    int e10 = *dot - (first_sig + 1);
+    a->s += first_sig;
+    a->len -= first_sig;
+    *dot = 1;
+    // 9.9 x 10^-2 -> 10 x 10^-2 -> 1 x 10^-1
+    if (big_dec_round(a, dot, *prec, false)) {
+        *dot = 1;
+        e10++;
+    }
+    *prec -= a->len;
+    assert(a->len > 0);
+    return e10;
+}
+
+static int big_fixed_converter(big *a, int *dot, int *prec)
+{
+    big_dec_round(a, dot, *dot + *prec, false);
+    *prec -= a->len - *dot;
+    return 0;
+}
+
+use_retval static int big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot,
+                                     int prec, bool need_sigprec)
+{
+    assert(need_sigprec ? prec > 0 : 1);
     int ret = 0;
+    bool need_rnd = false;
     big_nil(pow);
     if (big_pow2(e, &pow) < 0) goto err;
     big_nil(tmp);
@@ -677,11 +756,14 @@ use_retval static int big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int
     if (big_is_zero(a)) goto cleanup;
     if (big_extend(a, e) < 0) goto err;
 
-    // calc (prec + 1) numbers after the dot
-    for (int k = 0; k < prec + 1; k++) {
+    // 计算小数点后 prec + 1 位, 或者计算有效数字 prec + 1 位
+    // (need_sigprec 时) 二者取最大
+    for (int k = 0, nsig = *dot;; k++) {
+        if ((need_sigprec ? nsig >= prec + 1 : true) && k >= prec + 1) break;
         a->s[a->len++] = 0;
         if (!big_ge(a, &pow)) {
             r->s[r->len++] = 0;
+            if (nsig > 0) nsig++;
             continue;
         }
         int lo = 1, hi = 9;
@@ -694,33 +776,12 @@ use_retval static int big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int
             else
                 hi = mid - 1;
         }
+        if (lo != 0 || nsig > 0) nsig++;
         r->s[r->len++] = lo;
         big_free(&spow);
         if (big_mul_small(&pow, lo, &spow) < 0) goto err;
         big_sub(a, &spow);
         if (a->len == 0) break;
-    }
-
-    if (r->len - *dot == prec + 1) {
-        int carry = 0;
-        if (r->s[r->len - 1] > 5)
-            carry = 1;
-        else if (r->s[r->len - 1] == 5 && (r->s[r->len - 2] & 1))
-            carry = 1;
-        r->len--;
-        for (int j = 0; j < r->len; j++) {
-            r->s[r->len - j - 1] += carry;
-            if (r->s[r->len - j - 1] >= 10) {
-                r->s[r->len - j - 1] -= 10;
-                carry = 1;
-            } else
-                carry = 0;
-        }
-        if (carry) {
-            *--r->s = 1;
-            ++r->len;
-            ++*dot;
-        }
     }
 
 cleanup:
