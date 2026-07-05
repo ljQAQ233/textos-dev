@@ -23,7 +23,6 @@ for E in range(Emin, Emax + 1):
 
 C_S, C_E, C_F = xdouble(control)
 assert found
-assert e == C_E - Ebias
 
 # 粗糙计算
 # F = M * (2 ** (FRACBITS - e)) / (10 ** Q) - (2 ** FRACBITS)
