@@ -97,11 +97,9 @@ use_retval static int big_tostr(char **buf, const big *a, int dot)
     *buf = malloc(a->len + 4);
     if (!*buf) return -1;
     char *p = *buf;
+    if (dot == 0) *p++ = '0';
     for (int i = 0; i < a->len; i++) {
-        if (dot == i) {
-            if (i == 0) *p++ = '0';
-            *p++ = '.';
-        }
+        if (dot == i) *p++ = '.';
         *p++ = ('0' + a->s[i]);
     }
     *p++ = '\0';
