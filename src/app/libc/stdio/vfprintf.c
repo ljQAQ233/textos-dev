@@ -143,6 +143,25 @@ void __xfp_binary64(void *p, int *sign, int *expo, u128 *frac, int *class,
         XFP(&_v, ##__VA_ARGS__)
 #endif
 
+static int fmt_exp(char *exp, char type, int e, int wid)
+{
+    int ndigits = 0;
+    exp[0] = type;
+    exp[1] = e >= 0 ? '+' : '-';
+    if (e < 0) e = -e;
+    if (e != 0)
+        for (int x = e; x; x /= 10)
+            ndigits++;
+    if (ndigits < wid)
+        ndigits = wid;
+    char *p = exp + 2;
+    for (int i = 0; i < ndigits; i++, e /= 10)
+        p[ndigits - i - 1] = '0' + (e % 10);
+    int expsz = ndigits + 2;
+    exp[expsz] = '\0';
+    return expsz;
+}
+
 // do dragon4-like algorithm
 static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
                   int flgs, va_list *ap, int *size, int *prec)
@@ -153,7 +172,9 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
     int dot, e2;
     int sign, expo, cl;
     int bias, fracbits;
-    bool lower = (spec & 32) == 32;
+    char lwmsk = spec & 32;
+    bool lower = !!lwmsk;
+    spec |= 32;
     big_new(bigfrac);
     big_new(result);
 
@@ -179,12 +200,14 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
     }
 
     // 0x1.DIGITSp[+-]e: e.g. 0x1.23p+0
-    if (spec == 'a' || spec == 'A') {
+    if (spec == 'a') {
         prefix[0] = '0';
-        prefix[1] = 'X' | (spec & 32);
+        prefix[1] = 'X' | lwmsk;
         prefix[2] = '\0';
-        char hid[2], *buf, *hex, exp[32];
+        char dummy[2];
+        char hid[2], *buf, *hex = dummy, exp[32];
         int m, e, hidsz, hexsz, expsz;
+        int erupt;
 
         if (cl == FP_CL_ZERO) {
             *fpbuf = strdup(*prec > 0 ? "0." : "0");
@@ -192,28 +215,15 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
             *size = 4;
             goto ret_sign;
         }
-        hexsz = big_tohex(&hex, &bigfrac, lower, prec);
-        while (hex[hexsz - 1] == '0')
-            hexsz--;
-        hex[hexsz] = '\0';
+        hexsz = big_tohex(&hex, &bigfrac, lower, fracbits / 4, prec, &erupt);
         m = cl != FP_CL_SUBNORM ? 1 : 0;
+        if (erupt) m += 1;
         hid[0] = m + '0';
         hid[1] = hexsz > 0 || (flgs & SPECIAL) ? '.' : '\0';
         hidsz = hexsz > 0 || (flgs & SPECIAL) ? 2 : 1;
 
         e = cl != FP_CL_SUBNORM ? expo - bias : 1 - bias;
-        {
-            int ndigits = 0;
-            exp[0] = 'p';
-            exp[1] = e >= 0 ? '+' : '-';
-            if (e < 0) e = -e;
-            for (int x = e; x; x /= 10)
-                ndigits++;
-            char *p = exp + 2;
-            for (int i = 0; i < ndigits; i++, e /= 10)
-                p[ndigits - i - 1] = '0' + (e % 10);
-            expsz = ndigits + 2;
-        }
+        expsz = fmt_exp(exp, 'p', e, 1);
 
         *size = hidsz;  // 1.
         *size += hexsz; // DIGITS
@@ -226,7 +236,7 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
         strcpy(*fpbuf, hid);         // hidsz
         strcpy(*fpbuf + hidsz, hex); // hexsz
         strcpy(suffix, exp);         // expsz
-        free(hex);
+        if (hexsz) free(hex);
         goto ret_sign;
     }
 
@@ -235,6 +245,7 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
         // 现在, *prec >= 0
         *fpbuf = strdup(*prec > 0 ? "0." : "0");
         *size = *prec > 0 ? 2 : 1;
+        fmt_exp(suffix, 'E' | lwmsk, 0, 2);
         goto ret_sign;
     }
     if (cl != FP_CL_SUBNORM) {

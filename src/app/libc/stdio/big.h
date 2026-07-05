@@ -163,7 +163,8 @@ use_retval static int big_tou128(u128 *u, int *stikcy, big *a, int *msb)
     return 0;
 }
 
-use_retval static int big_tohex(char **buf, big *a, bool lower, int *prec)
+use_retval static int big_tohex(char **buf, big *a, bool lower, int hexcnt,
+                                int *prec, int *erupt)
 {
     static const char upstr[] = "0123456789ABCDEF";
     static const char lwstr[] = "0123456789abcdef";
@@ -171,7 +172,6 @@ use_retval static int big_tohex(char **buf, big *a, bool lower, int *prec)
     int len = a->len;
     if (len == 0) return 0;
 
-    // FIXME: all malloc need error handling
     char *hex = malloc(len + 1 + 1);
     if (!hex) return -1;
     int hexsz = 0;
@@ -202,19 +202,27 @@ use_retval static int big_tohex(char **buf, big *a, bool lower, int *prec)
         hex[i] = hex[hexsz - 1 - i];
         hex[hexsz - 1 - i] = tmp;
     }
+    // 向下对齐
+    if (hexcnt > hexsz) {
+        int zeropad = hexcnt - hexsz;
+        hex = realloc(hex, hexcnt);
+        memmove(hex + zeropad, hex, hexsz);
+        hexsz += zeropad;
+        while (--zeropad >= 0)
+            hex[zeropad] = 0;
+    }
 
     // 约取
+    *erupt = 0;
     if (*prec < 0) {
+        while (hex[hexsz - 1] == 0)
+            hexsz--;
         *prec = 0;
     } else if (hexsz > *prec) {
-        if (hex[*prec] > 8)
-            hex[*prec - 1]++;
-        else if (hex[*prec] == 8 && (hex[*prec - 1] & 1))
-            hex[*prec - 1]++;
-        hexsz = *prec;
-        *prec = 0;
         int carry = 0;
-        for (int i = *prec; i >= 0; i--) {
+        if (hex[*prec] > 8 || (hex[*prec] == 8 && (hex[*prec - 1] & 1)))
+            carry = 1;
+        for (int i = *prec - 1; i >= 0; i--) {
             hex[i] += carry;
             if (hex[i] >= 16) {
                 hex[i] -= 16;
@@ -223,10 +231,9 @@ use_retval static int big_tohex(char **buf, big *a, bool lower, int *prec)
                 carry = 0;
             }
         }
-        if (carry) {
-            memmove(hex + 1, hex, hexsz);
-            hex[0] = 1;
-        }
+        hexsz = *prec;
+        *prec = 0;
+        *erupt = carry;
     } else {
         *prec -= hexsz;
     }
@@ -234,6 +241,7 @@ use_retval static int big_tohex(char **buf, big *a, bool lower, int *prec)
     for (int i = 0; i < hexsz; i++)
         hex[i] = letters[hex[i]];
     *buf = hex;
+    hex[hexsz] = '\0';
     return hexsz;
 }
 
