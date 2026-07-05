@@ -418,6 +418,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         case 'e':
         case 'f':
         case 'a':
+            if (prec < 0 && gotdot) prec = 0;
             sign = fmt_fp(&fptmp, prefix, suffix, len, *fmt++, flgs, &ap, &size,
                           &prec);
             if (sign == 0) {
