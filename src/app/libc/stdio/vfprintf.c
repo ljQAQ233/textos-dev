@@ -253,20 +253,34 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
         big_add(&bigfrac, pow2);
     }
 
+    int P = *prec;
+    if (P == 0) P = 1;
+
     e2 = cl != FP_CL_SUBNORM ? expo - bias - fracbits : 1 - bias - fracbits;
     if (e2 < 0) {
-        // 因为 除以的是 2 的幂, 这个大整数最终肯定可以除完, 这时候 div 会返回,
-        // 也就意味着, 计算结束后 prec 可能仍然没有 "满足", 这时候需要在末尾填上
-        // 0. fmp_fp 返回 prec 是还剩余的 0 的个数.
-        if (big_a_div_pow2(&bigfrac, -e2, &result, &dot, *prec) < 0)
+        if (big_a_div_pow2(&bigfrac, -e2, &result, &dot, P, spec != 'f') < 0)
             goto ret_fail;
-        *prec -= result.len - dot;
     } else {
         if (big_a_mul_pow2(&bigfrac, e2, &result) < 0) goto ret_fail;
         // 两个数相乘, 结果 (result) 一定是整数, 这时候 dot 没有设置. dot
         // 应该设置成 整数后面
         dot = result.len;
     }
+    assert(!big_is_zero(&result));
+
+    if (spec != 'f') {
+        int X = big_sci_get_X(&result, dot, P);
+        if (spec == 'e' || P <= X || X < -4) {
+            big_sci_converter(&result, &dot, prec);
+            fmt_exp(suffix, 'E' | lwmsk, X, 2);
+            goto tostr;
+        }
+        *prec = P - (X + 1);
+    }
+    big_fixed_converter(&result, &dot, prec);
+
+tostr:
+    if (spec == 'g' && !(flgs & SPECIAL)) *prec = 0;
     // *prec > 0, 在 *fpbuf 输出之后结果需要补 0. 考虑 1.0, *fpbuf = "1", 显然,
     // 如果没有小数点, 这个结果就是错误的, 于是小数点刚好落在末尾 时特殊处理.
     *size = big_tostr(fpbuf, &result, dot);
