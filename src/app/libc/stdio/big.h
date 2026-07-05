@@ -25,7 +25,7 @@ typedef struct
 #define BIGHOLE 8
 #define BIGNIL
 
-static bool big_is_zero(big *a)
+static bool big_is_zero(const big *a)
 {
     return !a->len;
 }
@@ -92,7 +92,7 @@ use_retval static int big_mul_small(const big *a, int d, BIGNIL big *r)
     return 0;
 }
 
-use_retval static int big_tostr(char **buf, big *a, int dot)
+use_retval static int big_tostr(char **buf, const big *a, int dot)
 {
     *buf = malloc(a->len + 4);
     if (!*buf) return -1;
@@ -668,7 +668,7 @@ use_retval static int big_a_div_pow2(big *a, int e, BIGNIL big *r, int *dot, int
         big_sub(a, &tmp);
     }
     *dot = big_push_u64(r, inte);
-    if (a->len == 0) goto cleanup;
+    if (big_is_zero(a)) goto cleanup;
     if (big_extend(a, e) < 0) goto err;
 
     // calc (prec + 1) numbers after the dot
