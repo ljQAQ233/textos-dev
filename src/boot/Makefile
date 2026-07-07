@@ -1,10 +1,25 @@
 SHELL := bash
 
+INCLUDE := $(SRC_DIR)/include \
+		   $(SRC_DIR)/include/boot
+FLAGS  :=
+CFLAGS := $(addprefix -I,${INCLUDE})
+
+# boot version
+VERSION := $(shell LANG= date +"%Y%m%d")
+
+export FLAGS CFLAGS VERSION
+
+# === edk2-specified ===
+PROJ := SigmaBootPkg
+DSC  := SigmaBootPkg/Boot.dsc
+
+export PROJ DSC
+
 # GCC5 的配置 对于高版本编译器 依然可以 "兼容";
 # NOTE: 不要修改这段代码!!!
 TOOLCHAIN := GCC5
 
-include ../config/boot.mk
 # 每一个 BOOT_MODE 都对应一个 .mk 文件
 # 每一个 .mk 都必须实现 build, update, clean, prepare 目标
 # 分别对应 正式构建, 检测有无改动并触发构建, 清理, 构建前准备

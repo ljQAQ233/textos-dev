@@ -1,9 +1,35 @@
 SHELL  := bash
 OUTPUT := $(KERNEL_OUTPUT)
 
-ARCH_DIR = arch/$(ARCH)
-
 export OUTPUT ARCH_DIR
+
+# Include path
+INCLUDE := \
+  $(SRC_DIR)/include \
+  $(SRC_DIR)/include/textos/klib \
+  $(SRC_DIR)/include/arch/$(ARCH) \
+  $(abspath arch/$(ARCH))
+
+CFLAGS := \
+  -static -nostdlib -nostdinc -g -Wall \
+  -std=c11 -O0 -fshort-wchar -ffreestanding \
+  -fno-builtin -fno-stack-check -fno-stack-protector \
+  -mcmodel=large -mno-red-zone \
+  -include $(SRC_DIR)/include/textos/textos.h \
+  -include $(KERNEL_OUTPUT)/autogen.h \
+  $(addprefix -I,${INCLUDE})
+
+CFLAGS += -D__TEXTOS_DEBUG
+
+AFLAGS := \
+  -g
+
+LDFLAGS := \
+  -static -nostdlib -z noexecstack \
+  -no-relax -z max-page-size=0x1000 \
+  -Map=$(KERNEL_OUTPUT)/system.map
+
+ARCH_DIR = arch/$(ARCH)
 
 SRCS := \
   init.c main.c debug.c acpi.c apic.c dev.c \
@@ -24,8 +50,6 @@ include $(ARCH_DIR)/arch.mk
 OBJS := $(SRCS:.c=.c.o)
 OBJS := $(OBJS:.S=.S.o)
 OBJS := $(addprefix ${OUTPUT}/,${OBJS})
-
-include ../config/kernel.mk
 
 kernel: $(KERNEL_OUTPUT) autogen $(KERNEL_EXEC)
 	@cp $(KERNEL_EXEC) $(ROOT)

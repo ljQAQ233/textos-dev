@@ -1,6 +1,7 @@
 ROOT = $(OUTPUT)/root
+INST = $(OUTPUT)/inst
 IMG  = $(OUTPUT)/image.img
-export ROOT IMG
+export ROOT INST IMG
 
 ROOT_BIN = $(ROOT)/bin
 ROOT_LIB = $(ROOT)/lib

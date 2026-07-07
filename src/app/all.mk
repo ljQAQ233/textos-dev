@@ -20,3 +20,7 @@ $(TARG): $(OBJS)
 	@touch .stamp
 	@cp $@ $(ROOT_BIN)
 endif
+
+all: $(TARG)
+
+.PHONY: all

@@ -9,10 +9,7 @@ LUA_MAKE := \
   MYLIBS="-ldl"
 
 all:
-	@mkdir -p $(@D)
-	@cd lua && $(LUA_MAKE) clean
 	@cd lua && $(LUA_MAKE) all
-	@cp lua/lua $@
 
 test:
 	cd lua/testes/libs && $(LUA_MAKE) -j

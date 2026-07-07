@@ -26,8 +26,8 @@ BOOT_MODE ?= efi
 
 export BOOT_MODE
 
-include config/main.mk
-include config/image.mk
+include make/xmain.mk
+include make/ximage.mk
 
 all: boot kernel app image
 
@@ -52,9 +52,9 @@ image: $(IMG)
 #   - qemu - run
 #   - qemug - kernel debug
 #   - qemubg - uefi debug (udk)
-include config/net.mk
-include config/udk.mk
-include config/qemu.mk
+include make/xnet.mk
+include make/xudk.mk
+include make/xqemu.mk
 
 qemu: all net
 	$(QEMU) $(QEMU_FLAGS_RUN)
@@ -93,4 +93,4 @@ $(MODS):
 	$(MAKE) -C $@
 
 _SUBDIR_PRE  := $(PRETARGETS)
-include config/subdir.mk
+include make/subdir.mk
