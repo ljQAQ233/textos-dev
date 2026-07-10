@@ -1,8 +1,6 @@
 SHELL := bash
 ARCH ?= x86_64
 
-export ARCH
-
 # toolchain
 HOSTCC ?= gcc
 HOSTLD ?= ld
@@ -13,20 +11,31 @@ CC      := $(CROSS_COMPILE)gcc
 LD      := $(CROSS_COMPILE)ld
 OBJCOPY := $(CROSS_COMPILE)objcopy
 
-export CROSS_COMPILE
-export HOSTCC HOSTLD HOSTOC
-export CC LD OBJCOPY
-
 # available modes:
 #   efi - uefi / ovmf
 #   emulti - qemu multiboot
 BOOT_MODE ?= efi
 
+TOPBUILD := ../build
+TOPBUILD := $(abspath $(TOPBUILD))
+BUILD := $(TOPBUILD)
+
 # === config ends here!!! ===
 
+export ARCH
+export CROSS_COMPILE
+export HOSTCC HOSTLD HOSTOC
+export CC LD OBJCOPY
 export BOOT_MODE
+export TOPBUILD BUILD
 
-include make/xmain.mk
+SRC_DIR := $(shell pwd)
+BASE  := $(SRC_DIR)/base
+UTILS := $(SRC_DIR)/utils
+
+export SRC_DIR BASE UTILS
+
+include make/xcommon.mk
 include make/ximage.mk
 
 all: boot kernel app image
@@ -75,20 +84,20 @@ compile_commands.json: clean
 	@bear --output ../compile_commands.json -- make all
 	@utils/fix_clcmd.sh ../compile_commands.json
 
+include/bits/alltypes.h: include/bits/alltypes.h.in
+	sed -f $(UTILS)/mkalltypes.sed $< > $@
+
 clean:
 	make -C app clean
 	make -C boot clean
 	make -C kernel clean
 	find . -iname "*.status_log" | xargs rm -f
 	find . -iname "*.status_lock" | xargs rm -f
-	rm -rf $(OUTPUT)
+	rm -rf $(TOPBUILD)
 
 .PHONY: all image qemu qemug qemubg \
 		clean compile_commands.json $(MODS)
 
-# 子模块路由：include config/subdir.mk 提供 @ 语法
-#   make -C src app/lua@test      → 递归到 app/lua 执行 test
-#   make -C src @compile_commands → 当前层执行 compile_commands
 $(MODS):
 	$(MAKE) -C $@
 

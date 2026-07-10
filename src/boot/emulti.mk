@@ -11,4 +11,7 @@ update:
 clean:
 	@:
 
-.PHONY: prepare build update clean
+install:
+	@
+
+.PHONY: prepare build update clean install

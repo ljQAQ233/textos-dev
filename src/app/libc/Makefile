@@ -1,10 +1,10 @@
+BUILD := $(BUILD)/$(notdir ${CURDIR})
+
 SRCS := $(wildcard *.c */*.c)
 SRCS := $(filter-out linker/%,$(SRCS))
 SRCS := $(filter-out crt1.c crtn.c crti.c, $(SRCS))
 
 include $(dir $(lastword $(MAKEFILE_LIST)))/../cmd.mk
-
-BUILD := $(APP_OUTPUT)/$(notdir ${CURDIR})
 
 OBJS := $(addsuffix .o,${SRCS})
 OBJS := $(addprefix ${BUILD}/,${OBJS})
@@ -32,11 +32,12 @@ all: $(BUILD)/cc \
 	$(BUILD)/libdl.a \
 	$(BUILD)/libdl.so \
 	$(BUILD)/ld-textos.so
-	@cp $(filter %.so,$^) $(ROOT_LIB)
 
 $(BUILD)/cc: \
 	$(BUILD)/cc.specs
 	@echo '#!/bin/sh' > $@
+	@echo "$(CC)"
+	@echo "$(ORIG_CC)"
 	@echo '$(CC) "$$@" -specs=$<' >> $@
 	@chmod +x $@
 

@@ -1,13 +1,13 @@
 include $(dir $(lastword $(MAKEFILE_LIST)))/cmd.mk
 
-APP_OUTPUT := $(APP_OUTPUT)/$(notdir ${CURDIR})
+BUILD := $(BUILD)/$(notdir ${CURDIR})
 
-TARG := $(addprefix $(APP_OUTPUT)/,${TARG})
+TARG := $(addprefix $(BUILD)/,${TARG})
 
 OBJS := $(addsuffix .o,${SRCS})
-OBJS := $(addprefix ${APP_OUTPUT}/,${OBJS})
+OBJS := $(addprefix ${BUILD}/,${OBJS})
 
-$(APP_OUTPUT)/%.c.o: %.c
+$(BUILD)/%.c.o: %.c
 	$(call compile-obj,$<,$@)
 
 ifeq ($(suffix $(TARG)),.o)
@@ -18,7 +18,6 @@ else
 $(TARG): $(OBJS)
 	$(call compile-ld,$^,$@,)
 	@touch .stamp
-	@cp $@ $(ROOT_BIN)
 endif
 
 all: $(TARG)

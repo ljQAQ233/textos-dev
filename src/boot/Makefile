@@ -1,4 +1,5 @@
 SHELL := bash
+BUILD := $(BUILD)/boot
 
 INCLUDE := $(SRC_DIR)/include \
 		   $(SRC_DIR)/include/boot
@@ -9,12 +10,6 @@ CFLAGS := $(addprefix -I,${INCLUDE})
 VERSION := $(shell LANG= date +"%Y%m%d")
 
 export FLAGS CFLAGS VERSION
-
-# === edk2-specified ===
-PROJ := SigmaBootPkg
-DSC  := SigmaBootPkg/Boot.dsc
-
-export PROJ DSC
 
 # GCC5 的配置 对于高版本编译器 依然可以 "兼容";
 # NOTE: 不要修改这段代码!!!
@@ -27,7 +22,7 @@ TOOLCHAIN := GCC5
 # 那么我阻止也没用呀, 所以安排到了这里
 include ./$(BOOT_MODE).mk
 
-ovmf: BOOT_OUTPUT:=$(BOOT_OUTPUT)/OVMF_$(EFI_ARCH)
+ovmf: BUILD:=$(BUILD)/OVMF_$(EFI_ARCH)
 ovmf:
 	mkdir -p Edk2/Conf
 	@echo -e "Update configures for compliler...\n"
@@ -46,11 +41,13 @@ ovmf:
 		-a $(EFI_ARCH) \
 		-t $(TOOLCHAIN) \
 		-b $(TARGET) \
-		-DOUTPUT=$(BOOT_OUTPUT) \
+		-DOUTPUT=$(BUILD) \
 		-DARCH=$(EFI_ARCH)
-	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF.fd $(BASE)/OVMF_$(TARGET)_$(EFI_ARCH).fd
-	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_CODE.fd $(BASE)/OVMF_$(TARGET)_$(EFI_ARCH).code
-	cp -f $(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_VARS.fd $(BASE)/OVMF_$(TARGET)_$(EFI_ARCH).vars
+	cp -f $(BUILD)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF.fd $(BASE)/OVMF_$(TARGET)_$(EFI_ARCH).fd
+	cp -f $(BUILD)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_CODE.fd $(BASE)/OVMF_$(TARGET)_$(EFI_ARCH).code
+	cp -f $(BUILD)/$(TARGET)_$(TOOLCHAIN)/FV/OVMF_VARS.fd $(BASE)/OVMF_$(TARGET)_$(EFI_ARCH).vars
 
 .PHONY: ovmf
 .DEFAULT_GOAL := update
+
+include ../make/install-leaf.mk

@@ -1,7 +1,7 @@
-SHELL := bash
+BUILD := $(BUILD)/app
 
 export ORIG_CC := $(CC)
-CC := $(APP_OUTPUT)/libc/cc
+CC := $(BUILD)/libc/cc
 
 APP_MODS := test strace lua
 APP_LIBS := libc libm lvgl
@@ -26,33 +26,31 @@ LDFLAGS = \
 export INCLUDE LIBRARY CFLAGS LDFLAGS
 
 ELFS := $(patsubst %.c,%,$(wildcard *.c))
-ELFS := $(addprefix ${APP_OUTPUT}/,${ELFS})
+ELFS := $(addprefix ${BUILD}/,${ELFS})
 
 MODS = $(APP_LIBS) $(APP_MODS)
 
 app: all $(ELFS)
-	@cp $(ELFS) $(ROOT_BIN)
 
 clean:
-	rm -rf $(APP_OUTPUT)
+	rm -rf $(BUILD)
 
 clean-elfs:
 	rm -f $(ELFS)
 
-$(APP_OUTPUT)/%: %.c $(APP_LIBS:=/.stamp)
-	@mkdir -p $(@D)
-	@$(CC) -static $(CFLAGS) $< $(addprefix $(APP_OUTPUT)/,$(shell ${UTILS}/fix_libs.sh $<)) -o $@ -L$(APP_OUTPUT)/libc -lc -ldl
-	@echo -e "\033[032m   CC  \033[0m $<"
+include cmd.mk
+
+$(BUILD)/%: %.c $(APP_LIBS:=/.stamp)
+	@$(call compile-cc,$<,$@,-static)
 
 .PHONY: app clean clean-elfs
 
 # special targets:
 # - use `make ls` to generate rather than `make path/to/build/ls`!
 %: %.c
-	@$(MAKE) $(APP_OUTPUT)/$@
+	@$(MAKE) $(BUILD)/$@
 
-# 子模块路由：include ../subdir/subdir.mk 提供 @ 语法
-$(APP_LIBS) $(APP_MODS):
+$(MODS):
 	$(MAKE) -C $@
 
 include ../make/subdir.mk

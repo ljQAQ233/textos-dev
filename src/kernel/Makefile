@@ -1,7 +1,8 @@
-SHELL  := bash
-OUTPUT := $(KERNEL_OUTPUT)
+SHELL := bash
+BUILD := $(BUILD)/kernel
+ARCH_DIR = $(abspath arch/$(ARCH))
 
-export OUTPUT ARCH_DIR
+export BUILD ARCH_DIR
 
 # Include path
 INCLUDE := \
@@ -16,7 +17,7 @@ CFLAGS := \
   -fno-builtin -fno-stack-check -fno-stack-protector \
   -mcmodel=large -mno-red-zone \
   -include $(SRC_DIR)/include/textos/textos.h \
-  -include $(KERNEL_OUTPUT)/autogen.h \
+  -include $(BUILD)/autogen.h \
   $(addprefix -I,${INCLUDE})
 
 CFLAGS += -D__TEXTOS_DEBUG
@@ -27,9 +28,7 @@ AFLAGS := \
 LDFLAGS := \
   -static -nostdlib -z noexecstack \
   -no-relax -z max-page-size=0x1000 \
-  -Map=$(KERNEL_OUTPUT)/system.map
-
-ARCH_DIR = arch/$(ARCH)
+  -Map=$(BUILD)/system.map
 
 SRCS := \
   init.c main.c debug.c acpi.c apic.c dev.c \
@@ -49,13 +48,17 @@ include $(ARCH_DIR)/arch.mk
 
 OBJS := $(SRCS:.c=.c.o)
 OBJS := $(OBJS:.S=.S.o)
-OBJS := $(addprefix ${OUTPUT}/,${OBJS})
+OBJS := $(addprefix ${BUILD}/,${OBJS})
 
-kernel: $(KERNEL_OUTPUT) autogen $(KERNEL_EXEC)
-	@cp $(KERNEL_EXEC) $(ROOT)
+$(BUILD)/kernel.elf: $(BUILD)/autogen.h $(OBJS) | $(BUILD)
+	@$(LD) $(LDFLAGS) $^ -T <($(CPP) -P linker.ld.S) -o $@
+	@echo -e "\033[032m   LD  \033[0m Linked all objects -> $@"
+	@cp $@ $@.symbol
+	@echo -e "\033[032m   OCP \033[0m $@ -> ${@:$(BUILD)/%=%}.symbol"
+	@$(OBJCOPY) --strip-debug $@ $@
 
-autogen:
-	@printf '%s\n' > $(KERNEL_OUTPUT)/autogen.h \
+$(BUILD)/autogen.h: | $(BUILD)
+	@printf '%s\n' > $(BUILD)/autogen.h \
 		'#ifndef __AUTOGEN_H__'                 \
 		'#define __AUTOGEN_H__'                 \
 		''                                      \
@@ -64,16 +67,8 @@ autogen:
 		''                                      \
 		'#endif'
 
-
-$(KERNEL_EXEC): $(OBJS)
-	@$(LD) $(LDFLAGS) $^ -T <($(CPP) -P linker.ld.S) -o $@
-	@echo -e "\033[032m   LD  \033[0m Linked all objects -> $@"
-	@cp $@ $@.symbol
-	@echo -e "\033[032m   OCP \033[0m $@ -> ${@:$(OUTPUT)/%=%}.symbol"
-	@$(OBJCOPY) --strip-debug $@ $@
-
-$(KERNEL_OUTPUT):
-	@mkdir -p $(KERNEL_OUTPUT)
+$(BUILD):
+	@mkdir -p $(BUILD)
 	@echo -e "\033[032m   MKD \033[0m Created directory $@"
 
 clean:
@@ -83,12 +78,12 @@ clean:
 
 # Make rules and printing formats
 
-$(OUTPUT)/%.S.o: %.S
+$(BUILD)/%.S.o: %.S
 	@mkdir -p $(@D)
 	@$(CC) $(AFLAGS) -c $< -o $@
 	@echo -e "\033[032m   ASM \033[0m $<"
 
-$(OUTPUT)/%.c.o: %.c
+$(BUILD)/%.c.o: %.c
 	@mkdir -p $(@D)
 	@$(CC) $(CFLAGS) -c $< -o $@
 	@echo -e "\033[032m   CC  \033[0m $<"

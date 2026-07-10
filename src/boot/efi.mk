@@ -6,6 +6,8 @@ else
   TARGET := RELEASE
 endif
 
+PROJ := SigmaBootPkg
+DSC := SigmaBootPkg/Boot.dsc
 PLATFORM_NAME := $(shell awk -F '=' '/^ *PLATFORM_NAME *=/ {gsub(/ /, "", $$2); printf $$2}' ${DSC})
 
 prepare:
@@ -13,11 +15,10 @@ prepare:
 
 build: prepare
 	@mkdir -p Edk2/Conf
-	@echo -e "Update configures for compliler...\n"
 	export WORKSPACE=$(abspath Edk2) && \
 	export GCC5_BIN=$(CROSS_COMPILE) && \
 	source Edk2/BaseTools/BuildEnv && \
-		if ! build --help > /dev/null;then \
+		if ! build --help > /dev/null; then \
 			rm -rf Conf/tools_def.txt \
 			Conf/target.txt \
 			Conf/build_rule.txt \
@@ -31,22 +32,23 @@ build: prepare
 		-a $(EFI_ARCH) \
 		-t $(TOOLCHAIN) \
 		-b $(TARGET) \
-		-DOUTPUT=$(BOOT_OUTPUT) \
+		-DOUTPUT=$(BUILD) \
 		-DCFLAGS="$(CFLAGS)" 2>&1
 	@$(UTILS)/chkmodify_unlock.sh $(PROJ)
 
-update: BOOT_OUTPUT:=$(BOOT_OUTPUT)/SIGMA_$(EFI_ARCH)
-update: EXEC_OUTPUT:=$(BOOT_OUTPUT)/$(TARGET)_$(TOOLCHAIN)/$(EFI_ARCH)/$(PLATFORM_NAME)
+update: BUILD:=$(BUILD)/SIGMA_$(EFI_ARCH)
+update: EFIEXE:=$(BUILD)/$(TARGET)_$(TOOLCHAIN)/$(EFI_ARCH)/$(PLATFORM_NAME)
 update:
-	@if ( ! test -f $(EXEC_OUTPUT).efi ) || \
+	@echo $(EFIEXE)
+	@if ( ! test -f $(EFIEXE).efi ) || \
 		( ! $(UTILS)/chkmodify.sh $(PROJ) ); then \
-		make build \
+		make build BUILD=$(BUILD) \
 	;fi
-	@cp -f $(EXEC_OUTPUT).efi $(BOOT_EXEC)
-	@mkdir -p $(ROOT)/EFI/Boot
-	@cp -f $(BOOT_EXEC) $(ROOT)/EFI/Boot
 
 clean:
 	rm -f Edk2/SigmaBootPkg
 
 .PHONY: prepare build update clean
+
+# installation
+R = $(BUILD)/SIGMA_$(EFI_ARCH)/$(TARGET)_$(TOOLCHAIN)/$(EFI_ARCH)/$(PLATFORM_NAME).efi:/EFI/BOOT/$(EFI_RMF_NAME)
