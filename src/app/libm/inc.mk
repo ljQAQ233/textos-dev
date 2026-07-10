@@ -1,2 +1,2 @@
-INCLUDE += $(APP_OUTPUT)/libm/include/openlibm
-LIBRARY += $(APP_OUTPUT)/libm
+INCLUDE += $(BUILD)/libm/include/openlibm
+LIBRARY += $(BUILD)/libm

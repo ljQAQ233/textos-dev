@@ -3,7 +3,7 @@ QEMU_HOME ?= /usr
 QEMU_BIN := $(QEMU_HOME)/bin
 QEMU := $(QEMU_BIN)/qemu-system-x86_64
 
-QEMU_LOG ?= file:$(OUTPUT)/qemu.log
+QEMU_LOG ?= file:$(TOPBUILD)/qemu.log
 QEMU_MEM ?= 64M
 
 # Qemu Common Args

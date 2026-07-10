@@ -1,6 +1,6 @@
-ROOT = $(OUTPUT)/root
-INST = $(OUTPUT)/inst
-IMG  = $(OUTPUT)/image.img
+ROOT = $(TOPBUILD)/root
+INST = $(TOPBUILD)/inst
+IMG  = $(TOPBUILD)/image.img
 export ROOT INST IMG
 
 ROOT_BIN = $(ROOT)/bin
@@ -20,7 +20,7 @@ _img_u_:
 	sudo umount $(MNT1)
 	sudo umount $(MNT2)
 	sudo losetup -d $(LOOP)
-	sudo rm -rf $(OUTPUT)/image
+	sudo rm -rf $(TOPBUILD)/image
 
 _img_cp_:
 	sudo chmod a+rw $(MNT1)
@@ -58,8 +58,8 @@ ifeq (${LOOP},)
 else
   diskmu: _img_u_
 endif
-MNT1:=$(OUTPUT)/image/$(notdir ${LOOP})p1
-MNT2:=$(OUTPUT)/image/$(notdir ${LOOP})p2
+MNT1:=$(TOPBUILD)/image/$(notdir ${LOOP})p1
+MNT2:=$(TOPBUILD)/image/$(notdir ${LOOP})p2
 
 $(ROOT):
 	mkdir -p $@

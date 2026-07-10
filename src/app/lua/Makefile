@@ -1,9 +1,9 @@
-BUILD := $(APP_OUTPUT)/$(notdir ${CURDIR})
+BUILD := $(BUILD)/$(notdir ${CURDIR})
 
 # Lua v5.5.0 (dev source)
 LUA_MAKE := \
   $(MAKE) -f makefile \
-  CC=$(APP_OUTPUT)/libc/cc \
+  CC=$(BUILD)/libc/cc \
   MYCFLAGS="-std=c99 -DLUA_USE_POSIX -g -O0" \
   MYLDFLAGS="-static" \
   MYLIBS="-ldl"

@@ -19,7 +19,7 @@ BINS := $(wildcard bin/*.c)
 # dynamic libraries for test
 SOLIBS := $(wildcard solib/*.c)
 
-CC := $(APP_OUTPUT)/libc/cc
+CC := $(BUILD)/libc/cc
 CFLAGS += -g
 
 include ../all.mk
@@ -29,16 +29,10 @@ $(OBJS): CFLAGS += -DUNITY_INCLUDE_CONFIG_H
 $(TARG): LDLIBS += -lm -ldl
 $(TARG): LDFLAGS += -static
 
-BTARS := $(BINS:%.c=${APP_OUTPUT}/%)
-SOTARS := $(SOLIBS:%.c=${APP_OUTPUT}/%.so)
+BTARS := $(BINS:%.c=${BUILD}/%)
+SOTARS := $(SOLIBS:%.c=${BUILD}/%.so)
 
 all: $(GTARS) $(TARG) $(BTARS) $(SOTARS)
-	@mkdir -p $(ROOT)/test
-	@mkdir -p $(ROOT)/test/bin
-	@mkdir -p $(ROOT)/test/solib
-	@cp $(TARG) $(ROOT)/test
-	@for f in $(BTARS); do cp $$f $(ROOT)/test/bin/$$(basename $$f); done
-	@for f in $(SOTARS); do cp $$f $(ROOT)/test/solib/$$(basename $$f); done
 
 auto/%.h: %.py
 	@mkdir -p $(@D)
@@ -56,16 +50,16 @@ auto/unity.h: $(TEST_SRCS)
 	@printf '\n' >> $@
 	@echo -e "\033[032m   OK  \033[0m $@"
 
-$(APP_OUTPUT)/bin/%: bin/%.c
+$(BUILD)/bin/%: bin/%.c
 	$(call compile-cc,$<,$@)
 
-$(APP_OUTPUT)/solib/%.so: solib/%.c
+$(BUILD)/solib/%.so: solib/%.c
 	$(call compile-cc,$<,$@,-shared -fPIC)
 
-$(APP_OUTPUT)/bin/dlopen: LDLIBS += -ldl
-$(APP_OUTPUT)/solib/add.so: $(APP_OUTPUT)/solib/dep.so
-$(APP_OUTPUT)/solib/add.so: LDFLAGS += -nostdlib
-$(APP_OUTPUT)/solib/dep.so: LDFLAGS += -nostdlib
+$(BUILD)/bin/dlopen: LDLIBS += -ldl
+$(BUILD)/solib/add.so: $(BUILD)/solib/dep.so
+$(BUILD)/solib/add.so: LDFLAGS += -nostdlib
+$(BUILD)/solib/dep.so: LDFLAGS += -nostdlib
 
 .DEFAULT_GOAL := all
 .PHONY: all
