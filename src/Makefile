@@ -1,15 +1,18 @@
 SHELL := bash
 ARCH ?= x86_64
+CROSS_COMPILE ?= ${ARCH}-elf-
 
 # toolchain
 HOSTCC ?= gcc
 HOSTLD ?= ld
 HOSTOC ?= objcopy
-CROSS_COMPILE ?= ${ARCH}-elf-
 
 CC      := $(CROSS_COMPILE)gcc
 LD      := $(CROSS_COMPILE)ld
 OBJCOPY := $(CROSS_COMPILE)objcopy
+
+INSTALL_SUDO =
+INSTALL = $(INSTALL_SUDO) install
 
 # available modes:
 #   efi - uefi / ovmf
@@ -22,10 +25,10 @@ BUILD := $(TOPBUILD)
 
 # === config ends here!!! ===
 
-export ARCH
-export CROSS_COMPILE
+export ARCH CROSS_COMPILE
 export HOSTCC HOSTLD HOSTOC
 export CC LD OBJCOPY
+export INSTALL
 export BOOT_MODE
 export TOPBUILD BUILD
 
@@ -93,7 +96,8 @@ clean:
 	make -C kernel clean
 	find . -iname "*.status_log" | xargs rm -f
 	find . -iname "*.status_lock" | xargs rm -f
-	rm -rf $(TOPBUILD)
+	-rm -rf $(TOPBUILD)
+	-sudo rm -rf $(TOPBUILD)
 
 .PHONY: all image qemu qemug qemubg \
 		clean compile_commands.json $(MODS)
@@ -103,3 +107,4 @@ $(MODS):
 
 _SUBDIR_PRE  := $(PRETARGETS)
 include make/subdir.mk
+include make/install-node.mk

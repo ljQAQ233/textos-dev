@@ -63,3 +63,5 @@ $(BUILD)/solib/dep.so: LDFLAGS += -nostdlib
 
 .DEFAULT_GOAL := all
 .PHONY: all
+
+include ../../make/install-leaf.mk

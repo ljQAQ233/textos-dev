@@ -44,3 +44,6 @@ $(BUILD)/%.S.o: %.S
 	@echo -e "\033[032m   CC  \033[0m $<"
 
 .PHONY: all
+
+install:
+	@

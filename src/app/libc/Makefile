@@ -36,8 +36,6 @@ all: $(BUILD)/cc \
 $(BUILD)/cc: \
 	$(BUILD)/cc.specs
 	@echo '#!/bin/sh' > $@
-	@echo "$(CC)"
-	@echo "$(ORIG_CC)"
 	@echo '$(CC) "$$@" -specs=$<' >> $@
 	@chmod +x $@
 
@@ -69,3 +67,5 @@ $(BUILD)/%.c.o: %.c
 	$(call compile-obj,$<,$@,-fPIC)
 
 .PHONY: all
+
+include ../../make/install-leaf.mk

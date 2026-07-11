@@ -39,7 +39,6 @@ build: prepare
 update: BUILD:=$(BUILD)/SIGMA_$(EFI_ARCH)
 update: EFIEXE:=$(BUILD)/$(TARGET)_$(TOOLCHAIN)/$(EFI_ARCH)/$(PLATFORM_NAME)
 update:
-	@echo $(EFIEXE)
 	@if ( ! test -f $(EFIEXE).efi ) || \
 		( ! $(UTILS)/chkmodify.sh $(PROJ) ); then \
 		make build BUILD=$(BUILD) \

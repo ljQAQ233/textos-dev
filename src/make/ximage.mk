@@ -1,11 +1,6 @@
-ROOT = $(TOPBUILD)/root
-INST = $(TOPBUILD)/inst
+ROOT ?= $(TOPBUILD)/root
 IMG  = $(TOPBUILD)/image.img
-export ROOT INST IMG
-
-ROOT_BIN = $(ROOT)/bin
-ROOT_LIB = $(ROOT)/lib
-export ROOT_BIN ROOT_LIB
+export ROOT IMG
 
 _img_m_:
 	@echo "mounting disk..."
@@ -22,12 +17,14 @@ _img_u_:
 	sudo losetup -d $(LOOP)
 	sudo rm -rf $(TOPBUILD)/image
 
-_img_cp_:
-	sudo chmod a+rw $(MNT1)
-	sudo chmod a+rw $(MNT2)
-	cp -r resource/. $(ROOT)
-	sudo cp -r $(ROOT)/. $(MNT1)
-	sudo cp -r $(ROOT)/. $(MNT2)
+_img_cp_resource_:
+	$(INSTALL_SUDO) cp -r resource/. $(ROOT)
+
+install: _img_cp_resource_
+
+_img_cp_: INSTALL_SUDO=sudo
+_img_cp_: ROOT=$(MNT1)
+_img_cp_: install
 
 _img_new_:
 	dd if=/dev/zero of=$(IMG) bs=1M count=128
@@ -61,9 +58,11 @@ endif
 MNT1:=$(TOPBUILD)/image/$(notdir ${LOOP})p1
 MNT2:=$(TOPBUILD)/image/$(notdir ${LOOP})p2
 
+diskdrop:
+	-sudo umount $(TOPBUILD)/image/*
+	-sudo losetup --detach-all
+
 $(ROOT):
 	mkdir -p $@
-	mkdir $(ROOT_BIN)
-	mkdir $(ROOT_LIB)
 
-.PHONY: diskmu _img_m_ _img_u_ _img_cp_ _img_new_
+.PHONY: diskmu diskdrop _img_m_ _img_u_ _img_cp_ _img_new_

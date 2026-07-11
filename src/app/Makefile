@@ -19,7 +19,7 @@ CFLAGS = -g \
 
 LDFLAGS = \
   -z noexecstack \
-  -L $(ROOT_LIB)
+  $(addprefix -L,$(LIBRARY))
 
 # NOTE: exporting expands CFLAGS to a static string; sub-makes
 # that append to INCLUDE later will *not* retroactively affect it.
@@ -58,5 +58,6 @@ $(MODS):
 include ../make/subdir.mk
 include ../make/all-node.mk
 include ../make/install-node.mk
+include ../make/install-leaf.mk
 
 .PHONY: all

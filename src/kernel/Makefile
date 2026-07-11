@@ -89,3 +89,5 @@ $(BUILD)/%.c.o: %.c
 	@echo -e "\033[032m   CC  \033[0m $<"
 
 .PHONY: kernel autogen clean
+
+include ../make/install-leaf.mk
