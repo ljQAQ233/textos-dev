@@ -3,10 +3,20 @@
   pkgs ? import <nixpkgs> { },
 }:
 
+let
+  logo = ''
+     _____         _    ___  ____  
+    |_   _|____  _| |_ / _ \/ ___| 
+      | |/ _ \ \/ / __| | | \___ \ 
+      | |  __/>  <| |_| |_| |___) |
+      |_|\___/_/\_\\__|\___/|____/
+  '';
+in
 pkgs.mkShellNoCC {
   nativeBuildInputs = with pkgs; [
     stdenv
     gnumake
+    patchelf
     gcc-unwrapped
     binutils-unwrapped
     gdb
@@ -26,7 +36,7 @@ pkgs.mkShellNoCC {
   ];
 
   shellHook = ''
-    awk '{ print "\033[32m" $0 "\033[0m" }' < init/logo.txt
+    awk '{ print "\033[32m" $0 "\033[0m" }' <<< "${logo}"
     echo Development environment is ready!
   '';
 
