@@ -243,9 +243,12 @@ static int fmt_fp(char **fpbuf, char *prefix, char *suffix, int len, char spec,
     if (*prec < 0) *prec = 6;
     if (cl == FP_CL_ZERO) {
         // 现在, *prec >= 0
+        if (spec == 'g')
+            *prec = 0;
+        else if (spec == 'e')
+            fmt_exp(suffix, 'E' | lwmsk, 0, 2);
         *fpbuf = strdup(*prec > 0 ? "0." : "0");
         *size = *prec > 0 ? 2 : 1;
-        fmt_exp(suffix, 'E' | lwmsk, 0, 2);
         goto ret_sign;
     }
     if (cl != FP_CL_SUBNORM) {
