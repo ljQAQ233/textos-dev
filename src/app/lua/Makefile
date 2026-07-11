@@ -16,3 +16,5 @@ test:
 	cd lua/testes && ulimit -S -s 1900 && ../lua -e"_U=1" -W all.lua
 
 .PHONY: all test
+
+include ../../make/install-leaf.mk

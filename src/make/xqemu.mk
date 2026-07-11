@@ -27,7 +27,7 @@ endif
 # Firmware selection
 ifeq (${BOOT_MODE},emulti)
   define fw_arg
-    -kernel $(KERNEL_EXEC)
+    -kernel $(TOPBUILD)/kernel/kernel.elf
   endef
 else
   define fw_arg

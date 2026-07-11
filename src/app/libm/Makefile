@@ -1,4 +1,4 @@
-BUILD := $(BUILD)/$(notdir ${CURDIR})
+BUILD := $(BUILD)/libm
 OLM_MAKE := cd openlibm && ARCH=$(ARCH) $(MAKE) CC=$(BUILD)/libc/cc 
 
 all:
@@ -12,3 +12,4 @@ all:
 
 .PHONY: all
 
+include ../../make/install-leaf.mk
