@@ -1,8 +1,7 @@
 #include "stdio.h"
 
-static char __stdin_buf[BUFSIZ];
-static char __stdout_buf[BUFSIZ];
-static char __stderr_buf[BUFSIZ];
+static char __stdin_buf[BUFSIZ + MAX_UNGETC];
+static char __stdout_buf[BUFSIZ + MAX_UNGETC];
 
 FILE __stdio_stdin = {
     .fd = 0,
@@ -10,7 +9,7 @@ FILE __stdio_stdin = {
     .lbf = '\n',
     .pos = 0,
     .bufsz = BUFSIZ,
-    .buf = __stdin_buf,
+    .buf = __stdin_buf - MAX_UNGETC,
     .read = __stdio_read,
     .write = __stdio_write,
     .close = __stdio_close,
@@ -21,7 +20,7 @@ FILE __stdio_stdout = {
     .fl = F_PERM | F_NORD,
     .lbf = '\n',
     .pos = 0,
-    .bufsz = BUFSIZ,
+    .bufsz = BUFSIZ - MAX_UNGETC,
     .buf = __stdout_buf,
     .read = __stdio_read,
     .write = __stdio_write,
