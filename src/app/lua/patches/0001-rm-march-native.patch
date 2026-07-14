@@ -1,0 +1,25 @@
+From e789c13824bd4cf83ffd07ad0baa8bc9ead9267e Mon Sep 17 00:00:00 2001
+From: maouai233 <maouai233@outlook.com>
+Date: Tue, 14 Jul 2026 20:44:03 +0800
+Subject: [PATCH] Remove -march=native to avoid bad optimization
+
+---
+ makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/makefile b/makefile
+index 8674519f..c087363d 100644
+--- a/makefile
++++ b/makefile
+@@ -77,7 +77,7 @@ MYLIBS= -ldl
+ 
+ 
+ CC= gcc
+-CFLAGS= -Wall -O2 $(MYCFLAGS) -fno-stack-protector -fno-common -march=native
++CFLAGS= -Wall -O2 $(MYCFLAGS) -fno-stack-protector -fno-common
+ AR= ar rc
+ RANLIB= ranlib
+ RM= rm -f
+-- 
+2.54.0
+

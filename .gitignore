@@ -6,6 +6,7 @@
 *.swap
 *.idx
 
+*.patched
 *.status_log
 *.status_lock
 
