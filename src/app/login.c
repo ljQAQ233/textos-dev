@@ -1,10 +1,10 @@
+#include <crypt.h>
 #include <pwd.h>
 #include <stdio.h>
-#include <crypt.h>
-#include <unistd.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <termios.h>
+#include <unistd.h>
 
 #define TRYMAX 3
 #define BUFMAX 128
@@ -26,6 +26,7 @@ void set_echo(int yes)
 
 struct passwd *login()
 {
+    setbuf(stdout, NULL);
     printf("%s login: ", name);
 
     fgets(user, sizeof(user), stdin);
@@ -33,15 +34,12 @@ struct passwd *login()
     set_echo(0);
 
     struct passwd *pwd = getpwnam(user);
-    for (int try = 0 ; try < TRYMAX ; try++)
-    {
+    for (int try = 0; try < TRYMAX; try++) {
         printf("Password: ");
         fgets(pass, sizeof(pass), stdin);
-        if (!pwd)
-            goto retry;
+        if (!pwd) goto retry;
         char *cry = crypt(pass, pwd->pw_passwd);
-        if (!strcmp(cry, pwd->pw_passwd))
-        {
+        if (!strcmp(cry, pwd->pw_passwd)) {
             set_echo(1);
             printf("\n");
             return pwd;
@@ -57,12 +55,12 @@ struct passwd *login()
 int main()
 {
     setvbuf(stdout, NULL, _IONBF, 0);
-    if (gethostname(name, sizeof(name)) < 0)
-        strcpy(name, "localhost");
+    if (gethostname(name, sizeof(name)) < 0) strcpy(name, "localhost");
 
     setsid();
     struct passwd *pwd;
-    while (!(pwd = login()));
+    while (!(pwd = login()))
+        ;
 
     setenv("USER", pwd->pw_name, 1);
     setenv("HOME", pwd->pw_dir, 1);
