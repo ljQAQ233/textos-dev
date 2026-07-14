@@ -812,7 +812,7 @@ __SYSCALL_DEFINE1(void *, brk, void *, ptr)
     task_t *tsk = task_current();
     if (ptr == NULL) return MRET(tsk->brk);
     if (ask < __user_heap_va) return MRET(-ENOMEM);
-    ask = (ask + PAGE_SIZE) & PAGE_MASK;
+    ask = (ask + PAGE_SIZE) &~ PAGE_MASK;
     return MRET(tsk->brk = ask);
 }
 
