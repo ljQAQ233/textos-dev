@@ -21,11 +21,14 @@ long __w_syscall(long num, ...)
 #define __wrapper
 #include "sig.c"
 #include "stat.c"
+#include "file.c"
 
 void *__sc_redir_x86_64[512] = {
     [SYS_sigaction] = w_sigaction,
     [SYS_stat] = w_stat,
     [SYS_fstat] = w_fstat,
+    [SYS_readdir] = w_readdir,
+    [SYS_close] = w_close,
 };
 
 void __arch_init_wrapper(void **tab)
