@@ -48,10 +48,10 @@ typedef struct
 } serial_t;
 
 static serial_t srls[] = {
-    { COM1, 4, 0 },
-    { COM2, 3, 0 },
-    { COM3, 4, 0 },
-    { COM4, 3, 0 },
+    {COM1, 4, 0},
+    {COM2, 3, 0},
+    {COM3, 4, 0},
+    {COM4, 3, 0},
 };
 
 static inline char sgetc(serial_t *io)
@@ -61,13 +61,26 @@ static inline char sgetc(serial_t *io)
 
 static inline void sputc(serial_t *io, char c)
 {
-    while ((inb(io->base + R_LSR) & LSR_THRE) == 0);
+    while ((inb(io->base + R_LSR) & LSR_THRE) == 0)
+        ;
 
     outb(io->base + R_DATA, c);
 }
 
 int serial_ioctl(serial_t *io, int req, void *argp)
 {
+    switch (req) {
+    case TIOCGWINSZ: {
+        struct winsize *win = argp;
+        win->ws_row = win->ws_col = 0;
+        win->ws_xpixel = win->ws_ypixel = 0;
+        return 0;
+    }
+    case TIOCSWINSZ:
+        return -EPERM;
+    default:
+        return -EINVAL;
+    }
     return -EINVAL;
 }
 
