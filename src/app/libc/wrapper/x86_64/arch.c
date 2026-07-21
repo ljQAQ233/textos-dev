@@ -2,7 +2,7 @@
 #include <bits/a-sc.h>
 #include <bits/syscall.h>
 
-static long w_syscall(long num, ...)
+long __w_syscall(long num, ...)
 {
     va_list ap;
     va_start(ap, num);
@@ -30,6 +30,5 @@ void *__sc_redir_x86_64[512] = {
 
 void __arch_init_wrapper(void **tab)
 {
-    (void)w_syscall;
     *tab = __sc_redir_x86_64;
 }
