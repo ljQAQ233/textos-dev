@@ -41,6 +41,8 @@ __BEGIN_DECLS
 
 #define MB_LEN_MAX 4
 
+#define NAME_MAX 255
+
 __END_DECLS
 
 #endif
