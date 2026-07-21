@@ -37,7 +37,6 @@ typedef struct
     int type;
     ino_t ino;
     size_t siz;
-    size_t len;
     char name[];
 } dir_t;
 

@@ -1,20 +1,16 @@
-#include <textos/task.h>
-#include <textos/file.h>
 #include <textos/errno.h>
-#include <textos/assert.h>
+#include <textos/file.h>
 #include <textos/fs/pipe.h>
-#include <textos/syscall.h>
-
+#include <textos/limits.h>
 #include <textos/mm.h>
+#include <textos/syscall.h>
+#include <textos/task.h>
 
 int fd_get(int min)
 {
     file_t **ft = task_current()->files;
-    for (int i = min ; i < MAX_FILE ; i++)
-    {
-        if (!ft[i])
-            return i;
-    }
+    for (int i = min; i < MAX_FILE; i++)
+        if (!ft[i]) return i;
     return -EMFILE;
 }
 
@@ -22,9 +18,7 @@ int file_get(int *new, file_t **file, int min)
 {
     file_t **ft = task_current()->files;
     int fd = fd_get(min);
-    if (!(ft[fd] = malloc(sizeof(file_t))))
-        return -ENOMEM;
-
+    if (!(ft[fd] = malloc(sizeof(file_t)))) return -ENOMEM;
     *file = ft[fd];
     return *new = fd;
 }
@@ -32,8 +26,7 @@ int file_get(int *new, file_t **file, int min)
 int file_put(int fd)
 {
     file_t **ft = task_current()->files;
-    if (!ft[fd])
-        return -EMFILE;
+    if (!ft[fd]) return -EMFILE;
     free(ft[fd]);
     ft[fd] = NULL;
     return 0;
@@ -311,19 +304,25 @@ __SYSCALL_DEFINE3(ssize_t, readdir, int, fd, void *, buf, size_t, mx)
  * @param ino    unused yet
  * @param type   unused yet
  */
-bool dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type)
+bool dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino,
+              unsigned type)
 {
     size_t siz = sizeof(dir_t) + len + 1;
-    if (ctx->bufused + siz > ctx->bufmx)
-        return false;
-
+    if (ctx->bufused + siz > ctx->bufmx) return false;
     dir_t *dir = ctx->buf;
     dir->idx = ctx->pos;
     dir->type = type;
     dir->ino = ino;
     dir->siz = siz;
-    dir->len = len;
-    strcpy(dir->name, name);
+    memcpy(dir->name, name, len);
+    dir->name[len] = '\0';
+
+    // unlikely
+    if (len > NAME_MAX)
+        DEBUGK(
+            K_ERROR,
+            "emit: length of dir entry '%s' exceeds NAME_MAX = %d, pid = %d\n",
+            name, NAME_MAX, task_current()->pid);
 
     ctx->bufused += siz;
     ctx->buf += siz;
