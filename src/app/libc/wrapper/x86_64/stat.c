@@ -77,7 +77,7 @@ static int convert(const struct statx *stx, struct stat *st)
 static int w_statx(int dirfd, const char *restrict pathname, int flags,
                    unsigned int mask, struct statx *restrict statxbuf)
 {
-    return w_syscall(332, dirfd, pathname, flags, mask, statxbuf);
+    return __w_syscall(332, dirfd, pathname, flags, mask, statxbuf);
 }
 
 static int w_stat(const char *path, struct stat *sb)
