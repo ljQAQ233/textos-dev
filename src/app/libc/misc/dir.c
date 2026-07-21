@@ -47,8 +47,10 @@ struct dirent *readdir(DIR *dirp)
     cur->d_off = dir->idx;  // compact
     cur->d_reclen = sizeof(struct dirent);
     cur->d_type = dir->type;
+    // theoretically, virtual file system should not return a filename
+    // exceeding NAME_MAX (255, not including '\0')
     strcpy(cur->d_name, dir->name);
-    dirp->boff += dir->len;
+    dirp->boff += dir->siz;
     return cur;
 }
 
