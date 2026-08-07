@@ -1,7 +1,7 @@
 BUILD := $(BUILD)/app
 
 export ORIG_CC := $(CC)
-CC := $(BUILD)/libc/cc
+export CC := $(BUILD)/libc/cc
 
 APP_MODS := test strace lua
 APP_LIBS := libc libm lvgl
@@ -55,9 +55,13 @@ $(BUILD)/dwm: LDLIBS += -llvgl
 $(MODS):
 	$(MAKE) -C $@
 
+%/.stamp:
+	@echo " Stamp is not up-to-date, make $*"
+	@$(MAKE) -C $*
+
 include ../make/subdir.mk
 include ../make/all-node.mk
 include ../make/install-node.mk
 include ../make/install-leaf.mk
 
-.PHONY: all
+.PHONY: all $(MODS)
