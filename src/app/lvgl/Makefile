@@ -17,12 +17,13 @@ AFLAGS   := -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CO
 CFLAGS   := -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CONF_PATH="\"$(LVGL_CONF)\""
 CXXFLAGS := -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CONF_PATH="\"$(LVGL_CONF)\""
 
-include ../cmd.mk
-
 all: $(BUILD)/liblvgl.a
+
+include ../cmd.mk
 
 $(BUILD)/liblvgl.a: $(BUILD)/lvgl.o | $(BUILD)
 	$(call compile-ar,$<,$@)
+	@touch .stamp
 
 $(BUILD):
 	@mkdir -p $@
