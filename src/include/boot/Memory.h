@@ -3,18 +3,9 @@
 
 #include <Page.h>
 
-typedef struct {
-    EFI_MEMORY_DESCRIPTOR *Maps;
-    UINTN                 MapSiz;
-    UINTN                 MapCount;
-    UINTN                 MapKey;
-    UINTN                 DescSiz;
-    UINT32                DescVersion;
-} MAP_INFO;
-
 EFI_STATUS
 MemoryGetMap (
-  MAP_INFO *Info
+  MAP_INFO  *Info
   );
 
 #endif
