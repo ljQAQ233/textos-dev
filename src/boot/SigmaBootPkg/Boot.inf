@@ -12,7 +12,6 @@
     Bmp.c
     Font.c
     Graphics.c
-    Utils.c
     Logo.c
     Ini.c
     Config.c

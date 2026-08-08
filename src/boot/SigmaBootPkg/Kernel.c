@@ -1,26 +1,25 @@
-#include <Uefi.h>
 #include <Library/MemoryAllocationLib.h>
+#include <Uefi.h>
 
 #include <Boot.h>
 #include <File.h>
 #include <Kernel.h>
 
-EFI_STATUS KernelLoad (
-        IN     CHAR16               *Path,
-           OUT EFI_PHYSICAL_ADDRESS *Addr,
-           OUT KERNEL_PAGE          **Pages
-        )
+EFI_STATUS
+KernelLoad (
+  IN CHAR16                 *Path,
+  OUT EFI_PHYSICAL_ADDRESS  *Addr,
+  OUT KERNEL_PAGE           **Pages
+  )
 {
-    EFI_FILE_PROTOCOL *File;
-    ERR_RETS (FileOpen (Path, O_READ, &File));
+  VOID               *Buffer;
+  EFI_FILE_PROTOCOL  *File;
 
-    VOID *Buffer;
-    ERR_RETS (FileAutoRead (File, &Buffer, NULL));
+  ERR_RETS (FileOpen (Path, O_READ, &File));
+  ERR_RETS (FileAutoRead (File, &Buffer, NULL));
+  ERR_RETS (ElfLoad (Buffer, Addr, Pages));
 
-    ERR_RETS (ElfLoad (Buffer, Addr, Pages));
+  FreePool (Buffer);
 
-    FreePool (Buffer);
-
-    return EFI_SUCCESS;
+  return EFI_SUCCESS;
 }
-

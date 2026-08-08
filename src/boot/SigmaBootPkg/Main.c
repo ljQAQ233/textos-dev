@@ -1,132 +1,105 @@
-#include <Uefi.h>
-#include <Library/UefiLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
+#include <Uefi.h>
 
 #include <Guid/Acpi.h>
 #include <IndustryStandard/Acpi.h>
 
 #include <Boot.h>
-#include <Logo.h>
 #include <Config.h>
-#include <Graphics.h>
-#include <Font.h>
 #include <File.h>
-#include <Memory.h>
+#include <Font.h>
+#include <Graphics.h>
 #include <Kernel.h>
+#include <Logo.h>
+#include <Memory.h>
 
-typedef struct {
-  UINT64 Hor;
-  UINT64 Ver;
-  UINT64 FrameBuffer;
-  UINT64 FrameBufferSize;
-} GRAPHICS_CONFIG;
-
-/*
-   describes where the memory is allocated with the type EfiReservedMemoryType
-   which would be used by kernel, kernel also depends on them before completing
-   memory initialization.
-*/
-typedef struct {
-  UINT8   Valid;
-  UINT64  PageNum;
-  VOID    *Pointer;
-} ALLOCATE_INFO;
-
-typedef struct {
-  ALLOCATE_INFO Allocate[16];
-  VOID          *Map;
-  VOID          *KernalPages;
-} MEMORY_CONFIG;
-
-typedef struct {
-  UINT64          Magic;
-  GRAPHICS_CONFIG Graphics;
-  MEMORY_CONFIG   Memory;
-  VOID            *AcpiTab;
-  VOID            *Runtime;
-} BOOT_CONFIG;
-
-EFI_STATUS ExitBootServices (
-        IN     EFI_HANDLE ImageHandle,
-           OUT MAP_INFO   *Info
-    )
+EFI_STATUS
+ExitBootServices (
+  IN EFI_HANDLE  ImageHandle,
+  OUT MAP_INFO   *Info
+  )
 {
-    EFI_STATUS Status = EFI_SUCCESS;
+  EFI_STATUS  Status = EFI_SUCCESS;
 
-    Status = MemoryGetMap (Info);
-    ERR_RETS(Status);
+  Status = MemoryGetMap (Info);
+  ERR_RETS (Status);
 
-    Status = gBS->ExitBootServices (
-            ImageHandle,
-            Info->MapKey
-        );
-    ERR_RETS(Status);
+  Status = gBS->ExitBootServices (ImageHandle, Info->MapKey);
+  ERR_RETS (Status);
 
-    return Status;
+  return Status;
 }
 
-BOOT_CONFIG Config;
+BOOT_CONFIG  Config;
 
-VOID RegisterMemory (
-        UINT64 PageNum,
-        VOID   *Pointer
-        )
+VOID
+RegisterMemory (
+  UINT64  PageNum,
+  VOID    *Pointer
+  )
 {
-    STATIC UINTN MmIdx = 0;
+  STATIC UINTN  MmIdx = 0;
 
-    Config.Memory.Allocate[MmIdx].PageNum = PageNum;
-    Config.Memory.Allocate[MmIdx].Pointer = Pointer;
-    Config.Memory.Allocate[MmIdx].Valid = TRUE;
+  Config.Memory.Allocation[MmIdx].PageNum = PageNum;
+  Config.Memory.Allocation[MmIdx].Pointer = Pointer;
+  Config.Memory.Allocation[MmIdx].IsValid = TRUE;
 
-    MmIdx++;
+  MmIdx++;
 }
 
-EFI_STATUS EFIAPI UefiMain (
-        IN EFI_HANDLE        ImageHandle,
-        IN EFI_SYSTEM_TABLE  *SystemTable
-        )
+EFI_STATUS EFIAPI
+UefiMain (
+  IN EFI_HANDLE        ImageHandle,
+  IN EFI_SYSTEM_TABLE  *SystemTable
+  )
 {
-    Breakpoint();
+  Breakpoint ();
 
-    InitializeGraphicsServices();
-    InitializeFileServices();
+  InitializeGraphicsServices ();
+  InitializeFileServices ();
 
-    InitializeConfig();
+  InitializeConfig ();
 
-    UINT64 HorConfig = ConfigGetNumUint64 ("hor", D_HOR);
-    UINT64 VerConfig = ConfigGetNumUint64 ("ver", D_VER);
-    GraphicsResolutionSet (HorConfig, VerConfig);
+  UINT64  HorConfig = ConfigGetNumUint64 ("hor", D_HOR);
+  UINT64  VerConfig = ConfigGetNumUint64 ("ver", D_VER);
 
-    CHAR16 *KernelPath = ConfigGetStringChar16 ("kernel", D_KERNEL_PATH);
+  GraphicsResolutionSet (HorConfig, VerConfig);
 
-    KERNEL_PAGE *KernelPages;
-    EFI_PHYSICAL_ADDRESS KernelEntry;
+  CHAR16  *KernelPath = ConfigGetStringChar16 ("kernel", D_KERNEL_PATH);
 
-    KernelLoad (KernelPath, &KernelEntry, &KernelPages);
+  KERNEL_PAGE           *KernelPages;
+  EFI_PHYSICAL_ADDRESS  KernelEntry;
 
-    EfiGetSystemConfigurationTable (&gEfiAcpi20TableGuid, &Config.AcpiTab);
+  KernelLoad (KernelPath, &KernelEntry, &KernelPages);
 
-    UINT64 PML4Addr;
-    InitializePageTab (KernelPages, &PML4Addr);
-    UpdateCr3 (PML4Addr,0);
+  EfiGetSystemConfigurationTable (&gEfiAcpi20TableGuid, &Config.AcpiTable);
 
-    MAP_INFO *Map = AllocateRuntimePages(EFI_SIZE_TO_PAGES(sizeof(MAP_INFO)));
-    RegisterMemory(EFI_SIZE_TO_PAGES(sizeof(MAP_INFO)), Map);
-    ExitBootServices(ImageHandle, Map);
+  UINT64  PML4Address;
 
-    Config.Magic = SIGNATURE_64('T', 'E', 'X', 'T', 'O', 'S', 'B', 'T');
-    Config.Graphics.FrameBuffer     = gGraphicsOutputProtocol->Mode->FrameBufferBase;
-    Config.Graphics.FrameBufferSize = gGraphicsOutputProtocol->Mode->FrameBufferSize;
-    Config.Graphics.Hor             = gGraphicsOutputProtocol->Mode->Info->HorizontalResolution;
-    Config.Graphics.Ver             = gGraphicsOutputProtocol->Mode->Info->VerticalResolution;
+  InitializePageTable (KernelPages, &PML4Address);
+  UpdateCr3 (PML4Address, 0);
 
-    Config.Memory.Map = Map;
-    Config.Memory.KernalPages = KernelPages;
+  MAP_INFO  *MapInfo = AllocateRuntimePages (EFI_SIZE_TO_PAGES (sizeof (MAP_INFO)));
 
-    Config.Runtime = SystemTable->RuntimeServices;
+  RegisterMemory (EFI_SIZE_TO_PAGES (sizeof (MAP_INFO)), MapInfo);
+  ExitBootServices (ImageHandle, MapInfo);
+  Config.Magic                 = SIGNATURE_64 ('T', 'E', 'X', 'T', 'O', 'S', 'B', 'T');
+  Config.Video.FrameBufferBase =
+    gGraphicsOutputProtocol->Mode->FrameBufferBase;
+  Config.Video.FrameBufferSize =
+    gGraphicsOutputProtocol->Mode->FrameBufferSize;
+  Config.Video.HorizontalResolution =
+    gGraphicsOutputProtocol->Mode->Info->HorizontalResolution;
+  Config.Video.VerticalResolution =
+    gGraphicsOutputProtocol->Mode->Info->VerticalResolution;
 
-    ((VOID (*)(long, long))KernelEntry)(Config.Magic, (long)&Config);
+  Config.Memory.MapInfo     = MapInfo;
+  Config.Memory.KernalPages = KernelPages;
+  Config.RuntimeServices    = SystemTable->RuntimeServices;
 
-    return EFI_SUCCESS;
+  ((VOID (*)(long, long)) KernelEntry)(Config.Magic, (long)&Config);
+
+  return EFI_SUCCESS;
 }

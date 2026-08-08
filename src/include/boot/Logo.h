@@ -3,7 +3,7 @@
 
 EFI_STATUS
 LogoShow (
-  CHAR16 *Path
+  CHAR16  *Path
   );
 
 #endif
