@@ -34,21 +34,6 @@ ExitBootServices (
 
 BOOT_CONFIG  Config;
 
-VOID
-RegisterMemory (
-  UINT64  PageNum,
-  VOID    *Pointer
-  )
-{
-  STATIC UINTN  MmIdx = 0;
-
-  Config.Memory.Allocation[MmIdx].PageNum = PageNum;
-  Config.Memory.Allocation[MmIdx].Pointer = Pointer;
-  Config.Memory.Allocation[MmIdx].IsValid = TRUE;
-
-  MmIdx++;
-}
-
 EFI_STATUS EFIAPI
 UefiMain (
   IN EFI_HANDLE        ImageHandle,
@@ -83,7 +68,6 @@ UefiMain (
 
   MAP_INFO  *MapInfo = AllocateRuntimePages (EFI_SIZE_TO_PAGES (sizeof (MAP_INFO)));
 
-  RegisterMemory (EFI_SIZE_TO_PAGES (sizeof (MAP_INFO)), MapInfo);
   ExitBootServices (ImageHandle, MapInfo);
   Config.Magic                 = SIGNATURE_64 ('T', 'E', 'X', 'T', 'O', 'S', 'B', 'T');
   Config.Video.FrameBufferBase =
