@@ -2,7 +2,6 @@
 #define __KERNEL_H__
 
 #include <Elf.h>
-#include <Page.h>
 
 EFI_STATUS
 KernelLoad (
