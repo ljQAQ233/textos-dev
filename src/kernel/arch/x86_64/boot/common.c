@@ -4,6 +4,9 @@
 
 static __bcode void flush_tlb(void);
 static __bdata getpage_t *boot_getpage;
+static __bdata addr_t boot_offset;
+
+#define boot_reloc(x) (fq(x) + boot_offset)
 
 static __bcode int mappage(addr_t pa, addr_t va, int flag)
 {
@@ -11,7 +14,7 @@ static __bcode int mappage(addr_t pa, addr_t va, int flag)
     int pdp_index = (va >> 30) & 0x1ff;
     int pd_index = (va >> 21) & 0x1ff;
     int pt_index = (va >> 12) & 0x1ff;
-    addr_t *bootpgt = (addr_t *)fq(__bootpgt);
+    addr_t *bootpgt = (addr_t *)boot_reloc(__bootpgt);
     addr_t *pml4_entry = bootpgt + pml4_index;
     if (!(*pml4_entry & 1))
     {
@@ -74,6 +77,7 @@ static __bcode void flush_tlb(void)
 __bcode void __common64(long magic, long info, getpage_t *getpage, addr_t offset)
 {
     boot_getpage = getpage;
+    boot_offset = offset;
 
     addr_t maps[3][3] = {
         { fq(__kx_start), fq(__kx_end), 1 },
@@ -84,7 +88,7 @@ __bcode void __common64(long magic, long info, getpage_t *getpage, addr_t offset
     {
         addr_t vstart = align_dn(maps[i][0], PAGE_SIZE);
         addr_t vend = align_up(maps[i][1], PAGE_SIZE);
-        addr_t pstart = vstart - vbase;
+        addr_t pstart = vstart - vbase + offset;
         size_t size = vend - vstart;
         maprange(pstart, vstart, size, maps[i][2]);
     }
