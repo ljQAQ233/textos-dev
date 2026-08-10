@@ -8,8 +8,9 @@
 EFI_STATUS
 KernelLoad (
   IN CHAR16                 *Path,
-  OUT EFI_PHYSICAL_ADDRESS  *Addr,
-  OUT KERNEL_PAGE           **Pages
+  OUT EFI_PHYSICAL_ADDRESS  *Entry,
+  OUT EFI_PHYSICAL_ADDRESS  *Base,
+  OUT UINT64                *Size
   )
 {
   VOID               *Buffer;
@@ -17,7 +18,7 @@ KernelLoad (
 
   ERR_RETS (FileOpen (Path, O_READ, &File));
   ERR_RETS (FileAutoRead (File, &Buffer, NULL));
-  ERR_RETS (ElfLoad (Buffer, Addr, Pages));
+  ERR_RETS (ElfLoad (Buffer, Entry, Base, Size));
 
   FreePool (Buffer);
 

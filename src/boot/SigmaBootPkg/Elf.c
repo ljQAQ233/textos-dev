@@ -1,7 +1,9 @@
+#include <Library/BaseMemoryLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Uefi.h>
 
+#include <Elf.h>
 #include <Boot.h>
 #include <Kernel.h>
 
@@ -10,155 +12,127 @@ ElfCheck (
   IN VOID  *ElfBuffer
   )
 {
-  ELF_HEADER  *Header = (ELF_HEADER *)ElfBuffer;
+  Elf_Ehdr  *Ehdr = (Elf_Ehdr *)ElfBuffer;
 
-  if (Header->Magic != ELF_MAGIC) {
+  if ((Ehdr->e_ident[0] != ELFMAG0) ||
+      (Ehdr->e_ident[1] != ELFMAG1) ||
+      (Ehdr->e_ident[2] != ELFMAG2) ||
+      (Ehdr->e_ident[3] != ELFMAG3))
+  {
     DEBUG ((DEBUG_ERROR, "[FAIL] Not an elf file\n"));
     return EFI_UNSUPPORTED;
   }
 
-  if (Header->Type != ET_EXEC) {
+  if (Ehdr->e_type != ET_EXEC) {
     DEBUG ((DEBUG_ERROR, "[FAIL] This Elf type was wrong\n"));
     return EFI_UNSUPPORTED;
   }
 
-  if (Header->Class != ELF_SUPPORTED_CLASS) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Unsupport the elf class\n"));
-    return EFI_UNSUPPORTED;
-  }
-
-  if (Header->Machine != ELF_SUPPORTED_ARCH) {
+  if (Ehdr->e_machine != ELF_SUPPORTED_ARCH) {
     DEBUG ((
       DEBUG_ERROR,
       "[FAIL] Unsupport elf machine type : %u , Arch : %u\n",
-      Header->Machine,
+      Ehdr->e_machine,
       ELF_SUPPORTED_ARCH
       ));
     return EFI_UNSUPPORTED;
   }
 
-  DEBUG ((DEBUG_INFO, "[ OK ] Elf is good!\n"));
-
   return EFI_SUCCESS;
 }
 
+#define ALIGN_UP(X, Y)    ((Y) * ((X + Y - 1) / Y))
+#define ALIGN_DOWN(X, Y)  ((Y) * (X / Y))
+
 EFI_STATUS
 ElfLoad (
-  IN VOID              *Buffer,
-  IN PHYSICAL_ADDRESS  *Entry,
-  OUT KERNEL_PAGE      **Pages
+  IN VOID               *Buffer,
+  OUT PHYSICAL_ADDRESS  *Entry,
+  OUT PHYSICAL_ADDRESS  *Base,
+  OUT UINT64            *Size
   )
 {
-  EFI_STATUS  Status = EFI_SUCCESS;
+  EFI_STATUS        Status           = EFI_SUCCESS;
+  Elf_Ehdr          *Ehdr            = (Elf_Ehdr *)Buffer;
+  VOID              *ProgramHdrs     = Buffer + Ehdr->e_phoff;
+  Elf_Phdr          *Phdr            = Buffer + Ehdr->e_phoff;
+  UINTN             LoadableSegments = 0;
+  VOID              *LoadBase        = NULL;
+  UINT64            LoadSize         = 0;
+  UINT64            LoadOffset       = 0;
+  PHYSICAL_ADDRESS  PhysicalMax      = 0;
+  PHYSICAL_ADDRESS  PhysicalMin      = MAX_UINT64;
+  PHYSICAL_ADDRESS  PhysicalStart;
+  PHYSICAL_ADDRESS  PhysicalEnd;
 
-  DEBUG ((DEBUG_INFO, "[INFO] Loading elf...\n"));
+  DEBUG ((DEBUG_INFO, "Loading elf...\n"));
   ERR_RETS (ElfCheck (Buffer));
 
-  ELF_HEADER   *Header  = (ELF_HEADER *)Buffer;
-  ELF_PHEADER  *PHeader = Buffer + Header->PhOffset;
-
-  DEBUG ((DEBUG_INFO, "[INFO] Elf Program headers:\n"));
-
-  UINTN  LoadableSegmentsCount = 0;
-
-  for (UINTN i = 0; i < Header->PhNum; i++) {
-    if (PHeader->Type == PT_LOAD) {
-      LoadableSegmentsCount++;
+  //
+  // Actually elf conforms that PT_LOADs keep an ascending order. Since we need
+  // to check all the program headers, we acquire PhysicalMin/Max in passing
+  //
+  for (UINT64 i = 0; i < Ehdr->e_phnum; i++) {
+    Phdr = (Elf_Phdr *)(ProgramHdrs + Ehdr->e_phentsize * i);
+    if (Phdr->p_type != PT_LOAD) {
+      continue;
     }
 
-    PHeader = (VOID *)PHeader + Header->PhentSiz;
+    PhysicalStart = ALIGN_DOWN (Phdr->p_paddr, Phdr->p_align);
+    PhysicalEnd   = ALIGN_UP (Phdr->p_paddr + Phdr->p_memsz, Phdr->p_align);
+
+    LoadableSegments++;
+    PhysicalMax = MAX (PhysicalMax, PhysicalEnd);
+    PhysicalMin = MIN (PhysicalMin, PhysicalStart);
+  }
+
+  LoadSize   = PhysicalMax - PhysicalMin;
+  LoadOffset = PhysicalMin;
+  LoadBase   = AllocatePages (EFI_SIZE_TO_PAGES (LoadSize));
+  if (LoadBase == NULL) {
+    return EFI_OUT_OF_RESOURCES;
   }
 
   DEBUG ((
     DEBUG_INFO,
-    "[INFO] The num of segments will be loaded : %llu\n",
-    LoadableSegmentsCount
+    " LoadBase = %lx\n, LoadSize = %lx"
+    " %llu will be loaded:\n",
+    LoadBase,
+    LoadSize,
+    LoadableSegments
     ));
 
-  UINTN  PageNum =
-    EFI_SIZE_TO_PAGES ((LoadableSegmentsCount + 1) * sizeof (KERNEL_PAGE));
-
-  *Pages = AllocateReservedPages (PageNum);
-  if (*Pages == NULL) {
-    Status = EFI_OUT_OF_RESOURCES;
-    goto Fail;
-  }
-
-  gBS->SetMem (*Pages, EFI_PAGES_TO_SIZE (PageNum), 0);
-
-  PHeader = Buffer + Header->PhOffset;
-  KERNEL_PAGE  *Page = *Pages;
-
-  for (UINTN Index = 0; Index < Header->PhNum;
-       Index++, PHeader = (VOID *)PHeader + Header->PhentSiz)
-  {
-    if (PHeader->Type != PT_LOAD) {
-      DEBUG ((DEBUG_INFO, "       %u -> Isn't PT_LOAD\n", Index));
+  for (UINT64 i = 0; i < Ehdr->e_phnum; i++) {
+    Phdr = (Elf_Phdr *)(ProgramHdrs + Ehdr->e_phentsize * i);
+    if (Phdr->p_type != PT_LOAD) {
       continue;
     }
 
+    CopyMem (
+      LoadBase + Phdr->p_paddr - LoadOffset,
+      Buffer + Phdr->p_offset,
+      Phdr->p_filesz
+      );
+    SetMem (
+      LoadBase + Phdr->p_paddr - LoadOffset + Phdr->p_filesz,
+      Phdr->p_memsz - Phdr->p_filesz,
+      0
+      );
     DEBUG ((
       DEBUG_INFO,
-      "       %u -> VirtAddr : 0x%llx,PhyAddr : 0x%llx\n",
-      Index,
-      PHeader->VirtualAddress,
-      PHeader->PhysicalAddress
+      "  [#%lu] file(%lx, %lx) -> mem(%lx, %lx)\n",
+      i,
+      Phdr->p_offset,
+      Phdr->p_filesz,
+      (UINT64)LoadBase + Phdr->p_paddr - LoadOffset,
+      Phdr->p_memsz
       ));
-    DEBUG ((
-      DEBUG_INFO,
-      "               FileSiz  : %llu,MemSiz  : %llu\n",
-      PHeader->FileSize,
-      PHeader->MemSize
-      ));
-
-    VOID  *Source      = Buffer + PHeader->Offset;
-    VOID  *Destination = AllocateReservedPages (
-                           EFI_SIZE_TO_PAGES (
-                             ALIGN_VALUE (PHeader->MemSize, PHeader->Alignment)
-                             )
-                           );
-    if (Destination == NULL) {
-      Status = EFI_OUT_OF_RESOURCES;
-      goto Fail;
-    }
-
-    gBS->SetMem (Destination, PHeader->MemSize, 0);    // Padding
-    gBS->CopyMem (Destination, Source, PHeader->FileSize);
-
-    if (PHeader->Flags & PF_W) {
-      Page->Flgs |= PE_RW;
-    }
-
-    if (PHeader->Flags & PF_X) {
-      // 默认可执行, 设置 NX 位不可执行
-    }
-
-    PHYSICAL_ADDRESS  PhysicalAddress = (PHYSICAL_ADDRESS)Destination;
-
-    Page->IsValid         = TRUE;
-    Page->PhysicalAddress = PhysicalAddress;
-    Page->VirtualAddress  = PHeader->VirtualAddress;
-    Page->MemorySize      = ALIGN_VALUE (PHeader->MemSize, PHeader->Alignment);
-    Page++;
   }
 
-  *Entry = (PHYSICAL_ADDRESS)Header->Entry;
-
-  return Status;
-
-Fail:
-  if (*Pages != NULL) {
-    for (KERNEL_PAGE *PageRecord = *Pages; PageRecord->IsValid;
-         PageRecord++)
-    {
-      ERR_RETS (
-        gBS->FreePages (
-               PageRecord->PhysicalAddress,
-               EFI_SIZE_TO_PAGES (PageRecord->MemorySize)
-               )
-        );
-    }
-  }
+  *Entry = (PHYSICAL_ADDRESS)LoadBase + Ehdr->e_entry - LoadOffset;
+  *Base  = (PHYSICAL_ADDRESS)LoadBase;
+  *Size  = LoadSize;
+  DEBUG ((DEBUG_INFO, "Elf entry is at %lx\n", *Entry));
 
   return Status;
 }

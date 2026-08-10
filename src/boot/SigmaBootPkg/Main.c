@@ -98,21 +98,17 @@ UefiMain (
 
   CHAR16  *KernelPath = ConfigGetStringChar16 ("kernel", D_KERNEL_PATH);
 
-  KERNEL_PAGE           *KernelPages;
   EFI_PHYSICAL_ADDRESS  KernelEntry;
+  EFI_PHYSICAL_ADDRESS  KernelBase;
+  UINT64                KernelSize;
 
-  KernelLoad (KernelPath, &KernelEntry, &KernelPages);
+  KernelLoad (KernelPath, &KernelEntry, &KernelBase, &KernelSize);
 
   EfiGetSystemConfigurationTable (&gEfiAcpi20TableGuid, &Config.AcpiTable);
 
-  UINT64  PML4Address;
-
-  InitializePageTable (KernelPages, &PML4Address);
-  UpdateCr3 (PML4Address, 0);
-
   MAP_INFO  *MapInfo = AllocateRuntimePages (EFI_SIZE_TO_PAGES (sizeof (MAP_INFO)));
 
-  ExitBootServices (ImageHandle, MapInfo);
+  // ExitBootServices (ImageHandle, MapInfo);
   Config.Magic                 = SIGNATURE_64 ('T', 'E', 'X', 'T', 'O', 'S', 'B', 'T');
   Config.Video.FrameBufferBase =
     gGraphicsOutputProtocol->Mode->FrameBufferBase;
@@ -123,9 +119,8 @@ UefiMain (
   Config.Video.VerticalResolution =
     gGraphicsOutputProtocol->Mode->Info->VerticalResolution;
 
-  Config.Memory.MapInfo     = MapInfo;
-  Config.Memory.KernalPages = KernelPages;
-  Config.RuntimeServices    = SystemTable->RuntimeServices;
+  Config.Memory.MapInfo  = MapInfo;
+  Config.RuntimeServices = SystemTable->RuntimeServices;
 
   ((VOID (*)(long, long)) KernelEntry)(Config.Magic, (long)&Config);
 
