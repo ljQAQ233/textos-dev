@@ -1,4 +1,4 @@
-#include <textos/boot.h>
+#include <textos/boot/hal.h>
 
 #include "common.h"
 
@@ -88,7 +88,7 @@ __bcode void __common64(long magic, long info, getpage_t *getpage, addr_t offset
     {
         addr_t vstart = align_dn(maps[i][0], PAGE_SIZE);
         addr_t vend = align_up(maps[i][1], PAGE_SIZE);
-        addr_t pstart = vstart - vbase + offset;
+        addr_t pstart = vstart - fq(__vbase) + offset;
         size_t size = vend - vstart;
         maprange(pstart, vstart, size, maps[i][2]);
     }

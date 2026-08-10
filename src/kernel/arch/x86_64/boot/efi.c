@@ -1,10 +1,8 @@
-#include <textos/boot.h>
-#include <textos/user/elf.h>
 #include <textos/boot/efi.h>
+#include <textos/boot/hal.h>
 #include <textos/uefi.h>
 
 #include "common.h"
-#include "textos/uefi/mm.h"
 
 static __bdata void *descs;
 static __bdata size_t desccnt;

@@ -1,7 +1,6 @@
 .extern __lbase
 .extern __lend
 .extern __lend_bss
-.extern __preinit
 .extern __multi64
 .extern __bootpgt
 .globl _mb1_start
