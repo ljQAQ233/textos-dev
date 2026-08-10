@@ -1,4 +1,4 @@
-ENTRY(kernel_init)
+ENTRY(_start)
 
 /*
  * define our load address and virtual address for multiboot

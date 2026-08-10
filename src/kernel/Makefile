@@ -23,7 +23,8 @@ CFLAGS := \
 CFLAGS += -D__TEXTOS_DEBUG
 
 AFLAGS := \
-  -g
+  -g \
+  $(addprefix -I,${INCLUDE})
 
 LDFLAGS := \
   -static -nostdlib -z noexecstack \

@@ -1,6 +1,7 @@
 
-SRCS += $(ARCH_DIR)/multi.S
-SRCS += $(ARCH_DIR)/multi.c
+SRCS += $(ARCH_DIR)/boot/_start.S
+SRCS += $(ARCH_DIR)/boot/multi.S
+SRCS += $(ARCH_DIR)/boot/multi.c
 SRCS += $(ARCH_DIR)/cpu.S
 SRCS += $(ARCH_DIR)/ap.c
 SRCS += $(ARCH_DIR)/ap.S
