@@ -17,4 +17,5 @@
 
 typedef void *(getpage_t)();
 
-extern __bcode void __common64(long magic, long info, getpage_t *getpage);
+extern __bcode void __common64(long magic, long info, getpage_t *getpage,
+                               addr_t offset);

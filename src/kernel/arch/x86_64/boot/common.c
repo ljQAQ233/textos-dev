@@ -71,7 +71,7 @@ static __bcode void flush_tlb(void)
     );
 }
 
-__bcode void __common64(long magic, long info, getpage_t *getpage)
+__bcode void __common64(long magic, long info, getpage_t *getpage, addr_t offset)
 {
     boot_getpage = getpage;
 
