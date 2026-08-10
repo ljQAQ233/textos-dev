@@ -1,3 +1,4 @@
+SRCS += $(ARCH_DIR)/boot/bootpgt.S
 SRCS += $(ARCH_DIR)/boot/common.c
 SRCS += $(ARCH_DIR)/boot/efi.c
 SRCS += $(ARCH_DIR)/boot/efi.S
