@@ -4,6 +4,7 @@
 .extern __preinit
 .extern __multi64
 .globl __bootpgt
+.globl _mb1_start
 
 .section .multiboot, "a"
 
