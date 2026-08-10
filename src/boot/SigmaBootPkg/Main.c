@@ -16,7 +16,7 @@
 
 EFI_STATUS
 GetMemoryMap (
-  MAP_INFO  *Info
+  mapinfo_t  *Info
   )
 {
   ASSERT (Info != NULL);
@@ -25,14 +25,17 @@ GetMemoryMap (
   VOID        *Descs  = NULL;
   UINTN       MapSiz  = 0;
   UINTN       PageNum = 0;
+  UINTN       MapKey;
+  UINTN       DescriptorSize;
+  UINT32      DescriptorVersion;
 
 Retry:
   Status = gBS->GetMemoryMap (
                   &MapSiz,
                   Descs,
-                  &Info->MapKey,
-                  &Info->DescSize,
-                  &Info->DescVersion
+                  &MapKey,
+                  &DescriptorSize,
+                  &DescriptorVersion
                   );
   if (Status == EFI_BUFFER_TOO_SMALL) {
     if (Descs != NULL) {
@@ -53,16 +56,19 @@ Retry:
 
   ERR_RETS (Status);
 
-  Info->Descs    = Descs;
-  Info->MapSize  = MapSiz;
-  Info->MapCount = Info->MapSize / Info->DescSize;
+  Info->map    = Descs;
+  Info->mapsiz   = MapSiz;
+  Info->desccnt = Info->mapsiz / DescriptorSize;
+  Info->mapkey   = MapKey;
+  Info->descsiz  = DescriptorSize;
+  Info->descver  = DescriptorVersion;
   return Status;
 }
 
 EFI_STATUS
 ExitBootServices (
   IN EFI_HANDLE  ImageHandle,
-  OUT MAP_INFO   *Info
+  OUT mapinfo_t  *Info
   )
 {
   EFI_STATUS  Status = EFI_SUCCESS;
@@ -70,13 +76,13 @@ ExitBootServices (
   Status = GetMemoryMap (Info);
   ERR_RETS (Status);
 
-  Status = gBS->ExitBootServices (ImageHandle, Info->MapKey);
+  Status = gBS->ExitBootServices (ImageHandle, (UINTN)Info->mapkey);
   ERR_RETS (Status);
 
   return Status;
 }
 
-BOOT_CONFIG  Config;
+bconfig_t  Config;
 
 EFI_STATUS EFIAPI
 UefiMain (
@@ -104,25 +110,20 @@ UefiMain (
 
   KernelLoad (KernelPath, &KernelEntry, &KernelBase, &KernelSize);
 
-  EfiGetSystemConfigurationTable (&gEfiAcpi20TableGuid, &Config.AcpiTable);
+  EfiGetSystemConfigurationTable (&gEfiAcpi20TableGuid, &Config.acpi);
 
-  MAP_INFO  *MapInfo = AllocateRuntimePages (EFI_SIZE_TO_PAGES (sizeof (MAP_INFO)));
+  mapinfo_t  *MapInfo = AllocatePool (sizeof (mapinfo_t));
 
   // ExitBootServices (ImageHandle, MapInfo);
-  Config.Magic                 = SIGNATURE_64 ('T', 'E', 'X', 'T', 'O', 'S', 'B', 'T');
-  Config.Video.FrameBufferBase =
-    gGraphicsOutputProtocol->Mode->FrameBufferBase;
-  Config.Video.FrameBufferSize =
-    gGraphicsOutputProtocol->Mode->FrameBufferSize;
-  Config.Video.HorizontalResolution =
-    gGraphicsOutputProtocol->Mode->Info->HorizontalResolution;
-  Config.Video.VerticalResolution =
-    gGraphicsOutputProtocol->Mode->Info->VerticalResolution;
+  Config.magic   = TEXTOS_BOOT_MAGIC;
+  Config.fb      = gGraphicsOutputProtocol->Mode->FrameBufferBase;
+  Config.fb_siz  = gGraphicsOutputProtocol->Mode->FrameBufferSize;
+  Config.hor     = gGraphicsOutputProtocol->Mode->Info->HorizontalResolution;
+  Config.ver     = gGraphicsOutputProtocol->Mode->Info->VerticalResolution;
+  Config.mapinfo     = MapInfo;
+  Config.runtime = SystemTable->RuntimeServices;
 
-  Config.Memory.MapInfo  = MapInfo;
-  Config.RuntimeServices = SystemTable->RuntimeServices;
-
-  ((VOID (*)(long, long)) KernelEntry)(Config.Magic, (long)&Config);
+  ((VOID (*)(long, long)) KernelEntry)(Config.magic, (long)&Config);
 
   return EFI_SUCCESS;
 }

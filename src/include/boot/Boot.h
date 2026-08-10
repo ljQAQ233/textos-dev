@@ -45,45 +45,6 @@
 
 #define KERNEL_BASE  0x100000
 
-typedef struct {
-  EFI_MEMORY_DESCRIPTOR    *Descs;
-  UINTN                    MapSize;
-  UINTN                    MapCount;
-  UINTN                    MapKey;
-  UINTN                    DescSize;
-  UINT32                   DescVersion;
-} MAP_INFO;
-
-typedef struct {
-  UINT64    HorizontalResolution;
-  UINT64    VerticalResolution;
-  UINT64    FrameBufferBase;
-  UINT64    FrameBufferSize;
-} VIDEO_CONFIG;
-
-/*
-   describes where the memory is allocated with the type EfiReservedMemoryType
-   which would be used by kernel, kernel also depends on them before completing
-   memory initialization.
-*/
-typedef struct {
-  UINT8     IsValid;
-  UINT64    PageNum;
-  VOID      *Pointer;
-} ALLOCATE_INFO;
-
-typedef struct {
-  ALLOCATE_INFO    Allocation[16];
-  VOID             *MapInfo;
-  VOID             *KernalPages;
-} MEMORY_CONFIG;
-
-typedef struct {
-  UINT64           Magic;
-  VIDEO_CONFIG     Video;
-  MEMORY_CONFIG    Memory;
-  VOID             *AcpiTable;
-  VOID             *RuntimeServices;
-} BOOT_CONFIG;
+#include <textos/boot/efi.h>
 
 #endif
