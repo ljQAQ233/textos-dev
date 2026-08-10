@@ -1,7 +1,11 @@
-#include <textos/boot.h>
-#include <textos/user/elf.h>
+#include <textos/boot/hal.h>
+#include <textos/boot/mb1.h>
 
 #include "common.h"
+
+#define lbase fq(__lbase)
+#define vbase fq(__vbase)
+#define lend  fq(__lend)
 
 static __bdata void *mmap;
 static __bdata size_t mmap_max;
