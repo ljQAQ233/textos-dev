@@ -72,6 +72,22 @@ static __bcode void *getpage()
     return NULL;
 }
 
+static __bcode void load_bootpgt(addr_t offset)
+{
+    addr_t cr3 = fq(__bootpgt) + offset;
+    addr_t *pgt = (addr_t *)cr3;
+    pgt[0] += offset;
+    __asm__ __volatile__(
+        // erase CR0_WP first
+        "movq %%cr0, %%rax\n"
+        "andq $~(1ull << 16), %%rax\n"
+        "movq %%rax, %%cr0\n"
+        "mov %0, %%cr3\n"
+        :
+        : "r"(cr3)
+        : "rax", "memory");
+}
+
 __bcode void __efi64(long magic, long info)
 {
     bconfig_t *b = (bconfig_t *)info;
@@ -85,5 +101,7 @@ __bcode void __efi64(long magic, long info)
     addr_t expect_entry = fq(_start);
     addr_t real_entry = b->phy_entry;
     addr_t offset = real_entry - expect_entry;
+    load_bootpgt(offset);
+
     __common64(magic, info, getpage, offset);
 }
