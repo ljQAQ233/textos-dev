@@ -77,10 +77,15 @@ static __bcode void *getpage()
 
 __bcode void __efi64(long magic, long info)
 {
-    mapinfo_t *i = ((bconfig_t *)info)->mapinfo;
+    bconfig_t *b = (bconfig_t *)info;
+    mapinfo_t *i = b->mapinfo;
     descs = i->map;
     desccnt = i->desccnt;
     descsiz = i->descsiz;
     reskern();
-    __common64(magic, info, getpage);
+    // expect + offset = real
+    addr_t expect_entry = fq(_start);
+    addr_t real_entry = b->phy_entry;
+    addr_t offset = real_entry - expect_entry;
+    __common64(magic, info, getpage, offset);
 }
