@@ -113,12 +113,12 @@ void __uefi_tovmm()
         shot = true;
 
     bconfig_t *bconfig = binfo_get();
-    mapinfo_t *info = bconfig->memory.map;
+    mapinfo_t *info = bconfig->mapinfo;
 
     addr_t vs = __uefi_misc;
-    EFI_MEMORY_DESCRIPTOR *desc = OFFSET(info->maps, info->descsiz);
+    EFI_MEMORY_DESCRIPTOR *desc = OFFSET(info->map, info->descsiz);
     DEBUGK(K_INFO, "try to remap uefi\n");
-    for (int i = 1 ; i < info->mapcount ; i++) {
+    for (int i = 1 ; i < info->desccnt ; i++) {
         if (desc->Attribute & EFI_MEMORY_RUNTIME) {
             desc->VirtualStart = vs;
             addr_t ps = desc->PhysicalStart;
@@ -140,7 +140,7 @@ void __uefi_tovmm()
         info->mapsiz,
         info->descsiz,
         info->descver,
-        info->maps
+        info->map
     );
     if (EFI_ERROR(stat))
         PANIC("failed to SetVirtualAddressMap - %s\n", get_uefi_statstr(stat));
@@ -149,7 +149,4 @@ void __uefi_tovmm()
     
     void *newrt = malloc(sizeof(*rt));
     bconfig->runtime = memcpy(newrt, rt, sizeof(*rt));
-
-    for (balloc_t *p = bconfig->memory.balloc ; p->va ; p++)
-        pmm_freepages((addr_t)p->ptr, p->cnt);
 }

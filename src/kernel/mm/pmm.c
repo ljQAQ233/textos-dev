@@ -248,31 +248,17 @@ void __pmm_tovmm()
 #include <textos/boot.h>
 #include <textos/uefi.h>
 
-void __kpg_dump(kpgs_t *kpg)
-{
-    DEBUGK(K_INFO, "dump kpg = %p\n", kpg);
-    for (int i = 0;; i++, kpg++)
-    {
-        if (!kpg->va)
-            break;
-        DEBUGK(K_INFO | K_CONT, "[#%2d] kpg %p -> %p | %d\n", i, kpg->phy, kpg->vrt, kpg->msiz);
-    }
-}
-
 void __pmm_pre()
 {
     DEBUGK(K_INFO, "early-init physical memory!\n");
     if (bmode_get() == BOOT_EFI)
     {
         bconfig_t *b = binfo_get();
-        mconfig_t *m = &b->memory;
-        __kpg_dump((kpgs_t *)m->kpgs);
-
+        mapinfo_t *info = b->mapinfo;
         free_t *n = &_free;
-        mapinfo_t *info = m->map;
-        EFI_MEMORY_DESCRIPTOR *desc = info->maps;
+        EFI_MEMORY_DESCRIPTOR *desc = info->map;
         DEBUGK(K_INFO | K_CONT, "dump efi memory map :\n");
-        for (int i = 0; i < info->mapcount; i++, desc = OFFSET(desc, info->descsiz))
+        for (int i = 0; i < info->desccnt; i++, desc = OFFSET(desc, info->descsiz))
         {
             DEBUGK(K_INFO | K_CONT, "[#%02d] %p | %p | %s\n", i, desc->PhysicalStart, desc->NumberOfPages,
                 get_uefi_mtstr(desc->Type));
