@@ -6,11 +6,8 @@
 static __bdata void *mmap;
 static __bdata size_t mmap_max;
 
-static __bcode void reskern()
+static __bcode void reskern(addr_t kern_start, addr_t kern_end)
 {
-    addr_t kern_start = lbase;
-    addr_t kern_end   = align_up(lend, PAGE_SIZE);
-
     multiboot_memory_map_t *map = (void *)mmap;
     for (int i = 0; i < mmap_max; i++, map++)
     {
@@ -71,6 +68,8 @@ __bcode void __multi64(long magic, long info)
     multiboot_info_t *mi = (void *)info;
     mmap = (void *)(long)mi->mmap_addr;
     mmap_max = mi->mmap_length / sizeof(multiboot_memory_map_t);
-    reskern();
-    __common64(magic, info, getpage);
+    addr_t kern_start = lbase;
+    addr_t kern_end   = align_up(lend, PAGE_SIZE);
+    reskern(kern_start, kern_end);
+    __common64(magic, info, getpage, 0);
 }
