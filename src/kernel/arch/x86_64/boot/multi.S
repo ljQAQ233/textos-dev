@@ -3,7 +3,7 @@
 .extern __lend_bss
 .extern __preinit
 .extern __multi64
-.globl __bootpgt
+.extern __bootpgt
 .globl _mb1_start
 
 .section .multiboot, "a"
@@ -40,18 +40,6 @@ _stack:
     .space 0x1000
 _stack_top:
 
-_id_pdpt:
-    .set i, 0
-    .rept 512
-        .quad i * (1<<30) | 0x83
-        .set i, i + 1 
-    .endr
-
-_id_pml4:
-__bootpgt:
-    .quad _id_pdpt + 0x03
-    .fill 511, 8, 0
-
 .align 8
 _gdtr:
     .word _gdt_end - _gdt - 1
@@ -83,7 +71,7 @@ _mb1_start:
     movl %eax, %cr4
 
     /* load pml4 */
-    movl $_id_pml4, %eax
+    movl $__bootpgt, %eax
     movl %eax, %cr3
 
     /* enable LME */
