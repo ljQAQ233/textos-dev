@@ -13,11 +13,8 @@ static __bdata size_t descsiz;
 #define to_len(pgs) (EFI_PAGE_SIZE * (pgs))
 #define to_pgs(len) ((len) / EFI_PAGE_SIZE)
 
-static __bcode void reskern()
+static __bcode void reskern(addr_t kern_start, addr_t kern_end)
 {
-    addr_t kern_start = lbase;
-    addr_t kern_end   = align_up(lend, PAGE_SIZE);
-
     for (int i = 0; i < desccnt; i++)
     {
         EFI_MEMORY_DESCRIPTOR *desc = (void *)descs + descsiz * i;
@@ -82,7 +79,8 @@ __bcode void __efi64(long magic, long info)
     descs = i->map;
     desccnt = i->desccnt;
     descsiz = i->descsiz;
-    reskern();
+    reskern(b->load_base, b->load_base + b->load_size);
+
     // expect + offset = real
     addr_t expect_entry = fq(_start);
     addr_t real_entry = b->phy_entry;
