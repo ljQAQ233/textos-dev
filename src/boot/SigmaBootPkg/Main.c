@@ -56,12 +56,12 @@ Retry:
 
   ERR_RETS (Status);
 
-  Info->map    = Descs;
-  Info->mapsiz   = MapSiz;
+  Info->map     = Descs;
+  Info->mapsiz  = MapSiz;
   Info->desccnt = Info->mapsiz / DescriptorSize;
-  Info->mapkey   = MapKey;
-  Info->descsiz  = DescriptorSize;
-  Info->descver  = DescriptorVersion;
+  Info->mapkey  = MapKey;
+  Info->descsiz = DescriptorSize;
+  Info->descver = DescriptorVersion;
   return Status;
 }
 
@@ -114,14 +114,17 @@ UefiMain (
 
   mapinfo_t  *MapInfo = AllocatePool (sizeof (mapinfo_t));
 
-  // ExitBootServices (ImageHandle, MapInfo);
-  Config.magic   = TEXTOS_BOOT_MAGIC;
-  Config.fb      = gGraphicsOutputProtocol->Mode->FrameBufferBase;
-  Config.fb_siz  = gGraphicsOutputProtocol->Mode->FrameBufferSize;
-  Config.hor     = gGraphicsOutputProtocol->Mode->Info->HorizontalResolution;
-  Config.ver     = gGraphicsOutputProtocol->Mode->Info->VerticalResolution;
-  Config.mapinfo     = MapInfo;
-  Config.runtime = SystemTable->RuntimeServices;
+  ExitBootServices (ImageHandle, MapInfo);
+  Config.magic     = TEXTOS_BOOT_MAGIC;
+  Config.fb        = gGraphicsOutputProtocol->Mode->FrameBufferBase;
+  Config.fb_siz    = gGraphicsOutputProtocol->Mode->FrameBufferSize;
+  Config.hor       = gGraphicsOutputProtocol->Mode->Info->HorizontalResolution;
+  Config.ver       = gGraphicsOutputProtocol->Mode->Info->VerticalResolution;
+  Config.mapinfo   = MapInfo;
+  Config.runtime   = SystemTable->RuntimeServices;
+  Config.load_base = KernelBase;
+  Config.load_size = KernelSize;
+  Config.phy_entry = KernelEntry;
 
   ((VOID (*)(long, long)) KernelEntry)(Config.magic, (long)&Config);
 

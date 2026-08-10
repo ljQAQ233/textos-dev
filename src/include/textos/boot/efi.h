@@ -22,4 +22,7 @@ typedef struct
     void *mapinfo;
     void *acpi;
     void *runtime;
+    unsigned long long load_base;
+    unsigned long long load_size;
+    unsigned long long phy_entry;
 } bconfig_t;
