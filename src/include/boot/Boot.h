@@ -10,29 +10,26 @@
 #endif
 
 // Return the status when error occurs
-#define ERR_RETS(Expr)                                       \
-    do {                                                     \
-        EFI_STATUS Stat = Expr;                              \
-        if (EFI_ERROR (Stat)) {                              \
-            DEBUG ((DEBUG_ERROR, "[FAIL] %a(%d) Exe: " #Expr \
-                    "- %r\n", __FILE__, __LINE__, Stat));    \
-            return Stat;                                     \
-        }                                                    \
+#define ERR_RETS(Expression)                                          \
+    do {                                                              \
+        EFI_STATUS __Status = Expression;                             \
+        if (EFI_ERROR(__Status)) {                                    \
+            DEBUG((DEBUG_ERROR, "%a(%d) expr: " #Expression "- %r\n", \
+                   __FILE__, __LINE__, __Status));                    \
+            return __Status;                                          \
+        }                                                             \
     } while (FALSE);
 
 // For non-value returning functions
-#define ERR_RET(Expr)                                        \
-    do {                                                     \
-        EFI_STATUS Stat = Expr;                              \
-        if (EFI_ERROR (Stat)) {                              \
-            DEBUG ((DEBUG_ERROR, "[FAIL] %a(%d) Exe: " #Expr \
-                    " - %r\n", __FILE__, __LINE__, Stat));   \
-            return;                                          \
-        }                                                    \
+#define ERR_RET(Expression)                                            \
+    do {                                                               \
+        EFI_STATUS __Status = Expression;                              \
+        if (EFI_ERROR(__Status)) {                                     \
+            DEBUG((DEBUG_ERROR, "%a(%d) expr: " #Expression " - %r\n", \
+                   __FILE__, __LINE__, __Status));                     \
+            return;                                                    \
+        }                                                              \
     } while (FALSE);
-
-#define IGNORE(Var) \
-    { while (FALSE && Var); }
 
 #define CONFIG_PATH  L"\\config.ini"
 
