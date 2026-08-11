@@ -1,5 +1,6 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
 #include <Uefi.h>
 
 #include <Boot.h>
@@ -108,7 +109,7 @@ FileAutoRead (
 
   *Data = AllocatePool (Size);
   if (Data == NULL) {
-    DEBUG ((DEBUG_INFO, "[FAIL] Get memory space for the file is read\n"));
+    Print (L"Failed to allocate memory for file data - Size = %llu\n", (UINT64)Size);
     return EFI_OUT_OF_RESOURCES;
   }
 
@@ -190,17 +191,13 @@ FileGetInfo (
 
   Status = File->GetInfo (File, &gEfiFileInfoGuid, &FileSize, (VOID *)*Info);
   if (Status != EFI_BUFFER_TOO_SMALL) {
-    DEBUG ((
-      DEBUG_ERROR,
-      "[FAIL] Get the size of the file info - Status : %r\n",
-      Status
-      ));
+    Print (L"Get the size of the file info - Status : %r\n", Status);
     return Status;
   }
 
   *Info = (EFI_FILE_INFO *)AllocatePool (FileSize);
   if (*Info == NULL) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Allocate memory for info\n"));
+    Print (L"Failed to allocate memory for file info - Size = %llu\n", (UINT64)FileSize);
     return EFI_OUT_OF_RESOURCES;
   }
 

@@ -97,7 +97,7 @@ IniLoad (
   EFI_FILE_PROTOCOL  *File;
 
   if ((IniInfo == NULL) || (Path == NULL)) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Invlaid parameters,can't be NULL\n"));
+    Print (L"Invalid parameters - IniInfo = %p, Path = %p\n", (VOID *)IniInfo, (VOID *)Path);
     return EFI_INVALID_PARAMETER;
   }
 
@@ -183,12 +183,7 @@ IniGetStringChar16 (
   CHAR16  *String;
 
   if (EFI_ERROR (IniGetStringChar16S (Ini, Key, Default, &String))) {
-    DEBUG ((
-      DEBUG_ERROR,
-      "[FAIL] Unable to get string from key %a,use the default - %a\n",
-      Key,
-      Default
-      ));
+    Print (L"Unable to get string from key %a,use the default - %a\n", Key, Default);
   } else {
     DEBUG (
       (DEBUG_INFO, "[ OK ] Get string from key %a - %s\n", Key, String));
@@ -231,10 +226,7 @@ IniGetNumUint64 (
   UINT64  Number = 0;
 
   if (EFI_ERROR (IniGetNumUint64S (Ini, Key, Default, &Number))) {
-    DEBUG (
-      (DEBUG_ERROR,
-       "[FAIL] Unable to get number from key %a,use the default - %llu\n",
-       Key, Number));
+    Print (L"Unable to get number from key %a,use the default - %llu\n", Key, Number);
   } else {
     DEBUG ((
       DEBUG_INFO,

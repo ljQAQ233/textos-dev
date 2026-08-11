@@ -16,16 +16,17 @@
 
 /* Mutiple arch but not used now */
 #if defined (MDE_CPU_X64) || defined (MDE_CPU_AARCH64)
-typedef Elf64_Ehdr Elf_Ehdr;
-typedef Elf64_Phdr Elf_Phdr;
+typedef Elf64_Ehdr  Elf_Ehdr;
+typedef Elf64_Phdr  Elf_Phdr;
 #elif defined (MDE_CPU_IA32) || defined (MDE_CPU_ARM)
-typedef Elf32_Ehdr Elf_Ehdr;
-typedef Elf32 Elf_Phdr;
+typedef Elf32_Ehdr  Elf_Ehdr;
+typedef Elf32       Elf_Phdr;
 #endif
 
 #if defined (MDE_CPU_X64)
-#define ELF_SUPPORTED_ARCH   EM_X86_64
-#define ELF_SUPPORTED_CLASS  ELFCLASS64
+#define ELF_SUPPORTED_ARCH     EM_X86_64
+#define ELF_SUPPORTED_CLASS    ELFCLASS64
+#define ELF_SUPPORTED_ARCHSTR  L"x86_64"
 #elif defined (MDE_CPU_IA32)
 #define ELF_SUPPORTED_ARCH   EM_386
 #define ELF_SUPPORTED_CLASS  ELFCLASS32

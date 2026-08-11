@@ -1,6 +1,7 @@
 #include <Library/BaseMemoryLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
 #include <Uefi.h>
 
 #include <Elf.h>
@@ -19,22 +20,27 @@ ElfCheck (
       (Ehdr->e_ident[2] != ELFMAG2) ||
       (Ehdr->e_ident[3] != ELFMAG3))
   {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Not an elf file\n"));
+    Print (
+      L"ELF magic number not matched - %x %x %x %x\n",
+      Ehdr->e_ident[0],
+      Ehdr->e_ident[1],
+      Ehdr->e_ident[2],
+      Ehdr->e_ident[3]
+      );
     return EFI_UNSUPPORTED;
   }
 
   if (Ehdr->e_type != ET_EXEC) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] This Elf type was wrong\n"));
+    Print (L"ELF type is wrong, type = %lu\n", (UINT64)Ehdr->e_type);
     return EFI_UNSUPPORTED;
   }
 
   if (Ehdr->e_machine != ELF_SUPPORTED_ARCH) {
-    DEBUG ((
-      DEBUG_ERROR,
-      "[FAIL] Unsupport elf machine type : %u , Arch : %u\n",
-      Ehdr->e_machine,
-      ELF_SUPPORTED_ARCH
-      ));
+    Print (
+      L"ELF machine type %lu not matched with %s\n",
+      (UINT64)Ehdr->e_machine,
+      ELF_SUPPORTED_ARCHSTR
+      );
     return EFI_UNSUPPORTED;
   }
 
@@ -65,7 +71,7 @@ ElfLoad (
   PHYSICAL_ADDRESS  PhysicalStart;
   PHYSICAL_ADDRESS  PhysicalEnd;
 
-  DEBUG ((DEBUG_INFO, "Loading elf...\n"));
+  Print (L"Loading ELF...\n");
   ERR_RETS (ElfCheck (Buffer));
 
   //
@@ -95,7 +101,7 @@ ElfLoad (
 
   DEBUG ((
     DEBUG_INFO,
-    " LoadBase = %lx\n, LoadSize = %lx"
+    " LoadBase = %lx, LoadSize = %lx\n"
     " %llu will be loaded:\n",
     LoadBase,
     LoadSize,
@@ -132,7 +138,7 @@ ElfLoad (
   *Entry = (PHYSICAL_ADDRESS)LoadBase + Ehdr->e_entry - LoadOffset;
   *Base  = (PHYSICAL_ADDRESS)LoadBase;
   *Size  = LoadSize;
-  DEBUG ((DEBUG_INFO, "Elf entry is at %lx\n", *Entry));
+  DEBUG ((DEBUG_INFO, "ELF entry is at %lx\n", *Entry));
 
   return Status;
 }
