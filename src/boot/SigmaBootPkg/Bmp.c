@@ -1,6 +1,7 @@
 #include <Uefi.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
 
 #include <Boot.h>
 #include <File.h>
@@ -17,12 +18,16 @@ BmpCheckFormat (
   if ((Header->CharB != 'B') ||
       (Header->CharM != 'M'))
   {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Invalid Bmp header format in header symbol\n"));
+    Print (
+      L"Invalid Bmp header format in header symbol - CharB = %c, CharM = %c\n",
+      (UINTN)Header->CharB,
+      (UINTN)Header->CharM
+      );
     return EFI_INVALID_PARAMETER;
   }
 
   if (Header->Width <= 0) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Invalid Bmp header format in pixel width\n"));
+    Print (L"Invalid Bmp header format in pixel width - Width = %d\n", Header->Width);
     return EFI_INVALID_PARAMETER;
   }
 
@@ -32,24 +37,28 @@ BmpCheckFormat (
       (Header->ImageBits != 24) &&
       (Header->ImageBits != 32))
   {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Invalid Bmp header format in bits\n"));
+    Print (L"Invalid Bmp header format in bits - ImageBits = %u\n", Header->ImageBits);
     return EFI_INVALID_PARAMETER;
   }
 
   if (Header->CompressionType != 0) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Invalid Bmp CompressionType\n"));
+    Print (L"Invalid Bmp CompressionType - CompressionType = %u\n", Header->CompressionType);
     return EFI_UNSUPPORTED;
   }
 
   if (Header->ImageOffset < sizeof (BMP_IMAGE_HEADER)) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Invalid Bmp ImageOffset\n"));
+    Print (
+      L"Invalid Bmp ImageOffset - ImageOffset = %u, minimum = %u\n",
+      Header->ImageOffset,
+      (UINT32)sizeof (BMP_IMAGE_HEADER)
+      );
     return EFI_INVALID_PARAMETER;
   }
 
   if (Header->ImageOffset - sizeof (BMP_IMAGE_HEADER) <
       sizeof (BMP_COLOR_MAP) * ((Header->ImageBits == 24) ? 0 : (1ULL << Header->ImageBits)))
   {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Invalid Bmp color maps\n"));
+    Print (L"Invalid Bmp color maps - ImageOffset = %u\n", Header->ImageOffset);
     return EFI_INVALID_PARAMETER;
   }
 
@@ -146,7 +155,7 @@ BmpInfoLoad (
   /* Check the format is good and supported */
   Status = BmpCheckFormat (&Header);
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Unsupported BMP format or bad BMP!\n"));
+    Print (L"Unsupported BMP format or bad BMP! - Status : %r\n", Status);
     return Status;
   }
 
@@ -168,7 +177,7 @@ BmpInfoLoad (
   VOID  *Buffer = AllocatePages (EFI_SIZE_TO_PAGES (Size));
 
   if (Buffer == NULL) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Allocated memory for Buffer failed\n"));
+    Print (L"Failed to allocate memory for Buffer - Size = %llu\n", (UINT64)Size);
     return EFI_OUT_OF_RESOURCES;
   }
 

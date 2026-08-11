@@ -1,3 +1,4 @@
+#include <Library/UefiLib.h>
 #include <Uefi.h>
 
 #include <Boot.h>
@@ -11,7 +12,7 @@ LogoShow (
   EFI_STATUS  Status = GraphicsBmpDisplay (Path, 0, 0, ModeCenter);
 
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Unable to show logo(Bmp) : %S\n", Path));
+    Print (L"Unable to show logo(Bmp) - Path : %S, Status : %r\n", Path, Status);
     return Status;
   }
 

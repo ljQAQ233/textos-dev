@@ -1,4 +1,5 @@
 #include <Library/MemoryAllocationLib.h>
+#include <Library/UefiLib.h>
 #include <Uefi.h>
 
 #include <Boot.h>
@@ -27,7 +28,7 @@ FontLoad (
   Font->Height = ConfigGetNumUint64 ("font_height", 0);
 
   if ((Font->Height == 0) || (Font->Width == 0)) {
-    DEBUG ((DEBUG_ERROR, "[FAIL] Invalid Font Width or Height\n"));
+    Print (L"Invalid Font Width or Height - Width = %u, Height = %u\n", Font->Width, Font->Height);
     return Status;
   }
 

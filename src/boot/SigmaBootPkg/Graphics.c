@@ -1,5 +1,6 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiLib.h>
 #include <Uefi.h>
 
 #include <Boot.h>
@@ -47,11 +48,7 @@ GraphicsResolutionSet (
                                         &ModeInfo
                                         );
     if (EFI_ERROR (Status)) {
-      DEBUG ((
-        DEBUG_ERROR,
-        "[FAIL] Looked for Screen Mode - Status : %r\n",
-        Status
-        ));
+      Print (L"Looked for Screen Mode - Status : %r\n", Status);
       FreePool (ModeInfo);
       return Status;
     }
@@ -132,7 +129,7 @@ GraphicsBmpDisplay (
     gGraphicsOutputProtocol->Mode->Info->VerticalResolution;
 
   if (Mode & ~0b11111111) {
-    DEBUG ((DEBUG_INFO, "[FAIL] Invalid parameter! - Mode : %llx\n", Mode));
+    Print (L"Invalid parameter! - Mode : %llx\n", Mode);
     return EFI_INVALID_PARAMETER;
   }
 
@@ -179,11 +176,7 @@ Show:
                                       0
                                       );
   if (EFI_ERROR (Status)) {
-    DEBUG ((
-      DEBUG_ERROR,
-      "[FAIL] Display the image using GOP failed - Status : %r\n",
-      Status
-      ));
+    Print (L"Display the image using GOP failed - Status : %r\n", Status);
     return Status;
   }
 
