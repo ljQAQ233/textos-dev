@@ -319,8 +319,8 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         if (*fmt != '%') {
             char *nxt = strchr(fmt, '%');
             if (!nxt) nxt = (char *)fmt + strlen(fmt);
-            int ret = fwrite(fmt, 1, nxt - fmt, f);
-            if (ret < 0) return n;
+            size_t ret = fwrite(fmt, 1, nxt - fmt, f);
+            if (f->fl & F_ERR) goto err;
             n += ret;
             fmt += ret;
             continue;
@@ -455,6 +455,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         bool left = flgs & LEFT;
         char pad = flgs & ZERO ? '0' : ' ';
         int padsz = fptmp ? width - size - prec : width - size;
+        if (f->fl & F_ERR) goto err;
         if (pad == ' ' && !left)
             while (padsz-- > 0)
                 out(pad);
@@ -481,5 +482,7 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
     }
 
     return n;
+err:
+    return -1;
 }
 
