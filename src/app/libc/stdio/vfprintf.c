@@ -481,8 +481,10 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
         n += size;
     }
 
+    va_end(ap);
     return n;
 err:
+    va_end(ap);
     return -1;
 }
 
