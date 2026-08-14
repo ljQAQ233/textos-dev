@@ -2,8 +2,8 @@
  * dynamic linker
  *   - static-linked with `libc.a` and make it minimum
  */
-#include <stdio.h>
 #include <dlfcn.h>
+#include <stdio.h>
 #include <sys/auxv.h>
 #define __NEED_linker
 #include "linker.c"
@@ -43,16 +43,12 @@ static int fixaddr()
     uintptr_t dmap = -1;
     int phent = getauxval(AT_PHENT);
     int phnum = getauxval(AT_PHNUM);
-    for (int i = 0 ; i < phnum ; i++)
-    {
+    for (int i = 0; i < phnum; i++) {
         Elf64_Phdr *ph = pmap + i * phent;
-        if (ph->p_type == PT_PHDR)
-            self->virt = pmap - ph->p_vaddr;
-        if (ph->p_type == PT_DYNAMIC)
-            dmap = ph->p_vaddr;
+        if (ph->p_type == PT_PHDR) self->virt = pmap - ph->p_vaddr;
+        if (ph->p_type == PT_DYNAMIC) dmap = ph->p_vaddr;
     }
-    if (dmap == -1)
-    {
+    if (dmap == -1) {
         dlerr("can not find .dynmic");
         return -1;
     }
@@ -63,7 +59,6 @@ static int fixaddr()
 
 int main(int argc, char *argv[], char *envp[])
 {
-    char **orig_argv = argv;
     char *prog = (char *)getauxval(AT_EXECFN);
     /*
      * is the dynamic loader executed by commands?
@@ -71,23 +66,17 @@ int main(int argc, char *argv[], char *envp[])
     {
         Elf64_Ehdr *eh = (void *)&__ehdr_start;
         void *ph = &__ehdr_start + eh->e_phoff;
-        if ((void *)getauxval(AT_PHDR) == ph)
-        {
-            if (argc <= 1)
-                return help(argv[0]);
+        if ((void *)getauxval(AT_PHDR) == ph) {
+            if (argc <= 1) return help(argv[0]);
             *(long *)argv = --argc;
             argv++;
             self = loadlib(argv[0], RTLD_LAZY);
-            if (!self)
-                goto die;
+            if (!self) goto die;
             goto run;
         }
     }
 
-    if (fixinfo(prog) < 0 ||
-        fixaddr() < 0 ||
-        dolkp(self) < 0)
-        goto die;
+    if (fixinfo(prog) < 0 || fixaddr() < 0 || dolkp(self) < 0) goto die;
     doinit(self);
     r_addlib(self);
 
@@ -96,7 +85,7 @@ run:
         "mov %0, %%rsp\n"
         "jmp *%1\n"
         :
-        : "r"(orig_argv - 1), "r"(self->entry)
+        : "r"(argv - 1), "r"(self->entry)
         : "memory");
 die:
     dprintf(2, "ld.so: %s\n", dlerror());
