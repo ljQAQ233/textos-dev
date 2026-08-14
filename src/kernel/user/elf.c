@@ -53,22 +53,18 @@ static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
     for (int i = 0 ; i < eh->e_phnum ; i++)
     {
         Elf64_Phdr *ph = pmap + i * eh->e_phentsize;
-        if (ph->p_type == PT_LOAD)
-        {
+        if (ph->p_type == PT_LOAD) {
             lp_segs++;
             uintptr_t dptr = align_dn(ph->p_vaddr, ph->p_align);
             uintptr_t uptr = align_up(ph->p_vaddr + ph->p_memsz, ph->p_align);
             if (dptr < lp_min) lp_min = dptr;
             if (uptr > lp_max) lp_max = uptr;
-        }
-        if (ph->p_type == PT_INTERP)
-        {
+        } else if (ph->p_type == PT_INTERP) {
             /*
              * the path is stored in .interp
              *   - use `readelf -p .interp xxx` to check it
              */
-            if (!allow_ld)
-            {
+            if (!allow_ld) {
                 ret = -ENOENT;
                 goto err;
             }
@@ -140,27 +136,24 @@ static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
     exe->base = base;
     exe->entry = base + eh->e_entry;
     exe->a_notelf = 0;
-    if (isdyn && exe->interp)
-    {
-        exe->a_phdr = pmapself;
-        exe->a_phent = eh->e_phentsize;
-        exe->a_phnum = eh->e_phnum;
+    exe->a_phdr = pmapself;
+    exe->a_phent = eh->e_phentsize;
+    exe->a_phnum = eh->e_phnum;
+    if (isdyn && exe->interp) {
         exeinfo_t ld;
         ckerr(elf_load(exe->interp, &ld, false));
         exe->dlstart = ld.entry;
         exe->a_base = (uintptr_t)ld.base;
     }
 err:
-    if (pmap)
-        free(pmap);
+    if (pmap) free(pmap);
     return MIN(ret, 0);
 }
 
 /*
  * load and generate infomation
- *   - entrypoint
- *   - auxiliary vector
- *     - note that PHDR always stored in PT_LOAD if it is expected to be executable
+ * - entrypoint
+ * - auxiliary vector
  */
 int elf_load(char *path, exeinfo_t *exe, bool allow_ld)
 {

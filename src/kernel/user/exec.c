@@ -89,13 +89,13 @@ static void *auxv(void *sp, exeinfo_t *exe, int put)
 
     task_t *tsk = task_current();
     PUT(1, AT_NULL, 0);
-    PUT(0, AT_PHDR, exe->a_phdr);
-    PUT(0, AT_PHENT, exe->a_phent);
-    PUT(0, AT_PHNUM, exe->a_phnum);
+    PUT(1, AT_PHDR, exe->a_phdr);
+    PUT(1, AT_PHENT, exe->a_phent);
+    PUT(1, AT_PHNUM, exe->a_phnum);
     PUT(1, AT_PAGESZ, PAGE_SIZE);
-    PUT(0, AT_BASE, exe->a_base);
+    PUT(1, AT_BASE, exe->a_base);
     PUT(1, AT_ENTRY, exe->entry);
-    PUT(0, AT_NOTELF, exe->a_notelf);
+    PUT(1, AT_NOTELF, exe->a_notelf);
     PUT(1, AT_PLATFORM, a_arch);
     PUT(1, AT_EXECFN, a_path);
     PUT(1, AT_UID, tsk->ruid);
@@ -205,6 +205,8 @@ RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
     vmm_free_space(oldvsp);
     curr->did_exec = true;
     ptrace_event(PTRACE_EVENT_EXEC);
+    DEBUGK(K_INFO, "execve: %s starts at %p\n", path,
+           info.dlstart ? info.dlstart : info.entry);
     if (info.dlstart) arch_goto_user(sp, info.dlstart);
     arch_goto_user(sp, info.entry);
 
