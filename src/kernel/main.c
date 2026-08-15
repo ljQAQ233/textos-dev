@@ -10,6 +10,7 @@ void dev_init();
 void task_init();
 void fbdev_init();
 void keyboard_init();
+void mouse_init();
 void serial_init();
 void console_init();
 void tty_init();
@@ -41,6 +42,7 @@ void kernel_main ()
     task_init();
     fbdev_init();
     keyboard_init();
+    mouse_init();
     serial_init();
     console_init();
     tty_init();
