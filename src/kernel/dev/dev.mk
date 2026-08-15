@@ -16,6 +16,7 @@ SRCS += dev/tty/vgacon.c
 
 SRCS += dev/kbd/sc1.c
 SRCS += dev/kbd/atkbd.c
+SRCS += dev/mouse.c
 
 SRCS += dev/clock.c
 
