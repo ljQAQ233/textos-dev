@@ -178,3 +178,11 @@
 #define KEY_KPS KEYSYM('p', '/')
 #define KEY_KP_ENTER     KEYSYM('p', '\n')
 #define KEY_KP_BACKSLASH KEYSYM('p', '\\')
+
+//
+// new scope
+//
+
+#define KEY_S_MOUSE_LEFT   (1 << 16)
+#define KEY_S_MOUSE_RIGHT  (1 << 17)
+#define KEY_S_MOUSE_MIDDLE (1 << 18)
