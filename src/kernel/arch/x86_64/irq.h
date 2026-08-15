@@ -23,6 +23,9 @@
 #define INT_E1000 0x24
 #define INT_SERIAL 0x25
 
+#define IRQ_MOUSE 12
+#define INT_MOUSE 0x26
+
 #define INT_SYSCALL  0x80
 #define INT_MSYSCALL 0x81
 
