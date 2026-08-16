@@ -55,7 +55,7 @@ extern void __tty_rx(void *tty, keysym_t sym);
 __INTR_HANDLER(keyboard_handler)
 {
     lapic_sendeoi();
-    while (!(inb(R_STAT) & S_IN_FULL));
+    if (!(inb(R_STAT) & S_IN_FULL)) return;
 
     u8 code = inb(R_DATA);
     bool brk = code & 0x80;
