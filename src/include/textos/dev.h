@@ -26,6 +26,7 @@ enum sub_type
     DEV_PART,
     DEV_NETIF,
     DEV_ANONY,
+    DEV_EVENT,
 };
 
 // dev structure 名字略微生草
@@ -38,13 +39,17 @@ struct devst
     uint minor;
     list_t subdev;
 
-    union {
-        struct {
+    union
+    {
+        struct
+        {
             int (*write)(devst_t *dev, void *buf, size_t cnt);
             int (*read)(devst_t *dev, void *buf, size_t cnt);
         };
-        struct {
-            int (*bwrite)(devst_t *dev, blkno_t no, buffer_t *buf, blkcnt_t cnt);
+        struct
+        {
+            int (*bwrite)(devst_t *dev, blkno_t no, buffer_t *buf,
+                          blkcnt_t cnt);
             int (*bread)(devst_t *dev, blkno_t no, buffer_t *buf, blkcnt_t cnt);
         };
     };
