@@ -14,6 +14,7 @@ SRCS += dev/tty/console.c
 SRCS += dev/tty/fbcon.c
 SRCS += dev/tty/vgacon.c
 
+SRCS += dev/event.c
 SRCS += dev/kbd/sc1.c
 SRCS += dev/kbd/atkbd.c
 SRCS += dev/mouse.c
