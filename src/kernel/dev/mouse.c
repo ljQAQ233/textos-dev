@@ -1,6 +1,7 @@
 #include <intr.h>
 #include <io.h>
 #include <irq.h>
+#include <textos/dev/event.h>
 #include <textos/dev/keys.h>
 
 #define MAX_RESEND 3
@@ -36,7 +37,8 @@ struct byte1
 
 union packet
 {
-    struct {
+    struct
+    {
         struct byte1 flags;
         uint8_t x_movement;
         uint8_t y_movement;
@@ -46,6 +48,7 @@ union packet
 
 static keysym_t status;
 static int packet_size = 3;
+static devst_t *evdev;
 
 static void mouse_wait_input()
 {
@@ -116,7 +119,7 @@ static int mouse_enable_aux()
 static int mouse_enable_packet()
 {
     mouse_clear_output();
-    
+
     before_out();
     outb(0x64, 0xd4);
     before_out();
@@ -140,8 +143,7 @@ static int mouse_get_id()
 }
 
 static int mouse_set_sampling(uint8_t rate)
-{
-}
+{}
 
 static int mouse_init_wheel()
 {
@@ -178,7 +180,7 @@ __INTR_HANDLER(mouse_handler)
         pktsz = mouse_rx_packet(&pkt);
     if (pktsz < 0) return;
     if (pkt.flags.x_overflow || pkt.flags.y_overflow) return;
-    
+
     keysym_t k = 0;
     if (pkt.flags.left) k |= KEY_S_MOUSE_LEFT;
     if (pkt.flags.right) k |= KEY_S_MOUSE_RIGHT;
@@ -188,6 +190,8 @@ __INTR_HANDLER(mouse_handler)
     int dx = sign(pkt.flags.x_sign) * pkt.x_movement;
     int dy = sign(pkt.flags.y_sign) * pkt.y_movement;
     DEBUGK(K_TRACE, "mouse input: dx=%d dy=%d status=%d\n", dx, dy, status);
+
+    event_push_mouse(evdev, status, dx, dy);
 }
 
 void mouse_init()
@@ -207,4 +211,6 @@ void mouse_init()
     intr_register(INT_MOUSE, mouse_handler);
 
     mouse_clear_output();
+
+    evdev = event_register(EV_MOUSE);
 }
