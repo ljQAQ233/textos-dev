@@ -16,50 +16,50 @@ enum
 /*
  * structure of open flgs:
  *   - bits 0 ~ 31 - posix / system specified flags passed from user space
- *   - bits 32 ~ 63 - used by vfs, specifying special operations e.g. ignore errors
+ *   - bits 32 ~ 63 - used by vfs, specifying special operations e.g. ignore
+ * errors
  */
-#define FS_GAIN    (1ull << 32) // ignore checks for dir / file, ignoring EISDIR / ENOTDIR
-#define FS_GAINMNT (1ull << 33) // open dir mounted to, not root dir of mountpoint
+#define FS_GAIN    (1ull << 32) // ignore checks, ignoring EISDIR / ENOTDIR
+#define FS_GAINMNT (1ull << 33) // open the dir mounted to
 
-#include <textos/type.h>
 #include <textos/dev.h>
 #include <textos/file.h>
-#include <textos/time.h>
-#include <textos/noopt.h>
 #include <textos/mm/mman.h>
+#include <textos/noopt.h>
+#include <textos/time.h>
+#include <textos/type.h>
 
 typedef struct
 {
-    /*
-     * dir entry operations
-     */
-    int  (*open)(node_t *parent, char *path, u64 args, int mode, node_t **result);
+    /* node operations */
+    int (*open)(node_t *parent, char *path, u64 args, int mode,
+                node_t **result);
+    int (*close)(node_t *this);
     /*
      * some fs do not support device node. here we create an empty file and bind
      * it with a device only in memory (vfs node_t::rdev). it is certain that
      * `name` is not exist (filtered by vfs before)
      */
-    int  (*mknod)(node_t *parent, char *name, dev_t rdev, int mode, node_t **result);
+    int (*mknod)(node_t *parent, char *name, dev_t rdev, int mode,
+                 node_t **result);
     /*
-     * vfs layer handles -1, physical fs gets final uid/gid only. physical fs must update
-     * both node's or on-disk inode's ctime, uid/gid and clear SUID bit and SGID bit
-     * according to `ap` (appropriate privilege) flag after a successful modification.
+     * vfs layer handles -1, physical fs gets final uid/gid only. physical fs
+     * must update both node's or on-disk inode's ctime, uid/gid and clear SUID
+     * bit and SGID bit according to `ap` (appropriate privilege) flag after a
+     * successful modification.
      */
-    int  (*chown)(node_t *this, uid_t owner, gid_t group, bool ap);
-    int  (*chmod)(node_t *this, mode_t mode, bool clrsgid);
-    int  (*remove)(node_t *this);
-    int  (*readdir)(node_t *this, dirctx_t *ctx);
-    int  (*seekdir)(node_t *this, dirctx_t *ctx, size_t *pos);
+    int (*chown)(node_t *this, uid_t owner, gid_t group, bool ap);
+    int (*chmod)(node_t *this, mode_t mode, bool clrsgid);
+    int (*remove)(node_t *this);
+    int (*readdir)(node_t *this, dirctx_t *ctx);
+    int (*seekdir)(node_t *this, dirctx_t *ctx, size_t *pos);
+    int (*truncate)(node_t *this, size_t offset);
 
-    /*
-     * file operations
-     */
-    int  (*read)(node_t *this, void *buf, size_t siz, size_t offset);
-    int  (*write)(node_t *this, void *buf, size_t siz, size_t offset);
-    int  (*truncate)(node_t *this, size_t offset);
+    /* file operations */
+    int (*read)(node_t *this, void *buf, size_t siz, size_t offset);
+    int (*write)(node_t *this, void *buf, size_t siz, size_t offset);
     void *(*mmap)(node_t *this, vm_region_t *vm);
-    int  (*ioctl)(node_t *this, int req, void *argp);
-    int  (*close)(node_t *this);
+    int (*ioctl)(node_t *this, int req, void *argp);
 } fs_opts_t;
 
 struct node
@@ -74,7 +74,7 @@ struct node
     time_t atime;
     time_t mtime;
     time_t ctime;
-    
+
     dev_t dev;
     dev_t rdev;
 
@@ -102,7 +102,8 @@ struct superblk
     node_t *root;
     fs_opts_t *op;
     void *sbi;
-    struct {
+    struct
+    {
         u16 dmask;
         u16 fmask;
         uid_t uid;
@@ -126,7 +127,7 @@ struct dirctx
     addr_t bidx;
     addr_t eidx;
     size_t perblk;
-    
+
     // emit info, DO NOT CHANGE IT EXCEPT
     // IN __readdir AND FS readdir !!!
     void *buf;
@@ -141,7 +142,7 @@ node_t *vfs_getprt(node_t *n);
 
 /**
  * @brief get null-terminated absolute path of n
- * 
+ *
  * @param n    node
  * @param buf  buffer
  * @param size on input, the size of buffer passed into
@@ -156,7 +157,8 @@ int vfs_getpath(node_t *n, char *buf, size_t *size);
 
 int vfs_permission(node_t *n, int want);
 
-int vfs_open(node_t *parent, const char *path, u64 args, int mode, node_t **result);
+int vfs_open(node_t *parent, const char *path, u64 args, int mode,
+             node_t **result);
 int vfs_read(node_t *this, void *buf, size_t siz, size_t offset);
 int vfs_write(node_t *this, void *buf, size_t siz, size_t offset);
 int vfs_close(node_t *this);
