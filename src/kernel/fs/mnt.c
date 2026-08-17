@@ -41,8 +41,9 @@ int vfs_mount_to(char *path, node_t *root, int mode)
 {
     int ret = 0;
     node_t *dir;
+    struct fs_openctx ctx = {0};
 
-    ret = vfs_open(NULL, path, O_DIRECTORY | O_CREAT, mode, &dir);
+    ret = vfs_open(NULL, path, O_DIRECTORY | O_CREAT, mode, &dir, &ctx);
     if (ret < 0)
         return ret;
 

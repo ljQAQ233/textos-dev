@@ -1585,12 +1585,14 @@ static int fat32_remove(node_t *this)
     return fat32_close(this);
 }
 
-static int fat32_read(node_t *this, void *buf, size_t siz, size_t offset)
+static int fat32_read(node_t *this, void *buf, size_t siz, size_t offset,
+                      struct fs_openctx *openctx)
 {
     return byte_rd(this, buf, siz, offset);
 }
 
-static int fat32_write(node_t *this, void *buf, size_t siz, size_t offset)
+static int fat32_write(node_t *this, void *buf, size_t siz, size_t offset,
+                       struct fs_openctx *openctx)
 {
     bool chg = false;
     bool zero = !this->siz;
@@ -1754,16 +1756,18 @@ fail:
 
 fs_opts_t __fat32_opts = {
     fat32_open,
+    fat32_close,
+    NULL,
+    NULL,
     noopt_perm,
     noopt_perm,
     noopt_perm,
     fat32_remove,
     fat32_readdir,
     fat32_seekdir,
+    fat32_truncate,
     fat32_read,
     fat32_write,
-    fat32_truncate,
     vfs_generic_mmap,
     noopt,
-    fat32_close,
 };

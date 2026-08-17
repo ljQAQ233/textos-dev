@@ -516,7 +516,8 @@ static int minix_remove(node_t *this)
     return vfs_release(this);
 }
 
-static int minix_read(node_t *this, void *buf, size_t siz, size_t offset)
+static int minix_read(node_t *this, void *buf, size_t siz, size_t offset,
+                      struct fs_openctx *openctx)
 {
     if (offset >= this->siz) return 0;
 
@@ -547,7 +548,8 @@ static int minix_read(node_t *this, void *buf, size_t siz, size_t offset)
     return tot;
 }
 
-static int minix_write(node_t *this, void *buf, size_t siz, size_t offset)
+static int minix_write(node_t *this, void *buf, size_t siz, size_t offset,
+                       struct fs_openctx *openctx)
 {
     superblk_t *sb = this->sb;
     minix_inode_t *mi = this->pdata;
@@ -675,7 +677,7 @@ static int minix_seekdir(node_t *dir, dirctx_t *ctx, size_t *pos)
     return EOF;
 }
 
-static void *minix_mmap(node_t *this, vm_region_t *vm)
+static void *minix_mmap(node_t *this, vm_region_t *vm, struct fs_openctx *openctx)
 {
     return (void *)((addr_t)-EINVAL);
 }
@@ -709,16 +711,18 @@ fail:
 
 fs_opts_t __minix1_op = {
     minix_open,
+    minix_close,
+    NULL,
+    NULL,
     minix_mknod,
     minix_chown,
     minix_chmod,
     minix_remove,
     minix_readdir,
     minix_seekdir,
+    minix_truncate,
     minix_read,
     minix_write,
-    minix_truncate,
     minix_mmap,
     noopt,
-    minix_close,
 };

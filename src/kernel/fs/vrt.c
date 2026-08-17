@@ -1,11 +1,10 @@
-#include <textos/mm.h>
-#include <textos/fs.h>
-#include <textos/errno.h>
-#include <textos/printk.h>
-#include <textos/fs/inter.h>
 #include <textos/dev/buffer.h>
-
-#include <string.h>
+#include <textos/errno.h>
+#include <textos/fs.h>
+#include <textos/fs/inter.h>
+#include <textos/klib/string.h>
+#include <textos/mm.h>
+#include <textos/printk.h>
 
 /*
    用来注册文件系统, 在这里列出的文件系统, 是系统支持的
@@ -30,28 +29,28 @@ _UTIL_NEXT();
 
 node_t *vfs_exist(node_t *dir, char *path)
 {
-    for (node_t *ptr = dir->child; ptr; ptr = ptr->next) {
+    for (node_t *ptr = dir->child; ptr; ptr = ptr->next)
         if (_cmp(ptr->name, path)) return ptr;
-    }
-
     return NULL;
 }
 
 void vfs_initops(fs_opts_t *op)
 {
     op->open = noopt;
+    op->close = noopt;
+    op->_init_pctx = NULL;
+    op->_fini_pctx = NULL;
     op->mknod = noopt;
-    op->ioctl = noopt;
     op->chown = noopt;
     op->chmod = noopt;
-    op->close = noopt;
     op->remove = noopt;
-    op->read = noopt;
-    op->write = noopt;
     op->truncate = noopt;
     op->readdir = noopt;
     op->seekdir = noopt;
     op->mmap = noopt;
+    op->read = noopt;
+    op->write = noopt;
+    op->ioctl = noopt;
 }
 
 void vfs_regst(node_t *n, node_t *p)
@@ -190,7 +189,7 @@ end:
 }
 
 int vfs_open(node_t *parent, const char *path, u64 args, int mode,
-             node_t **node)
+             node_t **node, struct fs_openctx *openctx)
 {
     int ret = 0;
     char *p = (char *)path;
@@ -220,23 +219,39 @@ int vfs_open(node_t *parent, const char *path, u64 args, int mode,
             ret = -EISDIR;
     }
 end:
-    if (!ret) *node = res;
+    if (!ret) {
+        *node = res;
+        ASSERTK(openctx != NULL);
+        openctx->file_flgs = args;
+        openctx->pctx = NULL;
+        if (res->opts->_init_pctx) {
+            ret = res->opts->_init_pctx(res, &openctx->pctx);
+            if (ret < 0) *node = NULL;
+        }
+    }
     DEBUGK(K_INFO, "open %s = %d\n", path, ret);
     return ret;
 }
 
-int vfs_read(node_t *this, void *buffer, size_t siz, size_t offset)
+int vfs_read(node_t *this, void *buffer, size_t siz, size_t offset,
+             struct fs_openctx *openctx)
 {
-    return this->opts->read(this, buffer, siz, offset);
+    ASSERTK(openctx != NULL);
+    return this->opts->read(this, buffer, siz, offset, openctx);
 }
 
-int vfs_write(node_t *this, void *buffer, size_t siz, size_t offset)
+int vfs_write(node_t *this, void *buffer, size_t siz, size_t offset,
+              struct fs_openctx *openctx)
 {
-    return this->opts->write(this, buffer, siz, offset);
+    ASSERTK(openctx != NULL);
+    return this->opts->write(this, buffer, siz, offset, openctx);
 }
 
-int vfs_close(node_t *this)
+int vfs_close(node_t *this, struct fs_openctx *openctx)
 {
+    ASSERTK(openctx != NULL);
+    if (this->opts->_fini_pctx) //
+        this->opts->_fini_pctx(this, &openctx->pctx);
     return this->opts->close(this);
 }
 
@@ -363,9 +378,10 @@ int vfs_mknod(char *path, dev_t dev, int mode)
 
     node_t *nod;
     node_t *dir;
+    struct fs_openctx ctx = {0};
     ret = vfs_walkd(NULL, &path, &dir);
     if (ret < 0) return ret;
-    ret = vfs_open(dir, path, 0, 0, &nod);
+    ret = vfs_open(dir, path, 0, 0, &nod, &ctx);
     if (ret >= 0) return -EEXIST;
     ret = dir->sb->op->mknod(dir, path, dev, mode, &nod);
     if (ret < 0) return ret;

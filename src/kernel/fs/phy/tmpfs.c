@@ -173,7 +173,7 @@ static size_t extend(node_t *ent, size_t siz)
 }
 
 // TODO
-static int tmpfs_ioctl(node_t *this, int req, void *argp)
+static int tmpfs_ioctl(node_t *this, int req, void *argp, struct fs_openctx *openctx)
 {
     return 0;
 }
@@ -200,7 +200,8 @@ static int tmpfs_remove(node_t *this)
     return 0;
 }
 
-static int tmpfs_read(node_t *this, void *buf, size_t siz, size_t offset)
+static int tmpfs_read(node_t *this, void *buf, size_t siz, size_t offset,
+                      struct fs_openctx *openctx)
 {
     if (siz == 0) return 0;
     if (offset >= this->siz) return 0;
@@ -224,7 +225,8 @@ static int tmpfs_read(node_t *this, void *buf, size_t siz, size_t offset)
     return siz - rem;
 }
 
-static int tmpfs_write(node_t *this, void *buf, size_t siz, size_t offset)
+static int tmpfs_write(node_t *this, void *buf, size_t siz, size_t offset,
+                       struct fs_openctx *openctx)
 {
     size_t maxpos = siz + offset;
     if (maxpos > this->siz) this->siz = extend(this, maxpos);
@@ -320,7 +322,7 @@ static int tmpfs_seekdir(node_t *this, dirctx_t *ctx, size_t *pos)
 /*
  * TODO: may be the easiest mmap...
  */
-static void *tmpfs_mmap(node_t *this, vm_region_t *vm)
+static void *tmpfs_mmap(node_t *this, vm_region_t *vm, struct fs_openctx *openctx)
 {
     return (void *)((addr_t)-EINVAL);
 }
@@ -344,7 +346,19 @@ node_t *__fs_init_tmpfs()
 }
 
 fs_opts_t __tmpfs_op = {
-    tmpfs_open,    tmpfs_mknod,   tmpfs_chown, tmpfs_chmod, tmpfs_remove,
-    tmpfs_readdir, tmpfs_seekdir, tmpfs_read,  tmpfs_write, tmpfs_truncate,
-    tmpfs_mmap,    tmpfs_ioctl,   tmpfs_close,
+    tmpfs_open,
+    tmpfs_close,
+    NULL,
+    NULL,
+    tmpfs_mknod,
+    tmpfs_chown,
+    tmpfs_chmod,
+    tmpfs_remove,
+    tmpfs_readdir,
+    tmpfs_seekdir,
+    tmpfs_truncate,
+    tmpfs_read,
+    tmpfs_write,
+    tmpfs_mmap,
+    tmpfs_ioctl,
 };

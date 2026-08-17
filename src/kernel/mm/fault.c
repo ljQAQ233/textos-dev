@@ -39,9 +39,10 @@ __INTR_HANDLER(pagefault_handler)
             size_t pgbase = align_dn(addr, PAGE_SIZE);
             size_t foff = vma->obj.foff + pgbase - vma->s;
             size_t siz = MIN(vma->obj.node->siz - foff, PAGE_SIZE);
+            struct fs_openctx ctx = {0};
             addr_t ppg = pmm_allocpages(1);
             vmap_map((addr_t)ppg, pgbase, 1, PE_P | PE_US | PE_RW);
-            vfs_read(vma->obj.node, (void *)pgbase, siz, foff);
+            vfs_read(vma->obj.node, (void *)pgbase, siz, foff, &ctx);
             vmap_map((addr_t)ppg, pgbase, 1, PE_P | PE_US | mapprot(vma->prot));
             vmm_ppg_regst(vma, ppg, 0);
             return;

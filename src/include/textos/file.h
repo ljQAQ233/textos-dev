@@ -15,6 +15,7 @@ typedef struct
     int flgs;
     int fdfl;
     int refer;
+    struct fs_openctx openctx;
 } file_t;
 
 int fd_get(int min);
