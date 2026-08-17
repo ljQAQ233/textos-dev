@@ -3,7 +3,7 @@
 #include <textos/fs.h>
 #include <textos/file.h>
 
-static int socket_ioctl(node_t *this, int req, void *argp)
+static int socket_ioctl(node_t *this, int req, void *argp, struct fs_openctx *openctx)
 {
     ifreq_t *ifr = argp;
     socket_t *socket = this->pdata;
@@ -24,7 +24,8 @@ static int socket_close(node_t *this)
 }
 
 // XXX: recvmsg need a pointer to address_len
-static int socket_read(node_t *this, void *buf, size_t siz, size_t offset)
+static int socket_read(node_t *this, void *buf, size_t siz, size_t offset,
+                       struct fs_openctx *openctx)
 {
     socket_t *s = this->pdata;
     msghdr_t msg = {
@@ -39,7 +40,8 @@ static int socket_read(node_t *this, void *buf, size_t siz, size_t offset)
     return s->op->recvmsg(s, &msg, 0);
 }
 
-static int socket_write(node_t *this, void *buf, size_t siz, size_t offset)
+static int socket_write(node_t *this, void *buf, size_t siz, size_t offset,
+                        struct fs_openctx *openctx)
 {
     msghdr_t msg = {
         .name = NULL,
@@ -56,6 +58,10 @@ static int socket_write(node_t *this, void *buf, size_t siz, size_t offset)
 
 fs_opts_t __socket_opts = {
     noopt,
+    socket_close,
+    NULL,
+    NULL,
+    noopt,
     noopt,
     noopt,
     noopt,
@@ -65,7 +71,5 @@ fs_opts_t __socket_opts = {
     socket_read,
     socket_write,
     noopt,
-    noopt,
     socket_ioctl,
-    socket_close,
 };

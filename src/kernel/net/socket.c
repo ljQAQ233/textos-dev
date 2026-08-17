@@ -29,6 +29,8 @@ int socket_makefd(socket_t *socket)
 
     file->node = sockn;
     file->flgs = O_RDWR;
+    file->openctx.file_flgs = O_RDWR;
+    file->openctx.pctx = NULL;
     return fd;
 }
 

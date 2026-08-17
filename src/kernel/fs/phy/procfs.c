@@ -276,7 +276,7 @@ static int procfs_open(node_t *parent, char *name, u64 args, int mode, node_t **
     return 0;
 }
 
-static int procfs_ioctl(node_t *this, int req, void *argp)
+static int procfs_ioctl(node_t *this, int req, void *argp, struct fs_openctx *openctx)
 {
     proc_entry_t *ent = this->pdata;
     if (ent->op->ioctl)
@@ -295,7 +295,8 @@ static int procfs_close(node_t *this)
     return vfs_release(this);
 }
 
-static int procfs_read(node_t *this, void *buf, size_t siz, size_t offset)
+static int procfs_read(node_t *this, void *buf, size_t siz, size_t offset,
+                       struct fs_openctx *openctx)
 {
     proc_entry_t *ent = this->pdata;
     if (ent->op->read)
@@ -303,7 +304,8 @@ static int procfs_read(node_t *this, void *buf, size_t siz, size_t offset)
     return -EINVAL;
 }
 
-int procfs_write(node_t *this, void *buf, size_t siz, size_t offset)
+int procfs_write(node_t *this, void *buf, size_t siz, size_t offset,
+                 struct fs_openctx *openctx)
 {
     proc_entry_t *ent = this->pdata;
     if (ent->op->write)
@@ -384,7 +386,7 @@ int procfs_seekdir(node_t *this, dirctx_t *ctx, size_t *pos)
     return EOF;
 }
 
-void *procfs_mmap(node_t *this, vm_region_t *vm)
+void *procfs_mmap(node_t *this, vm_region_t *vm, struct fs_openctx *openctx)
 {
     proc_entry_t *ent = this->pdata;
     if (ent->op->mmap)
@@ -698,16 +700,18 @@ node_t *__fs_init_procfs()
 
 fs_opts_t __procfs_op = {
     procfs_open,
+    procfs_close,
+    NULL,
+    NULL,
     noopt,
     noopt,
     noopt,
     noopt,
     procfs_readdir,
     procfs_seekdir,
+    noopt,
     procfs_read,
     procfs_write,
-    noopt,
     procfs_mmap,
     procfs_ioctl,
-    procfs_close,
 };

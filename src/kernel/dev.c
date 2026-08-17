@@ -70,8 +70,9 @@ static void initnod(devst_t *dev)
 void dev_initnod()
 {
     node_t *dir;
-    vfs_open(NULL, "/dev", O_CREAT | O_DIRECTORY, 0755, &dir);     // rwxr-xr-x
-    vfs_open(NULL, "/dev/net", O_CREAT | O_DIRECTORY, 0755, &dir); // rwxr-xr-x
+    struct fs_openctx ctx = {0};
+    vfs_open(NULL, "/dev", O_CREAT | O_DIRECTORY, 0755, &dir, &ctx);     // rwxr-xr-x
+    vfs_open(NULL, "/dev/net", O_CREAT | O_DIRECTORY, 0755, &dir, &ctx); // rwxr-xr-x
 
     list_t *i;
     LIST_FOREACH(i, &root)

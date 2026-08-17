@@ -1,15 +1,17 @@
-#include <textos/fs.h>
-#include <textos/mm.h>
-#include <textos/task.h>
-#include <textos/mm/vmm.h>
-#include <textos/mm/mman.h>
 #include <textos/errno.h>
-#include <textos/assert.h>
+#include <textos/fs.h>
+#include <textos/klib/string.h>
+#include <textos/mm.h>
+#include <textos/mm/mman.h>
+#include <textos/mm/vmm.h>
+#include <textos/task.h>
 #include <textos/user/elf.h>
 #include <textos/user/exec.h>
-#include <textos/klib/string.h>
 
-#define ckerr(x) do { if ((ret = (x)) < 0) goto err; } while(0)
+#define ckerr(x)                       \
+    do {                               \
+        if ((ret = (x)) < 0) goto err; \
+    } while (0)
 
 static inline int dochk(void *map)
 {
@@ -40,10 +42,11 @@ static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
     Elf64_Ehdr _ehdr;
     Elf64_Ehdr *eh = &_ehdr;
     uintptr_t pmapself = 0;
-    ckerr(vfs_read(n, &_ehdr, sizeof(_ehdr), 0));
+    struct fs_openctx ctx = {0};
+    ckerr(vfs_read(n, &_ehdr, sizeof(_ehdr), 0, &ctx));
     ckerr(isdyn = dochk(eh));
     void *pmap = malloc(eh->e_phnum * eh->e_phentsize);
-    ckerr(vfs_read(n, pmap, eh->e_phnum * eh->e_phentsize, eh->e_phoff));
+    ckerr(vfs_read(n, pmap, eh->e_phnum * eh->e_phentsize, eh->e_phoff, &ctx));
 
     int lp_segs = 0;
     int lp_okay = 0;
@@ -69,7 +72,7 @@ static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
                 goto err;
             }
             exe->interp = malloc(ph->p_filesz);
-            ckerr(vfs_read(n, exe->interp, ph->p_filesz, ph->p_offset));
+            ckerr(vfs_read(n, exe->interp, ph->p_filesz, ph->p_offset, &ctx));
         }
     }
     if (lp_segs == 0)
@@ -110,7 +113,6 @@ static int domap(node_t *n, exeinfo_t *exe, bool allow_ld)
             .fnode = n,
         };
         ASSERTK(mmap_file(&vm) >= 0);
-
         if (ph->p_memsz > ph->p_filesz && (prot & PROT_WRITE))
         {
             uintptr_t diff = msize - fsize;
@@ -159,9 +161,10 @@ int elf_load(char *path, exeinfo_t *exe, bool allow_ld)
 {
     int ret;
     node_t *n;
+    struct fs_openctx ctx = {0};
     memset(exe, 0, sizeof(exeinfo_t));
     exe->path = strdup(path);
-    ckerr(vfs_open(task_current()->pwd, path, 0, 0, &n));
+    ckerr(vfs_open(task_current()->pwd, path, 0, 0, &n, &ctx));
     ckerr(domap(n, exe, allow_ld));
 err:
     return MIN(ret, 0);

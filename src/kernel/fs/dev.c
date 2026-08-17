@@ -14,7 +14,7 @@ static inline devst_t *dev_extract(node_t *node)
     return dev_lookup_nr(ma, mi);
 }
 
-static int dev_ioctl(node_t *this, int req, void *argp)
+static int dev_ioctl(node_t *this, int req, void *argp, struct fs_openctx *openctx)
 {
     devst_t *dev = dev_extract(this);
     if (!dev)
@@ -22,7 +22,8 @@ static int dev_ioctl(node_t *this, int req, void *argp)
     return dev->ioctl(dev, req, argp);
 }
 
-static int dev_read(node_t *this, void *buf, size_t siz, size_t offset)
+static int dev_read(node_t *this, void *buf, size_t siz, size_t offset,
+                    struct fs_openctx *openctx)
 {
     devst_t *dev = dev_extract(this);
     if (!dev)
@@ -53,7 +54,8 @@ static int dev_read(node_t *this, void *buf, size_t siz, size_t offset)
     return siz;
 }
 
-static int dev_write(node_t *this, void *buf, size_t siz, size_t offset)
+static int dev_write(node_t *this, void *buf, size_t siz, size_t offset,
+                     struct fs_openctx *openctx)
 {
     devst_t *dev = dev_extract(this);
     if (!dev)
@@ -86,7 +88,7 @@ static int dev_close(node_t *this)
     return 0;
 }
 
-static void *dev_mmap(node_t *this, vm_region_t *vm)
+static void *dev_mmap(node_t *this, vm_region_t *vm, struct fs_openctx *openctx)
 {
     devst_t *dev = dev_extract(this);
     if (!dev)
@@ -95,17 +97,19 @@ static void *dev_mmap(node_t *this, vm_region_t *vm)
 }
 
 fs_opts_t __vfs_dev_op = {
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    NULL,       /* open */
+    dev_close,  /* close */
+    NULL,       /* _init_pctx */
+    NULL,       /* _fini_pctx */
+    NULL,       /* mknod */
+    NULL,       /* chown */
+    NULL,       /* chmod */
+    NULL,       /* remove */
+    NULL,       /* readdir */
+    NULL,       /* seekdir */
+    NULL,       /* truncate */
     dev_read,
     dev_write,
-    NULL,
     dev_mmap,
     dev_ioctl,
-    dev_close,
 };

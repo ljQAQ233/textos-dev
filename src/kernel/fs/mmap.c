@@ -5,8 +5,9 @@
 /*
  * map regular files
  */
-void *vfs_generic_mmap(node_t *n, vm_region_t *v)
+void *vfs_generic_mmap(node_t *n, vm_region_t *v, struct fs_openctx *openctx)
 {
+    ASSERTK(openctx != NULL);
     vm_area_t *vma = vmm_new_vma(0);
     vma->s = v->va;
     vma->t = v->va + PAGE_SIZE * v->num;

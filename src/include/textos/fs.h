@@ -13,6 +13,19 @@ enum
  */
 #define FSA_MNT (1 << 0)
 
+struct fs_openctx
+{
+    int file_flgs;
+    void *pctx;
+};
+
+#include <textos/dev.h>
+#include <textos/file.h>
+#include <textos/mm/mman.h>
+#include <textos/noopt.h>
+#include <textos/time.h>
+#include <textos/type.h>
+
 /*
  * structure of open flgs:
  *   - bits 0 ~ 31 - posix / system specified flags passed from user space
@@ -22,19 +35,14 @@ enum
 #define FS_GAIN    (1ull << 32) // ignore checks, ignoring EISDIR / ENOTDIR
 #define FS_GAINMNT (1ull << 33) // open the dir mounted to
 
-#include <textos/dev.h>
-#include <textos/file.h>
-#include <textos/mm/mman.h>
-#include <textos/noopt.h>
-#include <textos/time.h>
-#include <textos/type.h>
-
 typedef struct
 {
     /* node operations */
     int (*open)(node_t *parent, char *path, u64 args, int mode,
                 node_t **result);
     int (*close)(node_t *this);
+    int (*_init_pctx)(node_t *this, void **pctx);
+    int (*_fini_pctx)(node_t *this, void **pctx);
     /*
      * some fs do not support device node. here we create an empty file and bind
      * it with a device only in memory (vfs node_t::rdev). it is certain that
@@ -56,10 +64,12 @@ typedef struct
     int (*truncate)(node_t *this, size_t offset);
 
     /* file operations */
-    int (*read)(node_t *this, void *buf, size_t siz, size_t offset);
-    int (*write)(node_t *this, void *buf, size_t siz, size_t offset);
-    void *(*mmap)(node_t *this, vm_region_t *vm);
-    int (*ioctl)(node_t *this, int req, void *argp);
+    int (*read)(node_t *this, void *buf, size_t siz, size_t offset,
+                struct fs_openctx *openctx);
+    int (*write)(node_t *this, void *buf, size_t siz, size_t offset,
+                 struct fs_openctx *openctx);
+    void *(*mmap)(node_t *this, vm_region_t *vm, struct fs_openctx *openctx);
+    int (*ioctl)(node_t *this, int req, void *argp, struct fs_openctx *openctx);
 } fs_opts_t;
 
 struct node
@@ -156,22 +166,24 @@ int vfs_getpath(node_t *n, char *buf, size_t *size);
 #define MAY_EXEC  (1 << 2)
 
 int vfs_permission(node_t *n, int want);
+int vfs_release(node_t *this);
 
 int vfs_open(node_t *parent, const char *path, u64 args, int mode,
-             node_t **result);
-int vfs_read(node_t *this, void *buf, size_t siz, size_t offset);
-int vfs_write(node_t *this, void *buf, size_t siz, size_t offset);
-int vfs_close(node_t *this);
-int vfs_remove(node_t *this);
-int vfs_truncate(node_t *this, size_t offset);
-int vfs_chown(node_t *file, uid_t owner, gid_t group);
-int vfs_chmod(node_t *file, mode_t mode);
-int vfs_release(node_t *this);
-int vfs_readdir(node_t *this, node_t **res, size_t idx);
+             node_t **result, struct fs_openctx *openctx);
+int vfs_close(node_t *this, struct fs_openctx *openctx);
 
 #include <textos/dev.h>
 
 int vfs_mknod(char *path, dev_t dev, int mode);
+int vfs_chown(node_t *file, uid_t owner, gid_t group);
+int vfs_chmod(node_t *file, mode_t mode);
+int vfs_remove(node_t *this);
+int vfs_readdir(node_t *this, node_t **res, size_t idx);
+int vfs_truncate(node_t *this, size_t offset);
+int vfs_read(node_t *this, void *buf, size_t siz, size_t offset,
+             struct fs_openctx *openctx);
+int vfs_write(node_t *this, void *buf, size_t siz, size_t offset,
+              struct fs_openctx *openctx);
 
 node_t *vfs_test(node_t *start, char *path, node_t **last, char **lastpath);
 
@@ -191,6 +203,6 @@ bool vfs_ismount(node_t *n);
  */
 bool vfs_isaroot(node_t *n);
 
-void *vfs_generic_mmap(node_t *n, vm_region_t *v);
+void *vfs_generic_mmap(node_t *n, vm_region_t *v, struct fs_openctx *openctx);
 
 #endif

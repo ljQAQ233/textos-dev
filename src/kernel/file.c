@@ -34,22 +34,20 @@ int file_put(int fd)
 
 __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
 {
-    node_t *node;
+    node_t *node = NULL;
     file_t *file;
     size_t off = 0;
     mode &= 0777;
-    
-    int ret;
-    if ((ret = vfs_open(task_current()->pwd, path, flgs, mode, &node)) < 0)
-        return ret;
 
     int fd;
+    int ret;
     if (file_get(&fd, &file, 0) < 0)
-    {
-        ret = -EMFILE;
+        return -EMFILE;
+
+    if ((ret = vfs_open(task_current()->pwd, path, flgs, mode, &node,
+                        &file->openctx)) < 0)
         goto fail;
-    }
-    
+
     if (flgs & (O_WRONLY | O_RDWR))
     {
         if (flgs & O_TRUNC)
@@ -76,8 +74,9 @@ __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
     return fd;
 
 fail:
-    if (fd >= 0)
-        file_put(fd);
+    if (node)
+        vfs_close(node, &file->openctx);
+    file_put(fd);
     return ret;
 }
 
@@ -150,7 +149,8 @@ __SYSCALL_DEFINE3(ssize_t, read, int, fd, void *, buf, size_t, cnt)
     if (accm == O_WRONLY)
         return -EBADF;
 
-    int ret = file->node->opts->read(file->node, buf, cnt, file->offset);
+    int ret = file->node->opts->read(file->node, buf, cnt, file->offset,
+                                     &file->openctx);
     if (ret < 0)
         return ret;
     
@@ -186,7 +186,8 @@ __SYSCALL_DEFINE3(ssize_t, readv, int, fd, const iovec_t *, iov, int, iovcnt)
             ret = -EINVAL;
             goto rollback;
         }
-        ret = file->node->opts->read(file->node, iov[i].iov_base, iov[i].iov_len, file->offset);
+        ret = file->node->opts->read(file->node, iov[i].iov_base, iov[i].iov_len, file->offset,
+                                     &file->openctx);
         if (ret < 0)
             goto rollback;
         if (ret == 0)
@@ -219,7 +220,8 @@ __SYSCALL_DEFINE3(ssize_t, write, int, fd, void *, buf, size_t, cnt)
     else
         off = file->offset;
 
-    int ret = file->node->opts->write(file->node, buf, cnt, off);
+    int ret = file->node->opts->write(file->node, buf, cnt, off,
+                                      &file->openctx);
     if (ret < 0)
         return ret;
     
@@ -255,7 +257,8 @@ __SYSCALL_DEFINE3(ssize_t, writev, int, fd, const iovec_t *, iov, int, iovcnt)
             ret = -EINVAL;
             goto rollback;
         }
-        ret = file->node->opts->write(file->node, iov[i].iov_base, iov[i].iov_len, file->offset);
+        ret = file->node->opts->write(file->node, iov[i].iov_base, iov[i].iov_len, file->offset,
+                                      &file->openctx);
         if (ret < 0)
         {
             if (ret != -ENOSPC)
@@ -400,7 +403,7 @@ __SYSCALL_DEFINE3(off_t, lseek, int, fd, off_t, off, int, whence)
 int __file_dec_ref(file_t *file)
 {
     if (--file->refer > 0) return 0;
-    int ret = file->node->opts->close(file->node);
+    int ret = vfs_close(file->node, &file->openctx);
     free(file);
     return ret;
 }
@@ -421,7 +424,8 @@ __SYSCALL_DEFINE1(int, unlink, const char *, path)
 {
     int ret;
     node_t *node;
-    if ((ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node)) < 0)
+    struct fs_openctx ctx = {0};
+    if ((ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node, &ctx)) < 0)
         return ret;
     if (S_ISDIR(node->mode)) return -EISDIR;
     ret = vfs_remove(node);
@@ -449,8 +453,9 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
 {
     int ret;
     node_t *node;
+    struct fs_openctx ctx = {0};
     
-    ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node);
+    ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node, &ctx);
     if (ret < 0)
         return ret;
     fillsb(node, sb);
@@ -470,8 +475,9 @@ __SYSCALL_DEFINE2(int, access, const char *, path, int, amode)
 {
     int ret;
     node_t *node;
+    struct fs_openctx ctx = {0};
     
-    ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node);
+    ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node, &ctx);
     if (ret < 0)
         return ret;
     if (amode == F_OK)
@@ -550,10 +556,14 @@ __SYSCALL_DEFINE1(int, pipe, int *, fds)
     f0->node = n0;
     f0->refer = 1;
     f0->flgs = O_RDONLY;
+    f0->openctx.file_flgs = O_RDONLY;
+    f0->openctx.pctx = NULL;
 
     f1->node = n1;
     f1->refer = 1;
     f1->flgs = O_WRONLY;
+    f1->openctx.file_flgs = O_WRONLY;
+    f1->openctx.pctx = NULL;
 
     fds[0] = fd0;
     fds[1] = fd1;
@@ -573,8 +583,9 @@ __SYSCALL_DEFINE3(int, chown, char *, path, uid_t, owner, gid_t, group)
 {
     int ret;
     node_t *node;
+    struct fs_openctx ctx = {0};
 
-    ret = vfs_open(task_current()->pwd, path, 0, 0, &node);
+    ret = vfs_open(task_current()->pwd, path, 0, 0, &node, &ctx);
     if (ret < 0)
         return ret;
     
@@ -600,8 +611,9 @@ __SYSCALL_DEFINE2(int, chmod, char *, path, mode_t, mode)
 {
     int ret;
     node_t *node;
+    struct fs_openctx ctx = {0};
 
-    ret = vfs_open(task_current()->pwd, path, 0, 0, &node);
+    ret = vfs_open(task_current()->pwd, path, 0, 0, &node, &ctx);
     if (ret < 0)
         return ret;
     
@@ -627,8 +639,9 @@ __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
 {
     int ret;
     node_t *sn, *dn;
+    struct fs_openctx ctx = {0};
 
-    ret = vfs_open(task_current()->pwd, src, 0, 0, &sn);
+    ret = vfs_open(task_current()->pwd, src, 0, 0, &sn, &ctx);
     if (ret < 0) return ret;
 
     if (!S_ISBLK(sn->mode)) return -ENOBLK;
@@ -639,7 +652,7 @@ __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
     if (dev->type != DEV_BLK) return -ENOBLK;
     if (dev->subtype != DEV_PART) return -EINVAL;
 
-    ret = vfs_open(task_current()->pwd, dst, O_DIRECTORY, 0, &dn);
+    ret = vfs_open(task_current()->pwd, dst, O_DIRECTORY, 0, &dn, &ctx);
     if (ret < 0) return ret;
 
     node_t *root = extract_part(dev);
@@ -650,8 +663,9 @@ __SYSCALL_DEFINE2(int, umount2, char *, target, int, flags)
 {
     int ret;
     node_t *dn;
+    struct fs_openctx ctx = {0};
 
-    ret = vfs_open(task_current()->pwd, target, FS_GAIN | FS_GAINMNT, 0, &dn);
+    ret = vfs_open(task_current()->pwd, target, FS_GAIN | FS_GAINMNT, 0, &dn, &ctx);
     if (ret < 0) return ret;
 
     ret = vfs_umount(dn);
@@ -663,8 +677,9 @@ __SYSCALL_DEFINE1(int, chdir, char *, path)
     int ret;
     node_t *node;
     task_t *task = task_current();
+    struct fs_openctx ctx = {0};
 
-    ret = vfs_open(task->pwd, path, O_DIRECTORY, 0, &node);
+    ret = vfs_open(task->pwd, path, O_DIRECTORY, 0, &node, &ctx);
     if (ret < 0) return ret;
 
     task->pwd = node;
@@ -677,11 +692,12 @@ __SYSCALL_DEFINE2(int, mkdir, char *, path, int, mode)
     node_t *node;
     task_t *task = task_current();
     mode &= 0777;
+    struct fs_openctx ctx = {0};
 
-    ret = vfs_open(task->pwd, path, O_DIRECTORY, 0, &node);
+    ret = vfs_open(task->pwd, path, O_DIRECTORY, 0, &node, &ctx);
     if (ret >= 0) return -EEXIST;
 
-    ret = vfs_open(task->pwd, path, O_DIRECTORY | O_CREAT, mode, &node);
+    ret = vfs_open(task->pwd, path, O_DIRECTORY | O_CREAT, mode, &node, &ctx);
     return ret;
 }
 

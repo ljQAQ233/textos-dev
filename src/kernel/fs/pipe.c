@@ -25,7 +25,8 @@ static void block_as(lock_t *lock, task_t **as)
     *as = NULL;
 }
 
-static int pipe_read(node_t *this, void *buf, size_t siz, size_t offset)
+static int pipe_read(node_t *this, void *buf, size_t siz, size_t offset,
+                     struct fs_openctx *openctx)
 {
     size_t rem = siz;
     pipe_t *pi = this->pdata;
@@ -48,7 +49,8 @@ static int pipe_read(node_t *this, void *buf, size_t siz, size_t offset)
     return siz - rem;
 }
 
-static int pipe_write(node_t *this, void *buf, size_t siz, size_t offset)
+static int pipe_write(node_t *this, void *buf, size_t siz, size_t offset,
+                      struct fs_openctx *openctx)
 {
     size_t reqsiz = siz;
     pipe_t *pi = this->pdata;
