@@ -5,6 +5,14 @@
 
 #include <string.h>
 
+static void *dev_mmap_stub(devst_t *dev, vm_region_t *vm)
+{
+    return MAP_FAILED;
+}
+
+static void dev_mkname_stub(devst_t *dev, char res[32], int nr)
+{}
+
 /*
   The flow to register:
     1. dev_new() to create new buffer
@@ -80,6 +88,9 @@ void __dev_register(devstp_t *pri)
 {
     if (pri->dev->read == NULL) pri->dev->read = noopt;
     if (pri->dev->write == NULL) pri->dev->write = noopt;
+    if (pri->dev->mmap == NULL) pri->dev->mmap = dev_mmap_stub;
+    if (pri->dev->ioctl == NULL) pri->dev->ioctl = noopt;
+    if (pri->dev->mkname == NULL) pri->dev->mkname = dev_mkname_stub;
     list_init(&pri->dev->subdev);
 
     list_insert_after(&root, &pri->list);
@@ -121,6 +132,9 @@ devst_t *dev_new()
 
     d->read = noopt;  // bread
     d->write = noopt; // bwrite
+    d->mmap = dev_mmap_stub;
+    d->ioctl = noopt;
+    d->mkname = dev_mkname_stub;
     d->major = 0;
     d->minor = 0;
     
