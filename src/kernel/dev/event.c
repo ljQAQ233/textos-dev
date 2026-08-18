@@ -61,7 +61,7 @@ static int event_read_one(struct receiver *rx, struct event *ev)
     return 0;
 }
 
-static int event_read(devst_t *dev, void *buf, size_t cnt)
+static int event_read(devst_t *dev, void *buf, size_t cnt, ...)
 {
     struct receiver *rx = dev->pdata;
     size_t i = 0;

@@ -3,27 +3,27 @@
 #include <string.h>
 
 // EOF
-static int null_read(devst_t *dev, void *buf, size_t cnt)
+static int null_read(devst_t *dev, void *buf, size_t cnt, ...)
 {
     memset(buf, EOF, cnt);
     return 0;
 }
 
 // drop!!!
-static int null_write(devst_t *dev, void *buf, size_t cnt)
+static int null_write(devst_t *dev, void *buf, size_t cnt, ...)
 {
     return 0;
 }
 
 // 0
-static int zero_read(devst_t *dev, void *buf, size_t cnt)
+static int zero_read(devst_t *dev, void *buf, size_t cnt, ...)
 {
     memset(buf, 0, cnt);
     return cnt;
 }
 
 // drop
-static int zero_write(devst_t *dev, void *buf, size_t cnt)
+static int zero_write(devst_t *dev, void *buf, size_t cnt, ...)
 {
     return 0;
 }
