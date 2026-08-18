@@ -142,7 +142,7 @@ static size_t tty_fetch(tty_t *tty, char *buf, size_t len)
     return cnt;
 }
 
-static int tty_read(devst_t *dev, void *buf, size_t len)
+static int tty_read(devst_t *dev, void *buf, size_t len, ...)
 {
     size_t cnt;
     tty_t *tty = dev->pdata;
@@ -317,7 +317,7 @@ void __tty_rx(tty_t *tty, keysym_t sym)
     tty_feed(tty, buf, len);
 }
 
-static int tty_write(devst_t *dev, void *buf, size_t len)
+static int tty_write(devst_t *dev, void *buf, size_t len, ...)
 {
     tty_t *tty = dev->pdata;
     char *p = buf;
