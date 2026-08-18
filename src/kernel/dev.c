@@ -1,11 +1,8 @@
 #include <textos/dev.h>
-#include <textos/mm.h>
-#include <textos/panic.h>
 #include <textos/klib/list.h>
+#include <textos/klib/string.h>
 
-#include <string.h>
-
-static void *dev_mmap_stub(devst_t *dev, vm_region_t *vm)
+static void *dev_mmap_stub(devst_t *dev, vm_region_t *vm, ...)
 {
     return MAP_FAILED;
 }
@@ -130,6 +127,8 @@ devst_t *dev_new()
 {
     devst_t *d = malloc(sizeof(devst_t));
 
+    d->_init_pctx = NULL;
+    d->_fini_pctx = NULL;
     d->read = noopt;  // bread
     d->write = noopt; // bwrite
     d->mmap = dev_mmap_stub;

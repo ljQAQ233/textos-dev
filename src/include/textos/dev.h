@@ -39,21 +39,24 @@ struct devst
     uint minor;
     list_t subdev;
 
+    int (*_init_pctx)(devst_t *dev, void **pctx);
+    int (*_fini_pctx)(devst_t *dev, void **pctx);
     union
     {
         struct
         {
-            int (*write)(devst_t *dev, void *buf, size_t cnt);
-            int (*read)(devst_t *dev, void *buf, size_t cnt);
+            int (*write)(devst_t *dev, void *buf, size_t cnt, ...);
+            int (*read)(devst_t *dev, void *buf, size_t cnt, ...);
         };
         struct
         {
-            int (*bwrite)(devst_t *dev, blkno_t no, buffer_t *buf,
-                          blkcnt_t cnt);
-            int (*bread)(devst_t *dev, blkno_t no, buffer_t *buf, blkcnt_t cnt);
+            int (*bwrite)(devst_t *dev, blkno_t no, buffer_t *buf, blkcnt_t cnt,
+                          ...);
+            int (*bread)(devst_t *dev, blkno_t no, buffer_t *buf, blkcnt_t cnt,
+                         ...);
         };
     };
-    void *(*mmap)(devst_t *dev, vm_region_t *vm);
+    void *(*mmap)(devst_t *dev, vm_region_t *vm, ...);
     int (*ioctl)(devst_t *dev, int req, void *argp);
     void (*mkname)(devst_t *dev, char res[32], int nr);
 
