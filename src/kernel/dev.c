@@ -12,11 +12,6 @@
     3. dev_register() to insert into the root list
 */
 
-static void inv_handle()
-{
-    PANIC ("this opts is not supported!");
-}
-
 static list_t root = LIST_INIT(root);
 
 extern void __dev_initmem();
@@ -83,12 +78,10 @@ void dev_initnod()
 
 void __dev_register(devstp_t *pri)
 {
-    if (pri->dev->read == NULL)
-        pri->dev->read = (void *)inv_handle;
-    if (pri->dev->write == NULL)
-        pri->dev->write = (void *)inv_handle;
+    if (pri->dev->read == NULL) pri->dev->read = noopt;
+    if (pri->dev->write == NULL) pri->dev->write = noopt;
     list_init(&pri->dev->subdev);
-    
+
     list_insert_after(&root, &pri->list);
 }
 
@@ -125,11 +118,9 @@ void dev_register (devst_t *prt, devst_t *dev)
 devst_t *dev_new()
 {
     devst_t *d = malloc(sizeof(devst_t));
-    
-    d->read = (void *)inv_handle;
-    d->write = (void *)inv_handle;
-    d->bread = (void *)inv_handle;
-    d->bwrite = (void *)inv_handle;
+
+    d->read = noopt;  // bread
+    d->write = noopt; // bwrite
     d->major = 0;
     d->minor = 0;
     
@@ -143,8 +134,7 @@ devst_t *dev_lookup_type(int subtype, int idx)
     {
         devstp_t *pri = CR(i, devstp_t, list);
         if (pri->dev->subtype == subtype)
-            if (idx-- == 0)
-                return pri->dev;
+            if (idx-- == 0) return pri->dev;
     }
 
     return NULL;
@@ -173,15 +163,12 @@ devst_t *dev_lookup_nr(uint major, uint minor)
     {
         pm = CR(im, devstp_t, list);
         dm = pm->dev;
-        if (dm->major != major)
-            continue;
-        if (minor == 1)
-            return pm->dev;
+        if (dm->major != major) continue;
+        if (minor == 1) return pm->dev;
         LIST_FOREACH(i, &pm->dev->subdev)
         {
             d = CR(i, devst_t, subdev);
-            if (d->minor == minor)
-                return d;
+            if (d->minor == minor) return d;
         }
     }
 
@@ -192,11 +179,8 @@ devst_t *dev_lookup_nr(uint major, uint minor)
 
 static char *dev_typestr(int type)
 {
-    if (type == DEV_CHAR)
-        return "character device";
-    if (type == DEV_BLK)
-        return "block device";
-
+    if (type == DEV_CHAR) return "character device";
+    if (type == DEV_BLK) return "block device";
     return "unknown device";
 }
 
@@ -207,13 +191,11 @@ void dev_list()
 
     LIST_FOREACH(i, &root)
     {
-        devstp_t *pri = CR (i, devstp_t, list);
-        printk ("dev index - %04d -> %s\n"  , idx, pri->dev->name);
-        printk ("            type -> %s\n"  , dev_typestr(pri->dev->type));
-        printk ("            opts -> %d%d\n",
-                pri->dev->read == (void *)inv_handle ? 0 : 1,
-                pri->dev->write == (void *)inv_handle ? 0 : 1);
-
+        devstp_t *pri = CR(i, devstp_t, list);
+        printk("dev index - %04d -> %s\n", idx, pri->dev->name);
+        printk("            type -> %s\n", dev_typestr(pri->dev->type));
+        printk("            opts -> %d%d\n", pri->dev->read == noopt ? 0 : 1,
+               pri->dev->write == noopt ? 0 : 1);
         idx++;
     }
 }
