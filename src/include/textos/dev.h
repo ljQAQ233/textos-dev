@@ -68,7 +68,7 @@ struct devst
 // dev structure private
 typedef struct
 {
-    devst_t  *dev;
+    devst_t *dev;
     list_t list;
 } devstp_t;
 

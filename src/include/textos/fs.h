@@ -19,7 +19,6 @@ struct fs_openctx
     void *pctx;
 };
 
-#include <textos/dev.h>
 #include <textos/file.h>
 #include <textos/mm/mman.h>
 #include <textos/noopt.h>
