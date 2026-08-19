@@ -27,7 +27,7 @@ static int dev_read(node_t *this, void *buf, size_t siz, size_t offset,
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
     if (dev->type == DEV_CHAR) // chardev
-        return dev->read(dev, buf, siz);
+        return dev->read(dev, buf, siz, openctx);
 
     int blksiz;
     dev->ioctl(dev, BLKSSZGET, &blksiz);
@@ -58,7 +58,7 @@ static int dev_write(node_t *this, void *buf, size_t siz, size_t offset,
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
     if (dev->type == DEV_CHAR) // chardev
-        return dev->write(dev, buf, siz);
+        return dev->write(dev, buf, siz, openctx);
 
     int blksiz;
     dev->ioctl(dev, BLKSSZGET, &blksiz);
