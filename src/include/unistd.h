@@ -17,19 +17,14 @@ __BEGIN_DECLS
 #define __NEED_pid_t
 #define __NEED_intptr_t
 #define __NEED_useconds_t
-
 #include <bits/alltypes.h>
 
-#define STDIN_FILENO  0
-#define STDOUT_FILENO 1
-#define STDERR_FILENO 2
+#include <bits/fileno.h>
 
 int pipe(int __fds[2]);
 int close(int __fd);
 
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
+#include <bits/lseek.h>
 
 off_t lseek(int __fd, off_t __off, int __whence);
 
@@ -39,10 +34,7 @@ int dup2(int __oldfd, int __newfd);
 ssize_t read(int __fd, void *__buf, size_t __cnt);
 ssize_t write(int __fd, const void *__buf, size_t __cnt);
 
-#define F_OK 0
-#define X_OK 0x01
-#define W_OK 0x02
-#define R_OK 0x04
+#include <bits/access.h>
 
 int access(const char *__path, int __amode);
 
