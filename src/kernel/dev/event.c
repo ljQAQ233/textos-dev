@@ -5,6 +5,17 @@
 #include <textos/klib/string.h>
 #include <textos/task.h>
 
+static struct
+{
+    size_t count;
+    struct event_registry *evreg;
+} evreg_table[EV_MAXTYPE + 1] = {
+    {0, NULL}, // none
+    {0, NULL}, // keyboard
+    {0, NULL}, // mouse
+    {0, NULL}, // maxtype
+};
+
 void event_deliver(struct event_registry *this)
 {
     struct event_client *ec = this->client;
@@ -115,11 +126,21 @@ static int event_ioctl(devst_t *dev, int req, void *argp)
     return -EINVAL;
 }
 
+#include <textos/klib/vsprintf.h>
+
 struct event_registry *event_register(enum event_type type)
 {
+    assert(type == EV_KEYBOARD || type == EV_MOUSE);
+    static const char *namefmt[] = {
+        [EV_KEYBOARD] = "keyboard%d",
+        [EV_MOUSE] = "mouse%d",
+    };
+    char tmp[16];
     devst_t *evdev = dev_new();
     struct event_registry *evreg = malloc(sizeof(struct event_registry));
-    evdev->name = "event";
+
+    sprintf(tmp, namefmt[type], evreg_table[type].count);
+    evdev->name = strdup(tmp);
     evdev->type = DEV_CHAR;
     evdev->subtype = DEV_EVENT;
     evdev->_init_pctx = event__init_pctx;
@@ -132,5 +153,8 @@ struct event_registry *event_register(enum event_type type)
 
     evreg->client = NULL;
     evreg->evdev = evdev;
+    evreg->next = evreg_table[type].evreg;
+    evreg_table[type].evreg = evreg;
+    evreg_table[type].count++;
     return evreg;
 }
