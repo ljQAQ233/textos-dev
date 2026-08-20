@@ -15,6 +15,7 @@ struct event_registry
 {
     struct devst *evdev;
     struct event_client *client;
+    struct event_registry *next;
 };
 
 void event_deliver(struct event_registry *this);
