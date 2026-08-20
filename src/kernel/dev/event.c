@@ -83,8 +83,6 @@ static int event__fini_pctx(devst_t *dev, void **pctx)
     return 0;
 }
 
-#define O_NONBLOCK 04000 // 非阻塞
-
 static ssize_t event_read_one(struct event_client *ec, struct event *ev,
                               int file_flgs)
 {
