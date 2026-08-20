@@ -61,10 +61,6 @@ typedef struct stat
     time_t st_ctime;
 } stat_t;
 
-#define MAXDEF_FILENO 3
-
-extern file_t sysfile[MAXDEF_FILENO];
-
 #include <bits/access.h>
 #include <bits/fcntl.h>
 #include <bits/fileno.h>
