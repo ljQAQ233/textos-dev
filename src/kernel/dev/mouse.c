@@ -48,7 +48,7 @@ union packet
 
 static keysym_t status;
 static int packet_size = 3;
-static devst_t *evdev;
+static struct event_registry *evreg;
 
 static void mouse_wait_input()
 {
@@ -191,7 +191,7 @@ __INTR_HANDLER(mouse_handler)
     int dy = sign(pkt.flags.y_sign) * pkt.y_movement;
     DEBUGK(K_TRACE, "mouse input: dx=%d dy=%d status=%d\n", dx, dy, status);
 
-    event_push_mouse(evdev, status, dx, dy);
+    event_push_mouse(evreg, status, dx, dy);
 }
 
 void mouse_init()
@@ -212,5 +212,5 @@ void mouse_init()
 
     mouse_clear_output();
 
-    evdev = event_register(EV_MOUSE);
+    evreg = event_register(EV_MOUSE);
 }
