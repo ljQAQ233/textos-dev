@@ -1,9 +1,9 @@
-#include <textos/dev/keys.h>
+#include <bits/event.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <bits/event.h>
+#include <textos/dev/keys.h>
+#include <unistd.h>
 
 void parse_none(struct event *ev)
 {
@@ -35,12 +35,18 @@ void (*parsers[EV_MAXTYPE + 1])(struct event *ev) = {
 
 int main(int argc, char *argv[])
 {
-    if (argc != 2) {
+    int openfl = O_RDONLY;
+    int interval = 0;
+    if (argc < 2) {
         fprintf(stderr, "too few argument\n");
         return 1;
     }
+    if (argc > 2) {
+        openfl |= O_NONBLOCK;
+        interval = atoi(argv[2]);
+    }
 
-    int fd = open(argv[1], O_RDONLY);
+    int fd = open(argv[1], openfl);
     if (fd < 0) {
         perror(NULL);
         return 1;
@@ -57,6 +63,7 @@ int main(int argc, char *argv[])
             parsers[ev.type](&ev);
             printf("\n");
         }
+        if (interval) usleep(interval * 1000);
     }
 
     return 0;
