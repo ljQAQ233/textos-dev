@@ -11,15 +11,8 @@ __BEGIN_DECLS
 #define __NEED_size_t
 #define __NEED_ssize_t
 #include <bits/alltypes.h>
-
-typedef struct
-{
-    int idx;
-    int type;
-    ino_t ino;
-    size_t siz;
-    char name[];
-} dir_t;
+#define __NEED_dir_t
+#include <bits/dirent.h>
 
 ssize_t __readdir(int fd, void *buf, size_t mx);
 
