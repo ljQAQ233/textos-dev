@@ -432,7 +432,7 @@ __SYSCALL_DEFINE1(int, unlink, const char *, path)
     return ret;
 }
 
-static void fillsb(node_t *node, stat_t *sb)
+static void fillsb(node_t *node, struct stat *sb)
 {
     sb->st_dev = node->dev;
     sb->st_ino = node->ino;
@@ -449,7 +449,7 @@ static void fillsb(node_t *node, stat_t *sb)
     sb->st_ctime = node->ctime;
 }
 
-__SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb) 
+__SYSCALL_DEFINE2(int, stat, char *, path, struct stat *, sb) 
 {
     int ret;
     node_t *node;
@@ -462,7 +462,7 @@ __SYSCALL_DEFINE2(int, stat, char *, path, stat_t *, sb)
     return 0;
 }
 
-__SYSCALL_DEFINE2(int, fstat, int, fd, stat_t *, sb)
+__SYSCALL_DEFINE2(int, fstat, int, fd, struct stat *, sb)
 {
     file_t *file = task_current()->files[fd];
     if (!file)
