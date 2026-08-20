@@ -25,25 +25,9 @@ int file_get(int *new, file_t **file, int min);
 #define __NEED_dir_t
 #include <bits/dirent.h>
 
-#include <bits/perm.h>
 #include <bits/mode.h>
-
-typedef struct stat
-{
-    dev_t st_dev;
-    ino_t st_ino;
-    nlink_t st_nlink;
-    mode_t st_mode;
-    uid_t st_uid;
-    gid_t st_gid;
-    dev_t st_rdev;
-    off_t st_size;
-    blksize_t st_blksize;
-    blkcnt_t st_blocks;
-    time_t st_atime;
-    time_t st_mtime;
-    time_t st_ctime;
-} stat_t;
+#include <bits/perm.h>
+#include <bits/stat.h>
 
 #include <bits/access.h>
 #include <bits/fcntl.h>
@@ -51,7 +35,8 @@ typedef struct stat
 #include <bits/lseek.h>
 
 unsigned dir_get_type(mode_t mode);
-bool dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino, unsigned type);
+bool dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino,
+              unsigned type);
 bool dir_emit_node(dirctx_t *ctx, node_t *chd);
 bool dir_emit_dot(dirctx_t *ctx);
 bool dir_emit_dotdot(dirctx_t *ctx);
