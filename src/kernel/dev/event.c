@@ -1,5 +1,6 @@
 #include <textos/dev.h>
 #include <textos/dev/event.h>
+#include <textos/dev/internal.h>
 #include <textos/errno.h>
 #include <textos/klib/string.h>
 #include <textos/task.h>
@@ -16,6 +17,7 @@ void event_deliver(struct event_registry *this)
 void event_push_any(struct event_registry *this, struct event *ev)
 {
     struct event_client *ec = this->client;
+    if (!ec) return;
     memcpy(&ec->ev, ev, sizeof(struct event_registry));
     event_deliver(this);
 }
@@ -23,6 +25,7 @@ void event_push_any(struct event_registry *this, struct event *ev)
 void event_push_keyboard(struct event_registry *this, keysym_t sym)
 {
     struct event_client *ec = this->client;
+    if (!ec) return;
     ec->ev.type = EV_KEYBOARD;
     ec->ev.sym = sym;
     event_deliver(this);
@@ -32,6 +35,7 @@ void event_push_mouse(struct event_registry *this, keysym_t status, int dx,
                       int dy)
 {
     struct event_client *ec = this->client;
+    if (!ec) return;
     ec->ev.type = EV_MOUSE;
     ec->ev.sym = status;
     ec->ev.m.dx = dx;
@@ -68,27 +72,40 @@ static int event__fini_pctx(devst_t *dev, void **pctx)
     return 0;
 }
 
-static int event_read_one(struct event_registry *evreg, struct event *ev)
+#define O_NONBLOCK 04000 // 非阻塞
+
+static ssize_t event_read_one(struct event_client *ec, struct event *ev,
+                              int file_flgs)
 {
-    struct event_client *ec = evreg->client;
     if (ec->ev.type == EV_NONE) {
         ev->type = EV_NONE;
-        ec->waiter = task_current();
-        int ret = task_block(NULL, NULL, TASK_BLK, 0);
-        if (ret < 0) return ret;
+        if (file_flgs & O_NONBLOCK) {
+            return 0;
+        } else {
+            ec->waiter = task_current();
+            int ret = task_block(NULL, NULL, TASK_BLK, 0);
+            if (ret < 0) return ret;
+        }
     }
     memcpy(ev, &ec->ev, sizeof(*ev));
     ec->ev.type = EV_NONE;
-    return 0;
+    return sizeof(struct event);
 }
 
 static int event_read(devst_t *dev, void *buf, size_t cnt, ...)
 {
+    struct fs_openctx *openctx = dev_get_openctx(cnt);
+    struct event_client *ec = openctx->pctx;
     struct event_registry *evreg = dev->pdata;
+    assert(ec == evreg->client);
+
+    ssize_t ret;
     size_t i = 0;
     while (i < cnt) {
-        event_read_one(evreg, buf + i);
-        i += sizeof(struct event);
+        ret = event_read_one(ec, buf + i, openctx->file_flgs);
+        if (ret < 0) return ret;
+        if (ret == 0) break;
+        i += ret;
     }
     return i;
 }
