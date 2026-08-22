@@ -43,7 +43,7 @@ include cmd.mk
 $(BUILD)/%: %.c $(APP_LIBS:=/.stamp)
 	@$(call compile-cc,$<,$@,-static)
 
-$(BUILD)/dwm: LDLIBS += -llvgl
+$(BUILD)/lvgl-gui: LDLIBS += -llvgl
 
 .PHONY: app clean clean-elfs
 
