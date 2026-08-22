@@ -1,9 +1,10 @@
+#include <intr.h>
 #include <io.h>
 #include <irq.h>
-#include <intr.h>
-#include <textos/task.h>
-#include <textos/dev/keys.h>
+#include <textos/dev/event.h>
 #include <textos/dev/kbd/sc1.h>
+#include <textos/dev/keys.h>
+#include <textos/task.h>
 
 #define R_DATA 0x60
 #define R_STAT 0x64
@@ -43,6 +44,7 @@
 #define S_TIMEOUT  (1 << 6)
 #define S_PERROR   (1 << 7)
 
+static struct event_registry *evreg;
 static keysym_t flag = 0;
 extern void __tty_rx(void *tty, keysym_t sym);
 
@@ -60,14 +62,10 @@ __INTR_HANDLER(keyboard_handler)
     u8 code = inb(R_DATA);
     bool brk = code & 0x80;
     keysym_t sym = kbd_sc1_to_sym(code);
-    if (sym & KEY_S_WAIT)
-        return;
-    if (sym & KEY_S_ERROR)
-        return;
-    if (sym & KEY_S_MASK)
-    {
-        if (brk)
-        {
+    if (sym & KEY_S_WAIT) return;
+    if (sym & KEY_S_ERROR) return;
+    if (sym & KEY_S_MASK) {
+        if (brk) {
             sym &= ~KEY_S_CAPSLK;
             sym &= ~KEY_S_NUMLK;
         }
@@ -77,9 +75,11 @@ __INTR_HANDLER(keyboard_handler)
             flag |= sym;
         return;
     }
-    if (brk)
-        return;
-    __tty_rx(NULL, sym | flag);
+    if (brk) return;
+    if (evreg->client)
+        event_push_keyboard(evreg, sym | flag);
+    else
+        __tty_rx(NULL, sym | flag);
 }
 
 void kayboard_light(bool x)
@@ -118,12 +118,7 @@ void keyboard_init()
     outb(R_CMD, CMD_W_CTL);
     outb(R_DATA, CTL_INT1_ON | CTL_TRSAN1);
 
-    devst_t *dev = dev_new();
-    dev->name = "atkbd";
-    dev->read = NULL;
-    dev->write = NULL;
-    dev->type = DEV_CHAR;
-    dev->subtype = DEV_KBD;
+    evreg = event_register(EV_KEYBOARD);
     DEBUGK(K_INFO, "atkbd initialized!\n");
 }
 
