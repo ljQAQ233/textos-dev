@@ -7,6 +7,7 @@ CC := $(ORIG_CC)
 SRCS := $(shell find $(LVGL_SHORT_PATH)/src -type f -name '*.S')
 SRCS += $(shell find $(LVGL_SHORT_PATH)/src -type f -name '*.c')
 SRCS += $(shell find $(LVGL_SHORT_PATH)/src -type f -name '*.cpp')
+SRCS += $(shell find $(LVGL_SHORT_PATH)/examples -type f -name '*.c')
 
 OBJS := $(addsuffix .o,${SRCS})
 OBJS := $(addprefix ${BUILD}/,${OBJS})
