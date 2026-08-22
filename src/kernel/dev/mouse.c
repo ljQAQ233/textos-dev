@@ -5,8 +5,7 @@
 #include <textos/dev/keys.h>
 
 #define MAX_RESEND 3
-
-#define sign(bit) ((bit) ? -1 : 1)
+#define MAX_RESYNC 8
 
 // mode: if 1, the current mode is remote mode; if 0 then it is stream mode
 // enable: if 1, then data reporting is enabled; 0 means disabled
@@ -163,7 +162,17 @@ static int mouse_init_extra()
 
 static int mouse_rx_packet(union packet *pkt)
 {
-    for (int i = 0; i < packet_size; i++) {
+    uint8_t byte0;
+    int resync = 0;
+    for (;;) {
+        if (~inb(0x64) & 0x20) return -1;
+        byte0 = inb(0x60);
+        if (byte0 & 0x08) break;
+        if (++resync > MAX_RESYNC) return -1;
+    }
+    pkt->raw[0] = byte0;
+
+    for (int i = 1; i < packet_size; i++) {
         if (~inb(0x64) & 0x20) return -1;
         pkt->raw[i] = inb(0x60);
     }
@@ -187,8 +196,16 @@ __INTR_HANDLER(mouse_handler)
     if (pkt.flags.middle) k |= KEY_S_MOUSE_MIDDLE;
     status = k;
 
-    int dx = sign(pkt.flags.x_sign) * pkt.x_movement;
-    int dy = sign(pkt.flags.y_sign) * pkt.y_movement;
+    // PS/2 的 x/y_movement 与 x/y_sign 组成一个 9 位量 二进制补码
+    // 从 0 开始数, 第 8 位 就是符号位. 拓展到 int 需要手动 拓展
+    int dx = pkt.x_movement;
+    int dy = pkt.y_movement;
+    if (pkt.flags.x_sign) dx |= 0xFFFFFF00;
+    if (pkt.flags.y_sign) dy |= 0xFFFFFF00;
+
+    // 翻转 y 轴, 适配屏幕的坐标系
+    dy = -dy;
+
     DEBUGK(K_TRACE, "mouse input: dx=%d dy=%d status=%d\n", dx, dy, status);
 
     event_push_mouse(evreg, status, dx, dy);
@@ -204,8 +221,10 @@ void mouse_init()
     id = mouse_get_id();
     DEBUGK(K_INFO, "mouse id = %d\n", id);
 
-    // mouse_init_wheel();
-    // mouse_init_extra();
+    if (0) {
+        mouse_init_wheel();
+        mouse_init_extra();
+    }
 
     ioapic_rteset(IRQ_MOUSE, INT_MOUSE);
     intr_register(INT_MOUSE, mouse_handler);
