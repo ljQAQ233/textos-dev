@@ -25,6 +25,7 @@ void parse_mouse(struct event *ev)
     printf("pressed: %s\n", pr);
     printf("dx: %d\n", ev->m.dx);
     printf("dy: %d\n", ev->m.dy);
+    printf("dz: %d\n", ev->m.dz);
 }
 
 void (*parsers[EV_MAXTYPE + 1])(struct event *ev) = {
