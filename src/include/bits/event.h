@@ -12,6 +12,7 @@ struct event_mouse
 {
     int dx;
     int dy;
+    int dz;
 };
 
 struct event

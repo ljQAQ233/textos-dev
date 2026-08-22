@@ -41,6 +41,7 @@ union packet
         struct byte1 flags;
         uint8_t x_movement;
         uint8_t y_movement;
+        uint8_t z_movement;
     } _packed;
     uint8_t raw[4];
 } _packed;
@@ -62,6 +63,8 @@ static void mouse_wait_output()
     while (~inb(0x64) & 0x01)
         ;
 }
+
+static void mouse_clear_output();
 
 static void mouse_wait_ack()
 {
@@ -141,23 +144,36 @@ static int mouse_get_id()
     return inb(0x60);
 }
 
-static int mouse_set_sampling(uint8_t rate)
-{}
+static void mouse_set_sampling(uint8_t rate)
+{
+    mouse_clear_output();
+    // 0xf3 设置采样率
+    before_out();
+    outb(0x64, 0xd4);
+    before_out();
+    outb(0x60, 0xf3);
+    mouse_wait_ack();
+    before_out();
+    outb(0x64, 0xd4);
+    before_out();
+    outb(0x60, rate);
+    mouse_wait_ack();
+}
 
-static int mouse_init_wheel()
+// check if id == 3 to verify
+static void mouse_init_wheel()
 {
     mouse_set_sampling(200);
     mouse_set_sampling(100);
     mouse_set_sampling(80);
-    return mouse_get_id() == 3;
 }
 
-static int mouse_init_extra()
+// check if id == 4 to verify
+static void mouse_init_extra()
 {
     mouse_set_sampling(200);
     mouse_set_sampling(200);
     mouse_set_sampling(80);
-    return mouse_get_id() == 4;
 }
 
 static int mouse_rx_packet(union packet *pkt)
@@ -200,15 +216,17 @@ __INTR_HANDLER(mouse_handler)
     // 从 0 开始数, 第 8 位 就是符号位. 拓展到 int 需要手动 拓展
     int dx = pkt.x_movement;
     int dy = pkt.y_movement;
+    int dz = (int)(int8_t)pkt.z_movement;
     if (pkt.flags.x_sign) dx |= 0xFFFFFF00;
     if (pkt.flags.y_sign) dy |= 0xFFFFFF00;
 
     // 翻转 y 轴, 适配屏幕的坐标系
     dy = -dy;
 
-    DEBUGK(K_TRACE, "mouse input: dx=%d dy=%d status=%d\n", dx, dy, status);
+    DEBUGK(K_TRACE, "mouse input: dx=%d dy=%d dz=%d status=%d\n", dx, dy, dz,
+           status);
 
-    event_push_mouse(evreg, status, dx, dy);
+    event_push_mouse(evreg, status, dx, dy, dz);
 }
 
 void mouse_init()
@@ -220,10 +238,15 @@ void mouse_init()
 
     id = mouse_get_id();
     DEBUGK(K_INFO, "mouse id = %d\n", id);
-
-    if (0) {
+    if (id == 0) {
         mouse_init_wheel();
-        mouse_init_extra();
+        id = mouse_get_id();
+        DEBUGK(K_INFO, "mouse id = %d\n", id);
+        if (id == 3) {
+            packet_size = 4;
+            DEBUGK(K_INFO, "  wheels initialized\n");
+            (void)mouse_init_extra;
+        }
     }
 
     ioapic_rteset(IRQ_MOUSE, INT_MOUSE);

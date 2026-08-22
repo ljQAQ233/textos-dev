@@ -43,7 +43,7 @@ void event_push_keyboard(struct event_registry *this, keysym_t sym)
 }
 
 void event_push_mouse(struct event_registry *this, keysym_t status, int dx,
-                      int dy)
+                      int dy, int dz)
 {
     struct event_client *ec = this->client;
     if (!ec) return;
@@ -51,6 +51,7 @@ void event_push_mouse(struct event_registry *this, keysym_t status, int dx,
     ec->ev.sym = status;
     ec->ev.m.dx = dx;
     ec->ev.m.dy = dy;
+    ec->ev.m.dz = dz;
     event_deliver(this);
 }
 
