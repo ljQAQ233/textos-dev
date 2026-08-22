@@ -13,6 +13,28 @@ void parse_none(struct event *ev)
 void parse_kbd(struct event *ev)
 {
     printf("event: kbd\n");
+    printf("type: %c\n", KEYTYP(ev->sym));
+    printf("char: %c\n", KEYCHR(ev->sym));
+    printf("state:");
+    if (ev->sym & KEY_S_LSHIFT) printf(" lshift");
+    if (ev->sym & KEY_S_RSHIFT) printf(" rshift");
+    if (ev->sym & KEY_S_LALT) printf(" lalt");
+    if (ev->sym & KEY_S_RALT) printf(" ralt");
+    if (ev->sym & KEY_S_LCTRL) printf(" lctrl");
+    if (ev->sym & KEY_S_RCTRL) printf(" rctrl");
+    if (ev->sym & KEY_S_CAPSLK) printf(" capslk");
+    if (ev->sym & KEY_S_LSUPER) printf(" lsuper");
+    if (ev->sym & KEY_S_RSUPER) printf(" rsuper");
+    if (ev->sym & KEY_S_APP) printf(" app");
+    if (ev->sym & KEY_S_NUMLK) printf(" numlk");
+    if (ev->sym & KEY_S_COMPOSE) printf(" compose");
+    if (ev->sym & KEY_S_WAIT) printf(" wait");
+    if (ev->sym & KEY_S_ERROR) printf(" error");
+    printf("\n");
+
+    if ((KEYCHR(ev->sym) == 'c') && // optional handling ctrl-c
+        (ev->sym & (KEY_S_LCTRL | KEY_S_RCTRL)))
+        exit(0);
 }
 
 void parse_mouse(struct event *ev)
