@@ -1,6 +1,9 @@
 #ifndef __DEBUG_H__
 #define __DEBUG_H__
 
+#define _STR(x) #x
+#define STR(x)  _STR(x)
+
 void dprintk(const char *format, ...);
 
 #define K_FATAL 0 // Fatal error, program cannot continue
@@ -14,24 +17,21 @@ void dprintk(const char *format, ...);
 #define K_CONT  (1 << 8) // it's a continuation
 #define K_WORDY (1 << 9) // print file and line number
 
+#define K_WORDY_FORMAT "[" __FILE__ ":" STR(__LINE__) "]"
+
 #ifndef K_LEVEL
     #define K_LEVEL (K_DEBUG | K_WORDY)
 #endif
 
-#define _STR(x) #x
-#define STR(x)  _STR(x)
-
 #ifndef CONFIG_RELEASE
-    #define DEBUGK(lv, format, ARGS...)                                 \
-        do {                                                            \
-            if (((lv) & K_LVMSK) <= K_LEVEL) {                          \
-                if ((((lv) | K_LEVEL) & K_WORDY)) {                     \
-                    dprintk("[" __FILE__ ":" STR(__LINE__) "] ", \
-                            ##ARGS);                                    \
-                }                                                       \
-                if ((lv) & K_CONT) dprintk(" | ");                      \
-                dprintk(format, ##ARGS);                                \
-            }                                                           \
+    #define DEBUGK(lv, format, ARGS...)              \
+        do {                                         \
+            int _lv = lv;                            \
+            if ((_lv & K_LVMSK) > K_LEVEL) break;    \
+            if ((_lv | K_LEVEL) & K_WORDY)           \
+                dprintk(K_WORDY_FORMAT " ", ##ARGS); \
+            if (_lv & K_CONT) dprintk(" | ");        \
+            dprintk(format, ##ARGS);                 \
         } while (0)
 #else
     #define DEBUGK(lv, format, ARGS...)
