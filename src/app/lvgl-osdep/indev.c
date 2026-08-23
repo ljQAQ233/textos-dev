@@ -1,9 +1,8 @@
 #include <fcntl.h>
+#include <sys/event.h>
+#include <sys/keys.h>
 #include <unistd.h>
 
-#include <textos/dev/keys.h>
-
-#include <bits/event.h>
 #include <lvgl/lvgl.h>
 
 #include "indev.h"

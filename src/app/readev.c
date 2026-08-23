@@ -1,8 +1,8 @@
-#include <bits/event.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <textos/dev/keys.h>
+#include <sys/event.h>
+#include <sys/keys.h>
 #include <unistd.h>
 
 void parse_none(struct event *ev)

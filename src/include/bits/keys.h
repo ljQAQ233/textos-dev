@@ -1,5 +1,3 @@
-#pragma once
-
 /*
  * keysym :
  *   - bit 0 ~ 15 key code
