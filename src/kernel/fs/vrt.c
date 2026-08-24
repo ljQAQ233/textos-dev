@@ -58,6 +58,7 @@ void vfs_regst(node_t *n, node_t *p)
     n->next = p->child;
     p->child = n;
     n->parent = p;
+    list_init(&n->r_ctx_all);
 }
 
 void vfs_unreg(node_t *n)
@@ -227,6 +228,7 @@ end:
         if (res->opts->_init_pctx) {
             ret = res->opts->_init_pctx(res, &openctx->pctx);
             if (ret < 0) *node = NULL;
+            list_insert(&res->r_ctx_all, &openctx->l_ctx_all);
         }
     }
     DEBUGK(K_INFO, "open %s = %d\n", path, ret);

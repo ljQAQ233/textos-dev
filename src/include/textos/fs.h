@@ -13,10 +13,13 @@ enum
  */
 #define FSA_MNT (1 << 0)
 
+#include <textos/klib/list.h>
+
 struct fs_openctx
 {
     int file_flgs;
     void *pctx;
+    list_t l_ctx_all;
 };
 
 #include <textos/file.h>
@@ -101,6 +104,7 @@ struct node
     node_t *parent;
     node_t *child;
     node_t *next;
+    list_t r_ctx_all;
 };
 
 struct superblk
