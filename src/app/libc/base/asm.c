@@ -549,6 +549,14 @@ clock_t times(struct tms *buf)
     return syscall(SYS_times, buf);
 }
 
+#include <poll.h>
+
+int poll(struct pollfd fds[], nfds_t nfds, int timeout /* ms */)
+{
+    return syscall(SYS_poll, fds, nfds, timeout);
+}
+
+
 /* picked from musl */
 /* sys/ptrace.h */
 long ptrace(int req, ...)
