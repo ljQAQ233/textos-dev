@@ -14,6 +14,15 @@ int fd_get(int min)
     return -EMFILE;
 }
 
+int fd_verify(int fd)
+{
+
+    if (fd < 0) return -1;
+    if (fd >= MAX_FILE) return -1;
+    if (!task_current()->files[fd]) return -1;
+    return true;
+}
+
 int file_get(int *new, file_t **file, int min)
 {
     file_t **ft = task_current()->files;
@@ -31,6 +40,10 @@ int file_put(int fd)
     ft[fd] = NULL;
     return 0;
 }
+
+#define from_fd(fd, file)                 \
+    if (fd_verify(fd) < 0) return -EBADF; \
+    file = task_current()->files[fd]
 
 __SYSCALL_DEFINE3(int, open, char *, path, int, flgs, int, mode)
 {
@@ -84,9 +97,8 @@ int dup2(int old, int new);
 
 __SYSCALL_DEFINE3(int, fcntl, int, fd, int, cmd, long, arg)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
 
     switch (cmd)
     {
@@ -138,9 +150,8 @@ __SYSCALL_DEFINE3(int, fcntl, int, fd, int, cmd, long, arg)
  */
 __SYSCALL_DEFINE3(ssize_t, read, int, fd, void *, buf, size_t, cnt)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
 
     if (file->flgs & O_DIRECTORY)
         return -EISDIR;
@@ -160,9 +171,8 @@ __SYSCALL_DEFINE3(ssize_t, read, int, fd, void *, buf, size_t, cnt)
 
 __SYSCALL_DEFINE3(ssize_t, readv, int, fd, const iovec_t *, iov, int, iovcnt)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
 
     if (file->flgs & O_DIRECTORY)
         return -EISDIR;
@@ -206,9 +216,8 @@ rollback:
 // todo: max size limited
 __SYSCALL_DEFINE3(ssize_t, write, int, fd, void *, buf, size_t, cnt)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
 
     int accm = file->flgs & O_ACCMODE;
     if (accm == O_RDONLY)
@@ -231,9 +240,8 @@ __SYSCALL_DEFINE3(ssize_t, write, int, fd, void *, buf, size_t, cnt)
 
 __SYSCALL_DEFINE3(ssize_t, writev, int, fd, const iovec_t *, iov, int, iovcnt)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
 
     if (file->flgs & O_DIRECTORY)
         return -EISDIR;
@@ -282,10 +290,9 @@ rollback:
 
 __SYSCALL_DEFINE3(ssize_t, readdir, int, fd, void *, buf, size_t, mx)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
-        
+    file_t *file;
+    from_fd(fd, file);
+
     int accm = file->flgs & O_ACCMODE;
     if (accm == O_WRONLY)
         return -EBADF;
@@ -371,18 +378,17 @@ bool dir_emit_dotdot(dirctx_t *ctx)
 
 __SYSCALL_DEFINE2(int, seekdir, int, fd, size_t *, pos)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
 
     return file->node->opts->seekdir(file->node, file->dirctx, pos);
 }
 
 __SYSCALL_DEFINE3(off_t, lseek, int, fd, off_t, off, int, whence)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
+
     if (S_ISDIR(file->node->mode))
         return -EISDIR;
     switch (whence)
@@ -411,8 +417,8 @@ int __file_dec_ref(file_t *file)
 __SYSCALL_DEFINE1(int, close, int, fd)
 {
     task_t *tsk = task_current();
-    file_t *file = tsk->files[fd];
-    if (!file) return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
 
     int ret = __file_dec_ref(file);
     tsk->files[fd] = NULL;
@@ -464,9 +470,8 @@ __SYSCALL_DEFINE2(int, stat, char *, path, struct stat *, sb)
 
 __SYSCALL_DEFINE2(int, fstat, int, fd, struct stat *, sb)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
     fillsb(file->node, sb);
     return 0;
 }
@@ -476,13 +481,11 @@ __SYSCALL_DEFINE2(int, access, const char *, path, int, amode)
     int ret;
     node_t *node;
     struct fs_openctx ctx = {0};
-    
+
     ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node, &ctx);
-    if (ret < 0)
-        return ret;
-    if (amode == F_OK)
-        return 0;
-    
+    if (ret < 0) return ret;
+    if (amode == F_OK) return 0;
+
     int want = 0;
     if (amode & X_OK) want |= MAY_EXEC;
     if (amode & W_OK) want |= MAY_WRITE;
@@ -492,9 +495,8 @@ __SYSCALL_DEFINE2(int, access, const char *, path, int, amode)
 
 __SYSCALL_DEFINE3(int, ioctl, int, fd, int, req, void *, argp)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
     
     node_t *node = file->node;
     if (S_ISCHR(node->mode)
@@ -515,8 +517,7 @@ __SYSCALL_DEFINE2(int, dup2, int, old, int, new)
 {
     file_t **ft = task_current()->files;
     file_t *file = ft[old];
-    if (!file)
-        return -EBADF;
+    from_fd(old, file);
 
     if (old == new)
         return -EINVAL;
@@ -626,8 +627,8 @@ __SYSCALL_DEFINE2(int, chmod, char *, path, mode_t, mode)
 
 __SYSCALL_DEFINE2(int, fchmod, int, fd, mode_t, mode)
 {
-    file_t *file = task_current()->files[fd];
-    if (!file) return -EBADF;
+    file_t *file;
+    from_fd(fd, file);
 
     mode &= 07777;
     int ret = vfs_chmod(file->node, mode);
@@ -724,10 +725,11 @@ __SYSCALL_DEFINE2(int, rename, const char *, oldpath, const char *, newpath)
 
 __SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
 {
-#define PREFACE(i)                                 \
-    struct pollfd *pfd = fds + i;                  \
-    struct fs_poller *poller = pollers + i;        \
-    file_t *file = task_current()->files[pfd->fd]; \
+#define PREFACE(i)                          \
+    struct pollfd *pfd = fds + i;           \
+    struct fs_poller *poller = pollers + i; \
+    file_t *file;                           \
+    from_fd(pfd->fd, file);                 \
     (void)(pfd || file || poller);
 
     int ret = 0, polled = 0;
