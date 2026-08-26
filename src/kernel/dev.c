@@ -10,6 +10,16 @@ static void *dev_mmap_stub(devst_t *dev, vm_region_t *vm, ...)
 static void dev_mkname_stub(devst_t *dev, char res[32], int nr)
 {}
 
+static int dev_poll_setup_stub(devst_t *dev, struct fs_poller *poller)
+{
+    return 1;
+}
+
+static int dev_poll_teardown_stub(devst_t *dev, struct fs_poller *poller)
+{
+    return 1;
+}
+
 /*
   The flow to register:
     1. dev_new() to create new buffer
@@ -144,6 +154,8 @@ devst_t *dev_new()
     d->mmap = dev_mmap_stub;
     d->ioctl = noopt;
     d->mkname = dev_mkname_stub;
+    d->poll_setup = dev_poll_setup_stub;
+    d->poll_teardown = dev_poll_teardown_stub;
     d->major = 0;
     d->minor = 0;
     

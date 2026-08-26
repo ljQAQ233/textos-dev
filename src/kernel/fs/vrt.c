@@ -225,6 +225,7 @@ end:
         ASSERTK(openctx != NULL);
         openctx->file_flgs = args;
         openctx->pctx = NULL;
+        list_init(&openctx->r_pollers);
         if (res->opts->_init_pctx) {
             ret = res->opts->_init_pctx(res, &openctx->pctx);
             if (ret < 0) *node = NULL;
@@ -265,6 +266,26 @@ int vfs_truncate(node_t *this, size_t offset)
 int vfs_remove(node_t *this)
 {
     return this->opts->remove(this);
+}
+
+int vfs_generic_poll_setup(node_t *this, struct fs_poller *poller)
+{
+    return 1;
+}
+
+int vfs_generic_poll_teardown(node_t *this, struct fs_poller *poller)
+{
+    return 1;
+}
+
+int vfs_poll_setup(node_t *this, struct fs_poller *poller)
+{
+    return this->opts->poll_setup(this, poller);
+}
+
+int vfs_poll_teardown(node_t *this, struct fs_poller *poller)
+{
+    return this->opts->poll_teardown(this, poller);
 }
 
 #include <textos/task.h>

@@ -718,3 +718,41 @@ __SYSCALL_DEFINE2(int, rename, const char *, oldpath, const char *, newpath)
 {
     return -EPERM;
 }
+
+#include <textos/errno.h>
+#include <textos/fs/poll.h>
+
+__SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
+{
+#define PREFACE(i)                                 \
+    struct pollfd *pfd = fds + i;                  \
+    struct fs_poller *poller = pollers + i;        \
+    file_t *file = task_current()->files[pfd->fd]; \
+    (void)(pfd || file || poller);
+
+    int ret = 0, polled = 0;
+    nfds_t built;
+    bool already_prepared = false;
+    struct fs_poller pollers[1];
+    for (built = 0; built < nfds; built++) {
+        PREFACE(built);
+        fs_poller_init(poller, pfd->events, &file->openctx);
+        ret = vfs_poll_setup(file->node, poller);
+        if (ret < 0) goto err;
+        already_prepared |= ret;
+    }
+    if (!already_prepared) {
+        ret = task_block(NULL, NULL, TASK_BLK, timeout);
+        if (ret == -ETIME) ret = 0;
+    }
+err:
+    for (nfds_t i = 0; i < built; i++) {
+        PREFACE(i);
+        if (ret >= 0 && poller->revents) {
+            pfd->revents = poller->revents;
+            polled += 1;
+        }
+        vfs_poll_teardown(file->node, poller);
+    }
+    return ret < 0 ? ret : polled;
+}

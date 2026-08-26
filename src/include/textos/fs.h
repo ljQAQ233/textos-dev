@@ -1,6 +1,10 @@
 #ifndef __FILE_SYS_H__
 #define __FILE_SYS_H__
 
+struct task;
+struct fs_poller;
+struct fs_pollee;
+
 enum
 {
     FS_FAT32,
@@ -19,7 +23,8 @@ struct fs_openctx
 {
     int file_flgs;
     void *pctx;
-    list_t l_ctx_all;
+    list_t l_ctx_all; // link to node_t
+    list_t r_pollers; // root of fs_poller
 };
 
 #include <textos/file.h>
@@ -72,6 +77,8 @@ typedef struct
                  struct fs_openctx *openctx);
     void *(*mmap)(node_t *this, vm_region_t *vm, struct fs_openctx *openctx);
     int (*ioctl)(node_t *this, int req, void *argp, struct fs_openctx *openctx);
+    int (*poll_setup)(node_t *this, struct fs_poller *poller);
+    int (*poll_teardown)(node_t *this, struct fs_poller *poller);
 } fs_opts_t;
 
 struct node
@@ -187,6 +194,19 @@ int vfs_read(node_t *this, void *buf, size_t siz, size_t offset,
              struct fs_openctx *openctx);
 int vfs_write(node_t *this, void *buf, size_t siz, size_t offset,
               struct fs_openctx *openctx);
+
+/**
+ * @brief set up a poller
+ *
+ * @param this node
+ * @param poller poller meta-data with info_* set up by the caller
+ * @return get zero on success, positive values means data is already available
+ */
+int vfs_poll_setup(node_t *this, struct fs_poller *poller);
+int vfs_poll_teardown(node_t *this, struct fs_poller *poller);
+
+int vfs_generic_poll_setup(node_t *this, struct fs_poller *poller);
+int vfs_generic_poll_teardown(node_t *this, struct fs_poller *poller);
 
 node_t *vfs_test(node_t *start, char *path, node_t **last, char **lastpath);
 

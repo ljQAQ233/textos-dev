@@ -108,6 +108,20 @@ static void *dev_mmap(node_t *this, vm_region_t *vm, struct fs_openctx *openctx)
     return dev->mmap(dev, vm);
 }
 
+static int dev_poll_setup(node_t *this, struct fs_poller *poller)
+{
+    devst_t *dev = dev_extract(this);
+    if (!dev) return -EINVAL;
+    return dev->poll_setup(dev, poller);
+}
+
+static int dev_poll_teardown(node_t *this, struct fs_poller *poller)
+{
+    devst_t *dev = dev_extract(this);
+    if (!dev) return -EINVAL;
+    return dev->poll_teardown(dev, poller);
+}
+
 fs_opts_t __vfs_dev_op = {
     .open = NULL, /* open */
     dev_close,    /* close */
@@ -124,4 +138,6 @@ fs_opts_t __vfs_dev_op = {
     dev_write,
     dev_mmap,
     dev_ioctl,
+    dev_poll_setup,
+    dev_poll_teardown,
 };

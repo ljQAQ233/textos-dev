@@ -1,6 +1,8 @@
 #ifndef __DEV_H__
 #define __DEV_H__
 
+struct fs_poller;
+
 #include <textos/klib/list.h>
 
 enum dev_type
@@ -59,6 +61,8 @@ struct devst
     void *(*mmap)(devst_t *dev, vm_region_t *vm, ...);
     int (*ioctl)(devst_t *dev, int req, void *argp);
     void (*mkname)(devst_t *dev, char res[32], int nr);
+    int (*poll_setup)(devst_t *this, struct fs_poller *poller);
+    int (*poll_teardown)(devst_t *this, struct fs_poller *poller);
 
     void *pdata;  // to support multiple devs
     addr_t ptoff; // partition r/w start addr
