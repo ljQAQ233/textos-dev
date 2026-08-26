@@ -1,12 +1,13 @@
 #include <cpu.h>
-#include <textos/task.h>
-#include <textos/mycpu.h>
-#include <textos/errno.h>
-#include <textos/panic.h>
 #include <textos/assert.h>
-#include <textos/mm/vmm.h>
-#include <textos/mm/pvpage.h>
+#include <textos/errno.h>
 #include <textos/klib/string.h>
+#include <textos/ktimer.h>
+#include <textos/mm/pvpage.h>
+#include <textos/mm/vmm.h>
+#include <textos/mycpu.h>
+#include <textos/panic.h>
+#include <textos/task.h>
 
 MYCPU_DEFINE(addr_t, current_istk);
 MYCPU_DEFINE(addr_t, current_oldsp);
@@ -505,6 +506,7 @@ void task_unblock(task_t *tsk, int reason)
     tsk->bretval = reason;
     tsk->stat = TASK_PRE;
     task_stime_discard();
+    ktimer_kill(&tsk->btmr);
 }
 
 int task_sleep(u64 ms, u64 *rms)
