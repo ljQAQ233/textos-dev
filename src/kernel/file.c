@@ -1,4 +1,5 @@
 #include <textos/errno.h>
+#include <textos/dev.h>
 #include <textos/file.h>
 #include <textos/fs/pipe.h>
 #include <textos/limits.h>
@@ -546,7 +547,7 @@ __SYSCALL_DEFINE1(int, pipe, int *, fds)
     node_t *n1 = malloc(sizeof(*n1));
     ASSERTK(n1 != NULL);
 
-    pipe_init(n0, n1);
+    vfs_pipe_create(n0, n1);
 
     f0->node = n0;
     f0->refer = 1;

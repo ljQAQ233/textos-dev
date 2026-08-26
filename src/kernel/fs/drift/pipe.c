@@ -86,7 +86,7 @@ static int pipe_close(node_t *this)
 static fs_opts_t __pipe_rops = {};
 static fs_opts_t __pipe_wops = {};
 
-int pipe_init(node_t *pipe0, node_t *pipe1)
+int vfs_pipe_create(node_t *pipe0, node_t *pipe1)
 {
     void *pb = vmm_allocpages(1, PE_P | PE_RW);
     size_t ps = PAGE_SIZ;
@@ -114,7 +114,7 @@ static int bad_peer()
 }
 
 // vfs pipe initializer
-void __pipe_init()
+void __vfs_pipe_init()
 {
     vfs_initops(&__pipe_rops);
     __pipe_rops.read = pipe_read;
