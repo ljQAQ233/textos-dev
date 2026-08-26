@@ -24,7 +24,7 @@ typedef struct tmpfs_sbi
 } tmpfs_sbi_t;
 
 #include <textos/klib/string.h>
-#include <textos/fs/inter.h>
+#include <textos/fs/internal.h>
 
 #define tmpfs_foreach(ent) for (node_t *ptr = ent; ptr; ptr = ptr->next)
 

@@ -2,7 +2,7 @@
 #include <textos/mm.h>
 #include <textos/dev.h>
 #include <textos/errno.h>
-#include <textos/fs/inter.h>
+#include <textos/fs/internal.h>
 #include <textos/dev/buffer.h>
 #include <textos/klib/stack.h>
 #include <textos/klib/string.h>

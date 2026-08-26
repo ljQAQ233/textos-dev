@@ -1,4 +1,4 @@
-#include <textos/fs/inter.h>
+#include <textos/fs/internal.h>
 
 _UTIL_CMP();
 

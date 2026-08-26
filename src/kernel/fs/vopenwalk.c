@@ -1,6 +1,6 @@
 #include <textos/fs.h>
 #include <textos/errno.h>
-#include <textos/fs/inter.h>
+#include <textos/fs/internal.h>
 
 _UTIL_CMP();
 _UTIL_NEXT();

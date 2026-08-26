@@ -1,7 +1,7 @@
 #include <textos/dev/buffer.h>
 #include <textos/errno.h>
 #include <textos/fs.h>
-#include <textos/fs/inter.h>
+#include <textos/fs/internal.h>
 #include <textos/klib/string.h>
 #include <textos/mm.h>
 #include <textos/printk.h>

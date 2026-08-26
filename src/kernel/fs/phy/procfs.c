@@ -50,7 +50,7 @@
 #include <textos/errno.h>
 #include <textos/noopt.h>
 #include <textos/fs.h>
-#include <textos/fs/inter.h>
+#include <textos/fs/internal.h>
 #include <textos/fs/procfs.h>
 #include <textos/panic.h>
 #include <textos/mm/heap.h>
