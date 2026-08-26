@@ -156,10 +156,20 @@ struct dirctx
     size_t bufents;
 };
 
+#define MAY_READ  (1 << 0)
+#define MAY_WRITE (1 << 1)
+#define MAY_EXEC  (1 << 2)
+
+// vutils.c
+void vfs_initops(fs_opts_t *opts);
 void vfs_regst(node_t *n, node_t *p);
 void vfs_unreg(node_t *n);
 node_t *vfs_getprt(node_t *n);
+node_t *vfs_exist(node_t *dir, char *path);
+int vfs_release(node_t *this);
+void vfs_listnode(node_t *start);
 
+// vgetpath.c
 /**
  * @brief get null-terminated absolute path of n
  *
@@ -171,30 +181,36 @@ node_t *vfs_getprt(node_t *n);
  */
 int vfs_getpath(node_t *n, char *buf, size_t *size);
 
-#define MAY_READ  (1 << 0)
-#define MAY_WRITE (1 << 1)
-#define MAY_EXEC  (1 << 2)
-
+// vperm.c
 int vfs_permission(node_t *n, int want);
-int vfs_release(node_t *this);
 
+// vopenwalk.c
+int vfs_walkd(node_t *start, char **path, node_t **node);
 int vfs_open(node_t *parent, const char *path, u64 args, int mode,
              node_t **result, struct fs_openctx *openctx);
-int vfs_close(node_t *this, struct fs_openctx *openctx);
 
-#include <textos/dev.h>
-
-int vfs_mknod(char *path, dev_t dev, int mode);
-int vfs_chown(node_t *file, uid_t owner, gid_t group);
-int vfs_chmod(node_t *file, mode_t mode);
-int vfs_remove(node_t *this);
-int vfs_readdir(node_t *this, node_t **res, size_t idx);
-int vfs_truncate(node_t *this, size_t offset);
+// vopts.c
 int vfs_read(node_t *this, void *buf, size_t siz, size_t offset,
              struct fs_openctx *openctx);
 int vfs_write(node_t *this, void *buf, size_t siz, size_t offset,
               struct fs_openctx *openctx);
+int vfs_close(node_t *this, struct fs_openctx *openctx);
+int vfs_truncate(node_t *this, size_t offset);
+int vfs_remove(node_t *this);
 
+// vopts_chmod.c
+int vfs_chmod(node_t *file, mode_t mode);
+
+// vopts_chown.c
+int vfs_chown(node_t *file, uid_t owner, gid_t group);
+
+// vopts_mknod.c
+int vfs_mknod(char *path, dev_t dev, int mode);
+
+// vopts_mmap.c
+void *vfs_generic_mmap(node_t *n, vm_region_t *v, struct fs_openctx *openctx);
+
+// vopts_poll.c
 /**
  * @brief set up a poller
  *
@@ -208,10 +224,7 @@ int vfs_poll_teardown(node_t *this, struct fs_poller *poller);
 int vfs_generic_poll_setup(node_t *this, struct fs_poller *poller);
 int vfs_generic_poll_teardown(node_t *this, struct fs_poller *poller);
 
-node_t *vfs_test(node_t *start, char *path, node_t **last, char **lastpath);
-
-void vfs_initops(fs_opts_t *opts);
-
+// mnt.c
 int vfs_mount(node_t *dir, node_t *root);
 int vfs_mount_to(char *path, node_t *root, int mode);
 int vfs_umount(node_t *dir);
@@ -225,7 +238,5 @@ bool vfs_ismount(node_t *n);
  * @brief is n a mounted root of a fs? (excluding vfs' root)
  */
 bool vfs_isaroot(node_t *n);
-
-void *vfs_generic_mmap(node_t *n, vm_region_t *v, struct fs_openctx *openctx);
 
 #endif

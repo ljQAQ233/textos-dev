@@ -1,0 +1,116 @@
+#include <textos/fs.h>
+#include <textos/errno.h>
+#include <textos/fs/inter.h>
+
+_UTIL_CMP();
+_UTIL_NEXT();
+
+static int _vfs_open(node_t *dir, node_t **node, char *path, u64 args, int mode)
+{
+    int ret = 0;
+    node_t *res;
+
+    if (!path[0] || _cmp(path, ".")) {
+        res = dir;
+        goto fini;
+    } else if (_cmp(path, "..")) {
+        res = vfs_getprt(dir);
+        goto fini;
+    }
+
+    res = vfs_exist(dir, path);
+    if (res == NULL) {
+        ret = dir->sb->op->open(dir, path, args, mode, &res);
+        if (ret < 0) {
+            res = NULL;
+            goto fini;
+        }
+    }
+
+    if (vfs_ismount(res)) {
+        if (~args & FS_GAINMNT) res = res->child;
+    }
+
+fini:
+    *node = res;
+
+    return ret;
+}
+
+int vfs_walkd(node_t *start, char **path, node_t **node)
+{
+    char *p = *path;
+    if (!start) start = __vfs_root;
+    if (p[0] == '/') start = __vfs_root;
+    while (*p == '/')
+        p++;
+    int ret = 0;
+    node_t *cur = start;
+    for (;;) {
+        char *nxt = _next(p);
+        node_t *chd;
+        if (!nxt[0]) break;
+        if (!S_ISDIR(cur->mode)) {
+            ret = -ENOTDIR;
+            goto end;
+        }
+        if ((ret = vfs_permission(cur, MAY_EXEC)) < 0) goto end;
+        ret = _vfs_open(cur, &chd, p, FS_GAIN, 0);
+        if (ret < 0) goto end;
+
+        cur = chd;
+        p = nxt;
+    }
+
+end:
+    *path = p;
+    *node = cur;
+    return 0;
+}
+
+int vfs_open(node_t *parent, const char *path, u64 args, int mode,
+             node_t **node, struct fs_openctx *openctx)
+{
+    int ret = 0;
+    char *p = (char *)path;
+    node_t *dir = NULL;
+    node_t *res = NULL;
+    ret = vfs_walkd(parent, &p, &dir);
+    if (ret < 0) goto end;
+    ret = _vfs_open(dir, &res, p, args, mode);
+    if (ret < 0) goto end;
+    if (res && !(args & FS_GAIN)) {
+        int want = 0;
+        switch (args & O_ACCMODE) {
+        case O_RDONLY:
+            want = MAY_READ;
+            break;
+        case O_WRONLY:
+            want = MAY_WRITE;
+            break;
+        case O_RDWR:
+            want = MAY_READ | MAY_WRITE;
+            break;
+        }
+        if ((ret = vfs_permission(res, want)) < 0) goto end;
+        if (!S_ISDIR(res->mode) && args & O_DIRECTORY)
+            ret = -ENOTDIR;
+        else if (S_ISDIR(res->mode) && ~args & O_DIRECTORY)
+            ret = -EISDIR;
+    }
+end:
+    if (!ret) {
+        *node = res;
+        ASSERTK(openctx != NULL);
+        openctx->file_flgs = args;
+        openctx->pctx = NULL;
+        list_init(&openctx->r_pollers);
+        if (res->opts->_init_pctx) {
+            ret = res->opts->_init_pctx(res, &openctx->pctx);
+            if (ret < 0) *node = NULL;
+            list_insert(&res->r_ctx_all, &openctx->l_ctx_all);
+        }
+    }
+    DEBUGK(K_INFO, "open %s = %d\n", path, ret);
+    return ret;
+}

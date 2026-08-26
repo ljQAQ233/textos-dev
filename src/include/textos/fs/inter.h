@@ -3,6 +3,11 @@
 #include "sys/cdefs.h"
 #include <textos/dev.h>
 
+extern node_t *__vfs_root;
+
+// vroot.c
+bool __vfs_rootset(node_t *root);
+
 typedef struct _packed
 {
     u8   bootable         ; // Bootable (Active) -> 0x80
