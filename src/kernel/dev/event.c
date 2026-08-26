@@ -2,6 +2,7 @@
 #include <textos/dev/event.h>
 #include <textos/dev/internal.h>
 #include <textos/errno.h>
+#include <textos/fs/poll.h>
 #include <textos/klib/string.h>
 #include <textos/task.h>
 
@@ -18,6 +19,8 @@ static struct
 
 void event_deliver(struct event_registry *this)
 {
+    if (fs_poll_deliver(&this->pollee, POLLIN)) // nothing to do
+        return;
     struct event_client *ec = this->client;
     if (ec->waiter) {
         task_unblock(ec->waiter, 0);
@@ -125,6 +128,23 @@ static int event_ioctl(devst_t *dev, int req, void *argp)
     return -EINVAL;
 }
 
+static int event_poll_setup(devst_t *dev, struct fs_poller *poller)
+{
+    struct event_registry *evreg = dev->pdata;
+    if (evreg->client && evreg->client->ev.type != EV_NONE)
+        if (fs_poll_deliver_to(&evreg->pollee, POLLIN, poller, false)) //
+            return 1;
+    fs_poll_setup(&evreg->pollee, poller);
+    return 0;
+}
+
+static int event_poll_teardown(devst_t *dev, struct fs_poller *poller)
+{
+    struct event_registry *evreg = dev->pdata;
+    fs_poll_teardown(&evreg->pollee, poller);
+    return 0;
+}
+
 #include <textos/klib/vsprintf.h>
 
 struct event_registry *event_register(enum event_type type)
@@ -147,11 +167,14 @@ struct event_registry *event_register(enum event_type type)
     evdev->read = event_read;
     evdev->write = noopt_perm;
     evdev->ioctl = event_ioctl;
+    evdev->poll_setup = event_poll_setup,
+    evdev->poll_teardown = event_poll_teardown,
     evdev->pdata = evreg;
     dev_register(NULL, evdev);
 
-    evreg->client = NULL;
     evreg->evdev = evdev;
+    evreg->client = NULL;
+    fs_pollee_init(&evreg->pollee);
     evreg->next = evreg_table[type].evreg;
     evreg_table[type].evreg = evreg;
     evreg_table[type].count++;

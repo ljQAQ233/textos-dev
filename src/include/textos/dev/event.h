@@ -1,6 +1,7 @@
 #pragma once
 
 #include <bits/event.h>
+#include <textos/fs/poll.h>
 
 struct task;
 struct devst;
@@ -15,6 +16,7 @@ struct event_registry
 {
     struct devst *evdev;
     struct event_client *client;
+    struct fs_pollee pollee;
     struct event_registry *next;
 };
 
