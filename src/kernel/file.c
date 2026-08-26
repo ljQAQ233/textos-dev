@@ -187,24 +187,21 @@ __SYSCALL_DEFINE3(ssize_t, readv, int, fd, const iovec_t *, iov, int, iovcnt)
     size_t oldoff = file->offset;
     ssize_t sum = 0;
     ssize_t ret = 0;
-    for (int i = 0 ; i < iovcnt ; i++)
-    {
-        if (iov[i].iov_len == 0)
-            continue;
-        if (iov[i].iov_base == NULL)
-        {
+    for (int i = 0; i < iovcnt; i++) {
+        if (iov[i].iov_len == 0) continue;
+        if (iov[i].iov_base == NULL) {
             ret = -EINVAL;
             goto rollback;
         }
-        ret = file->node->opts->read(file->node, iov[i].iov_base, iov[i].iov_len, file->offset,
-                                     &file->openctx);
-        if (ret < 0)
-            goto rollback;
-        if (ret == 0)
-            break;
+        ret =
+            file->node->opts->read(file->node, iov[i].iov_base, iov[i].iov_len,
+                                   file->offset, &file->openctx);
+        if (ret < 0) goto rollback;
+        if (ret == 0) break;
         sum += ret;
+        file->offset += ret;
     }
-    
+
     file->offset += sum;
     return sum;
 
@@ -256,33 +253,30 @@ __SYSCALL_DEFINE3(ssize_t, writev, int, fd, const iovec_t *, iov, int, iovcnt)
     size_t oldoff = file->offset;
     ssize_t sum = 0;
     int ret = 0;
-    for (int i = 0 ; i < iovcnt ; i++)
-    {
-        if (iov[i].iov_len == 0)
-            continue;
-        if (iov[i].iov_base == NULL)
-        {
+    for (int i = 0; i < iovcnt; i++) {
+        if (iov[i].iov_len == 0) continue;
+        if (iov[i].iov_base == NULL) {
             ret = -EINVAL;
             goto rollback;
         }
-        ret = file->node->opts->write(file->node, iov[i].iov_base, iov[i].iov_len, file->offset,
-                                      &file->openctx);
-        if (ret < 0)
-        {
-            if (ret != -ENOSPC)
-                goto rollback;
+        ret =
+            file->node->opts->write(file->node, iov[i].iov_base, iov[i].iov_len,
+                                    file->offset, &file->openctx);
+        if (ret < 0) {
+            if (ret != -ENOSPC) goto rollback;
             ret = 0;
         }
-        if (ret == 0)
-            break;
+        if (ret == 0) break;
         sum += ret;
+        file->offset += ret;
     }
-    
+
     file->offset += sum;
     return sum;
 
 rollback:
     file->offset = oldoff;
+    file->node->opts->truncate(file->node, oldoff);
     return ret;
 }
 
