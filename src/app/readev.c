@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/event.h>
@@ -75,19 +76,25 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    int ret;
     struct event ev;
+    struct pollfd pfd = {fd, POLLIN};
     for (;;) {
-        int ret = read(fd, &ev, sizeof(ev));
-        if (ret < 0) {
-            perror(NULL);
-            return 1;
+        if (interval) {
+            pfd.revents = 0;
+            ret = poll(&pfd, 1, interval);
+            if (ret < 0) goto err;
         }
+        ret = read(fd, &ev, sizeof(ev));
+        if (ret < 0) goto err;
         if (EV_NONE <= ev.type && ev.type < EV_MAXTYPE) {
             parsers[ev.type](&ev);
             printf("\n");
         }
-        if (interval) usleep(interval * 1000);
     }
 
     return 0;
+err:
+    perror(NULL);
+    return 1;
 }
