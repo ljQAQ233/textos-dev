@@ -31,40 +31,38 @@ typedef struct _packed
 
 // utils
 
-#define _UTIL_NEXT()                    \
-    static inline char *_next (char *p) \
-    {                                   \
-        while (*p != '/' && *p)         \
-            p++;                        \
-        while (*p == '/')               \
-            p++;                        \
-        return p;                       \
-    }                                   \
+static inline char *fs_path_next(char *p)
+{
+    while (*p != '/' && *p)
+        p++;
+    while (*p == '/')
+        p++;
+    return p;
+}
 
-#define _UTIL_PATH_DIR()                    \
-    static inline bool _path_isdir (char *p) \
-    {                                       \
-        bool res = false;                   \
-        for ( ; p && *p ; p++) {            \
-            if (*p == '/')                  \
-                res = true;                 \
-            if (*p == ' ')                  \
-                continue;                   \
-            res = false;                    \
-        }                                   \
-        return res;                         \
+static inline bool fs_path_isdir(char *p)
+{
+    bool res = false;
+    for (; p && *p; p++) {
+        if (*p == '/') res = true;
+        if (*p == ' ') continue;
+        res = false;
     }
+    return res;
+}
 
-#define _UTIL_CMP()                                       \
-    static bool _cmp(char *A, char *B)                    \
-    {                                                     \
-        size_t lenA = MIN(strlen(A), strchr(A, '/') - A); \
-        size_t lenB = MIN(strlen(B), strchr(B, '/') - B); \
-        if (lenA != lenB) return false;                   \
-        for (size_t i = 0; i < lenB; i++)                 \
-            if (A[i] != B[i]) return false;               \
-        return true;                                      \
-    }
+extern size_t strlen(const char *str);
+extern char *strchr(const char *str, int c);
+
+static inline bool fs_name_cmp(char *A, char *B)
+{
+    size_t lenA = MIN(strlen(A), strchr(A, '/') - A);
+    size_t lenB = MIN(strlen(B), strchr(B, '/') - B);
+    if (lenA != lenB) return false;
+    for (size_t i = 0; i < lenB; i++)
+        if (A[i] != B[i]) return false;
+    return true;
+}
 
 extern void noopt_handler();
 

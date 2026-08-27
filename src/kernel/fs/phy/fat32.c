@@ -238,9 +238,6 @@ static unsigned alloc_clst(fat_sbi_t *sbi)
 
 // lookup op
 
-_UTIL_CMP();
-_UTIL_NEXT();
-
 #include <textos/klib/list.h>
 #include <textos/klib/stack.h>
 
@@ -877,7 +874,7 @@ static lookup_t *lookup_entry(lookup_t *prt, char *name)
 
                 // generate node
                 lkp->node = analyse_entry(sbi->sb, &lkp->ents, &lkp->clst);
-                if (_cmp(name, lkp->node->name)) {
+                if (fs_name_cmp(name, lkp->node->name)) {
                     wind = true;
                     goto lkp_end;
                 }
@@ -1540,7 +1537,7 @@ static int fat32_open(node_t *parent, char *path, u64 args, int mode, node_t **r
          * 按照习惯, 默认只能在一个已经存在的目录下创建新的节点,
          * 但是如果 Path 不到头, 就说明此文件的父目录也不存在, 所以直接返回 NULL
          */
-        if (*_next(path) != 0) {
+        if (*fs_path_next(path) != 0) {
             ret = -ENOENT;
             goto end;
         }

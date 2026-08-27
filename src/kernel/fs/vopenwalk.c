@@ -1,19 +1,16 @@
-#include <textos/fs.h>
 #include <textos/errno.h>
+#include <textos/fs.h>
 #include <textos/fs/internal.h>
-
-_UTIL_CMP();
-_UTIL_NEXT();
 
 static int _vfs_open(node_t *dir, node_t **node, char *path, u64 args, int mode)
 {
     int ret = 0;
     node_t *res;
 
-    if (!path[0] || _cmp(path, ".")) {
+    if (!path[0] || fs_name_cmp(path, ".")) {
         res = dir;
         goto fini;
-    } else if (_cmp(path, "..")) {
+    } else if (fs_name_cmp(path, "..")) {
         res = vfs_getprt(dir);
         goto fini;
     }
@@ -47,7 +44,7 @@ int vfs_walkd(node_t *start, char **path, node_t **node)
     int ret = 0;
     node_t *cur = start;
     for (;;) {
-        char *nxt = _next(p);
+        char *nxt = fs_path_next(p);
         node_t *chd;
         if (!nxt[0]) break;
         if (!S_ISDIR(cur->mode)) {

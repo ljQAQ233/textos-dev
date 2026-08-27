@@ -1,11 +1,9 @@
 #include <textos/fs/internal.h>
 
-_UTIL_CMP();
-
 node_t *vfs_exist(node_t *dir, char *path)
 {
     for (node_t *ptr = dir->child; ptr; ptr = ptr->next)
-        if (_cmp(ptr->name, path)) return ptr;
+        if (fs_name_cmp(ptr->name, path)) return ptr;
     return NULL;
 }
 
