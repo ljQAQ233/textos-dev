@@ -23,7 +23,7 @@ typedef struct
 #include <textos/mm/mman.h>
 #include <textos/klib/list.h>
 
-#define MAX_FILE 16
+#define MAX_FILE 32
 
 typedef struct task
 {
