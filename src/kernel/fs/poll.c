@@ -10,7 +10,8 @@ void fs_pollee_init(struct fs_pollee *pollee)
 void fs_poller_init(struct fs_poller *poller, int events,
                     struct fs_openctx *openctx)
 {
-    poller->info_events = events;
+    short defevents = POLLHUP | POLLERR | POLLNVAL;
+    poller->info_events = events | defevents;
     poller->info_openctx = openctx;
     poller->info_poller = task_current();
     poller->revents = 0;
