@@ -22,16 +22,16 @@ SOLIBS := $(wildcard solib/*.c)
 CC := $(BUILD)/libc/cc
 CFLAGS += -g
 
-all: $(GTARS) $(BTARS) $(SOTARS)
 include ../all.mk
+
+BTARS := $(BINS:%.c=${BUILD}/%)
+SOTARS := $(SOLIBS:%.c=${BUILD}/%.so)
+all: $(GTARS) $(BTARS) $(SOTARS)
 
 $(OBJS): CFLAGS += -I$(CURDIR)/unity
 $(OBJS): CFLAGS += -DUNITY_INCLUDE_CONFIG_H
 $(TARG): LDLIBS += -lm -ldl
 $(TARG): LDFLAGS += -static
-
-BTARS := $(BINS:%.c=${BUILD}/%)
-SOTARS := $(SOLIBS:%.c=${BUILD}/%.so)
 
 auto/%.h: %.py
 	@mkdir -p $(@D)
@@ -50,6 +50,7 @@ auto/unity.h: $(TEST_SRCS)
 	@echo -e "\033[032m   OK  \033[0m $@"
 
 $(BUILD)/bin/%: bin/%.c
+	@mkdir -p $(@D)
 	$(call compile-cc,$<,$@)
 
 $(BUILD)/solib/%.so: solib/%.c
