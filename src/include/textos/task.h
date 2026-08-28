@@ -23,6 +23,17 @@ typedef struct
 #include <textos/mm/mman.h>
 #include <textos/klib/list.h>
 
+enum task_state
+{
+    TASK_DIE = 0, // Dead
+    TASK_PRE = 1, // Prepared
+    TASK_RUN = 2, // Running
+    TASK_SLP = 3, // Sleep
+    TASK_BLK = 4, // Blocked
+    TASK_STP = 5, // Stoped
+    TASK_INI = 6, // Initializing
+};
+
 #define MAX_FILE 32
 
 typedef struct task
@@ -35,8 +46,8 @@ typedef struct task
     int syscallno;
     void *fpu;
 
-    int stat;
-    int stat_before_stop;
+    enum task_state stat;
+    enum task_state stat_before_stop;
     u64 tick; // default ticks it has
     u64 curr; // current ticks it has
     ktimer_t btmr;
@@ -88,14 +99,6 @@ typedef struct task
     int dbg_options;  // setoptions or internal flags
     struct task *dbg_tracer;
 } task_t;
-
-#define TASK_DIE 0 // Dead
-#define TASK_PRE 1 // Prepared
-#define TASK_RUN 2 // Running
-#define TASK_SLP 3 // Sleep
-#define TASK_BLK 4 // Blocked
-#define TASK_STP 5 // Stoped
-#define TASK_INI 6 // Initializing
 
 void task_schedule();
 void task_yield();
