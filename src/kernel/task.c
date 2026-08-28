@@ -299,6 +299,11 @@ void task_exit(int val)
     DEBUGK(K_TRACE, "exit %d with %d\n", tsk->pid, val);
     if (tsk->pid == 1) PANIC("init exited with %d!!!\n", val);
 
+    // adopt
+    for (int i = 0; i < TASK_MAX; i++)
+        if (table[i] != TASK_FREE && table[i]->ppid == tsk->pid)
+            table[i]->ppid = 1;
+
     task_schedule();
 }
 
