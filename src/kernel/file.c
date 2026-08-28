@@ -554,12 +554,14 @@ __SYSCALL_DEFINE1(int, pipe, int *, fds)
     f0->flgs = O_RDONLY;
     f0->openctx.file_flgs = O_RDONLY;
     f0->openctx.pctx = NULL;
+    list_init(&f0->openctx.r_pollers);
 
     f1->node = n1;
     f1->refer = 1;
     f1->flgs = O_WRONLY;
     f1->openctx.file_flgs = O_WRONLY;
     f1->openctx.pctx = NULL;
+    list_init(&f1->openctx.r_pollers);
 
     fds[0] = fd0;
     fds[1] = fd1;
