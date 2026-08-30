@@ -34,6 +34,8 @@ int file_get(int *new, file_t **file, int min);
 #include <bits/fileno.h>
 #include <bits/lseek.h>
 
+#include <bits/select.h>
+
 unsigned dir_get_type(mode_t mode);
 bool dir_emit(dirctx_t *ctx, const char *name, size_t len, u64 ino,
               unsigned type);

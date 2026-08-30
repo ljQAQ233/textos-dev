@@ -778,3 +778,70 @@ err:
     if (pollers_been_setup) free(pollers_been_setup);
     return ret < 0 ? ret : polled;
 }
+
+// follow the behaviors of linux kernel
+#define POLLIN_SET  (POLLRDNORM | POLLRDBAND | POLLIN | POLLHUP | POLLERR)
+#define POLLOUT_SET (POLLWRBAND | POLLWRNORM | POLLOUT | POLLERR)
+#define POLLEX_SET  (POLLPRI)
+
+__SYSCALL_DEFINE5(int, select, int, nfds, fd_set *, readfds, fd_set *, writefds,
+                  fd_set *, exceptfds, struct timeval *, timeout)
+{
+    // notable points:
+    // 1. Each of the fd_set arguments may be specified as NULL if no file
+    //  descriptors  are  to  be watched for the corresponding class of events
+    // 2. Upon return, each of the file descriptor sets is modified in place to
+    //  indicate which file descriptors are currently "ready". Thus, if using
+    //  select() within a loop, the sets must be reinitialized before each call.
+    if (nfds < 0 || nfds > FD_SETSIZE || nfds > MAX_FILE) return -EINVAL;
+    if (!readfds && !writefds && !exceptfds) return 0;
+    if (timeout && (timeout->tv_sec < 0 || timeout->tv_usec < 0))
+        return -EINVAL;
+
+    struct pollfd *pfds = NULL;
+    int pfds_nfds = 0;
+    int ret, polled = 0;
+
+    ret = -EAGAIN;
+    pfds = malloc(nfds * sizeof(struct pollfd));
+    if (!pfds) goto exit;
+
+    for (int i = 0; i < nfds; i++) {
+        int events = 0;
+        if (readfds && FD_ISSET(i, readfds)) events |= POLLIN_SET;
+        if (writefds && FD_ISSET(i, writefds)) events |= POLLOUT_SET;
+        if (exceptfds && FD_ISSET(i, exceptfds)) events |= POLLEX_SET;
+        if (events != 0) {
+            pfds[i].fd = i;
+            pfds[i].events = events;
+            pfds_nfds++;
+        }
+    }
+
+    u64 ms = 0;
+    if (timeout) {
+        ms = (timeout->tv_sec * 1000) + //
+             (timeout->tv_usec + 500) / 1000;
+    }
+    ret = poll(pfds, pfds_nfds, ms);
+    if (ret < 0) goto exit;
+
+#define COLLECT(fds, ev_expect)            \
+    if (fds && FD_ISSET((pfd)->fd, fds)) { \
+        if (!((pfd)->revents & ev_expect)) \
+            FD_CLR((pfd)->fd, fds);        \
+        else                               \
+            polled++;                      \
+    }
+
+    for (int i = 0; i < pfds_nfds; i++) {
+        struct pollfd *pfd = pfds + i;
+        COLLECT(readfds, POLLIN_SET);
+        COLLECT(writefds, POLLOUT_SET);
+        COLLECT(exceptfds, POLLEX_SET);
+    }
+
+exit:
+    if (pfds) free(pfds);
+    return ret < 0 ? ret : polled;
+}
