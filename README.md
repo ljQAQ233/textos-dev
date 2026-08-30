@@ -50,12 +50,17 @@
 
 - 系统调用
   - [`bits/syscall.h`](src/include/bits/syscall.h)
+  - TODOS
+    - [ ] **readlink**
+    - [ ] **rmdir**
+    - [ ] rename
+    - [ ] pselect
 
 - 设备驱动
-  - [ ] event
+  - [x] event
     - [x] keyboard
-    - [ ] mouse
-    - [ ] 文件抽象
+    - [x] mouse
+    - [x] 文件抽象
   - [x] 串口输出 (COM1 ~ COM4)
   - [x] QEMU debugcon
   - [x] 控制台
@@ -109,10 +114,10 @@
     - `textos/net/socket.h`
 
 - 图形化
-  - [ ] lvgl
+  - [x] lvgl
     - [x] framebuffer
-    - [ ] mouse
-    - [ ] keyboard
+    - [x] mouse
+    - [x] keyboard
   - [ ] x11 (maybe?)
   
 - 多任务
@@ -177,7 +182,7 @@
   - `make -C src ovmf-noopt`
 
 - 子模块用法
-  - ![make/subdir.md](docs/misc/make/subdir.md)
+  - [make/subdir.md](docs/misc/make/subdir.md)
 
 ---
 
@@ -227,19 +232,21 @@ make -C src compile_commands.json
 ## NixOS
 
 ```shell
-nix-shell shell.nix
+nix develop
 ```
 
 即可在 shell 环境中编译项目
+
+如果有 `nix-direnv`, `direnv allow` 即可
 
 # 参考软件版本
 
 - 内建提供
    - EDKII - vUDK2018
 - 个人配置
-   - GCC - `gcc 14.2.1`
-   - GDB - `gdb 15.1` (with `expat`)
-   - QEMU - `QEMU emulator version 9.0.2`
+   - GCC - `gcc 15.2.0`
+   - GDB - `gdb 17.1` (with `expat`)
+   - QEMU - `QEMU emulator version 10.2.1`
 
 # 参考资料
 
