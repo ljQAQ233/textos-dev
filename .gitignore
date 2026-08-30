@@ -20,3 +20,5 @@
 /src/base/*.vars
 
 /compile_commands.json
+
+.direnv/
