@@ -755,8 +755,12 @@ __SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
         pollers_been_setup[built] = true;
     }
     if (!already_prepared) {
-        ret = task_block(NULL, NULL, TASK_BLK, timeout);
-        if (ret == -ETIME) ret = 0;
+        // If  timeout is 0, poll() shall return immediately. If timeout is -1,
+        // poll() shall block until a requested event occurs or is interrupted.
+        if (timeout > 0 || timeout == -1) {
+            ret = task_block(NULL, NULL, TASK_BLK, timeout == -1 ? 0 : timeout);
+            if (ret == -ETIME) ret = 0;
+        }
     }
 err:
     for (nfds_t i = 0; i < built; i++) {
