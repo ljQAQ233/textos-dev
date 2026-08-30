@@ -731,10 +731,12 @@ __SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
     nfds_t built;
     bool already_prepared = false;
     struct fs_poller pollers[1];
+    uint8_t pollers_been_setup[1];
     for (built = 0; built < nfds; built++) {
         PREFACE(built);
         if (fd_verify(pfd->fd) < 0) {
             poller->revents = POLLNVAL;
+            pollers_been_setup[built] = false;
             continue;
         }
         file = task_current()->files[pfd->fd];
@@ -742,6 +744,7 @@ __SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
         ret = vfs_poll_setup(file->node, poller);
         if (ret < 0) goto err;
         already_prepared |= ret;
+        pollers_been_setup[built] = true;
     }
     if (!already_prepared) {
         ret = task_block(NULL, NULL, TASK_BLK, timeout);
@@ -755,7 +758,9 @@ err:
             pfd->revents = poller->revents;
             if (poller->revents) polled += 1;
         }
-        vfs_poll_teardown(file->node, poller);
+        if (pollers_been_setup[i]) {
+            vfs_poll_teardown(file->node, poller);
+        }
     }
     return ret < 0 ? ret : polled;
 }
