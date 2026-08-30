@@ -19,6 +19,7 @@
     _(writev, 20)       \
     _(access, 21)       \
     _(pipe, 22)         \
+    _(select, 23)       \
     _(dup, 32)          \
     _(dup2, 33)         \
     _(pause, 34)        \

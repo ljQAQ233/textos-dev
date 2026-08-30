@@ -556,6 +556,13 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout /* ms */)
     return syscall(SYS_poll, fds, nfds, timeout);
 }
 
+#include <sys/select.h>
+
+int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds,
+           struct timeval *timeout)
+{
+    return syscall(SYS_select, nfds, readfds, writefds, errorfds, timeout);
+}
 
 /* picked from musl */
 /* sys/ptrace.h */
