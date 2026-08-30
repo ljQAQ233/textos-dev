@@ -727,12 +727,20 @@ __SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
     struct fs_poller *poller = pollers + i; \
     file_t *file
 
-    int ret = 0, polled = 0;
-    nfds_t built;
+    int ret, polled = 0;
+    nfds_t built = 0;
     bool already_prepared = false;
-    struct fs_poller pollers[1];
-    uint8_t pollers_been_setup[1];
-    for (built = 0; built < nfds; built++) {
+    struct fs_poller *pollers = NULL;
+    uint8_t *pollers_been_setup = NULL;
+
+    // internal data allocation
+    ret = -EAGAIN;
+    pollers = calloc(nfds * sizeof(struct fs_poller));
+    if (!pollers) goto err;
+    pollers_been_setup = calloc(nfds * sizeof(uint8_t));
+    if (!pollers_been_setup) goto err;
+
+    for (; built < nfds; built++) {
         PREFACE(built);
         if (fd_verify(pfd->fd) < 0) {
             poller->revents = POLLNVAL;
@@ -762,5 +770,7 @@ err:
             vfs_poll_teardown(file->node, poller);
         }
     }
+    if (pollers) free(pollers);
+    if (pollers_been_setup) free(pollers_been_setup);
     return ret < 0 ? ret : polled;
 }

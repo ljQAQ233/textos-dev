@@ -8,6 +8,7 @@
 #define EBADF        9   // Bad file descriptor
 #define ENOEXEC      8   // Exec format error
 #define ECHILD       10  // No child process
+#define EAGAIN       11  // Resource temporarily unavailable
 #define ENOMEM       12  // No memory to allocate
 #define EACCES       13  // Permission denied
 #define EFAULT       14  // Bad address
