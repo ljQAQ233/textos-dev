@@ -725,9 +725,7 @@ __SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
 #define PREFACE(i)                          \
     struct pollfd *pfd = fds + i;           \
     struct fs_poller *poller = pollers + i; \
-    file_t *file;                           \
-    from_fd(pfd->fd, file);                 \
-    (void)(pfd || file || poller);
+    file_t *file
 
     int ret = 0, polled = 0;
     nfds_t built;
@@ -735,6 +733,11 @@ __SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
     struct fs_poller pollers[1];
     for (built = 0; built < nfds; built++) {
         PREFACE(built);
+        if (fd_verify(pfd->fd) < 0) {
+            poller->revents = POLLNVAL;
+            continue;
+        }
+        file = task_current()->files[pfd->fd];
         fs_poller_init(poller, pfd->events, &file->openctx);
         ret = vfs_poll_setup(file->node, poller);
         if (ret < 0) goto err;
@@ -747,9 +750,10 @@ __SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
 err:
     for (nfds_t i = 0; i < built; i++) {
         PREFACE(i);
-        if (ret >= 0 && poller->revents) {
+        from_fd(pfd->fd, file);
+        if (ret >= 0) {
             pfd->revents = poller->revents;
-            polled += 1;
+            if (poller->revents) polled += 1;
         }
         vfs_poll_teardown(file->node, poller);
     }
