@@ -35,6 +35,7 @@ void __w_delval(int d, int k)
         if (c->d == d && c->k == k) {
             *pp = c->next;
             free(c);
+            break;
         }
         pp = &c->next;
     }
