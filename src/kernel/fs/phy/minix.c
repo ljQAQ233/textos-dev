@@ -339,6 +339,7 @@ static int minix_eddir(node_t *dir, char *name, u16 ino)
                 ptr->ino = 0;
                 bdirty(blk, true);
                 brelse(blk);
+                return 0;
             } else if (ino && ptr->ino == 0) {
                 ptr->ino = ino;
                 strncpy(ptr->name, name, 14);
