@@ -66,10 +66,10 @@ static buffer_t *minix_zget_indirect(superblk_t *sb, buffer_t *iblk,
                                      uint nlevels, uint idx)
 {
     uint path_preset[4] = {
-        [0] = (idx >> 30) & 0x7ff,
-        [1] = (idx >> 20) & 0x7ff,
-        [2] = (idx >> 10) & 0x7ff,
-        [3] = (idx >> 00) & 0x7ff,
+        [0] = (idx >> 27) & 0x3ff,
+        [1] = (idx >> 18) & 0x3ff,
+        [2] = (idx >> 9) & 0x3ff,
+        [3] = (idx >> 0) & 0x3ff,
     };
     uint *path = path_preset + 4 - nlevels;
     for (uint i = 0; i < nlevels; i++) {
@@ -738,11 +738,6 @@ static int minix_seekdir(node_t *dir, dirctx_t *ctx, size_t *pos)
     return EOF;
 }
 
-static void *minix_mmap(node_t *this, vm_region_t *vm, struct fs_openctx *openctx)
-{
-    return (void *)((addr_t)-EINVAL);
-}
-
 fs_opts_t __minix1_op;
 
 superblk_t *__fs_init_minix(devst_t *dev)
@@ -784,6 +779,6 @@ fs_opts_t __minix1_op = {
     minix_truncate,
     minix_read,
     minix_write,
-    minix_mmap,
+    vfs_generic_mmap,
     noopt,
 };
