@@ -1,7 +1,6 @@
 /**
  * @brief minix fs v1 implementation
  */
-#include "textos/noopt.h"
 #include <textos/mm.h>
 #include <textos/fs.h>
 #include <textos/errno.h>
@@ -63,6 +62,26 @@ static minix_inode_t *minix_idup(minix_inode_t *mi)
     return memcpy(newi, mi, sizeof(minix_inode_t));
 }
 
+static buffer_t *minix_zget_indirect(superblk_t *sb, buffer_t *iblk,
+                                     uint nlevels, uint idx)
+{
+    uint path_preset[4] = {
+        [0] = (idx >> 30) & 0x7ff,
+        [1] = (idx >> 20) & 0x7ff,
+        [2] = (idx >> 10) & 0x7ff,
+        [3] = (idx >> 00) & 0x7ff,
+    };
+    uint *path = path_preset + 4 - nlevels;
+    for (uint i = 0; i < nlevels; i++) {
+        u16 *ib = iblk->blk;
+        u16 blkno = ib[path[i]];
+        brelse(iblk);
+        if (!blkno) return NULL;
+        iblk = sb_bread(sb, blkno);
+    }
+    return iblk;
+}
+
 static buffer_t *minix_zget(superblk_t *sb, u16 zone[9], uint idx)
 {
     /*
@@ -73,18 +92,55 @@ static buffer_t *minix_zget(superblk_t *sb, u16 zone[9], uint idx)
         return sb_bread(sb, zone[idx]);
     }
     if (idx < zone_ib1) {
-        buffer_t *ib1_blk = sb_bread(sb, zone[zone_dib]);
-        u16 *ib1 = ib1_blk->blk;
-        u16 bi = ib1[idx - zone_dib];
-        brelse(ib1_blk);
-        if (!bi) return NULL;
-        return sb_bread(sb, bi);
+        buffer_t *iblk0 = sb_bread(sb, zone[zone_dib]);
+        return minix_zget_indirect(sb, iblk0, 1, idx - zone_dib);
+    }
+    if (idx < zone_ib2) {
+        buffer_t *iblk0 = sb_bread(sb, zone[zone_dib + 1]);
+        return minix_zget_indirect(sb, iblk0, 2, idx - zone_ib1);
     }
     DEBUGK(K_WARN, "minix : blk idx out of range : %u\n", idx);
     return NULL;
 }
 
 static u16 minix_zalloc(superblk_t *sb);
+
+// 如果是负数, 说明空间以已经不够, 但是这个负数的值的绝对值表示已经拓展的 zone
+// 数量
+static int64_t minix_zext_indirect(superblk_t *sb, buffer_t *iblk, uint nlevels,
+                                   uint ext)
+{
+    uint rem = ext;
+    u16 *ib = iblk->blk;
+    bool compromised = false;
+    for (int i = 0; i < BLKSZ / 2 && rem; i++) {
+        uint blkno = ib[i];
+        if (!blkno) {
+            blkno = ib[i] = minix_zalloc(sb);
+            if (!blkno) {
+                compromised = true;
+                break;
+            }
+            bdirty(iblk, true);
+            if (nlevels == 1) rem -= 1;
+        }
+        if (nlevels != 1) {
+            buffer_t *next_iblk = sb_bread(sb, blkno);
+            int64_t ret = minix_zext_indirect(sb, next_iblk, nlevels - 1, rem);
+            if (ret <= 0) {
+                rem += ret;
+                compromised = true;
+                break;
+            } else {
+                rem -= ret;
+            }
+        }
+    }
+    brelse(iblk);
+    return (compromised ? -1 : 1) * (ext - rem);
+}
+
+#define minix_zone9idx_to_nlevels(idx) ((idx) - 6)
 
 /**
  * @brief allocate `ext` blocks and extend zone[]
@@ -98,20 +154,25 @@ static uint minix_zext(superblk_t *sb, u16 zone[9], uint ext)
         if (zone[i] == 0) zone[i] = minix_zalloc(sb), ext--;
     if (!ext) return 0;
 
-    buffer_t *ib1_blk;
-    if (zone[zone_dib])
-        ib1_blk = sb_bread(sb, zone[zone_dib]);
-    else {
-        zone[zone_dib] = minix_zalloc(sb);
-        ib1_blk = sb_bread(sb, zone[zone_dib]);
-        memset(ib1_blk->blk, 0, BLKSZ);
-        bdirty(ib1_blk, true);
+    for ( ; i < 9 && ext ; i++) {
+        buffer_t *iblk0;
+        if (zone[i])
+            iblk0 = sb_bread(sb, zone[i]);
+        else {
+            zone[i] = minix_zalloc(sb);
+            iblk0 = sb_bread(sb, zone[i]);
+            memset(iblk0->blk, 0, BLKSZ);
+            bdirty(iblk0, true);
+        }
+        int64_t ret =
+            minix_zext_indirect(sb, iblk0, minix_zone9idx_to_nlevels(i), ext);
+        if (ret <= 0) {
+            // FIXME: IS THIS THE LAST ONE?
+            ext += ret;
+        } else {
+            ext -= ret;
+        }
     }
-    u16 *ib1 = ib1_blk->blk;
-    for (; i < zone_ib1 && ext; i++)
-        if (ib1[i] == 0) ib1[i] = minix_zalloc(sb), ext--;
-    bdirty(ib1_blk, true);
-    brelse(ib1_blk);
     return ext;
 }
 
