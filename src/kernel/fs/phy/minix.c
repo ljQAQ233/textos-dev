@@ -362,38 +362,59 @@ static int minix_eddir(node_t *dir, char *name, u16 ino)
     return minix_eddir(dir, name, ino);
 }
 
-#define _(x)                \
-    if (x)                  \
-        minix_zfree(sb, x); \
-    else                    \
-        break;
-
 /**
- * @brief free data blocks
+ * @param nlevels 1 表示该块存的是数据指针; 大于 1 则为多级间接
+ * @param zmax    需要保留的块数 (data index < zmax 保留)
+ * @return true 表示此块已无保留内容, 调用方应连块本身一起释放
  */
-static int minix_trunc(superblk_t *sb, u16 zone[9], uint zmax)
+static bool minix_trunc_after(superblk_t *sb, buffer_t *blk, uint zmax,
+                              uint nlevels)
 {
-    uint zidx = 0;
-    for (; zidx < MIN(zmax, zone_dib); zidx++)
-        ;
-    for (; zidx < zone_dib; zidx++)
-        _(zone[zidx]);
-
-    if (zidx < zone_dib) return 0;
-    ASSERTK(zone[zone_dib] != 0);
-
-    buffer_t *ib1_blk = sb_bread(sb, zone[zone_dib]);
-    u16 *ib1 = ib1_blk->blk;
-    for (; zidx < MIN(zmax, zone_ib1); zidx++)
-        ;
-    for (; zidx < zone_ib1; zidx++)
-        _(ib1[zidx - zone_dib]);
-    minix_zfree(sb, zone[zone_dib]);
-
-    return 0;
+    uint lidx = minix_zidx_path(sb, zmax, nlevels);
+    u16 *ib = blk->blk;
+    for (uint i = lidx; i < BLKSZ / 2; i++) {
+        bool free_current_level = false;
+        if (ib[i]) {
+            if (nlevels != 1) {
+                buffer_t *next_blk = sb_bread(sb, ib[i]);
+                free_current_level =
+                    minix_trunc_after(sb, next_blk, zmax, nlevels - 1);
+                brelse(next_blk);
+            } else {
+                free_current_level = true;
+            }
+        }
+        if (free_current_level) {
+            minix_zfree(sb, ib[i]);
+            ib[i] = 0;
+            bdirty(blk, true);
+        }
+    }
+    return lidx == 0;
 }
 
-#undef _
+static int minix_trunc(superblk_t *sb, u16 zone[9], uint zmax)
+{
+    for (uint i = 0; i < 9; i++) {
+        if (!zone[i]) continue;
+        if (i < zone_dib) { // 直接块
+            if (i >= zmax) {
+                minix_zfree(sb, zone[i]);
+                zone[i] = 0;
+            }
+        } else {
+            buffer_t *top = sb_bread(sb, zone[i]);
+            bool emptied =
+                minix_trunc_after(sb, top, zmax, minix_zone9idx_to_nlevels(i));
+            brelse(top);
+            if (emptied) {
+                minix_zfree(sb, zone[i]);
+                zone[i] = 0;
+            }
+        }
+    }
+    return 0;
+}
 
 static int minix_setupdir(superblk_t *sb, u16 zone[9], u16 ino, u16 pino)
 {
