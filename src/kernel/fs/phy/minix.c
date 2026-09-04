@@ -43,18 +43,28 @@ typedef struct direct
 
 #define MINIX_V1 0x137f
 
-static const uint zone_dib = 7;
-static const uint zone_ib1 = zone_dib + (BLKSZ / 2);
-static const uint zone_ib2 = zone_ib1 + (BLKSZ / 2) * (BLKSZ / 2);
 static const uint nodenr_perblk = BLKSZ / sizeof(minix_inode_t);
 static const uint xmapnr_perblk = BLKSZ * 8;
 static const uint direnr_perblk = BLKSZ / sizeof(minix_direct_t);
+
+#define z9idx_end_dire(sb) (7)
+#define z9idx_end_ind1(sb) (z9idx_end_dire(sb) + (BLKSZ / 2))
+#define z9idx_end_ind2(sb) (z9idx_end_ind1(sb) + (BLKSZ / 2) * (BLKSZ / 2))
+
+#define z9idx_to_nlevels(z9idx)   ((z9idx) - 6)
+#define nlevels_to_z9idx(nlevels) ((nlevels) + 6)
 
 #define minix_boot()    (0)
 #define minix_super()   (1)
 #define minix_imap(sb)  (2)
 #define minix_zmap(sb)  (2 + (sb)->imap_blocks)
 #define minix_inode(sb) (2 + (sb)->imap_blocks + (sb)->zmap_blocks)
+
+#define _minix_zidx_path(log_perlevel_entries, idx, level) \
+    (idx >> ((level - 1) * log_perlevel_entries)) &        \
+        ((1 << (log_perlevel_entries + 1)) - 1)
+
+#define minix_zidx_path(sb, idx, level) _minix_zidx_path(9, idx, level)
 
 static minix_inode_t *minix_idup(minix_inode_t *mi)
 {
@@ -66,10 +76,10 @@ static buffer_t *minix_zget_indirect(superblk_t *sb, buffer_t *iblk,
                                      uint nlevels, uint idx)
 {
     uint path_preset[4] = {
-        [0] = (idx >> 27) & 0x3ff,
-        [1] = (idx >> 18) & 0x3ff,
-        [2] = (idx >> 9) & 0x3ff,
-        [3] = (idx >> 0) & 0x3ff,
+        [0] = minix_zidx_path(sb, idx, 4),
+        [1] = minix_zidx_path(sb, idx, 3), // level 3
+        [2] = minix_zidx_path(sb, idx, 2), // level 2
+        [3] = minix_zidx_path(sb, idx, 1), // level 1
     };
     uint *path = path_preset + 4 - nlevels;
     for (uint i = 0; i < nlevels; i++) {
@@ -87,18 +97,19 @@ static buffer_t *minix_zget(superblk_t *sb, u16 zone[9], uint idx)
     /*
      * zone in `zone[]` 0 - 6 / 7 / 8 ?
      */
-    if (idx < zone_dib) {
+    if (idx < z9idx_end_dire(sb)) {
         if (!zone[idx]) return NULL;
         return sb_bread(sb, zone[idx]);
     }
-    if (idx < zone_ib1) {
-        buffer_t *iblk0 = sb_bread(sb, zone[zone_dib]);
-        return minix_zget_indirect(sb, iblk0, 1, idx - zone_dib);
+#define _(end, last_end, l)                                        \
+    if (idx < end) {                                               \
+        buffer_t *iblk0 = sb_bread(sb, zone[nlevels_to_z9idx(l)]); \
+        if (!iblk0) return NULL;                                   \
+        return minix_zget_indirect(sb, iblk0, l, idx - last_end);  \
     }
-    if (idx < zone_ib2) {
-        buffer_t *iblk0 = sb_bread(sb, zone[zone_dib + 1]);
-        return minix_zget_indirect(sb, iblk0, 2, idx - zone_ib1);
-    }
+    _(z9idx_end_ind1(sb), z9idx_end_dire(sb), 1);
+    _(z9idx_end_ind2(sb), z9idx_end_ind1(sb), 2);
+#undef _
     DEBUGK(K_WARN, "minix : blk idx out of range : %u\n", idx);
     return NULL;
 }
@@ -140,8 +151,6 @@ static int64_t minix_zext_indirect(superblk_t *sb, buffer_t *iblk, uint nlevels,
     return (compromised ? -1 : 1) * (ext - rem);
 }
 
-#define minix_zone9idx_to_nlevels(idx) ((idx) - 6)
-
 /**
  * @brief allocate `ext` blocks and extend zone[]
  *
@@ -150,7 +159,7 @@ static int64_t minix_zext_indirect(superblk_t *sb, buffer_t *iblk, uint nlevels,
 static uint minix_zext(superblk_t *sb, u16 zone[9], uint ext)
 {
     uint i = 0;
-    for (; i < zone_dib && ext; i++)
+    for (; i < z9idx_end_dire(sb) && ext; i++)
         if (zone[i] == 0) zone[i] = minix_zalloc(sb), ext--;
     if (!ext) return 0;
 
@@ -165,7 +174,7 @@ static uint minix_zext(superblk_t *sb, u16 zone[9], uint ext)
             bdirty(iblk0, true);
         }
         int64_t ret =
-            minix_zext_indirect(sb, iblk0, minix_zone9idx_to_nlevels(i), ext);
+            minix_zext_indirect(sb, iblk0, z9idx_to_nlevels(i), ext);
         if (ret <= 0) {
             // FIXME: IS THIS THE LAST ONE?
             ext += ret;
@@ -397,7 +406,7 @@ static int minix_trunc(superblk_t *sb, u16 zone[9], uint zmax)
 {
     for (uint i = 0; i < 9; i++) {
         if (!zone[i]) continue;
-        if (i < zone_dib) { // 直接块
+        if (i < z9idx_end_dire(sb)) { // 直接块
             if (i >= zmax) {
                 minix_zfree(sb, zone[i]);
                 zone[i] = 0;
@@ -405,7 +414,7 @@ static int minix_trunc(superblk_t *sb, u16 zone[9], uint zmax)
         } else {
             buffer_t *top = sb_bread(sb, zone[i]);
             bool emptied =
-                minix_trunc_after(sb, top, zmax, minix_zone9idx_to_nlevels(i));
+                minix_trunc_after(sb, top, zmax, z9idx_to_nlevels(i));
             brelse(top);
             if (emptied) {
                 minix_zfree(sb, zone[i]);
@@ -644,7 +653,7 @@ static int minix_write(node_t *this, void *buf, size_t siz, size_t offset,
     while (rem > 0) {
         uint bidx = offset / BLKSZ;
         uint boff = offset % BLKSZ;
-        if (bidx >= zone_ib2) break;
+        if (bidx >= z9idx_end_ind2(sb)) break;
 
         buffer_t *blk = minix_zget(sb, mi->zone, bidx);
         if (!blk) {
