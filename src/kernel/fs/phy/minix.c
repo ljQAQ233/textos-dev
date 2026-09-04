@@ -602,7 +602,7 @@ static int minix_truncate(node_t *this, size_t len)
     superblk_t *sb = this->sb;
     minix_inode_t *mi = this->pdata;
     uint zmax = DIV_ROUND_UP(len, BLKSZ);
-    uint zhas = DIV_ROUND_UP(mi->size, len);
+    uint zhas = DIV_ROUND_UP(mi->size, BLKSZ);
     if (zmax == zhas)
         return 0;
     else if (zmax < zhas)
