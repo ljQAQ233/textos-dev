@@ -1,3 +1,5 @@
+#include "v0_super.h"
+
 typedef struct minix_super
 {
     u16 inodes;        // 节点总数
@@ -8,5 +10,6 @@ typedef struct minix_super
     u16 log_zone_size; // log2(每逻辑块包含的物理块数)
     u32 max_size;      // 单文件最大大小
     u16 magic;         // 文件系统魔数(0x137F)
+    MINIX_V0_SUPER;
 } minix_super_t;
 

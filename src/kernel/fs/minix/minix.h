@@ -27,6 +27,24 @@ typedef struct direct
 
 #define minix_zidx_path(sb, idx, level) _minix_zidx_path(9, idx, level)
 
+#define MINIX_SBI(sb) ((minix_super_t *)((sb)->sbi))
+
+#ifdef FLEXIBLE_BLKSZ
+    #define BLKSZ MINIX_SBI(sb)->v0_block_size
+#else
+    #define BLKSZ 1024
+#endif
+
+#ifdef FLEXIBLE_PERBLK
+    #define nodenr_perblk MINIX_SBI(sb)->v0_nodenr_perblk
+    #define xmapnr_perblk MINIX_SBI(sb)->v0_xmapnr_perblk
+    #define direnr_perblk MINIX_SBI(sb)->v0_direnr_perblk
+#else
+    #define nodenr_perblk (BLKSZ / sizeof(minix_inode_t))
+    #define xmapnr_perblk (BLKSZ * 8)
+    #define direnr_perblk (BLKSZ / sizeof(minix_direct_t))
+#endif
+
 static inline void init_ctx(dirctx_t *ctx, node_t *dir)
 {
     ctx->sb = dir->sb;

@@ -1,6 +1,5 @@
 #include "v1_inode.h"
 #include "v1_super.h"
-#define BLKSZ 1024
 
 /**
  * @brief minix fs v1 implementation
@@ -15,10 +14,6 @@
 #include <textos/klib/string.h>
 
 #include "minix.h"
-
-static const uint nodenr_perblk = BLKSZ / sizeof(minix_inode_t);
-static const uint xmapnr_perblk = BLKSZ * 8;
-static const uint direnr_perblk = BLKSZ / sizeof(minix_direct_t);
 
 static minix_inode_t *minix_idup(minix_inode_t *mi)
 {
@@ -710,7 +705,8 @@ fs_opts_t __minix1_op;
 
 superblk_t *__fs_init_minix(devst_t *dev)
 {
-    buffer_t *blk = bread(dev, BLKSZ, minix_super());
+    // TODO: default block size needed
+    buffer_t *blk = bread(dev, 1024, minix_super());
     minix_super_t *msb = malloc(sizeof(minix_super_t));
     memcpy(msb, blk->blk, sizeof(minix_super_t));
     brelse(blk);
