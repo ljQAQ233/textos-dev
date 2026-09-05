@@ -1,3 +1,7 @@
+#include "v1_inode.h"
+#include "v1_super.h"
+#define BLKSZ 1024
+
 /**
  * @brief minix fs v1 implementation
  */
@@ -10,61 +14,11 @@
 #include <textos/klib/bitmap.h>
 #include <textos/klib/string.h>
 
-#define BLKSZ 1024
-
-typedef struct minix_super
-{
-    u16 inodes;        // 节点总数
-    u16 zones;         // 逻辑块总数
-    u16 imap_blocks;   // inode 位图占用块数
-    u16 zmap_blocks;   // 逻辑块位图占用块数
-    u16 firstdatazone; // 第一个数据块编号
-    u16 log_zone_size; // log2(每逻辑块包含的物理块数)
-    u32 max_size;      // 单文件最大大小
-    u16 magic;         // 文件系统魔数(0x137F)
-} minix_super_t;
-
-typedef struct minix_inode
-{
-    u16 mode;    // 文件类型及权限
-    u16 uid;     // 所有者用户ID
-    u32 size;    // 文件大小(字节)
-    u32 mtime;   // 修改时间(时间戳)
-    u8 gid;      // 所有者组ID
-    u8 nlinks;   // 硬链接数
-    u16 zone[9]; // 数据块指针(0-6直接，7间接，8双间接 v1 不用)
-} minix_inode_t;
-
-typedef struct direct
-{
-    uint16_t ino;
-    char name[14];
-} minix_direct_t;
-
-#define MINIX_V1 0x137f
+#include "minix.h"
 
 static const uint nodenr_perblk = BLKSZ / sizeof(minix_inode_t);
 static const uint xmapnr_perblk = BLKSZ * 8;
 static const uint direnr_perblk = BLKSZ / sizeof(minix_direct_t);
-
-#define z9idx_end_dire(sb) (7)
-#define z9idx_end_ind1(sb) (z9idx_end_dire(sb) + (BLKSZ / 2))
-#define z9idx_end_ind2(sb) (z9idx_end_ind1(sb) + (BLKSZ / 2) * (BLKSZ / 2))
-
-#define z9idx_to_nlevels(z9idx)   ((z9idx) - 6)
-#define nlevels_to_z9idx(nlevels) ((nlevels) + 6)
-
-#define minix_boot()    (0)
-#define minix_super()   (1)
-#define minix_imap(sb)  (2)
-#define minix_zmap(sb)  (2 + (sb)->imap_blocks)
-#define minix_inode(sb) (2 + (sb)->imap_blocks + (sb)->zmap_blocks)
-
-#define _minix_zidx_path(log_perlevel_entries, idx, level) \
-    (idx >> ((level - 1) * log_perlevel_entries)) &        \
-        ((1 << (log_perlevel_entries + 1)) - 1)
-
-#define minix_zidx_path(sb, idx, level) _minix_zidx_path(9, idx, level)
 
 static minix_inode_t *minix_idup(minix_inode_t *mi)
 {
@@ -703,23 +657,6 @@ static int minix_truncate(node_t *this, size_t len)
     minix_isync(sb, mi, this->ino);
     this->mtime = arch_time_now();
     return 0;
-}
-
-static inline void init_ctx(dirctx_t *ctx, node_t *dir)
-{
-    ctx->sb = dir->sb;
-    ctx->node = dir;
-    ctx->pos = 0;
-    ctx->bidx = 0;
-    ctx->eidx = 0;
-    ctx->stat = ctx_pre;
-}
-
-static int minix_dir_emit(dirctx_t *ctx, minix_direct_t *de, minix_inode_t *mi)
-{
-    uint len = strnlen(de->name, 14);
-    uint type = dir_get_type(mi->mode);
-    return dir_emit(ctx, de->name, len, de->ino, type);
 }
 
 static int minix_readdir(node_t *dir, dirctx_t *ctx)
