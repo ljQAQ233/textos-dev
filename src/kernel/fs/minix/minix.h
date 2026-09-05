@@ -6,7 +6,11 @@ typedef struct direct
     char name[14];
 } minix_direct_t;
 
-#define MINIX_V1 0x137f
+#define MINIX_V1    0x137f
+#define MINIX_V1_30 0x138f
+#define MINIX_V2    0x2468
+#define MINIX_V2_30 0x2478
+#define MINIX_V3    0x4d5a
 
 #define z9idx_end_dire(sb) (7)
 #define z9idx_end_ind1(sb) (z9idx_end_dire(sb) + (BLKSZ / 2))
