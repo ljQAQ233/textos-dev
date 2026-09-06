@@ -16,5 +16,8 @@ typedef struct
     u16 pad2;              /* try to avoid compiler-dependent padding */
     u16 block_size;        /* block size in bytes. */
     u8 disk_version;       /* filesystem format sub-version */
+    int v3_end[0];
     MINIX_V0_SUPER;
 } minix_super_t;
+
+#define V3_SUPER_ONDISK offsetof(minix_super_t, v3_end)

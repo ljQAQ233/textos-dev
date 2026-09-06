@@ -3,7 +3,7 @@
 typedef struct direct
 {
     uint16_t ino;
-    char name[14];
+    char name[MAX_FILENAME];
 } minix_direct_t;
 
 #define MINIX_V1    0x137f

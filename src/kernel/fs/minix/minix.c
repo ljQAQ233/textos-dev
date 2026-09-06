@@ -1,5 +1,8 @@
+#define MINIX_VER    MINIX_V1
 #include "v1_inode.h"
 #include "v1_super.h"
+#define MAX_FILENAME 14
+#define SUPER_ONDISK V1_SUPER_ONDISK
 typedef u16 mino_t;
 typedef u16 mzone_t;
 
@@ -260,7 +263,7 @@ static mino_t minix_lookup(node_t *dir, char *name)
         minix_direct_t *ent = blk->blk;
         for (int eidx = 0; eidx < direnr_perblk; eidx++) {
             minix_direct_t *ptr = &ent[eidx];
-            if (strncmp(name, ptr->name, 14) == 0) {
+            if (strncmp(name, ptr->name, MAX_FILENAME) == 0) {
                 mino_t ino = ptr->ino;
                 brelse(blk);
                 return ino;
@@ -294,14 +297,14 @@ static int minix_eddir(node_t *dir, char *name, mino_t ino)
         minix_direct_t *ent = blk->blk;
         for (int eidx = 0; eidx < direnr_perblk; eidx++) {
             minix_direct_t *ptr = &ent[eidx];
-            if (!ino && !strncmp(ptr->name, name, 14)) {
+            if (!ino && !strncmp(ptr->name, name, MAX_FILENAME)) {
                 ptr->ino = 0;
                 bdirty(blk, true);
                 brelse(blk);
                 return 0;
             } else if (ino && ptr->ino == 0) {
                 ptr->ino = ino;
-                strncpy(ptr->name, name, 14);
+                strncpy(ptr->name, name, MAX_FILENAME);
                 bdirty(blk, true);
                 brelse(blk);
                 uint nsize =
@@ -426,7 +429,7 @@ static int minix_namel(char *res, char *name)
         len = strlen(name);
     else
         len = p - name;
-    if (len > 14) return -ENAMETOOLONG;
+    if (len > MAX_FILENAME) return -ENAMETOOLONG;
     strncpy(res, name, len);
     res[len] = 0;
     return 0;
@@ -710,10 +713,10 @@ superblk_t *__fs_init_minix(devst_t *dev)
     // TODO: default block size needed
     buffer_t *blk = bread(dev, 1024, minix_super());
     minix_super_t *msb = malloc(sizeof(minix_super_t));
-    memcpy(msb, blk->blk, sizeof(minix_super_t));
+    memcpy(msb, blk->blk, SUPER_ONDISK);
     brelse(blk);
 
-    if (msb->magic != MINIX_V1) goto fail;
+    if (msb->magic != MINIX_VER) goto fail;
 
     superblk_t *sb = malloc(sizeof(superblk_t));
     sb->blksz = BLKSZ;
@@ -721,6 +724,11 @@ superblk_t *__fs_init_minix(devst_t *dev)
     sb->root = NULL;
     sb->op = &__minix1_op;
     sb->sbi = msb;
+
+    msb->v0_block_size = sb->blksz;
+    msb->v0_nodenr_perblk = nodenr_perblk;
+    msb->v0_xmapnr_perblk = xmapnr_perblk;
+    msb->v0_direnr_perblk = direnr_perblk;
 
     minix_inode_t *root = minix_iget(sb, 1);
     sb->root = minix_nodeget(sb, root, 1, "/");
