@@ -21,7 +21,6 @@ typedef int64 int64_t;
 typedef addr_t uintptr_t;
 
 // stddef.h
-#define offsetof(type, m) ((size_t) &((type *)0)->m)
 #define UINT64_C(value)  (value ## ULL)
 
 typedef struct _packed
