@@ -17,6 +17,7 @@ typedef struct
     u16 block_size;        /* block size in bytes. */
     u8 disk_version;       /* filesystem format sub-version */
     int v3_end[0];
+    u32 firstdatazone;
     MINIX_V0_SUPER;
 } minix_super_t;
 

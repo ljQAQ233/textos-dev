@@ -1,10 +1,19 @@
-#define MINIX_VER    MINIX_V1
-#include "v1_inode.h"
-#include "v1_super.h"
-#define MAX_FILENAME 14
-#define SUPER_ONDISK V1_SUPER_ONDISK
+#ifndef MINIX_VER
+    #include "minix.h"
+    #define MINIX_VER    MINIX_V1
+    #define MAX_FILENAME 14
+    #define MAX_Z9IDX    9
+    #define SUPER_ONDISK V1_SUPER_ONDISK
+    #define MINIX_OP     __minix1_op
+    #define MINIX_INIT   __fs_init_minix1
+    #include "v1_inode.h"
+    #include "v1_super.h"
 typedef u16 mino_t;
 typedef u16 mzone_t;
+
+STATIC_ASSERT(offsetof(minix_super_t, magic) == V1_SUPER_MAGIC_OFFSET,
+              "bad minix1 superblock::magic offset");
+#endif
 
 /**
  * @brief minix fs v1 implementation
@@ -18,7 +27,68 @@ typedef u16 mzone_t;
 #include <textos/klib/string.h>
 #include <textos/mm.h>
 
-#include "minix.h"
+typedef struct direct
+{
+    mino_t ino;
+    char name[MAX_FILENAME];
+} minix_direct_t;
+
+#define _M                 (BLKSZ / sizeof(mzone_t))
+#define z9idx_end_dire(sb) (7)
+#define z9idx_end_ind1(sb) (z9idx_end_dire(sb) + _M)
+#define z9idx_end_ind2(sb) (z9idx_end_ind1(sb) + _M * _M)
+#define z9idx_end_ind3(sb) (z9idx_end_ind2(sb) + _M * _M * _M)
+
+#define z9idx_to_nlevels(z9idx)   ((z9idx) - 6)
+#define nlevels_to_z9idx(nlevels) ((nlevels) + 6)
+
+#define minix_boot()    (0)
+#define minix_super()   (1)
+#define minix_imap(sb)  (2)
+#define minix_zmap(sb)  (2 + (sb)->imap_blocks)
+#define minix_inode(sb) (2 + (sb)->imap_blocks + (sb)->zmap_blocks)
+
+#define _minix_zidx_path(log_perlevel_entries, idx, level) \
+    (idx >> ((level - 1) * log_perlevel_entries)) &        \
+        ((1 << log_perlevel_entries) - 1)
+
+#define minix_zidx_path(sb, idx, level) \
+    _minix_zidx_path(MINIX_SBI(sb)->v0_log_perlevel_entries, idx, level)
+
+#define MINIX_SBI(sb) ((minix_super_t *)((sb)->sbi))
+
+#ifdef FLEXIBLE_BLKSZ
+    #define BLKSZ MINIX_SBI(sb)->v0_block_size
+#else
+    #define BLKSZ 1024
+#endif
+
+#ifdef FLEXIBLE_PERBLK
+    #define nodenr_perblk MINIX_SBI(sb)->v0_nodenr_perblk
+    #define xmapnr_perblk MINIX_SBI(sb)->v0_xmapnr_perblk
+    #define direnr_perblk MINIX_SBI(sb)->v0_direnr_perblk
+#else
+    #define nodenr_perblk (BLKSZ / sizeof(minix_inode_t))
+    #define xmapnr_perblk (BLKSZ * 8)
+    #define direnr_perblk (BLKSZ / sizeof(minix_direct_t))
+#endif
+
+static inline void init_ctx(dirctx_t *ctx, node_t *dir)
+{
+    ctx->sb = dir->sb;
+    ctx->node = dir;
+    ctx->pos = 0;
+    ctx->bidx = 0;
+    ctx->eidx = 0;
+    ctx->stat = ctx_pre;
+}
+
+static int minix_dir_emit(dirctx_t *ctx, minix_direct_t *de, minix_inode_t *mi)
+{
+    uint len = strnlen(de->name, 14);
+    uint type = dir_get_type(mi->mode);
+    return dir_emit(ctx, de->name, len, de->ino, type);
+}
 
 static minix_inode_t *minix_idup(minix_inode_t *mi)
 {
@@ -40,13 +110,14 @@ static buffer_t *minix_zget_indirect(superblk_t *sb, buffer_t *iblk,
         mzone_t *ib = iblk->blk;
         mzone_t zno = ib[path[i]];
         brelse(iblk);
-        if (!zno) return NULL;
+        if (!zno)
+            return NULL;
         iblk = sb_bread(sb, zno);
     }
     return iblk;
 }
 
-static buffer_t *minix_zget(superblk_t *sb, mzone_t zone[9], uint idx)
+static buffer_t *minix_zget(superblk_t *sb, mzone_t *zone, uint idx)
 {
     /*
      * zone in `zone[]` 0 - 6 / 7 / 8 ?
@@ -63,6 +134,7 @@ static buffer_t *minix_zget(superblk_t *sb, mzone_t zone[9], uint idx)
     }
     _(z9idx_end_ind1(sb), z9idx_end_dire(sb), 1);
     _(z9idx_end_ind2(sb), z9idx_end_ind1(sb), 2);
+    _(z9idx_end_ind3(sb), z9idx_end_ind2(sb), 3);
 #undef _
     DEBUGK(K_WARN, "minix : blk idx out of range : %u\n", idx);
     return NULL;
@@ -78,13 +150,18 @@ static int64_t minix_zext_indirect(superblk_t *sb, buffer_t *iblk, uint nlevels,
     uint rem = ext;
     mzone_t *ib = iblk->blk;
     bool compromised = false;
-    for (int i = 0; i < BLKSZ / 2 && rem; i++) {
+    for (int i = 0; i < BLKSZ / sizeof(mzone_t) && rem; i++) {
         mzone_t zno = ib[i];
         if (!zno) {
             zno = ib[i] = minix_zalloc(sb);
             if (!zno) {
                 compromised = true;
                 break;
+            } else {
+                buffer_t *nz_blk = sb_bread(sb, zno);
+                memset(nz_blk->blk, 0, BLKSZ);
+                bdirty(nz_blk, true);
+                brelse(nz_blk);
             }
             bdirty(iblk, true);
             if (nlevels == 1) rem -= 1;
@@ -94,8 +171,10 @@ static int64_t minix_zext_indirect(superblk_t *sb, buffer_t *iblk, uint nlevels,
             int64_t ret = minix_zext_indirect(sb, next_iblk, nlevels - 1, rem);
             if (ret <= 0) {
                 rem += ret;
-                compromised = true;
-                break;
+                if (i == BLKSZ / sizeof(mzone_t) - 1) {
+                    compromised = true;
+                    break;
+                }
             } else {
                 rem -= ret;
             }
@@ -110,14 +189,14 @@ static int64_t minix_zext_indirect(superblk_t *sb, buffer_t *iblk, uint nlevels,
  *
  * @return int number of blockes not allocated
  */
-static uint minix_zext(superblk_t *sb, mzone_t zone[9], uint ext)
+static uint minix_zext(superblk_t *sb, mzone_t zone[MAX_Z9IDX], uint ext)
 {
     uint i = 0;
     for (; i < z9idx_end_dire(sb) && ext; i++)
         if (zone[i] == 0) zone[i] = minix_zalloc(sb), ext--;
     if (!ext) return 0;
 
-    for (; i < 9 && ext; i++) {
+    for (; i < MAX_Z9IDX && ext; i++) {
         buffer_t *iblk0;
         if (zone[i])
             iblk0 = sb_bread(sb, zone[i]);
@@ -259,7 +338,7 @@ static mino_t minix_lookup(node_t *dir, char *name)
     uint entmax = mdir->size / sizeof(minix_direct_t);
     for (uint idx = 0; idx < entmax; idx += sizeof(minix_direct_t)) {
         uint zidx = idx / direnr_perblk;
-        buffer_t *blk = minix_zget(sb, mdir->zone, zidx);
+        buffer_t *blk = minix_zget(sb, (mzone_t *)mdir->zone, zidx);
         minix_direct_t *ent = blk->blk;
         for (int eidx = 0; eidx < direnr_perblk; eidx++) {
             minix_direct_t *ptr = &ent[eidx];
@@ -293,7 +372,7 @@ static int minix_eddir(node_t *dir, char *name, mino_t ino)
     uint entmax = mdir->size / sizeof(minix_direct_t);
     for (uint idx = 0; idx < entmax; idx += direnr_perblk) {
         uint zidx = idx / direnr_perblk;
-        buffer_t *blk = minix_zget(sb, mdir->zone, zidx);
+        buffer_t *blk = minix_zget(sb, (mzone_t *)mdir->zone, zidx);
         minix_direct_t *ent = blk->blk;
         for (int eidx = 0; eidx < direnr_perblk; eidx++) {
             minix_direct_t *ptr = &ent[eidx];
@@ -319,7 +398,7 @@ static int minix_eddir(node_t *dir, char *name, mino_t ino)
         brelse(blk);
     }
 
-    uint rem = minix_zext(sb, mdir->zone, 1);
+    uint rem = minix_zext(sb, (mzone_t *)mdir->zone, 1);
     if (rem != 0) return -ENOSPC;
     return minix_eddir(dir, name, ino);
 }
@@ -334,7 +413,7 @@ static bool minix_trunc_after(superblk_t *sb, buffer_t *blk, uint zmax,
 {
     uint lidx = minix_zidx_path(sb, zmax, nlevels);
     mzone_t *ib = blk->blk;
-    for (uint i = lidx; i < BLKSZ / 2; i++) {
+    for (uint i = lidx; i < BLKSZ / sizeof(mzone_t); i++) {
         bool free_current_level = false;
         if (ib[i]) {
             if (nlevels != 1) {
@@ -355,9 +434,9 @@ static bool minix_trunc_after(superblk_t *sb, buffer_t *blk, uint zmax,
     return lidx == 0;
 }
 
-static int minix_trunc(superblk_t *sb, mzone_t zone[9], uint zmax)
+static int minix_trunc(superblk_t *sb, mzone_t zone[MAX_Z9IDX], uint zmax)
 {
-    for (uint i = 0; i < 9; i++) {
+    for (uint i = 0; i < MAX_Z9IDX; i++) {
         if (!zone[i]) continue;
         if (i < z9idx_end_dire(sb)) { // 直接块
             if (i >= zmax) {
@@ -378,7 +457,7 @@ static int minix_trunc(superblk_t *sb, mzone_t zone[9], uint zmax)
     return 0;
 }
 
-static int minix_setupdir(superblk_t *sb, mzone_t zone[9], mino_t ino,
+static int minix_setupdir(superblk_t *sb, mzone_t zone[MAX_Z9IDX], mino_t ino,
                           mino_t pino)
 {
     zone[0] = minix_zalloc(sb);
@@ -462,7 +541,7 @@ static int minix_open(node_t *parent, char *name, u64 args, int mode,
             if (args & O_DIRECTORY) {
                 mi->size = 2 * sizeof(minix_direct_t);
                 mi->mode |= S_IFDIR;
-                if (minix_setupdir(sb, mi->zone, ino, parent->ino) < 0)
+                if (minix_setupdir(sb, (mzone_t *)mi->zone, ino, parent->ino) < 0)
                     goto nospace;
             } else
                 mi->mode |= S_IFREG;
@@ -554,7 +633,7 @@ static int minix_remove(node_t *this)
 {
     superblk_t *sb = this->sb;
     minix_inode_t *mi = this->pdata;
-    if (!minix_isdev(this->mode)) minix_trunc(sb, mi->zone, 0);
+    if (!minix_isdev(this->mode)) minix_trunc(sb, (mzone_t *)mi->zone, 0);
     minix_eddir(this->parent, this->name, 0);
     minix_ifree(sb, this->ino);
 
@@ -575,7 +654,7 @@ static int minix_read(node_t *this, void *buf, size_t siz, size_t offset,
     while (rem > 0 && offset < mi->size) {
         uint zidx = offset / BLKSZ;
         uint boff = offset % BLKSZ;
-        buffer_t *blk = minix_zget(sb, mi->zone, zidx);
+        buffer_t *blk = minix_zget(sb, (mzone_t *)mi->zone, zidx);
         if (!blk) break;
 
         size_t cpysiz = BLKSZ - boff;
@@ -609,11 +688,11 @@ static int minix_write(node_t *this, void *buf, size_t siz, size_t offset,
         uint boff = offset % BLKSZ;
         if (zidx >= z9idx_end_ind2(sb)) break;
 
-        buffer_t *blk = minix_zget(sb, mi->zone, zidx);
+        buffer_t *blk = minix_zget(sb, (mzone_t *)mi->zone, zidx);
         if (!blk) {
-            uint err = minix_zext(sb, mi->zone, 1);
+            uint err = minix_zext(sb, (mzone_t *)mi->zone, 1);
             if (err != 0) break;
-            blk = minix_zget(sb, mi->zone, zidx);
+            blk = minix_zget(sb, (mzone_t *)mi->zone, zidx);
         }
 
         size_t cpysiz = BLKSZ - boff;
@@ -652,7 +731,7 @@ static int minix_truncate(node_t *this, size_t len)
     if (zmax == zhas)
         return 0;
     else if (zmax < zhas)
-        minix_trunc(sb, mi->zone, zmax);
+        minix_trunc(sb, (mzone_t *)mi->zone, zmax);
     this->siz = mi->size = len;
     minix_isync(sb, mi, this->ino);
     this->mtime = arch_time_now();
@@ -671,7 +750,7 @@ static int minix_readdir(node_t *dir, dirctx_t *ctx)
     uint zidx = ctx->pos / direnr_perblk;
     uint eidx = ctx->pos % direnr_perblk;
     for (; zidx <= zmax; zidx++) {
-        buffer_t *blk = minix_zget(sb, mdir->zone, zidx);
+        buffer_t *blk = minix_zget(sb, (mzone_t *)mdir->zone, zidx);
         minix_direct_t *ent = blk->blk;
         for (; eidx < direnr_perblk; eidx++) {
             minix_direct_t *ptr = &ent[eidx];
@@ -706,29 +785,49 @@ static int minix_seekdir(node_t *dir, dirctx_t *ctx, size_t *pos)
     return EOF;
 }
 
-fs_opts_t __minix1_op;
-
-superblk_t *__fs_init_minix(devst_t *dev)
+static int ulog2(uint x)
 {
-    // TODO: default block size needed
-    buffer_t *blk = bread(dev, 1024, minix_super());
+    for (int i = 31; i>= 0 ; i--)
+        if ((x >> i) & 1) return i;
+    return -1;
+}
+
+fs_opts_t MINIX_OP;
+
+superblk_t *MINIX_INIT(devst_t *dev, buffer_t *blk)
+{
     minix_super_t *msb = malloc(sizeof(minix_super_t));
     memcpy(msb, blk->blk, SUPER_ONDISK);
-    brelse(blk);
 
     if (msb->magic != MINIX_VER) goto fail;
 
     superblk_t *sb = malloc(sizeof(superblk_t));
+#ifdef FLEXIBLE_BLKSZ
+    sb->blksz = msb->block_size;
+#else
     sb->blksz = BLKSZ;
+#endif
     sb->dev = dev;
     sb->root = NULL;
-    sb->op = &__minix1_op;
+    sb->op = &MINIX_OP;
     sb->sbi = msb;
 
     msb->v0_block_size = sb->blksz;
     msb->v0_nodenr_perblk = nodenr_perblk;
     msb->v0_xmapnr_perblk = xmapnr_perblk;
     msb->v0_direnr_perblk = direnr_perblk;
+    msb->v0_zone_size = msb->v0_block_size << msb->log_zone_size;
+    msb->v0_perlevel_entries = msb->v0_zone_size / sizeof(mzone_t);
+    assert(msb->v0_perlevel_entries > 0);
+    msb->v0_log_perlevel_entries = ulog2(msb->v0_perlevel_entries);
+
+#ifdef FLEXIBLE_FIRST_DATA_ZONE
+    if (msb->firstdatazone_old == 0) {
+        unsigned long long blocks =
+            minix_inode(msb) + DIV_ROUND_UP(msb->inodes, nodenr_perblk);
+        msb->firstdatazone = DIV_ROUND_UP(blocks, msb->v0_zone_size);
+    }
+#endif
 
     minix_inode_t *root = minix_iget(sb, 1);
     sb->root = minix_nodeget(sb, root, 1, "/");
@@ -739,8 +838,8 @@ fail:
     return NULL;
 }
 
-fs_opts_t __minix1_op = {
-    minix_open,
+fs_opts_t MINIX_OP = {
+    .open = minix_open,
     minix_close,
     NULL,
     NULL,
