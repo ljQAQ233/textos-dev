@@ -21,4 +21,6 @@ SRCS += fs/phy/procfs.c
 
 SRCS += fs/phy/fat32.c
 
+SRCS += fs/minix/dispatch.c
 SRCS += fs/minix/minix.c
+SRCS += fs/minix/minix3.c
