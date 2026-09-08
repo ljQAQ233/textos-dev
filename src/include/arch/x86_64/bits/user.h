@@ -1,7 +1,10 @@
 #undef __WORDSIZE
 #define __WORDSIZE 64
 
-#include <stdint.h>
+#define __NEED_uint16_t
+#define __NEED_uint32_t
+#define __NEED_uint64_t
+#include <bits/alltypes.h>
 
 typedef struct user_fpregs_struct
 {
