@@ -251,7 +251,12 @@ __SYSCALL_DEFINE3(ssize_t, writev, int, fd, const iovec_t *, iov, int, iovcnt)
     if (accm == O_RDONLY)
         return -EBADF;
 
-    size_t oldoff = file->offset;
+    size_t off;
+    if (file->flgs & O_APPEND)
+        off = file->node->siz;
+    else
+        off = file->offset;
+    size_t oldoff = off;
     ssize_t sum = 0;
     int ret = 0;
     for (int i = 0; i < iovcnt; i++) {
@@ -262,13 +267,14 @@ __SYSCALL_DEFINE3(ssize_t, writev, int, fd, const iovec_t *, iov, int, iovcnt)
         }
         ret =
             file->node->opts->write(file->node, iov[i].iov_base, iov[i].iov_len,
-                                    file->offset, &file->openctx);
+                                    off, &file->openctx);
         if (ret < 0) {
             if (ret != -ENOSPC) goto rollback;
             ret = 0;
         }
         if (ret == 0) break;
         sum += ret;
+        off += ret;
         file->offset += ret;
     }
 
