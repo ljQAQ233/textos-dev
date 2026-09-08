@@ -1,8 +1,8 @@
 #include <cpu.h>
 #include <gdt.h>
 #include <intr.h>
-#include <string.h>
 #include <textos/assert.h>
+#include <textos/klib/string.h>
 #include <textos/printk.h>
 
 typedef struct _packed {

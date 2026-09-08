@@ -1,4 +1,4 @@
-#include <string.h>
+#include <textos/klib/string.h>
 #include <textos/task.h>
 #include <textos/errno.h>
 #include <textos/utsname.h>

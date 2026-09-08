@@ -13,7 +13,7 @@
 #include <textos/errno.h>
 #include <textos/ktimer.h>
 
-#include <string.h>
+#include <textos/klib/string.h>
 
 #include "inter.h"
 

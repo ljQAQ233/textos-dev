@@ -1,6 +1,7 @@
-#include <textos/mm.h>
-#include <textos/mm/vmm.h>
+#include <textos/mm/heap.h>
 #include <textos/mm/map.h>
+#include <textos/mm/pmm.h>
+#include <textos/mm/vmm.h>
 
 #define HEAP_ORIG 1
 
@@ -98,7 +99,7 @@ void *malloc(size_t siz)
     return NULL;
 }
 
-#include <string.h>
+#include <textos/klib/string.h>
 
 void *realloc(void *addr, size_t newsiz)
 {

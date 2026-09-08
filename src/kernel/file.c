@@ -1,7 +1,8 @@
-#include <textos/errno.h>
 #include <textos/dev.h>
+#include <textos/errno.h>
 #include <textos/file.h>
 #include <textos/fs/pipe.h>
+#include <textos/klib/string.h>
 #include <textos/limits.h>
 #include <textos/mm.h>
 #include <textos/syscall.h>
@@ -286,8 +287,6 @@ rollback:
     file->node->opts->truncate(file->node, oldoff);
     return ret;
 }
-
-#include <string.h>
 
 __SYSCALL_DEFINE3(ssize_t, readdir, int, fd, void *, buf, size_t, mx)
 {

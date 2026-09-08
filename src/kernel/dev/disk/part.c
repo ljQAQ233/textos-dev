@@ -1,10 +1,9 @@
-#include <textos/fs.h>
-#include <textos/dev.h>
 #include <textos/args.h>
+#include <textos/dev.h>
 #include <textos/errno.h>
+#include <textos/fs.h>
+#include <textos/klib/string.h>
 #include <textos/klib/vsprintf.h>
-
-#include <string.h>
 
 int part_read(devst_t *dev, u32 addr, void *buf, u8 cnt)
 {

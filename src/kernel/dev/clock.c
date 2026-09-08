@@ -1,9 +1,9 @@
 /* RTC driver */
-#include <io.h>
 #include <cpu.h>
-#include <string.h>
-#include <textos/printk.h>
+#include <io.h>
+#include <textos/klib/string.h>
 #include <textos/klib/time.h>
+#include <textos/printk.h>
 
 #define R_SECOND   0x00
 #define R_MINUTE   0x02

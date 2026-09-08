@@ -2,15 +2,15 @@
  * e1000 (emu) driver
 */
 
+#include <intr.h>
 #include <io.h>
 #include <irq.h>
-#include <intr.h>
-#include <string.h>
+#include <textos/assert.h>
+#include <textos/dev/pci.h>
+#include <textos/klib/string.h>
 #include <textos/mm.h>
 #include <textos/mm/vmm.h>
-#include <textos/dev/pci.h>
 #include <textos/panic.h>
-#include <textos/assert.h>
 
 #define INTEL_VEND    0x8086
 #define E1000_EMU     0x100E

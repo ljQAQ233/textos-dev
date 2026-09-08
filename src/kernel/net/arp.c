@@ -4,7 +4,7 @@
 #include <textos/tick.h>
 #include <textos/panic.h>
 
-#include <string.h>
+#include <textos/klib/string.h>
 
 void net_rx_arp(nif_t *n, mbuf_t *m)
 {

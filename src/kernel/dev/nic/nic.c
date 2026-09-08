@@ -11,8 +11,6 @@ void nif_eth_rx(nif_t *n, mbuf_t *m)
         net_rx_arp(n, m);
 }
 
-#include <string.h>
-
 void nif_eth_tx(nif_t *n, mbuf_t *m, mac_t dst, u16 type)
 {
     ethhdr_t *hdr = mbuf_pushhdr(m, ethhdr_t);

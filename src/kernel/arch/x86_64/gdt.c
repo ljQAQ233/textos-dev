@@ -1,6 +1,6 @@
 #include <cpu.h>
 #include <gdt.h>
-#include <string.h>
+#include <textos/klib/string.h>
 #include <textos/assert.h>
 
 typedef struct _packed

@@ -3,7 +3,7 @@
  */
 
 #include <textos/net.h>
-#include <string.h>
+#include <textos/klib/string.h>
 
 #ifndef CONFIG_BYTE_BE
 

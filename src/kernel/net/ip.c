@@ -1,7 +1,7 @@
 #include <textos/net.h>
 #include <textos/net/ip.h>
 
-#include <string.h>
+#include <textos/klib/string.h>
 
 u16 cksum(void *data)
 {

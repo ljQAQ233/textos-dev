@@ -1,8 +1,8 @@
-#include <textos/ptrace.h>
 #include <textos/errno.h>
+#include <textos/ptrace.h>
+#include <textos/signal.h>
 #include <textos/syscall.h>
 #include <textos/task.h>
-#include <textos/signal.h>
 
 #define IGN(x) (void)x
 

@@ -1,8 +1,7 @@
 #include <textos/klib/ring.h>
-#include <textos/mm.h>
+#include <textos/mm/heap.h>
 #include <textos/assert.h>
-
-#include <string.h>
+#include <textos/klib/string.h>
 
 /* If Buffer is not provided, allocate memory automatically */
 ring_t *ring_init (ring_t *r, void *buf, size_t siz, size_t elem_siz)

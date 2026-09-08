@@ -9,7 +9,7 @@
 #include <textos/net/udp.h>
 #include <textos/net/socket.h>
 #include <textos/klib/bitmap.h>
-#include <string.h>
+#include <textos/klib/string.h>
 
 #include "inter.h"
 #include <textos/panic.h>

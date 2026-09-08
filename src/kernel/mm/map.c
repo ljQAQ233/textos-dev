@@ -3,7 +3,7 @@
 #include <textos/mm.h>
 #include <textos/mm/map.h>
 
-#include <string.h>
+#include <textos/klib/string.h>
 
 static u64 *pml4;
 static u64 cr3;

@@ -1,16 +1,15 @@
+#include <intr.h>
 #include <io.h>
 #include <irq.h>
-#include <intr.h>
 #include <textos/dev.h>
-#include <textos/dev/pci.h>
 #include <textos/dev/buffer.h>
-#include <textos/task.h>
-#include <textos/panic.h>
+#include <textos/dev/pci.h>
+#include <textos/klib/string.h>
 #include <textos/mm.h>
 #include <textos/mm/map.h>
+#include <textos/panic.h>
 #include <textos/printk.h>
-
-#include <string.h>
+#include <textos/task.h>
 
 #define SECT_SIZ 512
 

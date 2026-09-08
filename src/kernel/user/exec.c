@@ -6,7 +6,7 @@
 #include <textos/user/exec.h>
 
 #include <cpu.h>
-#include <string.h>
+#include <textos/klib/string.h>
 
 static char **duparg(char *const arr[])
 {

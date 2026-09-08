@@ -1,6 +1,5 @@
 #include <textos/dev.h>
-
-#include <string.h>
+#include <textos/klib/string.h>
 
 // EOF
 static int null_read(devst_t *dev, void *buf, size_t cnt, ...)
