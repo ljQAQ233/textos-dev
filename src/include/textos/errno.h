@@ -5,6 +5,7 @@
 #define ENOENT       2   // No that file or dir
 #define ESRCH        3   // No such process
 #define EINTR        4   // Interrupted system call
+#define EIO          5   // I/O error
 #define EBADF        9   // Bad file descriptor
 #define ENOEXEC      8   // Exec format error
 #define ECHILD       10  // No child process
@@ -15,16 +16,17 @@
 #define ENOBLK       15  // File is not block device
 #define EEXIST       17  // File already exists
 #define ENODEV       19  // No such device
-#define	ENOTDIR      20  // Not a directory
-#define	EISDIR       21  // Is a directory
-#define	EINVAL       22  // Invalid argument
-#define ENFILE       23  // 
+#define ENOTDIR      20  // Not a directory
+#define EISDIR       21  // Is a directory
+#define EINVAL       22  // Invalid argument
+#define ENFILE       23  //
 #define EMFILE       24  // Number of fd of this process was out of range
 #define ENOSPC       28  // No space left on device
 #define ERANGE       34  // Result not representable
 #define ENAMETOOLONG 36  // Filename too long
 #define ENOSYS       38  // Function not implemented
 #define ENOTEMPTY    39  // Directory not empty
+#define ELOOP        40  // Symbolic link loop
 #define ETIME        62  // Timer expired
 #define EDESTADDRREQ 89  // Destination address required
 #define EADDRINUSE   98  // Address in use
