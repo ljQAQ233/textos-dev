@@ -646,7 +646,7 @@ static stack_t *make_entry(node_t *target, lookup_t *lkp, bool init)
     /* 预处理 -> 去除末尾的 `.` */
     for (int i = strlen(name) - 1 ; i >= 0 ; i--) {
         if (name[i] == '.')
-            name[i] = EOS;
+            name[i] = '\0';
         else
             break;
     }
