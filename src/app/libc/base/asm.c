@@ -332,6 +332,11 @@ int unlink(const char *path)
     return syscall(SYS_unlink, path);
 }
 
+ssize_t readlink(const char *path, char *buf, size_t bufsize)
+{
+    return syscall(SYS_readlink, path, buf, bufsize);
+}
+
 char *getcwd(char *buf, size_t size)
 {
     // syscall_ret will handle errno
