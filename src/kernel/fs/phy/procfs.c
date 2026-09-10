@@ -58,6 +58,10 @@
 #include <textos/args.h>
 #include <textos/klib/vsprintf.h>
 
+#define IRALL (S_IRUSR | S_IRGRP | S_IROTH)
+#define IWALL (S_IWUSR | S_IWGRP | S_IWOTH)
+#define IXALL (S_IXUSR | S_IXGRP | S_IXOTH)
+
 static proc_opts_t def_op;
 
 #define goto_if(cond, label) do { if (cond) goto label; } while (0)
@@ -506,12 +510,14 @@ typedef struct pid_entry
 #define REG(NAME, MODE, OP) { (NAME), S_IFREG | (MODE), OP }
 #define DIR(NAME, MODE, OP) { (NAME), S_IFDIR | (MODE), OP }
 
+// clang-format off
 static pid_entry_t pid_entry[] = {
-    REG("pid",    S_IRUSR | S_IRGRP | S_IROTH, { .read = pid_pid_read   }),
-    REG("ppid",   S_IRUSR | S_IRGRP | S_IROTH, { .read = pid_ppid_read  }),
-    REG("fpust",  S_IRUSR | S_IRGRP | S_IROTH, { .read = pid_fpust_read }),
-    REG("maps",   S_IRUSR | S_IRGRP | S_IROTH, { .read = pid_maps_read  }),
+    REG("pid",    IRALL, { .read = pid_pid_read   }),
+    REG("ppid",   IRALL, { .read = pid_ppid_read  }),
+    REG("fpust",  IRALL, { .read = pid_fpust_read }),
+    REG("maps",   IRALL, { .read = pid_maps_read  }),
 };
+// clang-format on
 
 #define pid_entry_max (sizeof(pid_entry) / sizeof(pid_entry_t))
 
@@ -690,10 +696,12 @@ node_t *__fs_init_procfs()
     root->next = NULL;
     root->pdata = NULL;
 
-    proc_create("meow",        S_IRUSR | S_IRGRP | S_IROTH, NULL, &catmeow_op);
-    proc_create("version",     S_IRUSR | S_IRGRP | S_IROTH, NULL, &version_op);
-    proc_create("cpuinfo",     S_IRUSR | S_IRGRP | S_IROTH, NULL, &def_op);
-    proc_create("filesystems", S_IRUSR | S_IRGRP | S_IROTH, NULL, &def_op);
+    // clang-format off
+    proc_create("meow",        IRALL | S_IFREG, NULL, &catmeow_op);
+    proc_create("version",     IRALL | S_IFREG, NULL, &version_op);
+    proc_create("cpuinfo",     IRALL | S_IFREG, NULL, &def_op);
+    proc_create("filesystems", IRALL | S_IFREG, NULL, &def_op);
+    // clang-format on
 
     return sb->root = procfs_nodeget(root);
 }
