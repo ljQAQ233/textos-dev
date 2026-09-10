@@ -582,6 +582,19 @@ __SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)
     return vfs_mknod(path, dev, mode);
 }
 
+__SYSCALL_DEFINE3(ssize_t, readlink, char *, path, char *, buf, size_t, bufsize)
+{
+    int ret;
+    node_t *node;
+    struct fs_openctx ctx = {0};
+
+    ret = vfs_open(task_current()->pwd, path, 0, 0, &node, &ctx);
+    if (ret < 0) return ret;
+
+    ret = node->opts->readlink(node, buf, &bufsize);
+    return ret;
+}
+
 __SYSCALL_DEFINE3(int, chown, char *, path, uid_t, owner, gid_t, group)
 {
     int ret;
@@ -589,24 +602,19 @@ __SYSCALL_DEFINE3(int, chown, char *, path, uid_t, owner, gid_t, group)
     struct fs_openctx ctx = {0};
 
     ret = vfs_open(task_current()->pwd, path, 0, 0, &node, &ctx);
-    if (ret < 0)
-        return ret;
-    
+    if (ret < 0) return ret;
+
     ret = vfs_chown(node, owner, group);
-    if (ret < 0)
-        return ret;
     return ret;
 }
 
 __SYSCALL_DEFINE3(int, fchown, int, fd, uid_t, owner, gid_t, group)
 {
     file_t *file = task_current()->files[fd];
-    if (!file)
-        return -EBADF;
+    if (!file) return -EBADF;
 
     int ret = vfs_chown(file->node, owner, group);
-    if (ret < 0)
-        return ret;
+    if (ret < 0) return ret;
     return ret;
 }
 
