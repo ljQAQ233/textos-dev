@@ -10,6 +10,7 @@ SRCS += fs/mnt.c
 SRCS += fs/vopts_chown.c
 SRCS += fs/vopts_mmap.c
 SRCS += fs/poll.c
+SRCS += fs/vopts_links.c
 SRCS += fs/vperm.c
 SRCS += fs/vutils.c
 
