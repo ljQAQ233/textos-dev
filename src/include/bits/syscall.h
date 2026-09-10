@@ -50,6 +50,7 @@
     _(mkdir, 83)        \
     _(rmdir, 84)        \
     _(unlink, 87)       \
+    _(symlink, 88)      \
     _(readlink, 89)     \
     _(chmod, 90)        \
     _(fchmod, 91)       \

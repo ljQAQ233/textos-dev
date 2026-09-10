@@ -332,6 +332,11 @@ int unlink(const char *path)
     return syscall(SYS_unlink, path);
 }
 
+int symlink(const char *path, const char *linkto)
+{
+    return syscall(SYS_symlink, path, linkto);
+}
+
 ssize_t readlink(const char *path, char *buf, size_t bufsize)
 {
     return syscall(SYS_readlink, path, buf, bufsize);

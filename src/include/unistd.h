@@ -44,6 +44,7 @@ int fchown(int __fd, uid_t __owner, gid_t __group);
 int mkdir(const char *__path, mode_t __mode);
 int rmdir(const char *__path);
 int unlink(const char *__path);
+int symlink(const char *__path, const char *__linkto);
 ssize_t readlink(const char *__path, char *__buf, size_t __bufsize);
 int chdir(const char *__path);
 int fchdir(int __fd); // TODO
