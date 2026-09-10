@@ -299,6 +299,19 @@ static int procfs_close(node_t *this)
     return vfs_release(this);
 }
 
+static int procfs_readlink(node_t *this, char *linkto, size_t *siz)
+{
+    // math.log10(2 ** 32) is less than 10
+    char str[16];
+    int len = sprintf(str, "%d", task_current()->pid);
+    if (linkto && len <= *siz) {
+        memcpy(linkto, str, len);
+        return len;
+    }
+    *siz = len;
+    return -ENAMETOOLONG;
+}
+
 static int procfs_read(node_t *this, void *buf, size_t siz, size_t offset,
                        struct fs_openctx *openctx)
 {
@@ -602,8 +615,14 @@ static int meow_read(struct proc_entry *this, void *buf, size_t siz, size_t offs
     return proc_printf(buf, siz, offset, "meow~\n");
 }
 
-static proc_opts_t version_op = { .read = version_read };
-static proc_opts_t catmeow_op = { .read = meow_read    };
+static int self_readlink(struct proc_entry *this, char *linkto, size_t siz)
+{
+    return proc_printf(linkto, siz, 0, "%d", task_current()->pid);
+}
+
+static proc_opts_t version_op = {.read = version_read};
+static proc_opts_t catmeow_op = {.read = meow_read};
+static proc_opts_t self_op = {.readlink = self_readlink};
 
 /*
  * procfs root readdir!
@@ -701,6 +720,7 @@ node_t *__fs_init_procfs()
     proc_create("version",     IRALL | S_IFREG, NULL, &version_op);
     proc_create("cpuinfo",     IRALL | S_IFREG, NULL, &def_op);
     proc_create("filesystems", IRALL | S_IFREG, NULL, &def_op);
+    proc_create("self", IRALL | IXALL | S_IFLNK, NULL, &self_op);
     // clang-format on
 
     return sb->root = procfs_nodeget(root);
@@ -712,6 +732,8 @@ fs_opts_t __procfs_op = {
     NULL,
     NULL,
     noopt,
+    noopt,
+    procfs_readlink,
     noopt,
     noopt,
     noopt,

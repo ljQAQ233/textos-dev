@@ -10,15 +10,17 @@ struct proc_entry;
  */
 typedef struct proc_opts
 {
-    int  (*open)(struct proc_entry *parent, char *name, struct proc_entry **res);
-    int  (*ioctl)(struct proc_entry *this, int req, void *argp);
-    int  (*close)(struct proc_entry *this);
-    int  (*destroy)(struct proc_entry *this); // TODO
-    int  (*read)(struct proc_entry *this, void *buf, size_t siz, size_t offset);
-    int  (*write)(struct proc_entry *this, void *buf, size_t siz, size_t offset);
-    int  (*truncate)(struct proc_entry *this, size_t offset);
-    int  (*readdir)(struct proc_entry *this, dirctx_t *ctx, int relative_pos);
-    int  (*seekdir)(struct proc_entry *this, dirctx_t *ctx, size_t *relative_pos);
+    int (*open)(struct proc_entry *parent, char *name, struct proc_entry **res);
+    int (*ioctl)(struct proc_entry *this, int req, void *argp);
+    int (*close)(struct proc_entry *this);
+    int (*destroy)(struct proc_entry *this); // TODO
+    int (*readlink)(struct proc_entry *this, char *linkto, size_t siz);
+    int (*read)(struct proc_entry *this, void *buf, size_t siz, size_t offset);
+    int (*write)(struct proc_entry *this, void *buf, size_t siz, size_t offset);
+    int (*truncate)(struct proc_entry *this, size_t offset);
+    int (*readdir)(struct proc_entry *this, dirctx_t *ctx, int relative_pos);
+    int (*seekdir)(struct proc_entry *this, dirctx_t *ctx,
+                   size_t *relative_pos);
     void *(*mmap)(struct proc_entry *this, vm_region_t *vm);
 } proc_opts_t;
 
