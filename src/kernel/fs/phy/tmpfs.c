@@ -351,6 +351,8 @@ fs_opts_t __tmpfs_op = {
     NULL,
     NULL,
     tmpfs_mknod,
+    noopt, // TODO
+    noopt,
     tmpfs_chown,
     tmpfs_chmod,
     tmpfs_remove,

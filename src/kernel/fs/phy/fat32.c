@@ -1756,6 +1756,8 @@ fs_opts_t __fat32_opts = {
     fat32_close,
     NULL,
     NULL,
+    noopt_perm, // TODO: NOSYS
+    noopt_perm,
     noopt_perm,
     noopt_perm,
     noopt_perm,

@@ -57,6 +57,12 @@ typedef struct
      */
     int (*mknod)(node_t *parent, char *name, dev_t rdev, int mode,
                  node_t **result);
+    int (*symlink)(node_t *parent, char *name, char *linkto, node_t **result);
+    /*
+     * returns -ENAMETOOLONG when linkto buffer of siz is too small or linkto is
+     * NULL
+     */
+    int (*readlink)(node_t *this, char *linkto, size_t *siz);
     /*
      * vfs layer handles -1, physical fs gets final uid/gid only. physical fs
      * must update both node's or on-disk inode's ctime, uid/gid and clear SUID
@@ -200,6 +206,15 @@ int vfs_remove(node_t *this);
 
 // vopts_chmod.c
 int vfs_chmod(node_t *file, mode_t mode);
+
+// vopts_links.c
+int vfs_symlink(char *path, char *linkto, node_t **result);
+int vfs_readlink(node_t *this, char *linkto, size_t *siz);
+/**
+ * @brief automatically allocate a buffer and read link, which will be
+ * saved in `buf` with a null terminated, siz excludes the final '\0'
+ */
+int vfs_readlink_auto(node_t *this, char **linkto, size_t *siz);
 
 // vopts_chown.c
 int vfs_chown(node_t *file, uid_t owner, gid_t group);

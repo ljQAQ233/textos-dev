@@ -128,6 +128,8 @@ fs_opts_t __vfs_dev_op = {
     dev_init_pctx,
     dev_fini_pctx,
     NULL, /* mknod */
+    NULL, /* symlink */
+    NULL, /* readlink */
     NULL, /* chown */
     NULL, /* chmod */
     NULL, /* remove */

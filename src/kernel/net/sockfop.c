@@ -68,6 +68,8 @@ fs_opts_t __socket_opts = {
     noopt,
     noopt,
     noopt,
+    noopt,
+    noopt,
     socket_read,
     socket_write,
     noopt,

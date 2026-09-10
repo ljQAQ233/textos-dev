@@ -13,6 +13,8 @@ void vfs_initops(fs_opts_t *op)
     op->close = noopt;
     op->_init_pctx = NULL;
     op->_fini_pctx = NULL;
+    op->symlink = noopt;
+    op->readlink = noopt;
     op->mknod = noopt;
     op->chown = noopt;
     op->chmod = noopt;
