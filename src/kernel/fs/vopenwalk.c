@@ -16,21 +16,29 @@ static int _vfs_open(node_t *dir, node_t **node, char *path, u64 args, int mode)
     }
 
     res = vfs_exist(dir, path);
-    if (res == NULL) {
+    if (!res) {
         ret = dir->sb->op->open(dir, path, args, mode, &res);
-        if (ret < 0) {
-            res = NULL;
-            goto fini;
-        }
+        if (ret < 0) goto fini;
     }
 
     if (vfs_ismount(res)) {
-        if (~args & FS_GAINMNT) res = res->child;
+        if (~args & FS_GAINMNT) {
+            res = res->child;
+        }
+    }
+    if (S_ISLNK(res->mode)) {
+        char *linkto;
+        size_t linkto_len;
+        struct fs_openctx fakectx;
+        ret = vfs_readlink_auto(res, &linkto, &linkto_len);
+        if (ret < 0) goto fini;
+        ret = vfs_open(dir, linkto, FS_GAIN, 0, &res, &fakectx);
+        free(linkto);
+        if (ret < 0) goto fini;
     }
 
 fini:
-    *node = res;
-
+    *node = ret < 0 ? NULL : res;
     return ret;
 }
 
