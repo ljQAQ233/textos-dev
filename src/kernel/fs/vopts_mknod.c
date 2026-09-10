@@ -6,7 +6,7 @@ extern fs_opts_t __vfs_dev_op;
  * if dev is a network device it also mknods, the precondition
  * is that it is called by the kernel... instead of mknod syscall!
  */
-int vfs_mknod(char *path, dev_t dev, int mode)
+int vfs_mknod(const char *path, dev_t dev, int mode)
 {
     int ret;
     if (!S_ISCHR(mode) && !S_ISBLK(mode) && !S_ISFIFO(mode) && !S_ISSOCK(mode))

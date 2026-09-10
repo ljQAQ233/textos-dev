@@ -500,7 +500,7 @@ static node_t *minix_nodeget(superblk_t *sb, minix_inode_t *mi, mino_t ino,
     return node;
 }
 
-static int minix_namel(char *res, char *name)
+static int minix_namel(char *res, const char *name)
 {
     char *p = strchr(name, '/');
     size_t len = 0;
@@ -514,7 +514,7 @@ static int minix_namel(char *res, char *name)
     return 0;
 }
 
-static int minix_open(node_t *parent, char *name, u64 args, int mode,
+static int minix_open(node_t *parent, const char *name, u64 args, int mode,
                       node_t **result)
 {
     superblk_t *sb = parent->sb;
@@ -561,7 +561,7 @@ nospace:
     return -ENOSPC;
 }
 
-static int minix_mknod(node_t *parent, char *name, dev_t rdev, int mode,
+static int minix_mknod(node_t *parent, const char *name, dev_t rdev, int mode,
                        node_t **result)
 {
     char filname[15];

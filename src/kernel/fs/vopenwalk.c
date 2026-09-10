@@ -2,7 +2,8 @@
 #include <textos/fs.h>
 #include <textos/fs/internal.h>
 
-static int _vfs_open(node_t *dir, node_t **node, char *path, u64 args, int mode)
+static int _vfs_open(node_t *dir, node_t **node, const char *path, u64 args,
+                     int mode)
 {
     int ret = 0;
     node_t *res;
@@ -42,9 +43,9 @@ fini:
     return ret;
 }
 
-int vfs_walkd(node_t *start, char **path, node_t **node)
+int vfs_walkd(node_t *start, const char **path, node_t **node)
 {
-    char *p = *path;
+    const char *p = *path;
     if (!start) start = __vfs_root;
     if (p[0] == '/') start = __vfs_root;
     while (*p == '/')
@@ -77,7 +78,7 @@ int vfs_open(node_t *parent, const char *path, u64 args, int mode,
              node_t **node, struct fs_openctx *openctx)
 {
     int ret = 0;
-    char *p = (char *)path;
+    const char *p = path;
     node_t *dir = NULL;
     node_t *res = NULL;
     ret = vfs_walkd(parent, &p, &dir);

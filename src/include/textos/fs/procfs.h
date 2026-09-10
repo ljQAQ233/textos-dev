@@ -10,7 +10,7 @@ struct proc_entry;
  */
 typedef struct proc_opts
 {
-    int (*open)(struct proc_entry *parent, char *name, struct proc_entry **res);
+    int (*open)(struct proc_entry *parent, const char *name, struct proc_entry **res);
     int (*ioctl)(struct proc_entry *this, int req, void *argp);
     int (*close)(struct proc_entry *this);
     int (*destroy)(struct proc_entry *this); // TODO

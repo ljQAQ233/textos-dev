@@ -1,6 +1,6 @@
 #include <textos/fs/internal.h>
 
-node_t *vfs_exist(node_t *dir, char *path)
+node_t *vfs_exist(node_t *dir, const char *path)
 {
     for (node_t *ptr = dir->child; ptr; ptr = ptr->next)
         if (fs_name_cmp(ptr->name, path)) return ptr;

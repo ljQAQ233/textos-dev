@@ -45,7 +45,7 @@ struct fs_openctx
 typedef struct
 {
     /* node operations */
-    int (*open)(node_t *parent, char *path, u64 args, int mode,
+    int (*open)(node_t *parent, const char *path, u64 args, int mode,
                 node_t **result);
     int (*close)(node_t *this);
     int (*_init_pctx)(node_t *this, void **pctx);
@@ -55,9 +55,10 @@ typedef struct
      * it with a device only in memory (vfs node_t::rdev). it is certain that
      * `name` is not exist (filtered by vfs before)
      */
-    int (*mknod)(node_t *parent, char *name, dev_t rdev, int mode,
+    int (*mknod)(node_t *parent, const char *name, dev_t rdev, int mode,
                  node_t **result);
-    int (*symlink)(node_t *parent, char *name, char *linkto, node_t **result);
+    int (*symlink)(node_t *parent, const char *name, const char *linkto,
+                   node_t **result);
     /*
      * returns -ENAMETOOLONG when linkto buffer of siz is too small or linkto is
      * NULL
@@ -171,7 +172,7 @@ void vfs_initops(fs_opts_t *opts);
 void vfs_regst(node_t *n, node_t *p);
 void vfs_unreg(node_t *n);
 node_t *vfs_getprt(node_t *n);
-node_t *vfs_exist(node_t *dir, char *path);
+node_t *vfs_exist(node_t *dir, const char *path);
 int vfs_release(node_t *this);
 void vfs_listnode(node_t *start);
 
@@ -191,7 +192,7 @@ int vfs_getpath(node_t *n, char *buf, size_t *size);
 int vfs_permission(node_t *n, int want);
 
 // vopenwalk.c
-int vfs_walkd(node_t *start, char **path, node_t **node);
+int vfs_walkd(node_t *start, const char **path, node_t **node);
 int vfs_open(node_t *parent, const char *path, u64 args, int mode,
              node_t **result, struct fs_openctx *openctx);
 
@@ -208,7 +209,7 @@ int vfs_remove(node_t *this);
 int vfs_chmod(node_t *file, mode_t mode);
 
 // vopts_links.c
-int vfs_symlink(char *path, char *linkto, node_t **result);
+int vfs_symlink(const char *path, const char *linkto, node_t **result);
 int vfs_readlink(node_t *this, char *linkto, size_t *siz);
 /**
  * @brief automatically allocate a buffer and read link, which will be
@@ -220,7 +221,7 @@ int vfs_readlink_auto(node_t *this, char **linkto, size_t *siz);
 int vfs_chown(node_t *file, uid_t owner, gid_t group);
 
 // vopts_mknod.c
-int vfs_mknod(char *path, dev_t dev, int mode);
+int vfs_mknod(const char *path, dev_t dev, int mode);
 
 // vopts_mmap.c
 void *vfs_generic_mmap(node_t *n, vm_region_t *v, struct fs_openctx *openctx);

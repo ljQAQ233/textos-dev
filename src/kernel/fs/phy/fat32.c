@@ -820,7 +820,7 @@ static inline buffer_t *cl_bread(fat_sbi_t *sbi, unsigned clst, unsigned off)
     return sb_bread(sbi->sb, clst2sec(sbi, clst) + off);
 }
 
-static lookup_t *lookup_entry(lookup_t *prt, char *name)
+static lookup_t *lookup_entry(lookup_t *prt, const char *name)
 {
     lookup_t *lkp = malloc(sizeof(*lkp));
     stack_init(&lkp->ents);
@@ -1453,7 +1453,7 @@ done:
 static sentry_t dirhead_1 = { ".          " , FA_DIR, 1 };
 static sentry_t dirhead_2 = { "..         " , FA_DIR, 0 };
 
-static node_t *create(node_t *prt, char *name, int fmt)
+static node_t *create(node_t *prt, const char *name, int fmt)
 {
     node_t *chd = calloc(sizeof(*chd));
     lookup_t *lkp = malloc(sizeof(*lkp));
@@ -1503,7 +1503,7 @@ static node_t *create(node_t *prt, char *name, int fmt)
     return chd;
 }
 
-static node_t *_fat32_open(node_t *dir, char *path)
+static node_t *_fat32_open(node_t *dir, const char *path)
 {
     node_t *chd = NULL;
     lookup_t *lkp;
@@ -1522,7 +1522,8 @@ static node_t *_fat32_open(node_t *dir, char *path)
     return chd;
 }
 
-static int fat32_open(node_t *parent, char *path, u64 args, int mode, node_t **result)
+static int fat32_open(node_t *parent, const char *path, u64 args, int mode,
+                      node_t **result)
 {
     int ret = 0;
     node_t *opened;

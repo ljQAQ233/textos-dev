@@ -93,7 +93,7 @@ static proc_entry_t __procfs_root;
 #define proc_foreach(ent) \
     for (proc_entry_t *ptr = ent ; ptr ; ptr = ptr->next)
 
-proc_entry_t *proc_ent_find(proc_entry_t *dir, char *name)
+proc_entry_t *proc_ent_find(proc_entry_t *dir, const char *name)
 {
     proc_foreach(dir->subdir) {
         if (strcmp(ptr->name, name) == 0)
@@ -263,7 +263,7 @@ static node_t *procfs_nodeget(proc_entry_t *ent)
     return node;
 }
 
-static int procfs_open(node_t *parent, char *name, u64 args, int mode, node_t **result)
+static int procfs_open(node_t *parent, const char *name, u64 args, int mode, node_t **result)
 {
     proc_entry_t *dir = parent->pdata;
     proc_entry_t *chd = proc_ent_find(dir, name);
@@ -534,7 +534,8 @@ static pid_entry_t pid_entry[] = {
 
 #define pid_entry_max (sizeof(pid_entry) / sizeof(pid_entry_t))
 
-static int pid_open(struct proc_entry *dir, char *name, struct proc_entry **res)
+static int pid_open(struct proc_entry *dir, const char *name,
+                    struct proc_entry **res)
 {
     for (int idx = 0 ; idx < pid_entry_max ; idx++)
     {
@@ -632,10 +633,11 @@ static proc_opts_t self_op = {.readlink = self_readlink};
  *  - /proc/<pid>  [dynamic]
  */
 
-static int root_open(struct proc_entry *root, char *name, struct proc_entry **res)
+static int root_open(struct proc_entry *root, const char *name,
+                     struct proc_entry **res)
 {
     int pid = 0;
-    for (char *p = name ; *p && *p != '/' ; p++) {
+    for (const char *p = name ; *p && *p != '/' ; p++) {
         if (*p < '0' || *p > '9')
             return -ENOENT;
         pid = pid * 10 + *p - '0';

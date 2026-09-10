@@ -2,7 +2,7 @@
 #include <textos/fs.h>
 #include <textos/mm/heap.h>
 
-int vfs_symlink(char *path, char *linkto, node_t **result)
+int vfs_symlink(const char *path, const char *linkto, node_t **result)
 {
     int ret;
     node_t *dir = NULL;

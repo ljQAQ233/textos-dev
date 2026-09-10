@@ -31,16 +31,16 @@ typedef struct _packed
 
 // utils
 
-static inline char *fs_path_next(char *p)
+static inline char *fs_path_next(const char *p)
 {
     while (*p != '/' && *p)
         p++;
     while (*p == '/')
         p++;
-    return p;
+    return (char *)p;
 }
 
-static inline bool fs_path_isdir(char *p)
+static inline bool fs_path_isdir(const char *p)
 {
     bool res = false;
     for (; p && *p; p++) {
@@ -54,7 +54,7 @@ static inline bool fs_path_isdir(char *p)
 extern size_t strlen(const char *str);
 extern char *strchr(const char *str, int c);
 
-static inline bool fs_name_cmp(char *A, char *B)
+static inline bool fs_name_cmp(const char *A, const char *B)
 {
     size_t lenA = MIN(strlen(A), strchr(A, '/') - A);
     size_t lenB = MIN(strlen(B), strchr(B, '/') - B);
@@ -66,9 +66,9 @@ static inline bool fs_name_cmp(char *A, char *B)
 
 extern void noopt_handler();
 
-#include <textos/task.h>
-#include <textos/mm/heap.h>
 #include <textos/klib/string.h>
+#include <textos/mm/heap.h>
+#include <textos/task.h>
 /*
  * vfs in-memory node operations used by physical file systems
  */

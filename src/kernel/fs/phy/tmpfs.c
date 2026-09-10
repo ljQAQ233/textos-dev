@@ -46,7 +46,7 @@ static ino_t tmpfs_inoget(superblk_t *sb)
     return sbi->ino_current++;
 }
 
-static node_t *tmpfs_nodenew(superblk_t *sb, char *name, mode_t mode,
+static node_t *tmpfs_nodenew(superblk_t *sb, const char *name, mode_t mode,
                              dev_t rdev)
 {
     unsigned ma = sb->dev->major;
@@ -77,7 +77,7 @@ static node_t *tmpfs_nodenew(superblk_t *sb, char *name, mode_t mode,
  * FIXME : name may include '/' or other characters, strip them later!!!
  *         all physical file system interfaces of vrtfs has this bug!!!
  */
-static int tmpfs_open(node_t *parent, char *name, u64 args, int mode,
+static int tmpfs_open(node_t *parent, const char *name, u64 args, int mode,
                       node_t **result)
 {
     node_t *node = NULL;
@@ -97,7 +97,7 @@ static int tmpfs_open(node_t *parent, char *name, u64 args, int mode,
     return 0;
 }
 
-int tmpfs_mknod(node_t *parent, char *name, dev_t rdev, int mode,
+int tmpfs_mknod(node_t *parent, const char *name, dev_t rdev, int mode,
                 node_t **result)
 {
     node_t *chd = tmpfs_nodenew(parent->sb, name, mode, rdev);
