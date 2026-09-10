@@ -27,7 +27,7 @@ static int _vfs_open(node_t *dir, node_t **node, const char *path, u64 args,
             res = res->child;
         }
     }
-    if (S_ISLNK(res->mode)) {
+    if (S_ISLNK(res->mode) && !(args & FS_GAINLNK)) {
         char *linkto;
         size_t linkto_len;
         struct fs_openctx fakectx;

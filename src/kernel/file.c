@@ -596,7 +596,7 @@ __SYSCALL_DEFINE3(ssize_t, readlink, char *, path, char *, buf, size_t, bufsize)
     node_t *node;
     struct fs_openctx ctx = {0};
 
-    ret = vfs_open(task_current()->pwd, path, 0, 0, &node, &ctx);
+    ret = vfs_open(task_current()->pwd, path, FS_GAINLNK, 0, &node, &ctx);
     if (ret < 0) return ret;
 
     ret = node->opts->readlink(node, buf, &bufsize);
