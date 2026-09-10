@@ -641,6 +641,80 @@ static int minix_remove(node_t *this)
     return vfs_release(this);
 }
 
+#if defined(NATIVE_SYMLINK) || defined(__clangd__)
+
+static int minix_symlink(node_t *parent, const char *name, const char *linkto,
+                         node_t **result)
+{
+    char filname[MAX_FILENAME + 1];
+    int linkto_len = strlen(linkto);
+    superblk_t *sb = parent->sb;
+    if (minix_namel(filname, name) < 0) return -ENAMETOOLONG;
+    if (linkto_len + 1 > BLKSZ) return -ENAMETOOLONG;
+
+    minix_inode_t *mi = NULL;
+    mzone_t zno = 0;
+    mino_t ino = 0;
+    if (!(zno = minix_zalloc(sb))) goto nospace;
+    if (!(ino = minix_ialloc(sb))) goto nospace;
+    if (minix_eddir(parent, filname, ino) < 0) goto nospace;
+
+    mi = minix_iget(sb, ino);
+    /*
+     * Note that all the symlinks are of the permission 0777
+     * the actual access permission depends on the target file
+     */
+    mi->mode = S_IFLNK | 0777;
+    mi->uid = 0;
+    mi->size = linkto_len;
+    mi->mtime = arch_time_now();
+    mi->gid = 0;
+    mi->nlinks = 1;
+    memset(mi->zone, 0, sizeof(mi->zone));
+    mi->zone[0] = zno;
+    minix_isync(sb, mi, ino);
+
+    buffer_t *linkto_blk = sb_bread(sb, zno);
+    memcpy(linkto_blk->blk, linkto, linkto_len);
+    bdirty(linkto_blk, true);
+    brelse(linkto_blk);
+
+    node_t *node = minix_nodeget(sb, mi, ino, filname);
+    vfs_regst(node, parent);
+    *result = node;
+    return 0;
+
+nospace:
+    if (zno) minix_zfree(sb, zno);
+    if (ino) minix_ifree(sb, ino);
+    if (mi) free(mi);
+    return -ENOSPC;
+}
+
+static int minix_readlink(node_t *this, char *linkto, size_t *siz)
+{
+    minix_inode_t *mi = this->pdata;
+    superblk_t *sb = this->sb;
+
+    if (!mi->zone[0]) return -EIO;
+    buffer_t *linkto_blk = sb_bread(sb, mi->zone[0]);
+    if (!linkto_blk) return -EIO;
+    size_t linkto_len = mi->size;
+    if (linkto_len > BLKSZ) {
+        DEBUGK(K_ERROR, "minix symlink (%s) size exceeds BLKSZ\n", this->name);
+        return -EIO;
+    }
+
+    if (linkto && *siz >= linkto_len) {
+        memcpy(linkto, linkto_blk->blk, linkto_len);
+        return linkto_len;
+    }
+    *siz = linkto_len;
+    return -ENAMETOOLONG;
+}
+
+#endif
+
 static int minix_read(node_t *this, void *buf, size_t siz, size_t offset,
                       struct fs_openctx *openctx)
 {
@@ -844,6 +918,13 @@ fs_opts_t MINIX_OP = {
     NULL,
     NULL,
     minix_mknod,
+#if defined(NATIVE_SYMLINK)
+    minix_symlink,
+    minix_readlink,
+#else
+    noopt,
+    noopt,
+#endif
     minix_chown,
     minix_chmod,
     minix_remove,

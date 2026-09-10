@@ -12,6 +12,7 @@ typedef u32 mzone_t;
 
 #define FLEXIBLE_BLKSZ
 #define FLEXIBLE_FIRST_DATA_ZONE
+#define NATIVE_SYMLINK
 
 #include "minix.c"
 
