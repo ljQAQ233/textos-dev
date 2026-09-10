@@ -582,6 +582,14 @@ __SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)
     return vfs_mknod(path, dev, mode);
 }
 
+__SYSCALL_DEFINE2(int, symlink, const char *, path, const char *, linkto)
+{
+    int ret;
+    node_t *node;
+    ret = vfs_symlink(path, linkto, &node);
+    return ret;
+}
+
 __SYSCALL_DEFINE3(ssize_t, readlink, char *, path, char *, buf, size_t, bufsize)
 {
     int ret;
