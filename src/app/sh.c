@@ -16,11 +16,13 @@
 // 2026/04/19 - fixes some bugs & add exit flag in builtin_exit
 // 2026/04/25 - allow SIGINT to interrupt readline
 // 2026/04/26 - fixes 'putenv' -> 'setenv' which allocates memory itself
+// 2026/09/11 - fixes tswitch's crashing when reclaiming an nonexistent tty
 
 #include <assert.h>
 #include <fcntl.h>
 #include <malloc.h>
 #include <setjmp.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,7 +30,6 @@
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
-#include <signal.h>
 
 #define CONFIG_READLINE 1
 #define HISTSIZE        16
@@ -331,6 +332,8 @@ void jlog(struct job *j, char code[], int showpick);
 int jmake(pid_t pid, char pick[]);
 void jdealwait(struct job *j, int ws, int *status);
 void tswitch(pid_t pid);
+void ignore_stp();
+void default_stp();
 
 DECLARE_BUILTIN(builtin_bg);
 DECLARE_BUILTIN(builtin_cd);
@@ -714,7 +717,18 @@ void jdealwait(struct job *j, int ws, int *status)
 
 void tswitch(pid_t pid)
 {
-    assert(tcsetpgrp(0, pid != 0 ? pid : getpgid(0)) >= 0);
+    ignore_stp();
+    int checks[] = {
+        STDIN_FILENO,      STDOUT_FILENO,      STDERR_FILENO,
+        16 + STDIN_FILENO, 16 + STDOUT_FILENO, 16 + STDERR_FILENO,
+    };
+    int pgrp = pid != 0 ? pid : getpgid(0);
+    for (int i = 0; i < 6; i++)
+        if (isatty(checks[i]))
+            if (tcsetpgrp(checks[i], pgrp) >= 0) return;
+    fprintf(stderr, "cannot handle tty to group %d\n", pgrp);
+exit:
+    default_stp();
 }
 
 void ignore_stp()
