@@ -8,6 +8,7 @@
 #define O_TRUNC     01000 // 截断
 #define O_APPEND    02000 // 末尾追加
 #define O_DIRECTORY 0200000
+#define O_NOFOLLOW  0400000
 
 #define O_NONBLOCK 04000 // 非阻塞 TODO
 

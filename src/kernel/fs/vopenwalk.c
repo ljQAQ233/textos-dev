@@ -101,8 +101,12 @@ int vfs_open(node_t *parent, const char *path, u64 args, int mode,
         if ((ret = vfs_permission(res, want)) < 0) goto end;
         if (!S_ISDIR(res->mode) && args & O_DIRECTORY)
             ret = -ENOTDIR;
-        else if (S_ISDIR(res->mode) && ~args & O_DIRECTORY)
+        else if (S_ISDIR(res->mode) && !(args & O_DIRECTORY))
             ret = -EISDIR;
+        if (S_ISLNK(dir->mode) && (args & O_NOFOLLOW)) {
+            // If path names a symbolic link, fail and set errno to [ELOOP]
+            ret = -ELOOP;
+        }
     }
 end:
     if (!ret) {
