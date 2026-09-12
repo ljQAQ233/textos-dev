@@ -582,8 +582,13 @@ __SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)
     return vfs_mknod(path, dev, mode);
 }
 
-__SYSCALL_DEFINE2(int, symlink, const char *, path, const char *, linkto)
+__SYSCALL_DEFINE2(int, symlink, const char *, linkto, const char *, path)
 {
+    /*
+     * make a symbolic link at `path` pointing to `linkto`, symlink("/real/file",
+     * "/path/to/link") creates /path/to/link pointing to /real/file.
+     * バカだから, when I first write this function, I messed up the order!
+     */
     int ret;
     node_t *node;
     ret = vfs_symlink(path, linkto, &node);
