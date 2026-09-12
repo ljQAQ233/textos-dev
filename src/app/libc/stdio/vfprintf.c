@@ -1,4 +1,5 @@
 #include "stdio.h"
+#include <errno.h>
 #include <limits.h>
 #include <malloc.h>
 #include <stdbool.h>
@@ -413,8 +414,12 @@ int vfprintf(FILE *f, const char *format, va_list _ap)
             size = 1, s = tmp;
             fmt++;
             break;
-        case 's':
-            s = (char *)va_arg(ap, char *);
+        case 'm':
+            s = strerror(errno);
+            if (0) {
+            case 's':
+                s = (char *)va_arg(ap, char *);
+            }
             if (!s) s = "(nil)";
             size = strlen(s);
             fmt++;
