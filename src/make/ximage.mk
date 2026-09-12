@@ -31,7 +31,7 @@ _img_new_:
 	sfdisk $(IMG) < utils/disk.conf
 	sudo losetup -P $(LOOP) $(IMG)
 	sudo mkfs.fat -F 32 -s 1 $(LOOP)p1
-	sudo mkfs.minix -1 -n14 $(LOOP)p2
+	sudo mkfs.minix -3 $(LOOP)p2
 	sudo losetup -d $(LOOP)
 
 # 更新策略: IMAGE_NEW 不为 false 时, 镜像将被重新 make, 原来的文件全部丢失.
