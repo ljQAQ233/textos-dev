@@ -517,6 +517,11 @@ pid_t getpgid(pid_t pid)
     return syscall(SYS_getpgid, pid);
 }
 
+pid_t getpgrp()
+{
+    return getpgid(0);
+}
+
 int setpgid(pid_t pid, pid_t pgid)
 {
     return syscall(SYS_setpgid, pid, pgid);

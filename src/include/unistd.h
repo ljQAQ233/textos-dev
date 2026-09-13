@@ -86,6 +86,7 @@ int setgroups(int __size, gid_t *__list); // non-posix
 pid_t getsid(pid_t __pid);
 pid_t setsid();
 pid_t getpgid(pid_t __pid);
+pid_t getpgrp();
 int setpgid(pid_t __pid, pid_t __pgid);
 
 pid_t getpid();
