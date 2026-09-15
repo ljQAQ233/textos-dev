@@ -1,6 +1,7 @@
 [submodule "src/boot/Edk2"]
 	path = src/boot/Edk2
 	url = https://github.com/ljQAQ233/edk2
+    shallow = true
 [submodule "src/app/lvgl/lvgl"]
 	path = src/app/lvgl/lvgl
 	url = https://github.com/lvgl/lvgl
@@ -8,6 +9,8 @@
 [submodule "src/app/libm/openlibm"]
 	path = src/app/libm/openlibm
 	url = https://github.com/JuliaMath/openlibm
+    shallow = true
 [submodule "src/app/lua/lua"]
 	path = src/app/lua/lua
 	url = https://github.com/lua/lua
+    shallow = true
