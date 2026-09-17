@@ -35,4 +35,6 @@
 #define ETIMEDOUT    110
 #define ECONNREFUSED 111
 
+#define EADDRNOTAVAIL 99 // Address not available
+
 #endif

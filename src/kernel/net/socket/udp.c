@@ -1,15 +1,15 @@
 /*
  * TODO: fuck up the retval :)
  */
-#include <textos/mm.h>
-#include <textos/task.h>
 #include <textos/errno.h>
-#include <textos/net.h>
-#include <textos/net/ip.h>
-#include <textos/net/udp.h>
-#include <textos/net/socket.h>
 #include <textos/klib/bitmap.h>
 #include <textos/klib/string.h>
+#include <textos/mm.h>
+#include <textos/net.h>
+#include <textos/net/ip.h>
+#include <textos/net/socket.h>
+#include <textos/net/udp.h>
+#include <textos/task.h>
 
 #include "inter.h"
 #include <textos/panic.h>
@@ -22,6 +22,7 @@ static list_t intype = LIST_INIT(intype);
 
 typedef struct
 {
+    nif_t *nif;
     ipv4_t laddr; // for bind
     ipv4_t raddr; // for send
 
@@ -65,29 +66,25 @@ static int udp_socket(socket_t *s)
 
 static int udp_bind(socket_t *s, sockaddr_t *addr, socklen_t len)
 {
-    if (!addr)
-        return -EDESTADDRREQ;
-    if (len <= sizeof(sockaddr_in_t))
-        return -EINVAL;
+    if (!addr) return -EDESTADDRREQ;
+    if (len <= sizeof(sockaddr_in_t)) return -EINVAL;
 
     udp_t *u = UDP(s->pri);
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
-        
+
     int port = ntohs(in->port);
-    if (port)
-    {
-        if (bitmap_test(&bmp, port))
-            return -EADDRINUSE;
-    }
-    else
-    {
+    if (port) {
+        if (bitmap_test(&bmp, port)) return -EADDRINUSE;
+    } else {
         ck_lport(u);
     }
 
     if (ip_addr_isany(in->addr))
         ip_addr_copy(u->laddr, nif_find_default()->ip);
-    else
+    else {
+        if (!nif_find_byip4(in->addr, NULL)) return -EADDRNOTAVAIL;
         ip_addr_copy(u->laddr, in->addr);
+    }
 
     return 0;
 }
@@ -162,7 +159,7 @@ static ssize_t udp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 
     ck_lport(u);
 
-    net_tx_udp(nif_find_default(), m, in->addr, u->lport, ntohs(in->port));
+    net_tx_udp(u->nif, m, in->addr, u->lport, ntohs(in->port));
     return len;
 }
 
