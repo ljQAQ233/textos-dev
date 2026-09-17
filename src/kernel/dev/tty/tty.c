@@ -6,14 +6,15 @@
  * TODO: linked with kbd
  * TODO: linked with console / get ttys separated (multi-tty)
  */
+#define _GNU_SOURCE
 #include <textos/dev.h>
-#include <textos/task.h>
+#include <textos/dev/tty/kstoa.h>
+#include <textos/dev/tty/tty.h>
 #include <textos/errno.h>
 #include <textos/ioctl.h>
-#include <textos/mm/heap.h>
 #include <textos/klib/string.h>
-#include <textos/dev/tty/tty.h>
-#include <textos/dev/tty/kstoa.h>
+#include <textos/mm/heap.h>
+#include <textos/task.h>
 
 tty_t ttys[8];
 tty_t *fgtty;
@@ -269,6 +270,18 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
                 continue;
             }
             if (cc[VKILL] == *p) {
+                if (!tty_buf_chrs(&tty->ibuf)) continue;
+                if (FC_LFLAG(tty, ECHO | ECHOK) ||
+                    FC_LFLAG(tty, ECHO | ECHOKE)) {
+                    for (int i = 0; i < tty_buf_chrs(&tty->ibuf); i++) {
+                        tputc(tty, '\b');
+                        tputc(tty, ' ');
+                        tputc(tty, '\b');
+                    }
+                }
+                if (FC_LFLAG(tty, ECHO | ECHOKE)) {
+                    opost(tty, '\n');
+                }
                 tty_buf_kill(&tty->ibuf);
                 continue;
             }

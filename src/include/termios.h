@@ -91,6 +91,26 @@ struct termios
 #define TCSADRAIN 1
 #define TCSAFLUSH 2
 
+#if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
+    #define EXTA    0000016
+    #define EXTB    0000017
+    #define CBAUD   0010017
+    #define CBAUDEX 0010000
+    #define CIBAUD  002003600000
+    #define CMSPAR  010000000000
+    #define CRTSCTS 020000000000
+
+    #define XCASE   0000004
+    #define ECHOCTL 0001000
+    #define ECHOPRT 0002000
+    #define ECHOKE  0004000
+    #define FLUSHO  0010000
+    #define PENDIN  0040000
+    #define EXTPROC 0200000
+
+    #define XTABS 0014000
+#endif
+
 int tcgetattr(int __fd, struct termios *__tio);
 int tcsetattr(int __fd, int __act, const struct termios *__tio);
 int tcsetpgrp(int __fd, pid_t __pgrp);
