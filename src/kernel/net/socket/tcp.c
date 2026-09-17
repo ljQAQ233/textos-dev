@@ -96,7 +96,7 @@ typedef struct
 
 #define TRY_UNBLK(x)            \
     do {                        \
-        if (x >= 0)             \
+        if (x > 0)             \
             task_unblock(x, 0); \
         x = NULL;               \
     } while (0);
@@ -318,12 +318,26 @@ static int tcp_shutdown(socket_t *s, int how)
 
 static int tcp_getsockname(socket_t *s, sockaddr_t *addr, socklen_t *len)
 {
-
+    tcp_t *t = TCP(s->pri);
+    sockaddr_in_t in;
+    ip_addr_copy(in.addr, t->laddr);
+    in.family = AF_INET;
+    in.port = htons(t->lport);
+    *len = MIN(*len, sizeof(in));
+    memcpy(addr, &in, *len);
+    return 0;
 }
 
 static int tcp_getpeername(socket_t *s, sockaddr_t *addr, socklen_t *len)
 {
-
+    tcp_t *t = TCP(s->pri);
+    sockaddr_in_t in;
+    ip_addr_copy(in.addr, t->raddr);
+    in.family = AF_INET;
+    in.port = htons(t->rport);
+    *len = MIN(*len, sizeof(in));
+    memcpy(addr, &in, *len);
+    return 0;
 }
 
 /*
@@ -368,6 +382,7 @@ static ssize_t tcp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 
     tcp_makeseg(tcp, data, len);
     tcp_do_xmit(tcp);
+    return len;
 }
 
 #include <irq.h>
