@@ -84,7 +84,7 @@ __SYSCALL_DEFINE3(int, socket, int, domain, int, type, int, proto)
     socket->socktype = socktype;
     socket->op = sockop_get(socktype);
     socket->op->socket(socket);
-    socket->nif = nif0;
+    socket->nif = nif_find_default();
     return socket_makefd(socket);
 }
 

@@ -85,7 +85,7 @@ static int udp_bind(socket_t *s, sockaddr_t *addr, socklen_t len)
     }
 
     if (ip_addr_isany(in->addr))
-        ip_addr_copy(u->laddr, nif0->ip);
+        ip_addr_copy(u->laddr, nif_find_default()->ip);
     else
         ip_addr_copy(u->laddr, in->addr);
 
@@ -142,31 +142,27 @@ static ssize_t udp_sendmsg(socket_t *s, msghdr_t *msg, int flags)
     sockaddr_in_t rdef = {
         .family = AF_INET,
         .port = htons(u->rport),
-        .addr = {
-            u->raddr[0],
-            u->raddr[1],
-            u->raddr[2],
-            u->raddr[3],
-        }
+        .addr =
+            {
+                u->raddr[0],
+                u->raddr[1],
+                u->raddr[2],
+                u->raddr[3],
+            },
     };
     sockaddr_in_t *in = (sockaddr_in_t *)msg->name;
-    if (!ip_addr_isany(u->raddr))
-    {
-        if (in)
-            return -EISCONN;
+    if (!ip_addr_isany(u->raddr)) {
+        if (in) return -EISCONN;
         in = &rdef;
     }
 
-    if (!in)
-        return -EDESTADDRREQ;
-    if (!in->port)
-        return -EINVAL;
-    if (ip_addr_isany(in->addr))
-        return -EINVAL;
+    if (!in) return -EDESTADDRREQ;
+    if (!in->port) return -EINVAL;
+    if (ip_addr_isany(in->addr)) return -EINVAL;
 
     ck_lport(u);
 
-    net_tx_udp(nif0, m, in->addr, u->lport, ntohs(in->port));
+    net_tx_udp(nif_find_default(), m, in->addr, u->lport, ntohs(in->port));
     return len;
 }
 

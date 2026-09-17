@@ -34,8 +34,6 @@ struct nif
     void (*send)(nif_t *n, mbuf_t *m);
 };
 
-extern nif_t *nif0;
-
 typedef struct
 {
     mac_t dest;
@@ -68,9 +66,12 @@ bool ip_addr_ismulticast(ipv4_t addr);
 void nif_eth_rx(nif_t *n, mbuf_t *m);
 void nif_eth_tx(nif_t *n, mbuf_t *m, mac_t dst, u16 type);
 
+// network interface
 int nif_ioctl(nif_t *nif, int req, void *argp);
 void nif_register(nif_t *nif);
 nif_t *nif_find(char *name);
+nif_t *nif_find_byip4(ipv4_t ip, nif_t *fallback);
+nif_t *nif_find_default();
 
 /*
  * protocol operations:

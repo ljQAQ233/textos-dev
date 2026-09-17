@@ -89,7 +89,7 @@ static mac_t bc = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 void arp_request(ipv4_t dip)
 {
-    net_tx_arp(nif0, ARP_OP_REQUEST, bc, dip);
+    net_tx_arp(nif_find_default(), ARP_OP_REQUEST, bc, dip);
 }
 
 arpent_t *arp_init(ipv4_t dip)

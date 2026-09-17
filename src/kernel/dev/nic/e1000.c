@@ -577,7 +577,6 @@ void e1000_init()
     nif->send = e1000_send;
  
     nif_register(nif);
-    nif0 = nif;
 
     devst_t *dev = dev_new();
     dev->name = strdup(nif->name);

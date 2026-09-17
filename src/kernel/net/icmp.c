@@ -64,7 +64,7 @@ void net_rx_icmp(nif_t *n, mbuf_t *m, void *iph)
 
 void icmp_request(ipv4_t dip)
 {
-    net_tx_icmp(nif0, ICMP_REQUEST, dip);
+    net_tx_icmp(nif_find_default(), ICMP_REQUEST, dip);
 }
 
 // TODO
