@@ -76,7 +76,6 @@ struct socket
     // special
     int socktype;
     sockop_t *op;
-    nif_t *nif;
     list_t intype;
 };
 

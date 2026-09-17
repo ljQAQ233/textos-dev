@@ -53,6 +53,7 @@ static int udp_socket(socket_t *s)
 
     udp_t *u;
     u = s->pri = malloc(sizeof(udp_t));
+    u->nif = nif_find_default();
     u->lport = 0;
     u->rport = 0;
     memset(u->laddr, 0, sizeof(ipv4_t));

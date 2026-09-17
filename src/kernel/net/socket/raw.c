@@ -14,6 +14,7 @@
 
 typedef struct
 {
+    nif_t *nif;
     bool hdrincl;
     ipv4_t laddr;
     ipv4_t raddr;
@@ -59,9 +60,11 @@ static int raw_bind(socket_t *s, sockaddr_t *addr, socklen_t len)
     sockaddr_in_t *in = (sockaddr_in_t *)addr;
 
     if (ip_addr_isany(in->addr))
-        ip_addr_copy(r->laddr, s->nif->ip);
-    else
+        ip_addr_copy(r->laddr, nif_find_default()->ip);
+    else {
+        if (!nif_find_byip4(in->addr, NULL)) return -EADDRNOTAVAIL;
         ip_addr_copy(r->laddr, in->addr);
+    }
 
     return 0;
 }
@@ -101,6 +104,7 @@ static int raw_getpeername(socket_t *s, sockaddr_t *addr, socklen_t *len)
 
 static ssize_t raw_sendmsg(socket_t *s, msghdr_t *msg, int flags)
 {
+    raw_t *r = RAW(s->pri);
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
     void *data = msg->iov[0].iov_base;
     size_t len = msg->iov[0].iov_len;
@@ -116,7 +120,7 @@ static ssize_t raw_sendmsg(socket_t *s, msghdr_t *msg, int flags)
     }
     else
     {
-        net_tx_ip(s->nif, m, in->addr, s->proto);
+        net_tx_ip(r->nif, m, in->addr, s->proto);
     }
     return len;
 }

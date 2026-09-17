@@ -131,6 +131,7 @@ static int tcp_socket(socket_t *s)
 
     tcp_t *t;
     t = s->pri = malloc(sizeof(tcp_t));
+    t->nif = nif_find_default();
     t->sock = s;
     t->lport = 0;
     t->rport = 0;
@@ -804,13 +805,13 @@ int tcp_rx_listen(tcp_t *tcp, tcpseg_t *seg)
         sock->proto = tcp->sock->proto;
         sock->socktype = tcp->sock->socktype;
         sock->op = tcp->sock->op;
-        sock->nif = tcp->sock->nif;
 
         tcp_t *conn = malloc(sizeof(tcp_t));
         conn->sock = sock;
         sock->pri = conn;
         ip_addr_copy(conn->laddr, tcp->laddr);
         ip_addr_copy(conn->raddr, seg->iph->sip);
+        conn->nif = tcp->nif;
         conn->lport = tcp->lport;
         conn->rport = hdr->sport;
         conn->mss = tcp->mss;
