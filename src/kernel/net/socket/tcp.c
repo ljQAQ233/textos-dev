@@ -47,6 +47,7 @@ static list_t list_listen = LIST_INIT(list_listen);
 
 typedef struct
 {
+    nif_t *nif;
     socket_t *sock;
     ipv4_t laddr;
     ipv4_t raddr;
@@ -82,8 +83,6 @@ typedef struct
 
     task_t *rx_waiter;
     task_t *syn_waiter;
-
-    /* TODO : replace nif_find_default() */
 } tcp_t;
 
 #define TCP_SHUT_RD 1
@@ -183,8 +182,10 @@ static int tcp_bind(socket_t *s, sockaddr_t *addr, socklen_t len)
 
     if (ip_addr_isany(in->addr))
         ip_addr_copy(t->laddr, nif_find_default()->ip);
-    else
+    else {
+        if (!nif_find_byip4(in->addr, NULL)) return -EADDRNOTAVAIL;
         ip_addr_copy(t->laddr, in->addr);
+    }
 
     return 0;
 }
@@ -436,7 +437,7 @@ static void tcp_tx_setup(tcp_t *tcp)
     tcp->state = SYN_SENT;
 
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
-    net_tx_tcp(nif_find_default(), m,
+    net_tx_tcp(tcp->nif, m,
         tcp->raddr, tcp->lport, tcp->rport,
         iss, 0,
         TCP_F_SYN, TCP_WINDOW, 0);
@@ -451,7 +452,7 @@ static void tcp_tx_agree(tcp_t *tcp)
     tcp->state = SYN_RCVD;
 
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
-    net_tx_tcp(nif_find_default(), m,
+    net_tx_tcp(tcp->nif, m,
         tcp->raddr, tcp->lport, tcp->rport,
         iss, tcp->rcv_nxt,
         TCP_F_SYN | TCP_F_ACK, TCP_WINDOW, 0);
@@ -574,7 +575,7 @@ void tcp_x_ack(tcp_t *tcp, tcpseg_t *seg)
 static void tcp_tx_seg(tcp_t *tcp, mbuf_t *m)
 {
     m->id = tcp->snd_nxt;
-    net_tx_tcp(nif_find_default(), m,
+    net_tx_tcp(tcp->nif, m,
         tcp->raddr, tcp->lport, tcp->rport,
         tcp->snd_nxt, tcp->rcv_nxt,
         TCP_F_ACK, TCP_WINDOW, 0);
@@ -584,7 +585,7 @@ static void tcp_tx_seg(tcp_t *tcp, mbuf_t *m)
 static void tcp_tx_fin(tcp_t *tcp)
 {
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
-    net_tx_tcp(nif_find_default(), m,
+    net_tx_tcp(tcp->nif, m,
         tcp->raddr, tcp->lport, tcp->rport,
         tcp->snd_nxt, tcp->rcv_nxt,
         TCP_F_ACK | TCP_F_FIN, TCP_WINDOW, 0);
@@ -603,7 +604,7 @@ static void tcp_tx_ack(tcp_t *tcp)
     }
 
     mbuf_t *m = mbuf_alloc(MBUF_DEFROOM);
-    net_tx_tcp(nif_find_default(), m,
+    net_tx_tcp(tcp->nif, m,
         tcp->raddr, tcp->lport, tcp->rport,
         seqnr, acknr,
         flgs, TCP_WINDOW, 0);
