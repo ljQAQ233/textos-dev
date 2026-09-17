@@ -18,9 +18,9 @@ u16 cksum(void *data)
     return ~s;
 }
 
-extern int sock_rx_raw(iphdr_t *hdr, mbuf_t *m);
-extern int sock_rx_udp(iphdr_t *hdr, mbuf_t *m);
-extern int sock_rx_tcp(iphdr_t *hdr, mbuf_t *m);
+extern int sock_rx_raw(nif_t *n, iphdr_t *hdr, mbuf_t *m);
+extern int sock_rx_udp(nif_t *n, iphdr_t *hdr, mbuf_t *m);
+extern int sock_rx_tcp(nif_t *n, iphdr_t *hdr, mbuf_t *m);
 
 void net_rx_ip(nif_t *n, mbuf_t *m)
 {
@@ -41,7 +41,7 @@ void net_rx_ip(nif_t *n, mbuf_t *m)
 
     m->len = ntohs(hdr->len) - sizeof(iphdr_t);
 
-    int ret = sock_rx_raw(hdr, m);
+    int ret = sock_rx_raw(n, hdr, m);
     if (ret > 0)
         return ;
 
@@ -51,10 +51,10 @@ void net_rx_ip(nif_t *n, mbuf_t *m)
             net_rx_icmp(n, m, hdr);
             break;
         case IP_P_TCP:
-            sock_rx_tcp(hdr, m);
+            sock_rx_tcp(n, hdr, m);
             break;
         case IP_P_UDP:
-            sock_rx_udp(hdr, m);
+            sock_rx_udp(n, hdr, m);
             break;
     }
 

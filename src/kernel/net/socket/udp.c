@@ -209,7 +209,7 @@ static ssize_t udp_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 
 #include <textos/net/udp.h>
 
-int sock_rx_udp(iphdr_t *ip, mbuf_t *m)
+int sock_rx_udp(nif_t *n, iphdr_t *ip, mbuf_t *m)
 {
     int ret = 0;
     list_t *ptr;

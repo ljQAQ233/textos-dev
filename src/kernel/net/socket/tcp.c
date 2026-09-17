@@ -1083,7 +1083,7 @@ static tcp_t *find_tcb(iphdr_t *ip, tcphdr_t *hdr)
     return NULL;
 }
 
-int sock_rx_tcp(iphdr_t *ip, mbuf_t *m)
+int sock_rx_tcp(nif_t *n, iphdr_t *ip, mbuf_t *m)
 {
     if (net_cksum_tcp(m->head, ip->sip, ip->dip, m->len))
         return 0;
@@ -1100,7 +1100,7 @@ int sock_rx_tcp(iphdr_t *ip, mbuf_t *m)
     seg.seqlen = m->len + hdr->syn + hdr->fin;
     ip_addr_copy(seg.sip, ip->sip);
     ip_addr_copy(seg.dip, ip->dip);
-    seg.nif = nif_find_default();
+    seg.nif = n;
     seg.data = m->head;
     seg.buf = m;
     seg.buf->id = seg.seqnr;

@@ -156,7 +156,7 @@ static ssize_t raw_recvmsg(socket_t *s, msghdr_t *msg, int flags)
 
 // m includes iphdr
 // retval 1 means that m has been handled
-int sock_rx_raw(iphdr_t *ip, mbuf_t *m)
+int sock_rx_raw(nif_t *n, iphdr_t *ip, mbuf_t *m)
 {
     int ret = 0;
 
