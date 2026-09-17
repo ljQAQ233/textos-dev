@@ -1580,7 +1580,10 @@ static int fat32_remove(node_t *this)
     lookup_savex(lkp);
     // 释放数据区
     data_relse(this->sb->sbi, lkp->clst, 0, false);
-    return fat32_close(this);
+    lct_clr(&lkp->link);
+    free(lkp);
+    vfs_release(this);
+    return 0;
 }
 
 static int fat32_read(node_t *this, void *buf, size_t siz, size_t offset,
