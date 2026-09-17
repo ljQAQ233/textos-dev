@@ -235,8 +235,11 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
     char *p = buf;
     int cnt = 0;
     for (; len; len--, cnt++, p++) {
+        if (*p & 0x80 && FC_IFLAG(tty, ISTRIP)) *p &= 0x7f;
         if (*p == '\r' && FC_IFLAG(tty, IGNCR)) continue;
         if (*p == '\r' && FC_IFLAG(tty, ICRNL)) *p = '\n';
+        if (*p == '\n' && FC_IFLAG(tty, INLCR))
+            *p = '\r'; // let privilege INLCR > ICRNL
         if (FC_LFLAG(tty, ICANON)) {
             if (cc[VEOF] == *p) {
                 /*
