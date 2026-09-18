@@ -99,7 +99,7 @@ task_t *task_create(void *main, int flag)
     task_t *tsk = _task_create();
     
     void *stack, *istack;
-    if (flag == TC_USER || flag == TC_TSK1) {
+    if (flag == TC_USER) {
         vmm_phyauto(__user_stack_bot, __user_stack_pages, PE_P | PE_RW | PE_US);
         stack = (void *)__user_stack_top;
         istack =

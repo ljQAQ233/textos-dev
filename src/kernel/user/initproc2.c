@@ -4,21 +4,16 @@
  */
 #include <cpu.h>
 #include <textos/panic.h>
-#include <bits/a-sc.h>
-#include <bits/syscall.h>
+
+extern void sys_execve(char *, char **, char **);
 
 static void run_init(char *init)
 {
-    /*
-     * Now that we have a stack in user space, we can't call sys_execve
-     * directly, which causes a unrecoverable pagefault after switch pagetable
-     * (you can give it a shot). syscalls can switch to kernel stack first.
-     */
     char *argv[] = {
         init,
         NULL,
     };
-    __syscall(SYS_execve, argv[0], argv, 0, 0, 0, 0);
+    sys_execve(argv[0], argv, 0);
 }
 
 extern int close(int);
