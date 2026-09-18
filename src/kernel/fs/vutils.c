@@ -76,6 +76,7 @@ static inline void _vfs_listnode(node_t *node, int level)
 {
     if (S_ISDIR(node->mode)) {
         dprintk("%*q- %s\n", level, ' ', node->name);
+        if (node->attr & FSA_MNT) node = node->child;
         for (node_t *p = node->child; p != NULL; p = p->next) {
             _vfs_listnode(p, level + 1);
         }
@@ -87,6 +88,7 @@ static inline void _vfs_listnode(node_t *node, int level)
 void vfs_listnode(node_t *start)
 {
     if (!start) start = __vfs_root;
+    if (!start) dprintk("no root available\n");
 
     _vfs_listnode(start, 0);
 }
