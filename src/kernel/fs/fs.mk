@@ -6,12 +6,13 @@ SRCS += fs/vopts_chmod.c
 SRCS += fs/vopts_mknod.c
 SRCS += fs/vopts.c
 SRCS += fs/vrt.c
-SRCS += fs/mnt.c
 SRCS += fs/vopts_chown.c
 SRCS += fs/vopts_mmap.c
 SRCS += fs/poll.c
 SRCS += fs/vopts_links.c
 SRCS += fs/vperm.c
+SRCS += fs/vmnt.c
+SRCS += fs/mount.c
 SRCS += fs/vutils.c
 
 SRCS += fs/drift/pipe.c

@@ -659,10 +659,13 @@ __SYSCALL_DEFINE2(int, fchmod, int, fd, mode_t, mode)
     return ret;
 }
 
+#include <textos/fs/mount.h>
+
 __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
 {
     int ret;
     node_t *sn, *dn;
+    node_t *root;
     struct fs_openctx ctx = {0};
 
     ret = vfs_open(task_current()->pwd, src, 0, 0, &sn, &ctx);
@@ -679,7 +682,9 @@ __SYSCALL_DEFINE2(int, mount, char *, src, char *, dst)
     ret = vfs_open(task_current()->pwd, dst, O_DIRECTORY, 0, &dn, &ctx);
     if (ret < 0) return ret;
 
-    node_t *root = extract_part(dev);
+    ret = fs_extract_mount(dev, &root);
+    if (ret < 0) return ret;
+
     return vfs_mount(dn, root);
 }
 
