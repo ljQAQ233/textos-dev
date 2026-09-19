@@ -23,10 +23,10 @@ SRCS += dev/clock.c
 
 # disk drivers
 
-SRCS += dev/disk/buffer.c
-SRCS += dev/disk/part.c
-SRCS += dev/disk/ide.c
-SRCS += dev/disk/ahci.c
+SRCS += dev/blk/buffer.c
+SRCS += dev/blk/part.c
+SRCS += dev/blk/ide.c
+SRCS += dev/blk/ahci.c
 
 # fpu support
 

@@ -32,11 +32,7 @@ int part_ioctl(devst_t *dev, int req, void *argp)
     return -EINVAL;
 }
 
-devst_t *register_part(
-        devst_t *disk, int nr,
-        addr_t ptoff, size_t ptsiz,
-        node_t *root
-        )
+devst_t *register_part(devst_t *disk, int nr, addr_t ptoff, size_t ptsiz)
 {
     char name[32];
     disk->mkname(disk, name, nr);
@@ -50,7 +46,6 @@ devst_t *register_part(
     part->ioctl = (void *)part_ioctl;
     part->ptoff = ptoff;
     part->ptend = ptoff + ptsiz;
-    part->pdata = root;
     dev_register(disk, part);
 
     return part;
