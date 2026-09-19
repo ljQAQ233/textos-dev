@@ -106,9 +106,9 @@ void task_yield();
 task_t *task_current();
 task_t *task_get(int pid);
 
-#define TC_USER 0
-#define TC_TSK1 1
-#define TC_KERN 2
+#define TC_USER     0
+#define TC_KERN     1
+#define TC_TYPE(x)  (x & 1)
 
 void task_reset_allsigs(task_t *tsk);
 task_t *task_create(void *main, int args);

@@ -69,7 +69,7 @@ intr_frame_t *build_iframe(task_t *tsk, void *stack, int flag)
 
     iframe->rflags = (1 << 9);
 
-    if (flag == TC_KERN || flag == TC_TSK1)
+    if (TC_TYPE(flag) == TC_KERN)
         iframe->cs = (KERN_CODE_SEG << 3);
     else
         iframe->cs = (USER_CODE_SEG << 3) | 3;
@@ -97,9 +97,9 @@ void task_reset_allsigs(task_t *tsk)
 task_t *task_create(void *main, int flag)
 {
     task_t *tsk = _task_create();
-    
+
     void *stack, *istack;
-    if (flag == TC_USER) {
+    if (TC_TYPE(flag) == TC_USER) {
         vmm_phyauto(__user_stack_bot, __user_stack_pages, PE_P | PE_RW | PE_US);
         stack = (void *)__user_stack_top;
         istack =

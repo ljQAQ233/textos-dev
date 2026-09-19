@@ -55,7 +55,7 @@ void kernel_main ()
     ktm_init();
     clock_init();
     syscall_init();
-    task_create(initproc, TC_TSK1);
+    task_create(initproc, TC_KERN);
 
     mycpu_init();
     ap_init();
