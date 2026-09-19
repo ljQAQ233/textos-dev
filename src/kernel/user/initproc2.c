@@ -33,14 +33,11 @@ void initproc2()
     initproc_nod();
     vfs_listnode(0);
 
-    sys_mkdir("/sysroot", 0755);
-    sys_mount(BOOT_DEV_PATH_BOOT, "/sysroot");
-
     close(0);
     close(1);
     close(2);
 
     task_fade_kernproc(task_current());
-    run_init("/sysroot/bin/init");
+    run_init("/bin/init");
     PANIC("init exiting...\n");
 }
