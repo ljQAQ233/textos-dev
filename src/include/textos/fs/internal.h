@@ -8,27 +8,6 @@ extern node_t *__vfs_root;
 // vroot.c
 bool __vfs_rootset(node_t *root);
 
-typedef struct _packed
-{
-    u8   bootable         ; // Bootable (Active) -> 0x80
-    u8   start_head       ;
-    u16  start_sec     :6 ;
-    u16  start_clinder :10;
-    u8   sysid            ;
-    u8   end_head         ;
-    u16  end_sec       :6 ;
-    u16  end_clinder   :10;
-    u32  relative         ;
-    u32  total            ;
-} part_t;
-
-typedef struct _packed
-{
-    u8      others[446];
-    part_t  ptab[4];
-    u16     endsym;
-} mbr_t;
-
 // utils
 
 static inline char *fs_path_next(const char *p)

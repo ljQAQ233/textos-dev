@@ -25,6 +25,7 @@ SRCS += dev/clock.c
 
 SRCS += dev/blk/buffer.c
 SRCS += dev/blk/part.c
+SRCS += dev/blk/part-driver.c
 SRCS += dev/blk/ide.c
 SRCS += dev/blk/ahci.c
 

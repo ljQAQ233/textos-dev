@@ -24,7 +24,7 @@ enum sub_type
     DEV_DBGCON, /* QEMU debugcon */
     DEV_KNCON,  /* Kernel console */
     DEV_TTY,
-    DEV_IDE,    /* Integrated Drive Electronics */
+    DEV_IDE, /* Integrated Drive Electronics */
     DEV_PART,
     DEV_NETIF,
     DEV_ANONY,
@@ -65,8 +65,6 @@ struct devst
     int (*poll_teardown)(devst_t *this, struct fs_poller *poller);
 
     void *pdata;  // to support multiple devs
-    addr_t ptoff; // partition r/w start addr
-    addr_t ptend;
 };
 
 // dev structure private
@@ -78,11 +76,13 @@ typedef struct
 
 /*
  * device number
- * it may be a bit strange. in original unix systems, dev_t is a 16-bit unsigned integer :
- * dev_t [1] = (major << 8) | minor, and later extended to a 32-bit one whose structure
- * is : dev_t [2] = (major << 20) | minor, when musl libc provides the version shown subsquently. [3]
- * [3] is not applied to some filesystems like ext2 whose dev number field is 32-bit. so kernel
- * would use new_decode_dev to convert a uint to quadword dev_t, and use new_encode_dev inversely
+ * it may be a bit strange. in original unix systems, dev_t is a 16-bit unsigned
+ * integer : dev_t [1] = (major << 8) | minor, and later extended to a 32-bit
+ * one whose structure is : dev_t [2] = (major << 20) | minor, when musl libc
+ * provides the version shown subsquently. [3] [3] is not applied to some
+ * filesystems like ext2 whose dev number field is 32-bit. so kernel would use
+ * new_decode_dev to convert a uint to quadword dev_t, and use new_encode_dev
+ * inversely
  */
 static inline unsigned major(dev_t x)
 {
@@ -96,9 +96,8 @@ static inline unsigned minor(dev_t x)
 
 static inline dev_t makedev(unsigned x, unsigned y)
 {
-    return (dev_t)
-       ((x & 0xfffff000ULL) << 32) | ((x & 0xfffULL) << 8) |
-       ((y & 0xffffff00ULL) << 12) | ((y & 0xffULL));
+    return (dev_t)((x & 0xfffff000ULL) << 32) | ((x & 0xfffULL) << 8) |
+           ((y & 0xffffff00ULL) << 12) | ((y & 0xffULL));
 }
 
 static inline dev_t makedev_for(devst_t *d)
@@ -113,20 +112,11 @@ void __dev_register(devstp_t *pri);
 void dev_register(devst_t *prt, devst_t *dev);
 void dev_register_anony(devst_t *dev);
 
+list_t *dev_get_root();
 devst_t *dev_lookup_type(int subtype, int idx);
 devst_t *dev_lookup_name(const char *name);
 devst_t *dev_lookup_nr(uint major, uint minor);
 
 void dev_list();
-
-#include <textos/fs.h>
-
-devst_t *register_part(
-        devst_t *disk, int nr,
-        addr_t ptoff, size_t ptsiz,
-        node_t *root
-        );
-
-node_t *extract_part(devst_t *part);
 
 #endif

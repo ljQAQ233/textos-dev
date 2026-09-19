@@ -2,6 +2,7 @@
 #include <io.h>
 #include <irq.h>
 #include <textos/dev.h>
+#include <textos/dev/blk/part.h>
 #include <textos/dev/buffer.h>
 #include <textos/dev/pci.h>
 #include <textos/klib/string.h>
@@ -427,6 +428,7 @@ static void init(int x, u16 bmbase)
     dev->mkname = (void *)ide_mkname;
     dev->pdata = pri;
     dev_register(NULL, dev);
+    blk_part_scan(dev);
 
     DEBUGK(K_INFO, "disk : %s\n", dev->name);
     DEBUGK(K_INFO | K_CONT, "disk sn : %s\n", pri->serial_num);

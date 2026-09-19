@@ -1,57 +1,74 @@
-#include <textos/args.h>
 #include <textos/dev.h>
-#include <textos/errno.h>
-#include <textos/fs.h>
+#include <textos/dev/blk/mbr.h>
+#include <textos/dev/blk/part.h>
+#include <textos/dev/buffer.h>
 #include <textos/klib/string.h>
-#include <textos/klib/vsprintf.h>
 
-int part_read(devst_t *dev, u32 addr, void *buf, u8 cnt)
+extern int part_read(devst_t *, blkno_t, buffer_t *, blkcnt_t, ...);
+extern int part_write(devst_t *, blkno_t, buffer_t *, blkcnt_t, ...);
+extern int part_ioctl(devst_t *, int, void *);
+
+static int blk_part_fillinfo(struct blk_part *part, struct blk_part_info *info)
 {
-    devst_t *prt = dev_lookup_nr(dev->major, 1);
-    cnt = MIN(cnt, dev->ptend - addr);
-    return prt->bread(prt, addr + dev->ptoff, buf, cnt);
+    info->ptoff = part->relative;
+    info->ptend = part->total;
+    info->sysid = part->sysid;
+    memcpy(&info->record, part, sizeof(info->record));
+    return 0;
 }
 
-int part_write(devst_t *dev, u32 addr, void *buf, u8 cnt)
+/**
+ * @brief scan partitions on a block device `blkdev` and register subdevice
+ *
+ * @param blkdev block device
+ * @return the count of subdevice which re created
+ */
+int blk_part_scan(devst_t *blkdev)
 {
-    devst_t *prt = dev_lookup_nr(dev->major, 1);
-    cnt = MIN(cnt, dev->ptend - addr);
-    return prt->bwrite(prt, addr + dev->ptoff, buf, cnt);
-}
+    DEBUGK(K_INFO, "scan %s\n", blkdev->name);
 
-int part_ioctl(devst_t *dev, int req, void *argp)
-{
-    devst_t *prt = dev_lookup_nr(dev->major, 1);
-    switch (req)
-    {
-    case BLKSSZGET:
-        return prt->ioctl(dev, req, argp);
-    default:
-        break;
+    buffer_t *blk = bread(blkdev, 512, 0);
+    if (!blk) {
+        DEBUGK(K_ERROR, "cannot get block0 from %s\n", blkdev->name);
+        return -1;
     }
-    return -EINVAL;
+
+    int i = 0;
+    struct blk_mbr *mbr = (struct blk_mbr *)blk->blk;
+    struct blk_part *ptab = (struct blk_part *)mbr->ptab;
+    for (; i < 4; i++) {
+        struct blk_part *part = &ptab[i];
+        if (!part->sysid) continue;
+        struct blk_part_info *info = malloc(sizeof(struct blk_part_info));
+        if (!info) break;
+        blk_part_fillinfo(part, info);
+        blk_part_register(blkdev, info, i);
+    }
+    DEBUGK(K_INFO, "total %d part(s) found\n", i);
+    brelse(blk);
+    return i;
 }
 
-devst_t *register_part(devst_t *disk, int nr, addr_t ptoff, size_t ptsiz)
+int blk_part_register(devst_t *blkdev, struct blk_part_info *info, int scan_idx)
 {
+    scan_idx += 1;
     char name[32];
-    disk->mkname(disk, name, nr);
-    
+    blkdev->mkname(blkdev, name, scan_idx);
+
     devst_t *part = dev_new();
+    if (!part) {
+        DEBUGK(K_ERROR, "%s cannot get part devst\n", name);
+        return -1;
+    }
+
     part->name = strdup(name);
     part->type = DEV_BLK;
     part->subtype = DEV_PART;
-    part->bread = (void *)part_read;
-    part->bwrite = (void *)part_write;
-    part->ioctl = (void *)part_ioctl;
-    part->ptoff = ptoff;
-    part->ptend = ptoff + ptsiz;
-    dev_register(disk, part);
-
-    return part;
-}
-
-node_t *extract_part(devst_t *part)
-{
-    return part->pdata;
+    part->bread = part_read;
+    part->bwrite = part_write;
+    part->ioctl = part_ioctl;
+    part->pdata = info;
+    dev_register(blkdev, part);
+    DEBUGK(K_INFO | K_CONT, "[#%d] %s fs=%x\n", scan_idx, name, info->sysid);
+    return 0;
 }
