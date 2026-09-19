@@ -85,7 +85,7 @@ static inline void init_ctx(dirctx_t *ctx, node_t *dir)
 
 static int minix_dir_emit(dirctx_t *ctx, minix_direct_t *de, minix_inode_t *mi)
 {
-    uint len = strnlen(de->name, 14);
+    uint len = strnlen(de->name, MAX_FILENAME);
     uint type = dir_get_type(mi->mode);
     return dir_emit(ctx, de->name, len, de->ino, type);
 }
