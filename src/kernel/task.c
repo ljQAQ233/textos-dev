@@ -94,6 +94,12 @@ void task_reset_allsigs(task_t *tsk)
     memset(tsk->sigacts, 0, sizeof(tsk->sigacts));
 }
 
+void task_fade_kernproc(task_t *tsk)
+{
+    tsk->istk = (addr_t)vmm_allocpages(istk_pages, PE_P | PE_RW) +
+                istk_pages * PAGE_SIZ;
+}
+
 task_t *task_create(void *main, int flag)
 {
     task_t *tsk = _task_create();

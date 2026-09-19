@@ -111,6 +111,7 @@ task_t *task_get(int pid);
 #define TC_TYPE(x)  (x & 1)
 
 void task_reset_allsigs(task_t *tsk);
+void task_fade_kernproc(task_t *tsk);
 task_t *task_create(void *main, int args);
 
 int task_fork();

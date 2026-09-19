@@ -40,9 +40,7 @@ void initproc2()
     close(1);
     close(2);
 
-    task_current()->istk = (addr_t)vmm_allocpages(istk_pages, PE_P | PE_RW) +
-                           istk_pages * PAGE_SIZ;
-
+    task_fade_kernproc(task_current());
     run_init("/sysroot/bin/init");
     PANIC("init exiting...\n");
 }
