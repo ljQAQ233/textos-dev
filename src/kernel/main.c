@@ -67,7 +67,6 @@ void kernel_main ()
 extern void fs_init();
 extern void socket_init();
 extern void e1000_init();
-extern void dev_initnod();
 
 #include <textos/printk.h>
 
@@ -76,7 +75,6 @@ void initproc()
     fs_init();
     socket_init();
     e1000_init();
-    dev_initnod();
 
     printk("\033[30;47mThis is black text on a white background\033[0m\n");
     printk("A tab\ttab~\n");

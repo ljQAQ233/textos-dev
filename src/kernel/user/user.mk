@@ -1,5 +1,7 @@
 
 SRCS += user/initproc2.c
+SRCS += user/initmnt.c
+SRCS += user/initnod.c
 SRCS += user/elf.c
 SRCS += user/syscall.c
 SRCS += user/syscall.S

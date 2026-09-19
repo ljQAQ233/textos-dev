@@ -14,4 +14,7 @@ typedef enum
 bmode_t bmode_get();
 void *binfo_get();
 
+#define BOOT_DEV_PATH_BOOT "/dev/hda1"
+#define BOOT_DEV_PATH_ROOT "/dev/hda2"
+
 #endif

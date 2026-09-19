@@ -1,6 +1,8 @@
 #include <textos/dev.h>
 #include <textos/klib/list.h>
 #include <textos/klib/string.h>
+#include <textos/mm/mman.h>
+#include <textos/printk.h>
 
 static void *dev_mmap_stub(devst_t *dev, vm_region_t *vm, ...)
 {
@@ -42,65 +44,6 @@ void dev_init()
     dev_list();
 }
 
-#include <textos/fs.h>
-#include <textos/args.h>
-#include <textos/klib/vsprintf.h>
-
-static void initnod(devst_t *dev)
-{
-    char path[64];
-    if (dev->subtype == DEV_ANONY)
-        return;
-    else if (dev->type == DEV_NET)
-        sprintf(path, "/dev/net/%s", dev->name);
-    else if (dev->subtype == DEV_EVENT)
-        sprintf(path, "/dev/event/%s", dev->name);
-    else
-        sprintf(path, "/dev/%s", dev->name);
-
-    int mt = 0;
-    switch (dev->type) {
-    case DEV_CHAR:
-        mt = S_IFCHR;
-        break;
-    case DEV_BLK:
-        mt = S_IFBLK;
-        break;
-    case DEV_NET:
-        mt = S_IFSOCK;
-        break;
-    default:
-        break;
-    }
-    vfs_mknod(path, makedev(dev->major, dev->minor), 0744 | mt);
-
-    DEBUGK(K_INFO, "init dev at %s\n", path);
-
-    if (dev->minor != 1)
-        return;
-
-    list_t *i;
-    LIST_FOREACH(i, &dev->subdev)
-    {
-        initnod(CR(i, devst_t, subdev));
-    }
-}
-
-void dev_initnod()
-{
-    node_t *dir;
-    struct fs_openctx ctx = {0};
-    vfs_open(NULL, "/dev", O_CREAT | O_DIRECTORY, 0755, &dir, &ctx);     // rwxr-xr-x
-    vfs_open(NULL, "/dev/net", O_CREAT | O_DIRECTORY, 0755, &dir, &ctx); // rwxr-xr-x
-    vfs_open(NULL, "/dev/event", O_CREAT | O_DIRECTORY, 0755, &dir, &ctx); // rwxr-xr-x
-
-    list_t *i;
-    LIST_FOREACH(i, &root)
-    {
-        initnod(CR(i, devstp_t, list)->dev);
-    }
-}
-
 void __dev_register(devstp_t *pri)
 {
     if (pri->dev->read == NULL) pri->dev->read = noopt;
@@ -116,24 +59,20 @@ void __dev_register(devstp_t *pri)
 static uint applyid(devst_t *prt)
 {
     static uint total = 1;
-    if (!prt)
-        return total++;
+    if (!prt) return total++;
     return CR(prt->subdev.next, devst_t, subdev)->minor + 1;
 }
 
-void dev_register (devst_t *prt, devst_t *dev)
+void dev_register(devst_t *prt, devst_t *dev)
 {
-    if (prt != NULL)
-    {
+    if (prt != NULL) {
         dev->major = prt->major;
-        if (!dev->minor)
-            dev->minor = applyid(prt);
+        if (!dev->minor) dev->minor = applyid(prt);
         list_insert(&prt->subdev, &dev->subdev);
         return;
     }
 
-    if (!dev->major)
-        dev->major = applyid(NULL);
+    if (!dev->major) dev->major = applyid(NULL);
     dev->minor = 1;
     list_init(&dev->subdev);
 
@@ -158,8 +97,13 @@ devst_t *dev_new()
     d->poll_teardown = dev_poll_teardown_stub;
     d->major = 0;
     d->minor = 0;
-    
+
     return d;
+}
+
+list_t *dev_get_root()
+{
+    return &root;
 }
 
 devst_t *dev_lookup_type(int subtype, int idx)
@@ -171,7 +115,6 @@ devst_t *dev_lookup_type(int subtype, int idx)
         if (pri->dev->subtype == subtype)
             if (idx-- == 0) return pri->dev;
     }
-
     return NULL;
 }
 
@@ -181,8 +124,7 @@ devst_t *dev_lookup_name(const char *name)
     LIST_FOREACH(i, &root)
     {
         devstp_t *pri = CR(i, devstp_t, list);
-        if (strcmp(pri->dev->name, name) == 0)
-            return pri->dev;
+        if (strcmp(pri->dev->name, name) == 0) return pri->dev;
     }
 
     return NULL;
@@ -190,9 +132,9 @@ devst_t *dev_lookup_name(const char *name)
 
 devst_t *dev_lookup_nr(uint major, uint minor)
 {
-    list_t *im, *i; // iterator
-    devstp_t *pm;  // private
-    devst_t *dm, *d;  // device
+    list_t *im, *i;  // iterator
+    devstp_t *pm;    // private
+    devst_t *dm, *d; // device
 
     LIST_FOREACH(im, &root)
     {
@@ -209,8 +151,6 @@ devst_t *dev_lookup_nr(uint major, uint minor)
 
     return NULL;
 }
-
-#include <textos/printk.h>
 
 static char *dev_typestr(int type)
 {
@@ -234,4 +174,3 @@ void dev_list()
         idx++;
     }
 }
-
