@@ -204,7 +204,6 @@ __SYSCALL_DEFINE3(ssize_t, readv, int, fd, const iovec_t *, iov, int, iovcnt)
         file->offset += ret;
     }
 
-    file->offset += sum;
     return sum;
 
 rollback:
@@ -279,7 +278,6 @@ __SYSCALL_DEFINE3(ssize_t, writev, int, fd, const iovec_t *, iov, int, iovcnt)
         file->offset += ret;
     }
 
-    file->offset += sum;
     return sum;
 
 rollback:
