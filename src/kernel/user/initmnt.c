@@ -25,7 +25,7 @@ void initproc_mnt()
         sysroot = __fs_init_tmpfs();
         if (!sysroot) PANIC("temporary rootfs cannot be initialized\n");
     } else {
-        char *name = BOOT_DEV_PATH_BOOT;
+        char *name = BOOT_DEV_PATH_ROOT;
         devst_t *blkdev = lookup_fakepath(name);
         if (!blkdev) PANIC("root device (%s) not found\n", name);
         int ret = fs_extract_mount(blkdev, &sysroot);

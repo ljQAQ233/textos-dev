@@ -23,7 +23,7 @@ _img_cp_resource_:
 install: _img_cp_resource_
 
 _img_cp_: INSTALL_SUDO=sudo
-_img_cp_: ROOT=$(MNT1)
+_img_cp_: ROOT=$(MNT2)
 _img_cp_: install
 
 _img_new_:
