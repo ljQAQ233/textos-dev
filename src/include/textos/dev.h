@@ -117,6 +117,6 @@ devst_t *dev_lookup_type(int subtype, int idx);
 devst_t *dev_lookup_name(const char *name);
 devst_t *dev_lookup_nr(uint major, uint minor);
 
-void dev_list();
+void dev_debug_list();
 
 #endif

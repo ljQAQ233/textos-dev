@@ -41,7 +41,7 @@ void dev_init()
     __dev_initanony();
     __dev_initdbgcon();
 
-    dev_list();
+    dev_debug_list();
 }
 
 void __dev_register(devstp_t *pri)
@@ -108,23 +108,34 @@ list_t *dev_get_root()
 
 devst_t *dev_lookup_type(int subtype, int idx)
 {
-    list_t *i;
+    list_t *i, *j;
     LIST_FOREACH(i, &root)
     {
         devstp_t *pri = CR(i, devstp_t, list);
         if (pri->dev->subtype == subtype)
             if (idx-- == 0) return pri->dev;
+        LIST_FOREACH(j, &pri->dev->subdev)
+        {
+            devst_t *dj = CR(j, devst_t, subdev);
+            if (dj->subtype == subtype)
+                if (idx-- == 0) return dj;
+        }
     }
     return NULL;
 }
 
 devst_t *dev_lookup_name(const char *name)
 {
-    list_t *i;
+    list_t *i, *j;
     LIST_FOREACH(i, &root)
     {
         devstp_t *pri = CR(i, devstp_t, list);
         if (strcmp(pri->dev->name, name) == 0) return pri->dev;
+        LIST_FOREACH(j, &pri->dev->subdev)
+        {
+            devst_t *dj = CR(j, devst_t, subdev);
+            if (strcmp(dj->name, name) == 0) return dj;
+        }
     }
 
     return NULL;
@@ -154,23 +165,34 @@ devst_t *dev_lookup_nr(uint major, uint minor)
 
 static char *dev_typestr(int type)
 {
-    if (type == DEV_CHAR) return "character device";
-    if (type == DEV_BLK) return "block device";
-    return "unknown device";
+    if (type == DEV_CHAR) return "c";
+    if (type == DEV_BLK) return "b";
+    if (type == DEV_NET) return "n";
+    return "u";
 }
 
-void dev_list()
+#define statof(x, c) (((x) == noopt || !(x)) ? '-' : (c))
+
+static void dev_info_dump(devst_t *dev)
 {
-    list_t *i;
-    int idx = 0;
+    DEBUGK(K_DEBUG | K_CONT, "%- 4s type=%s opts=%c%c%c%c%c\n", dev->name,
+           dev_typestr(dev->type), statof(dev->read, 'r'),
+           statof(dev->write, 'w'), statof(dev->ioctl, 'i'),
+           statof(dev->mmap, 'm'), statof(dev->poll_setup, 'p'));
+}
+
+void dev_debug_list()
+{
+    list_t *i, *j;
 
     LIST_FOREACH(i, &root)
     {
         devstp_t *pri = CR(i, devstp_t, list);
-        printk("dev index - %04d -> %s\n", idx, pri->dev->name);
-        printk("            type -> %s\n", dev_typestr(pri->dev->type));
-        printk("            opts -> %d%d\n", pri->dev->read == noopt ? 0 : 1,
-               pri->dev->write == noopt ? 0 : 1);
-        idx++;
+        dev_info_dump(pri->dev);
+        LIST_FOREACH(j, &pri->dev->subdev)
+        {
+            devst_t *dj = CR(j, devst_t, subdev);
+            dev_info_dump(dj);
+        }
     }
 }
