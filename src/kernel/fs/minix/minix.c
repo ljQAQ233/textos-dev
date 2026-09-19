@@ -33,6 +33,8 @@ typedef struct direct
     char name[MAX_FILENAME];
 } minix_direct_t;
 
+#define I_SIZE_MAX 0xffffffffU
+
 #define _M                 (BLKSZ / sizeof(mzone_t))
 #define z9idx_end_dire(sb) (7)
 #define z9idx_end_ind1(sb) (z9idx_end_dire(sb) + _M)
@@ -336,7 +338,7 @@ static mino_t minix_lookup(node_t *dir, char *name)
     superblk_t *sb = dir->sb;
     minix_inode_t *mdir = dir->pdata;
     uint entmax = mdir->size / sizeof(minix_direct_t);
-    for (uint idx = 0; idx < entmax; idx += sizeof(minix_direct_t)) {
+    for (uint idx = 0; idx < entmax; idx += direnr_perblk) {
         uint zidx = idx / direnr_perblk;
         buffer_t *blk = minix_zget(sb, (mzone_t *)mdir->zone, zidx);
         minix_direct_t *ent = blk->blk;
@@ -363,16 +365,20 @@ static int minix_eddir(node_t *dir, char *name, mino_t ino)
 {
     superblk_t *sb = dir->sb;
     minix_inode_t *mdir = dir->pdata;
-    /*
-     * align_up is not necessary, because the inner for-loop reads the entire
-     * block. Even if mdir->size is not aligned to BLKSZ, as long as it's larger
-     * than a multiple of BLKSZ, the loop will still cover all directory entries
-     * correctly.
-     */
-    uint entmax = mdir->size / sizeof(minix_direct_t);
-    for (uint idx = 0; idx < entmax; idx += direnr_perblk) {
+    uint direnr = mdir->size / sizeof(minix_direct_t);
+    for (uint idx = 0; ; idx += direnr_perblk) {
         uint zidx = idx / direnr_perblk;
         buffer_t *blk = minix_zget(sb, (mzone_t *)mdir->zone, zidx);
+        if (!blk) {
+            if (mdir->size + BLKSZ > I_SIZE_MAX) return -ENOSPC;
+            uint rem = minix_zext(sb, (mzone_t *)mdir->zone, 1);
+            if (rem != 0) return -ENOSPC;
+            blk = minix_zget(sb, (mzone_t *)mdir->zone, zidx);
+            if (!blk) return -ENOSPC;
+            mdir->size += sizeof(minix_direct_t);
+            dir->siz += sizeof(minix_direct_t);
+            minix_isync(sb, mdir, dir->ino);
+        }
         minix_direct_t *ent = blk->blk;
         for (int eidx = 0; eidx < direnr_perblk; eidx++) {
             minix_direct_t *ptr = &ent[eidx];
@@ -381,15 +387,15 @@ static int minix_eddir(node_t *dir, char *name, mino_t ino)
                 bdirty(blk, true);
                 brelse(blk);
                 return 0;
-            } else if (ino && ptr->ino == 0) {
+            } else if (ino && (ptr->ino == 0 || idx + eidx + 1 > direnr)) {
                 ptr->ino = ino;
                 strncpy(ptr->name, name, MAX_FILENAME);
                 bdirty(blk, true);
                 brelse(blk);
-                uint nsize =
-                    (idx * direnr_perblk + eidx + 1) * sizeof(minix_direct_t);
+                uint nsize = (idx + eidx + 1) * sizeof(minix_direct_t);
                 if (mdir->size < nsize) {
                     mdir->size = nsize;
+                    dir->siz = nsize;
                     minix_isync(sb, mdir, dir->ino);
                 }
                 return 0;
@@ -397,10 +403,6 @@ static int minix_eddir(node_t *dir, char *name, mino_t ino)
         }
         brelse(blk);
     }
-
-    uint rem = minix_zext(sb, (mzone_t *)mdir->zone, 1);
-    if (rem != 0) return -ENOSPC;
-    return minix_eddir(dir, name, ino);
 }
 
 /**
@@ -821,12 +823,13 @@ static int minix_readdir(node_t *dir, dirctx_t *ctx)
     superblk_t *sb = dir->sb;
     minix_inode_t *mdir = dir->pdata;
     uint zmax = mdir->size / BLKSZ;
+    uint emax = mdir->size / sizeof(minix_direct_t) % direnr_perblk;
     uint zidx = ctx->pos / direnr_perblk;
     uint eidx = ctx->pos % direnr_perblk;
     for (; zidx <= zmax; zidx++) {
         buffer_t *blk = minix_zget(sb, (mzone_t *)mdir->zone, zidx);
         minix_direct_t *ent = blk->blk;
-        for (; eidx < direnr_perblk; eidx++) {
+        for (; eidx < (zidx != zmax ? direnr_perblk : emax); eidx++) {
             minix_direct_t *ptr = &ent[eidx];
             minix_inode_t *iptr = minix_iget(sb, ptr->ino);
             if (!ptr->ino) continue;
