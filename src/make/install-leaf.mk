@@ -1,4 +1,4 @@
-INST_ALL =
+INST_ALL = $(INST_CUSTOM)
 
 B ?=
 L ?=

@@ -1,6 +1,7 @@
 ROOT ?= $(TOPBUILD)/root
+BOOTDIR ?= $(TOPBUILD)/root/boot
 IMG  = $(TOPBUILD)/image.img
-export ROOT IMG
+export ROOT BOOTDIR IMG
 
 _img_m_:
 	@echo "mounting disk..."
@@ -24,6 +25,7 @@ install: _img_cp_resource_
 
 _img_cp_: INSTALL_SUDO=sudo
 _img_cp_: ROOT=$(MNT2)
+_img_cp_: BOOTDIR=$(MNT1)
 _img_cp_: install
 
 _img_new_:
