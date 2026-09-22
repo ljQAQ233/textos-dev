@@ -54,3 +54,8 @@ INST_CUSTOM = $(BOOTDIR)/EFI/BOOT/$(EFI_RMF_NAME)
 $(BOOTDIR)/EFI/BOOT/$(EFI_RMF_NAME): \
 	$(BUILD)/SIGMA_$(EFI_ARCH)/$(TARGET)_$(TOOLCHAIN)/$(EFI_ARCH)/$(PLATFORM_NAME).efi
 	$(INSTALL) -D $< $@
+
+$(foreach i,$(wildcard Resource/*), \
+	$(eval INST_CUSTOM += $(BOOTDIR)/$(patsubst Resource/%,%,$i)) \
+	$(eval $(BOOTDIR)/$(patsubst Resource/%,%,$i): $i; \
+		$(INSTALL) -D $$< $$@))
