@@ -523,7 +523,7 @@ static int minix_open(node_t *parent, const char *name, u64 args, int mode,
 {
     superblk_t *sb = parent->sb;
 
-    char filname[15];
+    char filname[MAX_FILENAME + 1];
     if (minix_namel(filname, name) < 0) return -ENAMETOOLONG;
 
     mino_t ino = minix_lookup(parent, filname);
@@ -569,7 +569,7 @@ nospace:
 static int minix_mknod(node_t *parent, const char *name, dev_t rdev, int mode,
                        node_t **result)
 {
-    char filname[15];
+    char filname[MAX_FILENAME + 1];
     if (vfs_permission(parent, MAY_WRITE) < 0) return -EPERM;
     if (minix_namel(filname, name) < 0) return -ENAMETOOLONG;
 
