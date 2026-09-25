@@ -20,6 +20,10 @@ _img_u_:
 
 _img_cp_resource_:
 	$(INSTALL_SUDO) cp -r resource/. $(ROOT)
+	$(INSTALL_SUDO) mkdir -p $(ROOT)/{root,home}
+	$(INSTALL_SUDO) mkdir -p $(ROOT)/home/{local,guest}
+	$(INSTALL_SUDO) chown -R 1000:1000 $(ROOT)/home/local
+	$(INSTALL_SUDO) chown -R 1001:1001 $(ROOT)/home/guest
 
 install: _img_cp_resource_
 
