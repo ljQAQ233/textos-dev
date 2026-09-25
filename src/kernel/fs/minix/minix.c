@@ -490,6 +490,8 @@ static node_t *minix_nodeget(superblk_t *sb, minix_inode_t *mi, mino_t ino,
     node->attr = 0;
     node->siz = mi->size;
     node->ino = ino;
+    node->uid = mi->uid;
+    node->gid = mi->gid;
     node->mode = mi->mode;
     node->atime = node->mtime = node->ctime = mi->mtime;
     node->dev = makedev(sb->dev->major, sb->dev->minor);
@@ -534,10 +536,10 @@ static int minix_open(node_t *parent, const char *name, u64 args, int mode,
             if (minix_eddir(parent, filname, ino) < 0) goto nospace;
             mi = minix_iget(sb, ino);
             mi->mode = mode;
-            mi->uid = 0;
+            mi->uid = task_current()->euid;
             mi->size = 0;
             mi->mtime = arch_time_now();
-            mi->gid = 0;
+            mi->gid = task_current()->egid;
             mi->nlinks = 1;
             memset(mi->zone, 0, sizeof(mi->zone));
             if (args & O_DIRECTORY) {
@@ -576,10 +578,10 @@ static int minix_mknod(node_t *parent, const char *name, dev_t rdev, int mode,
     if (minix_eddir(parent, filname, ino) < 0) goto nospace;
     mi = minix_iget(sb, ino);
     mi->mode = mode;
-    mi->uid = 0;
+    mi->uid = task_current()->euid;
     mi->size = 0;
     mi->mtime = arch_time_now();
-    mi->gid = 0;
+    mi->gid = task_current()->egid;
     mi->nlinks = 1;
     memset(mi->zone, 0, sizeof(mi->zone));
     mi->zone[0] = minix_dev_make(rdev);
@@ -667,10 +669,10 @@ static int minix_symlink(node_t *parent, const char *name, const char *linkto,
      * the actual access permission depends on the target file
      */
     mi->mode = S_IFLNK | 0777;
-    mi->uid = 0;
+    mi->uid = task_current()->euid;
     mi->size = linkto_len;
     mi->mtime = arch_time_now();
-    mi->gid = 0;
+    mi->gid = task_current()->egid;
     mi->nlinks = 1;
     memset(mi->zone, 0, sizeof(mi->zone));
     mi->zone[0] = zno;
