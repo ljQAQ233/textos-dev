@@ -530,6 +530,7 @@ static int minix_open(node_t *parent, const char *name, u64 args, int mode,
     minix_inode_t *mi = minix_iget(sb, ino);
     if (!mi) {
         if (args & O_CREAT) {
+            if (vfs_permission(parent, MAY_WRITE) < 0) return -EPERM;
             mode &= ~S_IFMT;
             ino = minix_ialloc(sb);
             if (ino == 0) goto nospace;
@@ -569,6 +570,7 @@ static int minix_mknod(node_t *parent, const char *name, dev_t rdev, int mode,
                        node_t **result)
 {
     char filname[15];
+    if (vfs_permission(parent, MAY_WRITE) < 0) return -EPERM;
     if (minix_namel(filname, name) < 0) return -ENAMETOOLONG;
 
     superblk_t *sb = parent->sb;
@@ -650,6 +652,7 @@ static int minix_remove(node_t *this)
 static int minix_symlink(node_t *parent, const char *name, const char *linkto,
                          node_t **result)
 {
+    if (vfs_permission(parent, MAY_WRITE) < 0) return -EPERM;
     char filname[MAX_FILENAME + 1];
     int linkto_len = strlen(linkto);
     superblk_t *sb = parent->sb;

@@ -1,3 +1,4 @@
+#include <textos/errno.h>
 #include <textos/fs.h>
 
 int vfs_read(node_t *this, void *buffer, size_t siz, size_t offset,
@@ -29,5 +30,7 @@ int vfs_truncate(node_t *this, size_t offset)
 
 int vfs_remove(node_t *this)
 {
+    if (vfs_permission(vfs_getprt(this), MAY_WRITE | MAY_EXEC) < 0) //
+        return -EPERM;
     return this->opts->remove(this);
 }
