@@ -21,7 +21,7 @@
 #define regst(N)                   \
     struct type _ty_##N = {        \
         .name = _STR(N),           \
-        .size = 0,                 \
+        .size = sizeof(S),         \
         .cls = CLASS_ST,           \
         .printer = st_printer,     \
         .ST = {.field = refst(N)}, \

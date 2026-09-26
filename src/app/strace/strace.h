@@ -91,10 +91,10 @@ struct proto
         struct stat: refty(stat),   \
         struct iovec: refty(iovec), \
         default: reftyb_auto(var, ))
-#define refty_type(T)               \
-    _Generic((T){0},                \
-        struct stat: refty(stat),   \
-        struct iovec: refty(iovec), \
+#define refty_type(T)                 \
+    _Generic((T){0},                  \
+        struct stat *: refty(stat),   \
+        struct iovec *: refty(iovec), \
         default: reftyb_auto((T)0, ))
 
 //

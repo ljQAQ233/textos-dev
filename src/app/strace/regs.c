@@ -9,7 +9,7 @@ void collect_args(struct regs *r, struct user_regs_struct *ur,
     r->ret = uro->rax;
     r->a1 = ur->rdi;
     r->a2 = ur->rsi;
-    r->a3 = ur->rcx;
+    r->a3 = ur->rdx;
     r->a4 = ur->r10;
     r->a5 = ur->r8;
     r->a6 = ur->r9;
