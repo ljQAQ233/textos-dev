@@ -29,13 +29,15 @@ struct scmap
 struct scmap map[MAP_MAX] = {SYSCALLS XSYSCALLS};
 #undef _
 
+pid_t pid;
+
 int main(int argc, char *argv[])
 {
     if (argc <= 1) {
         fprintf(stderr, "%s: prog [...]\n", argv[0]);
         return 1;
     }
-    pid_t pid = fork();
+    pid = fork();
     if (pid == 0) {
         ptrace(PTRACE_TRACEME, 0, NULL, NULL);
         execvp(argv[1], &argv[1]);

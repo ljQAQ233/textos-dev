@@ -137,3 +137,7 @@ declty(iovec);
 SYSCALLS
 XSYSCALLS
 #undef _
+
+extern pid_t pid;
+
+int peek_data(pid_t pid, unsigned long addr, void *buf, int len);
