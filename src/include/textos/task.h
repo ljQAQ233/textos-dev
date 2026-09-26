@@ -149,6 +149,7 @@ void task_stime_enter();
 void task_stime_exit();
 void task_stime_discard();
 void task_look_rusage(task_t *tsk, struct rusage *ru);
+int task_peek_word(task_t *tsk, addr_t addr, unsigned long *word);
 
 #define TASK_MAX 16
 

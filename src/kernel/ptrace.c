@@ -77,6 +77,15 @@ DEF(ptrace_traceme)
     return 0;
 }
 
+DEF(ptrace_peekdata)
+{
+    // the offset must be word-aligned
+    // we do not distinguish text from data
+    unsigned long *word = data;
+    task_t *ttsk = task_get(pid);
+    return task_peek_word(ttsk, (addr_t)addr, word);
+}
+
 DEF(ptrace_syscall)
 {
     long ret;
@@ -112,6 +121,8 @@ exit:
 
 long (*ptrace_opmap[34])(int, pid_t, void *, void *) = {
     [PTRACE_TRACEME] = ptrace_traceme,
+    [PTRACE_PEEKTEXT] = ptrace_peekdata,
+    [PTRACE_PEEKDATA] = ptrace_peekdata,
     [PTRACE_SYSCALL] = ptrace_syscall,
     [PTRACE_GETREGS] = ptrace_getregs,
 };

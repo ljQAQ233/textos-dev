@@ -565,6 +565,31 @@ void task_look_rusage(task_t *tsk, struct rusage *ru)
     us_to_timeval(tsk->stime, &ru->ru_stime);
 }
 
+int task_peek_word(task_t *tsk, addr_t addr, unsigned long *word)
+{
+    assert((addr & (sizeof(long) - 1)) == 0);
+
+    unsigned long res;
+    task_t *curr = task_current();
+    if (tsk == curr) {
+        res = *(long *)addr;
+    } else {
+        __asm__ volatile( // manually control every detail
+            "movq %1, %%r8\n"
+            "movq %2, %%r9\n"
+            "movq %%cr3, %%r10\n"
+            "movq %%r9, %%cr3\n"
+            "movq (%%r8), %%rax\n"
+            "movq %%r10, %%cr3\n"
+            : "=&a"(res)
+            : "m"(addr), "m"(tsk->pgt)
+            : "memory", "r8", "r9", "r10");
+    }
+    *word = res;
+    return 0;
+}
+
+
 #include <textos/syscall.h>
 
 /*
