@@ -1,4 +1,5 @@
 #include "strace.h"
+#include <stdio.h>
 #include <string.h>
 
 void int_fmt(char *fmt, unsigned long long *val, int size, char conv)
@@ -45,6 +46,67 @@ def_printer(int_printer)
     memcpy(&val, ptr, t->size);
     int_fmt(fmt, &val, t->size, t->INT.conv);
     fprintf(o, fmt, val);
+}
+
+#include <ctype.h>
+
+#define MAX_ELEM_STR 32
+
+char esc(char c)
+{
+    switch (c) {
+    case '\a':
+        return 'a';
+    case '\b':
+        return 'b';
+    case '\t':
+        return 't';
+    case '\n':
+        return 'n';
+    case '\v':
+        return 'v';
+    case '\f':
+        return 'f';
+    case '\r':
+        return 'r';
+    case '\\':
+        return '\\';
+    case '"':
+        return '"';
+    default:
+        return c;
+    }
+}
+
+// size: how many bytes in data need to be handled
+int str_fmt(FILE *o, char data[sizeof(long)], int size)
+{
+    int r = 0;
+    for (int i = 0; i < sizeof(long); i++) {
+        char c = data[i];
+        if (size == -1 && !c) return 1;
+        if (isprint(c) && c != '\\') {
+            if (fputc(c, o) < 0) break;
+        } else if (c == '\a' || c == '\b' || c == '\t' || c == '\n' ||
+                   c == '\v' || c == '\f' || c == '\r' || c == '\\' ||
+                   c == '"') {
+            if (fputc('\\', o) < 0 || fputc(esc(c), o) < 0) break;
+        } else {
+            if (fprintf(o, "\\%o", c) < 0) break;
+        }
+    }
+    return 0;
+}
+
+def_printer(str_printer)
+{
+    fprintf(o, "\"");
+    char data[sizeof(long)];
+    for (int i = 0; i < MAX_ELEM_STR; i += sizeof(long)) {
+        peek_data(pid, *(unsigned long *)ptr + i, data, sizeof(long));
+        if (str_fmt(o, data, -1) < 0) break;
+    }
+    fprintf(o, "\"");
 }
 
 def_printer(st_printer)

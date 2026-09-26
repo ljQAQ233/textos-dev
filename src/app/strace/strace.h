@@ -21,6 +21,7 @@ struct proto;
 enum cls
 {
     CLASS_INT,
+    CLASS_STR,
     CLASS_ST,
     CLASS_PROTO,
 };
@@ -71,6 +72,7 @@ struct proto
 
 #define reftyb_auto(var, suffix)                 \
     _Generic((var),                              \
+        char *: reftyb(str),                     \
         void *: reftyb(ulx),                     \
         int: reftyb(i##suffix),                  \
         long: reftyb(l##suffix),                 \
@@ -106,6 +108,7 @@ struct proto
 #define declst(N)  extern struct field _st_##N[];
 
 def_printer(int_printer);
+def_printer(str_printer);
 def_printer(st_printer);
 def_printer(proto_printer);
 
@@ -127,6 +130,7 @@ decltyb(llo);
 decltyb(uo);
 decltyb(ulo);
 decltyb(ullo);
+decltyb(str);
 
 declty(stat);
 declty(iovec);
@@ -137,6 +141,10 @@ declty(iovec);
 SYSCALLS
 XSYSCALLS
 #undef _
+
+#define sc_noret \
+    _(SYS_exit)  \
+    _(SYS_execve)
 
 extern pid_t pid;
 

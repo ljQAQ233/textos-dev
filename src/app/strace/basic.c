@@ -30,3 +30,10 @@ defint(llo, long long, 'o');
 defint(uo, unsigned, 'o');
 defint(ulo, unsigned long, 'o');
 defint(ullo, unsigned long long, 'o');
+
+struct type _tyb_str = {
+    .name = "str",
+    .size = -1,
+    .cls = CLASS_STR,
+    .printer = str_printer,
+};
