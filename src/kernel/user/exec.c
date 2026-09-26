@@ -44,7 +44,7 @@ static void copyarg(void *idx[], void *new, char *const arr[], int *len,
     int l = 0, i = 0, x;
     void *p = new;
     while (arr[i]) {
-        x = align(strlen(arr[i]));
+        x = strlen(arr[i]) + 1;
         l += x;
         if (idx) {
             idx[i] = p;
@@ -56,7 +56,7 @@ static void copyarg(void *idx[], void *new, char *const arr[], int *len,
 
     if (idx) idx[i] = NULL;
 
-    *len = l;
+    *len = align(l);
     *cnt = i;
 }
 
