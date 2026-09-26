@@ -49,10 +49,12 @@ def_printer(int_printer)
 
 def_printer(st_printer)
 {
+    char data[t->size * 2];
+    peek_data(pid, *(unsigned long *)ptr, data, t->size);
     fprintf(o, "{ ");
     for (struct field *sub = t->ST.field; sub->name; sub++) {
         fprintf(o, ".%s = ", sub->name);
-        sub->type->printer(o, sub->type, ptr + sub->offset);
+        sub->type->printer(o, sub->type, data + sub->offset);
         if (sub[1].name) fprintf(o, ", ");
     }
     fprintf(o, " }");
