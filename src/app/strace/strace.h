@@ -22,11 +22,22 @@ enum cls
 {
     CLASS_INT,
     CLASS_STR,
+    CLASS_BUF,
     CLASS_ST,
     CLASS_PROTO,
 };
 
-#define def_printer(name) void name(FILE *o, struct type *t, void *ptr)
+// What a printer actually interprets: a host pointer to the value/slot plus
+// the length of the pointed-to content (-1 = NUL-terminated). The length is
+// data, not schema, so it never lives in `struct type`; the enclosing scope
+// (proto frame or struct) builds the value instead.
+struct value
+{
+    void *ptr;
+    long len;
+};
+
+#define def_printer(name) void name(FILE *o, struct type *t, struct value *v)
 typedef def_printer((*printer_t));
 
 struct type
@@ -68,6 +79,11 @@ struct proto
 //
 // Basic data types
 //
+// Marker type used in syscall tables to opt an argument into the bounded
+// byte-buffer printer. It is a distinct scalar type so `_Generic` can pick it,
+// yet still works with the `(T){0}` / `(T)0` expressions in refty_type.
+typedef unsigned char buf_t;
+
 #define reftyb(N) (&_tyb_##N)
 
 #define reftyb_auto(var, suffix)                 \
@@ -97,6 +113,7 @@ struct proto
     _Generic((T){0},                  \
         struct stat *: refty(stat),   \
         struct iovec *: refty(iovec), \
+        buf_t: reftyb(buf),           \
         default: reftyb_auto((T)0, ))
 
 //
@@ -109,6 +126,7 @@ struct proto
 
 def_printer(int_printer);
 def_printer(str_printer);
+def_printer(buf_printer);
 def_printer(st_printer);
 def_printer(proto_printer);
 
@@ -131,6 +149,7 @@ decltyb(uo);
 decltyb(ulo);
 decltyb(ullo);
 decltyb(str);
+decltyb(buf);
 
 declty(stat);
 declty(iovec);

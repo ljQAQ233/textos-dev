@@ -37,3 +37,10 @@ struct type _tyb_str = {
     .cls = CLASS_STR,
     .printer = str_printer,
 };
+
+struct type _tyb_buf = {
+    .name = "buf",
+    .size = -1,
+    .cls = CLASS_BUF,
+    .printer = buf_printer,
+};

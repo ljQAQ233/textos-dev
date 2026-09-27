@@ -73,8 +73,10 @@ int main(int argc, char *argv[])
             fprintf(stderr, "syscall(%d, %lx, %lx, %lx, %lx, %lx, %lx) = %d\n",
                     (int)regs.nr, regs.a1, regs.a2, regs.a3, regs.a4, regs.a5,
                     regs.a6, regs.ret);
-        else
-            fun->printer(stderr, fun, &regs);
+        else {
+            struct value root = {&regs, -1};
+            fun->printer(stderr, fun, &root);
+        }
     }
     return 0;
 exited:

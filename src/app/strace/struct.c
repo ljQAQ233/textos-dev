@@ -7,6 +7,7 @@
 #define f_hex(N)       {_STR(N), offsetof(S, N), reftyb_auto(nulstruct(S, N), x)}
 #define f_oct(N)       {_STR(N), offsetof(S, N), reftyb_auto(nulstruct(S, N), o)}
 #define f_str(N)       {_STR(N), offsetof(S, N)}
+#define f_buf(N)       {_STR(N), offsetof(S, N), reftyb(buf)}
 #define f_bits(N)      {_STR(N), offsetof(S, N)}
 #define f_struct(N, T) {_STR(N), offsetof(S, N), refst(T)}
 #define f_custom(N)    {_STR(N), offsetof(S, N)}
@@ -40,7 +41,7 @@ regst(stat);
 
 #define S struct iovec
 defst(iovec) //
-    f_hex(iov_base),
+    f_buf(iov_base),
     f_dec(iov_len), endst();
 regst(iovec);
 #undef S

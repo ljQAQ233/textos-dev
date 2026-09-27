@@ -56,7 +56,7 @@
         p_entry("a6", long)};                                              \
     regfun(func)
 
-autoproto(char *, getcwd, char *, buf, size_t, size);
+autoproto(char *, getcwd, buf_t, buf, size_t, size);
 autoproto(clock_t, times, struct tms *, buf);
 autoproto(int, __seekdir, int, fd, size_t *, pos);
 autoproto(int, accept, int, fd, struct sockaddr *, addr, socklen_t *, len);
@@ -79,7 +79,7 @@ autoproto(int, getegid);
 autoproto(int, geteuid);
 autoproto(int, getgid);
 autoproto(int, getgroups, int, size, gid_t *, list);
-autoproto(int, gethostname, char *, name, size_t, len);
+autoproto(int, gethostname, buf_t, name, size_t, len);
 autoproto(int, getpeername, int, fd, struct sockaddr *, addr, socklen_t *, len);
 autoproto(int, getsockname, int, fd, struct sockaddr *, addr, socklen_t *, len);
 autoproto(int, gettimeofday, struct timeval *, tp, void *, tzp);
@@ -94,14 +94,14 @@ autoproto(int, mount, char *, src, char *, dst);
 autoproto(int, mprotect, void *, addr, size_t, len, int, prot);
 autoproto(int, munmap, void *, addr, size_t, len);
 autoproto(int, nanosleep, struct timespec *, rqtp, struct timespec *, rmtp);
-noneproto(int, open, char *, path, int, flgs, ...);
+autoproto(int, open, char *, path, int, flgs, int, mode);
 autoproto(int, pause);
 noneproto(int, pipe, int fds[2]);
 autoproto(int, raise, int, sig);
 autoproto(int, rmdir, char *, path);
 autoproto(int, setgid, gid_t, gid);
 autoproto(int, setgroups, int, size, gid_t *, list);
-autoproto(int, sethostname, char *, name, size_t, len);
+autoproto(int, sethostname, buf_t, name, size_t, len);
 autoproto(int, setpgid, pid_t, pid, pid_t, pgid);
 autoproto(int, setregid, gid_t, rgid, gid_t, egid);
 autoproto(int, setreuid, uid_t, ruid, uid_t, euid);
@@ -123,18 +123,18 @@ autoproto(pid_t, getpid);
 autoproto(pid_t, getppid);
 autoproto(pid_t, getsid, pid_t, pid);
 autoproto(pid_t, setsid);
-autoproto(ssize_t, __readdir, int, fd, void *, buf, size_t, mx);
-autoproto(ssize_t, read, int, fd, void *, buf, size_t, cnt);
+autoproto(ssize_t, __readdir, int, fd, buf_t, buf, size_t, mx);
+autoproto(ssize_t, read, int, fd, buf_t, buf, size_t, cnt);
 autoproto(ssize_t, readv, int, fd, struct iovec *, iov, int, iovcnt);
-autoproto(ssize_t, recv, int, fd, void *, buf, size_t, len, int, flags);
-autoproto(ssize_t, recvfrom, int, fd, void *, buf, size_t, len, int, flags,
+autoproto(ssize_t, recv, int, fd, buf_t, buf, size_t, len, int, flags);
+autoproto(ssize_t, recvfrom, int, fd, buf_t, buf, size_t, len, int, flags,
           struct sockaddr *, src, socklen_t *, slen);
 autoproto(ssize_t, recvmsg, int, fd, struct msghdr *, msg, int, flags);
-autoproto(ssize_t, send, int, fd, void *, buf, size_t, len, int, flags);
+autoproto(ssize_t, send, int, fd, buf_t, buf, size_t, len, int, flags);
 autoproto(ssize_t, sendmsg, int, fd, struct msghdr *, msg, int, flags);
-autoproto(ssize_t, sendto, int, fd, void *, buf, size_t, len, int, flags,
+autoproto(ssize_t, sendto, int, fd, buf_t, buf, size_t, len, int, flags,
           struct sockaddr *, dst, socklen_t, dlen);
-autoproto(ssize_t, write, int, fd, void *, buf, size_t, cnt);
+autoproto(ssize_t, write, int, fd, buf_t, buf, size_t, cnt);
 autoproto(ssize_t, writev, int, fd, struct iovec *, iov, int, iovcnt);
 autoproto(time_t, time, time_t *, tp);
 autoproto(void *, signal, int, signum, void *, handler);

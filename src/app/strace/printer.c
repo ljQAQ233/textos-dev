@@ -39,11 +39,18 @@ void int_fmt(char *fmt, unsigned long long *val, int size, char conv)
     // clang-format on
 }
 
+unsigned long long load_int(struct type *t, void *ptr)
+{
+    unsigned long long val = 0;
+    memcpy(&val, ptr, t->size);
+    return val;
+}
+
 def_printer(int_printer)
 {
     unsigned long long val = 0;
     char fmt[] = "%xxxx";
-    memcpy(&val, ptr, t->size);
+    memcpy(&val, v->ptr, t->size);
     int_fmt(fmt, &val, t->size, t->INT.conv);
     fprintf(o, fmt, val);
 }
@@ -79,44 +86,65 @@ char esc(char c)
 }
 
 // size: how many bytes in data need to be handled
-int str_fmt(FILE *o, char data[sizeof(long)], int size)
+// nul:  when set, stop at the first NUL byte (human-readable string)
+// returns 1 on NUL, -1 on write error, 0 otherwise
+int str_fmt(FILE *o, char *data, int size, int nul)
 {
-    int r = 0;
-    for (int i = 0; i < sizeof(long); i++) {
-        char c = data[i];
-        if (size == -1 && !c) return 1;
+    for (int i = 0; i < size; i++) {
+        unsigned char c = data[i];
+        if (nul && !c) return 1;
         if (isprint(c) && c != '\\') {
-            if (fputc(c, o) < 0) break;
+            if (fputc(c, o) < 0) return -1;
         } else if (c == '\a' || c == '\b' || c == '\t' || c == '\n' ||
                    c == '\v' || c == '\f' || c == '\r' || c == '\\' ||
                    c == '"') {
-            if (fputc('\\', o) < 0 || fputc(esc(c), o) < 0) break;
+            if (fputc('\\', o) < 0 || fputc(esc(c), o) < 0) return -1;
         } else {
-            if (fprintf(o, "\\%o", c) < 0) break;
+            if (fprintf(o, "\\%o", c) < 0) return -1;
         }
     }
     return 0;
 }
 
-def_printer(str_printer)
+// Print the bytes behind a value. `nul` selects NUL-terminated vs bounded.
+static void print_bytes(FILE *o, struct value *v, int nul)
 {
+    unsigned long addr = *(unsigned long *)v->ptr;
+    long max = v->len < 0 ? MAX_ELEM_STR : v->len;
+    if (max > MAX_ELEM_STR) max = MAX_ELEM_STR;
     fprintf(o, "\"");
     char data[sizeof(long)];
-    for (int i = 0; i < MAX_ELEM_STR; i += sizeof(long)) {
-        peek_data(pid, *(unsigned long *)ptr + i, data, sizeof(long));
-        if (str_fmt(o, data, -1) < 0) break;
+    for (long i = 0; i < max; i += (long)sizeof(long)) {
+        long rem = max - i;
+        int chunk = rem < (long)sizeof(long) ? (int)rem : (int)sizeof(long);
+        if (peek_data(pid, addr + i, data, chunk) < 0) break;
+        if (str_fmt(o, data, chunk, nul)) break;
     }
     fprintf(o, "\"");
+}
+
+def_printer(str_printer)
+{
+    print_bytes(o, v, 1);
+}
+
+def_printer(buf_printer)
+{
+    print_bytes(o, v, 0);
 }
 
 def_printer(st_printer)
 {
     char data[t->size * 2];
-    peek_data(pid, *(unsigned long *)ptr, data, t->size);
+    peek_data(pid, *(unsigned long *)v->ptr, data, t->size);
     fprintf(o, "{ ");
     for (struct field *sub = t->ST.field; sub->name; sub++) {
+        struct value fv = {data + sub->offset, -1};
+        // scope resolves a bounded buffer's length from its sibling field
+        if (sub->type->cls == CLASS_BUF && sub[1].name)
+            fv.len = (long)load_int(sub[1].type, data + sub[1].offset);
         fprintf(o, ".%s = ", sub->name);
-        sub->type->printer(o, sub->type, data + sub->offset);
+        sub->type->printer(o, sub->type, &fv);
         if (sub[1].name) fprintf(o, ", ");
     }
     fprintf(o, " }");
@@ -126,13 +154,18 @@ def_printer(proto_printer)
 {
     struct proto *proto = t->PROTO.proto;
     struct proto *param = proto + 1;
-    struct regs *regs = (struct regs *)ptr;
+    struct regs *regs = (struct regs *)v->ptr;
     fprintf(o, "%s(", t->name);
-    for (int r = 0; param[r].name; r++) {
-        param[r].type->printer(o, param[r].type, &regs->arg[r]);
-        if (param[r + 1].name) fprintf(o, ", ");
+    for (int i = 0; param[i].name; i++) {
+        struct value av = {&regs->arg[i], -1};
+        // scope resolves a bounded buffer's length from the next argument
+        if (param[i].type->cls == CLASS_BUF && param[i + 1].name)
+            av.len = (long)regs->arg[i + 1];
+        param[i].type->printer(o, param[i].type, &av);
+        if (param[i + 1].name) fprintf(o, ", ");
     }
     fprintf(o, ") = ");
-    proto->type->printer(o, proto->type, &regs->ret);
+    struct value rv = {&regs->ret, -1};
+    proto->type->printer(o, proto->type, &rv);
     fprintf(o, "\n");
 }
