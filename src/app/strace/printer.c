@@ -111,9 +111,13 @@ static void print_bytes(FILE *o, struct value *v, int nul)
 {
     unsigned long addr = *(unsigned long *)v->ptr;
     long max = v->len < 0 ? MAX_ELEM_STR : v->len;
-    if (max > MAX_ELEM_STR) max = MAX_ELEM_STR;
-    fprintf(o, "\"");
     char data[sizeof(long)];
+    int trunc = 0;
+    if (max > MAX_ELEM_STR) {
+        max = MAX_ELEM_STR;
+        trunc = 1;
+    }
+    fprintf(o, "\"");
     for (long i = 0; i < max; i += (long)sizeof(long)) {
         long rem = max - i;
         int chunk = rem < (long)sizeof(long) ? (int)rem : (int)sizeof(long);
@@ -121,6 +125,7 @@ static void print_bytes(FILE *o, struct value *v, int nul)
         if (str_fmt(o, data, chunk, nul)) break;
     }
     fprintf(o, "\"");
+    if (trunc) fprintf(o, "...");
 }
 
 def_printer(str_printer)
