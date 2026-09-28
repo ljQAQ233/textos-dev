@@ -140,8 +140,7 @@ def_printer(buf_printer)
 
 def_printer(st_printer)
 {
-    char data[t->size * 2];
-    peek_data(pid, *(unsigned long *)v->ptr, data, t->size);
+    char *data = v->ptr;
     fprintf(o, "{ ");
     for (struct field *sub = t->ST.field; sub->name; sub++) {
         struct value fv = {data + sub->offset, -1};
@@ -155,6 +154,20 @@ def_printer(st_printer)
     fprintf(o, " }");
 }
 
+def_printer(arr_printer)
+{
+    struct type *et = t->ARR.elem_type;
+    char data[et->size * v->len];
+    peek_data(pid, *(unsigned long *)v->ptr, data, et->size * v->len);
+    fprintf(o, "{ ");
+    for (int i = 0; i < v->len; i++) {
+        struct value av = {data + i * et->size, -1};
+        et->printer(o, et, &av);
+        if (i != v->len - 1) fprintf(o, ", ");
+    }
+    fprintf(o, " }");
+}
+
 def_printer(proto_printer)
 {
     struct proto *proto = t->PROTO.proto;
@@ -164,7 +177,9 @@ def_printer(proto_printer)
     for (int i = 0; param[i].name; i++) {
         struct value av = {&regs->arg[i], -1};
         // scope resolves a bounded buffer's length from the next argument
-        if (param[i].type->cls == CLASS_BUF && param[i + 1].name)
+        if ((param[i].type->cls == CLASS_BUF ||
+             param[i].type->cls == CLASS_ARR) &&
+            param[i + 1].name)
             av.len = (long)regs->arg[i + 1];
         param[i].type->printer(o, param[i].type, &av);
         if (param[i + 1].name) fprintf(o, ", ");

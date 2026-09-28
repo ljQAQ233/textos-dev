@@ -24,6 +24,7 @@ enum cls
     CLASS_STR,
     CLASS_BUF,
     CLASS_ST,
+    CLASS_ARR,
     CLASS_PROTO,
 };
 
@@ -60,6 +61,10 @@ struct type
         {
             struct proto *proto;
         } PROTO;
+        struct
+        {
+            struct type *elem_type;
+        } ARR;
     };
 };
 
@@ -103,17 +108,20 @@ typedef unsigned char buf_t;
 //
 #define refty(N)  (&_ty_##N)
 #define reffun(N) (&_fun_##N)
+#define reftya(N) (&_tya_##N)
+
+#define _ARR_COMPOUNDS_REFTY_TYPEMAP(N, et) arr_##N##_t: reftya(N),
 
 #define refty_auto(var)             \
     _Generic((var),                 \
         struct stat: refty(stat),   \
         struct iovec: refty(iovec), \
         default: reftyb_auto(var, ))
-#define refty_type(T)                 \
-    _Generic((T){0},                  \
-        struct stat *: refty(stat),   \
-        struct iovec *: refty(iovec), \
-        buf_t: reftyb(buf),           \
+#define refty_type(T)                                                   \
+    _Generic((T){0},                                                    \
+        struct stat *: refty(stat),                                     \
+        struct iovec *: refty(iovec),                                   \
+        ARR_COMPOUNDS(_ARR_COMPOUNDS_REFTY_TYPEMAP) buf_t: reftyb(buf), \
         default: reftyb_auto((T)0, ))
 
 //
@@ -123,11 +131,13 @@ typedef unsigned char buf_t;
 #define declfun(N) extern struct type _fun_##N;
 #define declty(N)  extern struct type _ty_##N;
 #define declst(N)  extern struct field _st_##N[];
+#define decltya(N) extern struct type _tya_##N;
 
 def_printer(int_printer);
 def_printer(str_printer);
 def_printer(buf_printer);
 def_printer(st_printer);
+def_printer(arr_printer);
 def_printer(proto_printer);
 
 decltyb(i);
@@ -153,6 +163,19 @@ decltyb(buf);
 
 declty(stat);
 declty(iovec);
+
+// declare every array type
+// Tuple: (array typename, elem type)
+#define ARR_COMPOUNDS(map) map(iovec, struct iovec *)
+
+#define _(N, et)   \
+    decltya(N);    \
+    typedef struct \
+    {              \
+        char _;    \
+    } arr_##N##_elem_t, *arr_##N##_t;
+ARR_COMPOUNDS(_)
+#undef _
 
 #include "scnumb.h"
 

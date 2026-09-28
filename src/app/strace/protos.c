@@ -135,7 +135,7 @@ autoproto(ssize_t, sendmsg, int, fd, struct msghdr *, msg, int, flags);
 autoproto(ssize_t, sendto, int, fd, buf_t, buf, size_t, len, int, flags,
           struct sockaddr *, dst, socklen_t, dlen);
 autoproto(ssize_t, write, int, fd, buf_t, buf, size_t, cnt);
-autoproto(ssize_t, writev, int, fd, struct iovec *, iov, int, iovcnt);
+autoproto(ssize_t, writev, int, fd, arr_iovec_t, iov, int, iovcnt);
 autoproto(time_t, time, time_t *, tp);
 autoproto(void *, signal, int, signum, void *, handler);
 autoproto(void *, brk, void *, ptr);
