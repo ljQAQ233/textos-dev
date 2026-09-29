@@ -5,7 +5,7 @@
 #include <time.h>
 
 #define defproto(N)   struct proto _proto_##N[] = {
-#define p_entry(N, T) {N, refty_type(T)}
+#define p_entry(N, T) {N, refty_type(T), ty_is_pointer(T)}
 #define endproto() \
     {              \
         NULL       \

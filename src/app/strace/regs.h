@@ -5,20 +5,20 @@
 
 struct regs
 {
-    size_t nr;
-    size_t ret;
+    unsigned long nr;
+    unsigned long ret;
     union
     {
         struct
         {
-            size_t a1;
-            size_t a2;
-            size_t a3;
-            size_t a4;
-            size_t a5;
-            size_t a6;
+            unsigned long a1;
+            unsigned long a2;
+            unsigned long a3;
+            unsigned long a4;
+            unsigned long a5;
+            unsigned long a6;
         };
-        size_t arg[6];
+        unsigned long arg[6];
     };
 };
 

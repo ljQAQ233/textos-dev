@@ -12,6 +12,7 @@
     struct type _tya_##N = {                          \
         .name = _STR(N),                              \
         .size = 0,                                    \
+        .is_pointer = 1,                              \
         .cls = CLASS_ARR,                             \
         .printer = arr_printer,                       \
         .ARR = {.elem_type = _DEFER(refty_type)(et)}, \

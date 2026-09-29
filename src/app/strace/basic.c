@@ -34,6 +34,7 @@ defint(ullo, unsigned long long, 'o');
 struct type _tyb_str = {
     .name = "str",
     .size = -1,
+    .is_pointer = 1,
     .cls = CLASS_STR,
     .printer = str_printer,
 };
@@ -41,6 +42,7 @@ struct type _tyb_str = {
 struct type _tyb_buf = {
     .name = "buf",
     .size = -1,
+    .is_pointer = 1,
     .cls = CLASS_BUF,
     .printer = buf_printer,
 };

@@ -1,4 +1,5 @@
 #include "regs.h"
+#include "strace.h"
 #include <sys/user.h>
 
 #ifdef __x86_64__

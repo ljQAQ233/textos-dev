@@ -36,6 +36,7 @@ struct value
 {
     void *ptr;
     long len;
+    int is_truncated;
 };
 
 #define def_printer(name) void name(FILE *o, struct type *t, struct value *v)
@@ -45,6 +46,7 @@ struct type
 {
     char *name;
     size_t size;
+    int is_pointer;
     enum cls cls;
     printer_t printer;
     union
@@ -79,6 +81,7 @@ struct proto
 {
     char *name;
     struct type *type;
+    int is_pointer;
 };
 
 //
@@ -103,6 +106,11 @@ typedef unsigned char buf_t;
         unsigned long long: reftyb(ull##suffix), \
         default: reftyb(ulx))
 
+#define tyb_is_pointer(T)                                            \
+    _Generic((T){0}, char * : 1, void * : 1, int * : 1, long * : 1, \
+        long long * : 1, unsigned * : 1, unsigned long * : 1,        \
+        unsigned long long * : 1, default : 0)
+
 //
 // User-defined type support
 //
@@ -112,17 +120,21 @@ typedef unsigned char buf_t;
 
 #define _ARR_COMPOUNDS_REFTY_TYPEMAP(N, et) arr_##N##_t: reftya(N),
 
-#define refty_auto(var)             \
-    _Generic((var),                 \
-        struct stat: refty(stat),   \
-        struct iovec: refty(iovec), \
-        default: reftyb_auto(var, ))
 #define refty_type(T)                                                   \
     _Generic((T){0},                                                    \
         struct stat *: refty(stat),                                     \
         struct iovec *: refty(iovec),                                   \
         ARR_COMPOUNDS(_ARR_COMPOUNDS_REFTY_TYPEMAP) buf_t: reftyb(buf), \
         default: reftyb_auto((T)0, ))
+
+#define _ARR_COMPOUNDS_IS_POINTER_MAP(N, et) arr_##N##_t: 1,
+
+#define ty_is_pointer(T)                                       \
+    _Generic((T){0},                                           \
+        struct stat *: 1,                                      \
+        struct iovec *: 1,                                     \
+        ARR_COMPOUNDS(_ARR_COMPOUNDS_IS_POINTER_MAP) buf_t: 1, \
+        default: tyb_is_pointer(T))
 
 //
 // declarations
@@ -191,3 +203,8 @@ XSYSCALLS
 extern pid_t pid;
 
 int peek_data(pid_t pid, unsigned long addr, void *buf, int len);
+
+int load_child_data(struct type *T, unsigned long addr, struct value *v);
+int unload_child_data(struct type *T, struct value *v);
+int load_data(struct type *T, unsigned long *field_ptr, struct value *v);
+int unload_data(struct type *T, struct value *v);
