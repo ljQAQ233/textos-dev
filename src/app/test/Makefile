@@ -19,14 +19,14 @@ BINS := $(wildcard bin/*.c)
 # dynamic libraries for test
 SOLIBS := $(wildcard solib/*.c)
 
-CC := $(BUILD)/libc/cc
 CFLAGS += -g
+
+all: $(GTARS) $(BTARS) $(SOTARS)
 
 include ../all.mk
 
 BTARS := $(BINS:%.c=${BUILD}/%)
 SOTARS := $(SOLIBS:%.c=${BUILD}/%.so)
-all: $(GTARS) $(BTARS) $(SOTARS)
 
 $(OBJS): CFLAGS += -I$(CURDIR)/unity
 $(OBJS): CFLAGS += -DUNITY_INCLUDE_CONFIG_H
