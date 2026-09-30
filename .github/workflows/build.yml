@@ -34,6 +34,7 @@ jobs:
           make -C src/boot/Edk2/BaseTools/Source/C
       - name: Build kernel, boot, app
         run: |
+          make -C src all
           make -C src install
       - name: Archive with tar
         run: |
