@@ -23,6 +23,10 @@ jobs:
         with:
           submodules: recursive
           ref: ${{ steps.find_latest_buildable_tag.outputs.tag }}
+      - name: Configure git identity
+        run: |
+          git config --global user.name "textos-ci"
+          git config --global user.email "ci@textos.local"
       - name: Install essential compilers or softwares
         run: |
           sudo apt-get update
