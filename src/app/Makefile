@@ -15,7 +15,8 @@ LIBRARY =
 -include $(patsubst %,%/inc.mk,$(APP_LIBS))
 
 CFLAGS = -g \
-  $(addprefix -I,${INCLUDE})
+  $(addprefix -I,${INCLUDE}) \
+  -fno-stack-protector
 
 LDFLAGS = \
   -z noexecstack \

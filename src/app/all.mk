@@ -7,6 +7,9 @@ TARG := $(addprefix $(BUILD)/,${TARG})
 OBJS := $(addsuffix .o,${SRCS})
 OBJS := $(addprefix ${BUILD}/,${OBJS})
 
+# TODO
+CFLAGS += -fno-stack-protector
+
 $(BUILD)/%.c.o: %.c
 	$(call compile-obj,$<,$@)
 
