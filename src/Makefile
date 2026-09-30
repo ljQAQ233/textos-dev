@@ -1,6 +1,6 @@
 SHELL := bash
 ARCH ?= x86_64
-CROSS_COMPILE ?= ${ARCH}-elf-
+CROSS_COMPILE ?=
 
 # toolchain
 HOSTCC ?= gcc
