@@ -1,0 +1,46 @@
+name: build textos project
+run-name: build
+on:
+  workflow_dispatch:
+  schedule:
+    # min hour day mon wday
+    # run at the beginning of every month
+    - cron: 0 0 1 * *
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find out the latest buildable tag
+        uses: oprypin/find-latest-tag@v1
+        with:
+          repository: ${{ github.repository }}
+          releases-only: false
+          prefix: 'buildable-'
+          sort-tags: true
+        id: find_latest_buildable_tag
+      - name: Checkout TextOS source tree
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          ref: ${{ steps.find_latest_buildable_tag.outputs.tag }}
+      - name: Install essential compilers or softwares
+        run: |
+          sudo apt-get update
+          sudo apt-get install make gcc g++ nasm patchelf
+          sudo apt-get install nasm python3 python-is-python3
+      - name: Build BaseTools for Edk2 project
+        run: |
+          export BUILD_CC="gcc -std=gnu99"
+          make -C src/boot/Edk2/BaseTools/Source/C
+      - name: Build kernel, boot, app
+        run: |
+          make -C src install
+      - name: Archive with tar
+        run: |
+          cd build && tar -czvf ../root.tar.gz root
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: root.tar.gz
+          path: root.tar.gz
+          compression-level: 0
