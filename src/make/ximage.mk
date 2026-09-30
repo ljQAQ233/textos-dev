@@ -19,13 +19,17 @@ _img_u_:
 	sudo rm -rf $(TOPBUILD)/image
 
 _img_cp_resource_:
+	@mkdir -p $(ROOT)
 	$(INSTALL_SUDO) cp -r resource/. $(ROOT)
 	$(INSTALL_SUDO) mkdir -p $(ROOT)/{root,home}
 	$(INSTALL_SUDO) mkdir -p $(ROOT)/home/{local,guest}
-	$(INSTALL_SUDO) chown -R 1000:1000 $(ROOT)/home/local
-	$(INSTALL_SUDO) chown -R 1001:1001 $(ROOT)/home/guest
+	-$(INSTALL_SUDO) chown -R 1000:1000 $(ROOT)/home/local
+	-$(INSTALL_SUDO) chown -R 1001:1001 $(ROOT)/home/guest
 
 install: _img_cp_resource_
+	@if [[ "x$(INSTALL_SUDO)" == "x" ]]; then \
+		echo -e "\033[4;36mNOTE: INSTALL_SUDO not set, file owner might keep unchanged\033[0m"; \
+	fi
 
 _img_cp_: INSTALL_SUDO=sudo
 _img_cp_: ROOT=$(MNT2)
