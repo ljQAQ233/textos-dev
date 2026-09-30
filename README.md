@@ -51,10 +51,12 @@
 - 系统调用
   - [`bits/syscall.h`](src/include/bits/syscall.h)
   - TODOS
-    - [ ] **readlink**
+    - [x] **readlink**
     - [ ] **rmdir**
     - [ ] rename
     - [ ] pselect
+    - [x] select
+    - [x] poll
 
 - 设备驱动
   - [x] event
@@ -95,7 +97,7 @@
   - [ ] minix
     - [x] minix1
     - [ ] minix2
-    - [ ] minix3
+    - [x] minix3
   - [ ] iso9660
   - [x] procfs
   - [x] tmpfs
@@ -124,6 +126,11 @@
   - [x] percpu (mycpu)
   - [ ] clone
   - [ ] tls
+
+- 用户态
+  - [ ] sudo
+  - [ ] ptrace
+    - [ ] some!
 
 ## 关于用户态
 
@@ -308,6 +315,18 @@ scope 规则:
 **自 2026-05-05 起正式弃用**
 
 </details>
+
+## github actions
+
+构建项目, 生成 root.tar.gz .其 **artifacts** 用来作为 [mkroot](https://github.com/ljQAQ233/mkroot) 拉取源
+
+每个月月初, 也就是 一号 构建一次. 前提是打上 tag:
+
+```shell
+git tag buildable-$(date '+%Y%m%d')
+```
+
+将会用来作为一个 最新构建的源码树. <strike> 对, 我不能乱打, 因为我不确定我什么时候一个不注意改了什么东西, 系统就启动不了 </strike> `\(＠￣￢￣＠)/`
 
 ## AI 使用
 
