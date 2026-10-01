@@ -1,16 +1,18 @@
 name: build textos project
 run-name: build
 on:
+  push:
+    tags:
+      - 'buildable-*'
   workflow_dispatch:
-  schedule:
-    # min hour day mon wday
-    # run at the beginning of every month
-    - cron: 0 0 1 * *
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Find out the latest buildable tag
+        if: github.event_name != 'push'
         uses: oprypin/find-latest-tag@v1
         with:
           repository: ${{ github.repository }}
@@ -18,11 +20,23 @@ jobs:
           prefix: 'buildable-'
           sort-tags: true
         id: find_latest_buildable_tag
+      - name: Resolve buildable tag
+        id: tag
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          LATEST: ${{ steps.find_latest_buildable_tag.outputs.tag }}
+        run: |
+          if [ "$EVENT" = "push" ]; then
+            echo "tag=$REF_NAME" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$LATEST" >> "$GITHUB_OUTPUT"
+          fi
       - name: Checkout TextOS source tree
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          ref: ${{ steps.find_latest_buildable_tag.outputs.tag }}
+          ref: ${{ steps.tag.outputs.tag }}
       - name: Configure git identity
         run: |
           git config --global user.name "textos-ci"
@@ -49,3 +63,9 @@ jobs:
           name: root.tar.gz
           path: root.tar.gz
           compression-level: 0
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          files: root.tar.gz
+          fail_on_unmatched_files: true
