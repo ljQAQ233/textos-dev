@@ -128,10 +128,11 @@ __SYSCALL_DEFINE3(int, fcntl, int, fd, int, cmd, long, arg)
         }
     case F_SETFL:
         {
-            int flgs = (int)arg;
             int mask = O_APPEND | 0;
+            int flgs = (int)arg & mask;
             file->flgs &= ~mask;
             file->flgs |= flgs;
+            file->openctx.file_flgs = file->flgs;
             return 0;
         }
     case F_GETLK:
