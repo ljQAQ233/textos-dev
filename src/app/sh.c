@@ -17,6 +17,7 @@
 // 2026/04/25 - allow SIGINT to interrupt readline
 // 2026/04/26 - fixes 'putenv' -> 'setenv' which allocates memory itself
 // 2026/09/11 - fixes tswitch's crashing when reclaiming an nonexistent tty
+// 2026/09/25 - fixes REDIR's forgetting to recover snapped fd after failure
 
 #include <assert.h>
 #include <fcntl.h>
@@ -897,6 +898,7 @@ void nakerun(struct cmd *cmd, int replace)
         snapfd(rcmd->fd, 1);
         if (open(rcmd->file, rcmd->mode, 0644) < 0) {
             dprintf(2, "fail to open %s\n", rcmd->file);
+            snapfd(rcmd->fd, 0);
             break;
         }
         runcmd(rcmd->cmd);
