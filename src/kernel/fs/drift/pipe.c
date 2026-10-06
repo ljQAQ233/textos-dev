@@ -8,12 +8,15 @@
 
 fs_opts_t __vfs_pipe_op = {};
 
-#define is_rpipe(ctx) ((ctx->file_flgs & O_ACCMODE) == O_RDONLY)
-#define is_wpipe(ctx) ((ctx->file_flgs & O_ACCMODE) == O_WRONLY)
+#define is_rpipe_(fl) ((fl & O_ACCMODE) == O_RDONLY)
+#define is_wpipe_(fl) ((fl & O_ACCMODE) == O_WRONLY)
+#define is_rpipe(ctx) is_rpipe_(ctx->file_flgs)
+#define is_wpipe(ctx) is_wpipe_(ctx->file_flgs)
 
 typedef struct
 {
-    int alive;
+    int rd_alive;
+    int wr_alive;
     fifo_t fifo;
     lock_t lock;
     task_t *rd_waiter;
@@ -45,7 +48,7 @@ static int pipe_read(node_t *this, void *buf, size_t siz, size_t offset,
     for (;;) {
         int read = fifo_read(&pi->fifo, buf, rem);
         if (read == 0) {
-            if (pi->alive == 1) break;
+            if (pi->wr_alive == 0) break;
             if (openctx->file_flgs & O_NONBLOCK) break;
             block_as(&pi->lock, &pi->rd_waiter);
             continue;
@@ -68,7 +71,7 @@ static int pipe_write(node_t *this, void *buf, size_t siz, size_t offset,
     pipe_t *pi = this->pdata_pipe;
     if (is_rpipe(openctx)) return -EBADF;
     if (reqsiz == 0) return 0;
-    if (pi->alive == 1) return 0;
+    if (pi->rd_alive == 0) return 0;
 
     // TODO: use more accurate variable names
     lock_acquire(&pi->lock);
@@ -83,7 +86,7 @@ static int pipe_write(node_t *this, void *buf, size_t siz, size_t offset,
         fs_poll_deliver(&pi->rd_pollee, POLLIN);
         if (pi->rd_waiter) task_unblock(pi->rd_waiter, 0);
         if (!siz) break;
-        if (pi->alive == 1) break;
+        if (pi->rd_alive == 0) break;
         if (openctx->file_flgs & O_NONBLOCK) break;
     }
     lock_release(&pi->lock);
@@ -94,13 +97,15 @@ static int pipe_write(node_t *this, void *buf, size_t siz, size_t offset,
 static int pipe_close(node_t *this)
 {
     pipe_t *pi = this->pdata_pipe;
-    pi->alive--;
-    if (pi->alive == 1) {
+    if (is_rpipe_(file_flgs)) pi->rd_alive--;
+    if (is_wpipe_(file_flgs)) pi->wr_alive--;
+    int alive = !!pi->rd_alive + !!pi->wr_alive;
+    if (alive == 1) {
         fs_poll_deliver(&pi->wr_pollee, POLLHUP);
         fs_poll_deliver(&pi->rd_pollee, POLLHUP);
         if (pi->rd_waiter) task_unblock(pi->rd_waiter, 0);
         if (pi->wr_waiter) task_unblock(pi->wr_waiter, 0);
-    } else if (pi->alive == 0) {
+    } else if (alive == 0) {
         free(pi);
     }
     return 0;
@@ -110,7 +115,7 @@ static int pipe_poll_setup(node_t *this, struct fs_poller *poller)
 {
     pipe_t *pi = this->pdata_pipe;
     if (is_rpipe(poller->info_openctx)) {
-        if (pi->alive == 1) {
+        if (pi->wr_alive == 0) {
             if (fs_poll_deliver_to(&pi->rd_pollee, POLLHUP, poller, false))
                 return 1;
         }
@@ -120,7 +125,7 @@ static int pipe_poll_setup(node_t *this, struct fs_poller *poller)
         }
         fs_poll_setup(&pi->rd_pollee, poller);
     } else if (is_wpipe(poller->info_openctx)) {
-        if (pi->alive == 1) {
+        if (pi->rd_alive == 0) {
             if (fs_poll_deliver_to(&pi->wr_pollee, POLLHUP, poller, false))
                 return 1;
         }
@@ -140,7 +145,7 @@ static int pipe_poll_teardown(node_t *this, struct fs_poller *poller)
     pipe_t *pi = this->pdata_pipe;
     if (is_rpipe(poller->info_openctx)) {
         fs_poll_teardown(&pi->rd_pollee, poller);
-    } else if (poller->info_openctx) {
+    } else if (is_wpipe(poller->info_openctx)) {
         fs_poll_teardown(&pi->wr_pollee, poller);
     } else {
         return -1;
@@ -159,7 +164,8 @@ int vfs_pipe_create(node_t *pipe)
     pipe_t *pi = malloc(sizeof(pipe_t));
     if (!pi) goto fail_pi;
 
-    pi->alive = 2;
+    pi->rd_alive = 0;
+    pi->wr_alive = 0;
     fifo_init(&pi->fifo, pb, ps);
     lock_init(&pi->lock);
     pi->rd_waiter = NULL;
