@@ -881,7 +881,8 @@ __SYSCALL_DEFINE1(clock_t, times, struct tms *, buf)
     useconds_t cutime = 0;
     useconds_t cstime = 0;
     for (int i = 0; i < TASK_MAX; i++) {
-        if (task_get(i)->ppid == tsk->pid) {
+        task_t *j = task_get(i);
+        if (j && j->ppid == tsk->pid) {
             cutime += tsk->utime;
             cstime += tsk->stime;
         }
