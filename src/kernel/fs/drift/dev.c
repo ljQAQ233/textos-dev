@@ -85,7 +85,7 @@ static int dev_close(node_t *this)
     return 0;
 }
 
-static int dev_init_pctx(node_t *this, void **pctx)
+static int dev_init_pctx(node_t *this, u64 file_flgs, void **pctx)
 {
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
@@ -93,7 +93,7 @@ static int dev_init_pctx(node_t *this, void **pctx)
     return dev->_init_pctx(dev, pctx);
 }
 
-static int dev_fini_pctx(node_t *this, void **pctx)
+static int dev_fini_pctx(node_t *this, u64 file_flgs, void **pctx)
 {
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;

@@ -49,8 +49,8 @@ typedef struct
     int (*open)(node_t *parent, const char *path, u64 args, int mode,
                 node_t **result);
     int (*close)(node_t *this);
-    int (*_init_pctx)(node_t *this, void **pctx);
-    int (*_fini_pctx)(node_t *this, void **pctx);
+    int (*_init_pctx)(node_t *this, u64 file_flgs, void **pctx);
+    int (*_fini_pctx)(node_t *this, u64 file_flgs, void **pctx);
     /*
      * some fs do not support device node. here we create an empty file and bind
      * it with a device only in memory (vfs node_t::rdev). it is certain that

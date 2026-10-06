@@ -18,8 +18,8 @@ int vfs_write(node_t *this, void *buffer, size_t siz, size_t offset,
 int vfs_close(node_t *this, struct fs_openctx *openctx)
 {
     ASSERTK(openctx != NULL);
-    if (this->opts->_fini_pctx) //
-        this->opts->_fini_pctx(this, &openctx->pctx);
+    if (this->opts->_fini_pctx)
+        this->opts->_fini_pctx(this, openctx->file_flgs, &openctx->pctx);
     return this->opts->close(this);
 }
 
