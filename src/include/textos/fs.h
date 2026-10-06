@@ -113,6 +113,7 @@ struct node
     void *mount;
 
     void *pdata;
+    void *pdata_pipe;
     superblk_t *sb;
     fs_opts_t *opts;
 

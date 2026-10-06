@@ -533,34 +533,32 @@ __SYSCALL_DEFINE2(int, dup2, int, old, int, new)
 __SYSCALL_DEFINE1(int, dup, int, fd)
 {
     int new = fd_get(0);
-    if (new < 0)
-        return -EMFILE;
-
+    if (new < 0) return -EMFILE;
     return dup2(fd, new);
 }
 
 __SYSCALL_DEFINE1(int, pipe, int *, fds)
 {
+    int ret;
     int fd0, fd1;
     file_t *f0, *f1;
-    ASSERTK(file_get(&fd0, &f0, 0) >= 0);
-    ASSERTK(file_get(&fd1, &f1, 0) >= 0);
+    if ((ret = file_get(&fd0, &f0, 0)) < 0) goto fail_get_fd0;
+    if ((ret = file_get(&fd1, &f1, 0)) < 0) goto fail_get_fd1;
 
-    node_t *n0 = malloc(sizeof(*n0));
-    ASSERTK(n0 != NULL);
-    node_t *n1 = malloc(sizeof(*n1));
-    ASSERTK(n1 != NULL);
+    ret = -ENOMEM;
+    node_t *n = malloc(sizeof(node_t));
+    if (!n) goto fail_malloc_n0;
 
-    vfs_pipe_create(n0, n1);
+    if ((ret = vfs_pipe_create(n)) < 0) goto fail_create_pipe;
 
-    f0->node = n0;
+    f0->node = n;
     f0->refer = 1;
     f0->flgs = O_RDONLY;
     f0->openctx.file_flgs = O_RDONLY;
     f0->openctx.pctx = NULL;
     list_init(&f0->openctx.r_pollers);
 
-    f1->node = n1;
+    f1->node = n;
     f1->refer = 1;
     f1->flgs = O_WRONLY;
     f1->openctx.file_flgs = O_WRONLY;
@@ -570,6 +568,15 @@ __SYSCALL_DEFINE1(int, pipe, int *, fds)
     fds[0] = fd0;
     fds[1] = fd1;
     return 0;
+
+fail_create_pipe:
+    free(n);
+fail_malloc_n0:
+    file_put(fd1);
+fail_get_fd1:
+    file_put(fd0);
+fail_get_fd0:
+    return ret;
 }
 
 __SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)

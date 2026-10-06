@@ -6,11 +6,10 @@
 #include <textos/mm.h>
 #include <textos/mm/vmm.h>
 
-static fs_opts_t __pipe_rops = {};
-static fs_opts_t __pipe_wops = {};
+fs_opts_t __vfs_pipe_op = {};
 
-#define is_rpipe(n) ((n)->opts == &__pipe_rops)
-#define is_wpipe(n) ((n)->opts == &__pipe_wops)
+#define is_rpipe(ctx) ((ctx->file_flgs & O_ACCMODE) == O_RDONLY)
+#define is_wpipe(ctx) ((ctx->file_flgs & O_ACCMODE) == O_WRONLY)
 
 typedef struct
 {
@@ -38,7 +37,8 @@ static int pipe_read(node_t *this, void *buf, size_t siz, size_t offset,
                      struct fs_openctx *openctx)
 {
     size_t rem = siz;
-    pipe_t *pi = this->pdata;
+    pipe_t *pi = this->pdata_pipe;
+    if (is_wpipe(openctx)) return -EBADF;
     if (rem == 0) return 0;
 
     lock_acquire(&pi->lock);
@@ -65,7 +65,8 @@ static int pipe_write(node_t *this, void *buf, size_t siz, size_t offset,
                       struct fs_openctx *openctx)
 {
     size_t reqsiz = siz;
-    pipe_t *pi = this->pdata;
+    pipe_t *pi = this->pdata_pipe;
+    if (is_rpipe(openctx)) return -EBADF;
     if (reqsiz == 0) return 0;
     if (pi->alive == 1) return 0;
 
@@ -92,7 +93,7 @@ static int pipe_write(node_t *this, void *buf, size_t siz, size_t offset,
 
 static int pipe_close(node_t *this)
 {
-    pipe_t *pi = this->pdata;
+    pipe_t *pi = this->pdata_pipe;
     pi->alive--;
     if (pi->alive == 1) {
         fs_poll_deliver(&pi->wr_pollee, POLLHUP);
@@ -107,8 +108,8 @@ static int pipe_close(node_t *this)
 
 static int pipe_poll_setup(node_t *this, struct fs_poller *poller)
 {
-    pipe_t *pi = this->pdata;
-    if (is_rpipe(this)) {
+    pipe_t *pi = this->pdata_pipe;
+    if (is_rpipe(poller->info_openctx)) {
         if (pi->alive == 1) {
             if (fs_poll_deliver_to(&pi->rd_pollee, POLLHUP, poller, false))
                 return 1;
@@ -118,7 +119,7 @@ static int pipe_poll_setup(node_t *this, struct fs_poller *poller)
                 return 1;
         }
         fs_poll_setup(&pi->rd_pollee, poller);
-    } else if (is_wpipe(this)) {
+    } else if (is_wpipe(poller->info_openctx)) {
         if (pi->alive == 1) {
             if (fs_poll_deliver_to(&pi->wr_pollee, POLLHUP, poller, false))
                 return 1;
@@ -136,10 +137,10 @@ static int pipe_poll_setup(node_t *this, struct fs_poller *poller)
 
 static int pipe_poll_teardown(node_t *this, struct fs_poller *poller)
 {
-    pipe_t *pi = this->pdata;
-    if (is_rpipe(this)) {
+    pipe_t *pi = this->pdata_pipe;
+    if (is_rpipe(poller->info_openctx)) {
         fs_poll_teardown(&pi->rd_pollee, poller);
-    } else if (is_wpipe(this)) {
+    } else if (poller->info_openctx) {
         fs_poll_teardown(&pi->wr_pollee, poller);
     } else {
         return -1;
@@ -147,11 +148,17 @@ static int pipe_poll_teardown(node_t *this, struct fs_poller *poller)
     return 0;
 }
 
-int vfs_pipe_create(node_t *pipe0, node_t *pipe1)
+//
+// anonymous pipe
+//
+int vfs_pipe_create(node_t *pipe)
 {
     void *pb = vmm_allocpages(1, PE_P | PE_RW);
     size_t ps = PAGE_SIZ;
+    if (!pb) goto fail_pb;
     pipe_t *pi = malloc(sizeof(pipe_t));
+    if (!pi) goto fail_pi;
+
     pi->alive = 2;
     fifo_init(&pi->fifo, pb, ps);
     lock_init(&pi->lock);
@@ -160,36 +167,24 @@ int vfs_pipe_create(node_t *pipe0, node_t *pipe1)
     fs_pollee_init(&pi->rd_pollee);
     fs_pollee_init(&pi->wr_pollee);
 
-    pipe0->name = "rpipe";
-    pipe0->opts = &__pipe_rops;
-    pipe0->pdata = pi;
-
-    pipe1->name = "wpipe";
-    pipe1->opts = &__pipe_wops;
-    pipe1->pdata = pi;
-
+    pipe->name = "pipe";
+    pipe->opts = &__vfs_pipe_op;
+    pipe->pdata_pipe = pi;
     return 0;
-}
 
-static int bad_peer()
-{
-    return -EBADF;
+fail_pi:
+fail_pb:
+    return -ENOMEM;
 }
 
 // vfs pipe initializer
 void __vfs_pipe_init()
 {
-    vfs_initops(&__pipe_rops);
-    __pipe_rops.read = pipe_read;
-    __pipe_rops.write = (void *)bad_peer;
-    __pipe_rops.close = pipe_close;
-    __pipe_rops.poll_setup = pipe_poll_setup;
-    __pipe_rops.poll_teardown = pipe_poll_teardown;
-
-    vfs_initops(&__pipe_wops);
-    __pipe_wops.read = (void *)bad_peer;
-    __pipe_wops.write = pipe_write;
-    __pipe_wops.close = pipe_close;
-    __pipe_rops.poll_setup = pipe_poll_setup;
-    __pipe_rops.poll_teardown = pipe_poll_teardown;
+    fs_opts_t *op = &__vfs_pipe_op;
+    vfs_initops(op);
+    op->read = pipe_read;
+    op->write = pipe_write;
+    op->close = pipe_close;
+    op->poll_setup = pipe_poll_setup;
+    op->poll_teardown = pipe_poll_teardown;
 }
