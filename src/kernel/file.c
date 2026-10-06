@@ -579,12 +579,13 @@ fail_get_fd0:
     return ret;
 }
 
-__SYSCALL_DEFINE3(int, mknod, char *, path, int, mode, long, dev)
+__SYSCALL_DEFINE3(int, mknod, const char *, path, int, mode, long, dev)
 {
-    if (!S_ISCHR(mode)
-     && !S_ISBLK(mode)
-     && !S_ISFIFO(mode))
-        return -EINVAL;
+    int chk = 0;
+    chk += S_ISCHR(mode);
+    chk += S_ISBLK(mode);
+    chk += S_ISFIFO(mode);
+    if (chk != 1) return -EINVAL;
     return vfs_mknod(path, dev, mode);
 }
 
