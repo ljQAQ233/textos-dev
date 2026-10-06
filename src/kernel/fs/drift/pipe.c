@@ -1,3 +1,4 @@
+#include <textos/task.h>
 #include <textos/errno.h>
 #include <textos/fs.h>
 #include <textos/fs/poll.h>
@@ -96,6 +97,12 @@ static int pipe_write(node_t *this, void *buf, size_t siz, size_t offset,
 
 static int pipe_close(node_t *this)
 {
+    // TODO: release
+    return 0;
+}
+
+static int pipe__fini_pctx(node_t *this, u64 file_flgs, void **pctx)
+{
     pipe_t *pi = this->pdata_pipe;
     if (is_rpipe_(file_flgs)) pi->rd_alive--;
     if (is_wpipe_(file_flgs)) pi->wr_alive--;
@@ -153,10 +160,7 @@ static int pipe_poll_teardown(node_t *this, struct fs_poller *poller)
     return 0;
 }
 
-//
-// anonymous pipe
-//
-int vfs_pipe_create(node_t *pipe)
+int vfs_pipe_create_dead(node_t *pipe)
 {
     void *pb = vmm_allocpages(1, PE_P | PE_RW);
     size_t ps = PAGE_SIZ;
@@ -173,7 +177,6 @@ int vfs_pipe_create(node_t *pipe)
     fs_pollee_init(&pi->rd_pollee);
     fs_pollee_init(&pi->wr_pollee);
 
-    pipe->name = "pipe";
     pipe->opts = &__vfs_pipe_op;
     pipe->pdata_pipe = pi;
     return 0;
@@ -181,6 +184,74 @@ int vfs_pipe_create(node_t *pipe)
 fail_pi:
 fail_pb:
     return -ENOMEM;
+}
+
+//
+// anonymous pipe
+//
+int vfs_pipe_create_anony(node_t *pipe)
+{
+    int ret = vfs_pipe_create_dead(pipe);
+    if (ret < 0) return ret;
+    pipe_t *pi = pipe->pdata_pipe;
+    pipe->name = "pipe";
+    pi->rd_alive = pi->wr_alive = 1;
+    return 0;
+}
+
+//
+// named pipe
+//
+int vfs_drift_cb_pipe_open(node_t *this, u64 args)
+{
+    int ret;
+    int acc = args & O_ACCMODE;
+    this->opts = &__vfs_pipe_op;
+    if (!this->pdata_pipe) {
+        if ((ret = vfs_pipe_create_dead(this)) < 0) //
+            return ret;
+    }
+    pipe_t *pi = this->pdata_pipe;
+    lock_acquire(&pi->lock);
+    if (acc == O_RDONLY) {
+        pi->rd_alive += 1;
+        if (!pi->wr_alive) {
+            if (!pi->wr_waiter) {
+                pi->rd_waiter = task_current();
+                DEBUGK(K_DEBUG,
+                       "task[#%d] blocked waiting for writing peer (%s)\n",
+                       task_current()->pid, this->name);
+                lock_release(&pi->lock);
+                task_block(NULL, NULL, TASK_BLK, 0);
+                lock_acquire(&pi->lock);
+                pi->rd_waiter = NULL;
+            } else {
+                DEBUGK(K_DEBUG, "task[#%d] unblock %d as reading peer (%s)\n",
+                       task_current()->pid, pi->wr_waiter->pid, this->name);
+                task_unblock(pi->wr_waiter, 0);
+            }
+        }
+    } else if (acc == O_WRONLY) {
+        pi->wr_alive += 1;
+        if (!pi->rd_alive) {
+            if (!pi->rd_waiter) {
+                DEBUGK(K_DEBUG,
+                       "task[#%d] blocked waiting for reading peer (%s)\n",
+                       task_current()->pid, this->name);
+                pi->wr_waiter = task_current();
+                lock_release(&pi->lock);
+                task_block(NULL, NULL, TASK_BLK, 0);
+                lock_acquire(&pi->lock);
+                pi->wr_waiter = NULL;
+            } else {
+                DEBUGK(K_DEBUG, "task[#%d] unblock %d as writing peer (%s)\n",
+                       task_current()->pid, pi->wr_waiter->pid, this->name);
+                task_unblock(pi->rd_waiter, 0);
+            }
+        }
+    }
+    lock_release(&pi->lock);
+    return 0;
 }
 
 // vfs pipe initializer
@@ -191,6 +262,7 @@ void __vfs_pipe_init()
     op->read = pipe_read;
     op->write = pipe_write;
     op->close = pipe_close;
+    op->_fini_pctx = pipe__fini_pctx;
     op->poll_setup = pipe_poll_setup;
     op->poll_teardown = pipe_poll_teardown;
 }

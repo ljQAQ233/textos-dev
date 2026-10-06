@@ -257,4 +257,7 @@ bool vfs_ismount(node_t *n);
  */
 bool vfs_isaroot(node_t *n);
 
+int vfs_drift_cb_dev_open(node_t *this, u64 args);
+int vfs_drift_cb_pipe_open(node_t *this, u64 args);
+
 #endif

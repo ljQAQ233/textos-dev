@@ -74,6 +74,9 @@ end:
     return 0;
 }
 
+extern fs_opts_t __vfs_dev_op;
+extern fs_opts_t __vfs_pipe_op;
+
 int vfs_open(node_t *parent, const char *path, u64 args, int mode,
              node_t **node, struct fs_openctx *openctx)
 {
@@ -109,18 +112,26 @@ int vfs_open(node_t *parent, const char *path, u64 args, int mode,
         }
     }
 end:
-    if (!ret) {
-        *node = res;
-        ASSERTK(openctx != NULL);
-        openctx->file_flgs = args;
-        openctx->pctx = NULL;
-        list_init(&openctx->r_pollers);
-        if (res->opts->_init_pctx) {
-            ret = res->opts->_init_pctx(res, &openctx->pctx);
-            if (ret < 0) *node = NULL;
-            list_insert(&res->r_ctx_all, &openctx->l_ctx_all);
-        }
+    if (ret < 0) {
+        DEBUGK(K_INFO, "open '%s' = %d\n", path, ret);
+        return ret;
     }
-    DEBUGK(K_INFO, "open %s = %d\n", path, ret);
+
+    *node = res;
+
+    if (S_ISCHR(res->mode) || S_ISBLK(res->mode))
+        vfs_drift_cb_dev_open(res, args);
+    else if (S_ISFIFO(res->mode))
+        vfs_drift_cb_pipe_open(res, args);
+
+    ASSERTK(openctx != NULL);
+    openctx->file_flgs = args;
+    openctx->pctx = NULL;
+    list_init(&openctx->r_pollers);
+    if (res->opts->_init_pctx) {
+        ret = res->opts->_init_pctx(res, args, &openctx->pctx);
+        if (ret < 0) *node = NULL;
+        list_insert(&res->r_ctx_all, &openctx->l_ctx_all);
+    }
     return ret;
 }

@@ -549,7 +549,7 @@ __SYSCALL_DEFINE1(int, pipe, int *, fds)
     node_t *n = malloc(sizeof(node_t));
     if (!n) goto fail_malloc_n0;
 
-    if ((ret = vfs_pipe_create(n)) < 0) goto fail_create_pipe;
+    if ((ret = vfs_pipe_create_anony(n)) < 0) goto fail_create_pipe;
 
     f0->node = n;
     f0->refer = 1;

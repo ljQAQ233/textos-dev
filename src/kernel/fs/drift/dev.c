@@ -143,3 +143,9 @@ fs_opts_t __vfs_dev_op = {
     dev_poll_setup,
     dev_poll_teardown,
 };
+
+int vfs_drift_cb_dev_open(node_t *this, u64 args)
+{
+    this->opts = &__vfs_dev_op;
+    return 0;
+}
