@@ -38,7 +38,7 @@
 #define __user_heap_va      0x0000700000000000ull
 #define __user_heap_pages   (0x0000000100000000ull / PAGE_SIZ)
 #define __user_stack_top    0x00007ffffffff000ull
-#define __user_stack_bot    0x00007fffffff0000ull
+#define __user_stack_bot    0x00007ffffff00000ull
 #define __user_stack_pages  ((__user_stack_top - __user_stack_bot) / PAGE_SIZ)
 
 #define istk_pages 4
