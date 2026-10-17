@@ -69,10 +69,10 @@ __INTR_HANDLER(pagefault_handler)
             assert(pgrec != NULL);
             if (pgrec->refcnt == 1) {
                 vmap_map(ppg, pgbase, 1, PE_P | PE_US | mapprot(vma->prot));
+                vmm_ppg_reparent(pgrec, vma);
                 return;
             }
 
-            // TODO: transfer
             pgrec->refcnt -= 1;
             addr_t npg;
             {

@@ -102,6 +102,7 @@ void vmm_free_vma(vm_area_t *vma);
 
 vm_ppg_t *vmm_ppg_new(vm_ppg_t *old);
 void vmm_ppg_regst(vm_area_t *vma, addr_t pa, int flag);
+void vmm_ppg_reparent(vm_ppgrec_t *exclusive, vm_area_t *vma);
 vm_ppgrec_t *vmm_ppg_query(vm_area_t *vma, addr_t pa);
 void vmm_ppg_refer(vm_ppgrec_t *rec);
 void vmm_ppg_unref(vm_ppgrec_t *rec);

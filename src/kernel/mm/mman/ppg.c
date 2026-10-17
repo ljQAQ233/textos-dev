@@ -37,6 +37,14 @@ void vmm_ppg_regst(vm_area_t *vma, addr_t pa, int flag)
     htable_add(&vma->ppgs->ht, &record->hlist, key);
 }
 
+void vmm_ppg_reparent(vm_ppgrec_t *exclusive, vm_area_t *vma)
+{
+    assert(exclusive->refcnt == 1);
+    hlist_del(&exclusive->hlist);
+    htkey_t key = hash(exclusive->pa);
+    htable_add(&vma->ppgs->ht, &exclusive->hlist, key);
+}
+
 vm_ppgrec_t *vmm_ppg_query(vm_area_t *vma, addr_t pa)
 {
     hlist_node_t *ptr;
