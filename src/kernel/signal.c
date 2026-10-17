@@ -214,10 +214,8 @@ static int kill_safe(int pid, int sig, bool safe)
                 continue;
             killed = 1;
         }
-        if (!found)
-            return -ESRCH;
-        if (!killed)
-            return -EPERM;
+        if (!found) return -ESRCH;
+        if (!killed) return -EPERM;
         return 0;
     }
 
@@ -240,10 +238,10 @@ static int kill_safe(int pid, int sig, bool safe)
      * If sig is SIGKILL, it's necessary to wait for its exit from a syscall, i.e.
      * release system resources. Handle it in `__handle_signal`!
      */
-    if (sig == 0)
-        return 0;
+    if (sig == 0) return 0;
     sigaddset(&ptsk->sigpend, sig);
-    DEBUGK(K_TRACE, "signal %d sent to pid=%d well\n", sig, ptsk->pid);
+    DEBUGK(K_TRACE, "signal %s sent to pid=%d well\n", sig_to_str(sig),
+           ptsk->pid);
 
     if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
         if (ptsk->stat == TASK_PRE || ptsk->stat == TASK_RUN ||

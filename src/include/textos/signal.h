@@ -56,4 +56,19 @@ int fkill(int pid, int sig); // without permisson check
 #define make_stat_stopped(sig)      ((((sig) & 0xff) << 8) | 0x7f)
 #define make_stat_continued()       (0xffff)
 
+// clang-format off
+static inline const char *sig_to_str(int sig)
+{
+#define _(x) case SIG##x: return #x;
+    switch (sig) {
+    _(HUP) _(INT) _(QUIT) _(ILL) _(TRAP) _(ABRT) _(BUS) _(FPE) _(KILL)
+    _(USR1) _(SEGV) _(USR2) _(PIPE) _(ALRM) _(TERM) _(STKFLT) _(CHLD)
+    _(CONT) _(STOP) _(TSTP) _(TTIN) _(TTOU) _(URG) _(XCPU) _(XFSZ)
+    _(VTALRM) _(PROF) _(WINCH) _(IO) _(PWR) _(SYS)
+    default: return "UNKNOWN";
+    }
+#undef _
+}
+// clang-format on
+
 #endif
