@@ -173,6 +173,7 @@ static void *stack()
 
 RETVAL(int) sys_execve(char *path, char *const argv[], char *const envp[])
 {
+    DEBUGK(K_INFO, "execve starts\n");
     int errno;
     exeinfo_t info;
     char *nullist[] = {

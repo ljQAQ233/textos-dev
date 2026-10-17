@@ -178,7 +178,7 @@ addr_t new_pgt()
     return npg;
 }
 
-static u64 _copy_pgtd(u64 pg, int lv)
+static u64 _copy_pgt(u64 pg, int lv)
 {
     u64 npg;
     u64 *vpg, *vnpg;
@@ -194,11 +194,15 @@ static u64 _copy_pgtd(u64 pg, int lv)
         goto done;
 
     int limit = lv == L_PML4 ? 256 : 512;
-    for (int i = 0; i < limit; i++)
-    {
-        if (vnpg[i])
-        {
-            u64 paddr = _copy_pgtd(ADDR(vnpg[i]), lv - 1);
+    for (int i = 0; i < limit; i++) {
+        if (!vnpg[i]) continue;
+        if (lv == L_PT) {
+            // copy merely framework of pgt. if page is writable, then mark it
+            // as read-only page to support cow.
+            vpg[i] &= ~PE_RW;
+            vnpg[i] = vpg[i];
+        } else {
+            u64 paddr = _copy_pgt(ADDR(vnpg[i]), lv - 1);
             vnpg[i] = FLAG(vnpg[i]) | ADDR(paddr);
         }
     }
@@ -212,10 +216,12 @@ done:
     return npg;
 }
 
-/* deep-fork */
-addr_t copy_pgtd(addr_t ppgt)
+addr_t copy_pgt(addr_t ppgt)
 {
-    return (addr_t)_copy_pgtd(ppgt, L_PML4);
+    addr_t ret = (addr_t)_copy_pgt(ppgt, L_PML4);
+    addr_t pgt = read_cr3();
+    write_cr3(pgt);
+    return ret;
 }
 
 static void clear(u64 pa, int lv)

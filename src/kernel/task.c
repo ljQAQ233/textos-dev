@@ -196,7 +196,7 @@ static int fork_stack(task_t *prt, task_t *chd)
 
 static int fork_pgt(task_t *prt, task_t *chd)
 {
-    chd->pgt = copy_pgtd(prt->pgt);
+    chd->pgt = copy_pgt(prt->pgt);
     chd->mmap = prt->mmap;
     chd->vsp = vmm_new_space(prt->vsp);
     return 0;
@@ -253,7 +253,7 @@ int task_fork()
 {
     task_t *prt = task_current();
     task_t *chd = _task_create();
-    
+
     // context
     fork_stack(prt, chd);
     if (prt->sframe->vector == INT_MSYSCALL)
@@ -262,7 +262,7 @@ int task_fork()
         chd->frame->rip = (u64)intr_exit;
     chd->iframe->rax = 0; // 子进程返回 0
     chd->syscallno = SYS_fork;
-    
+
     chd->stat = TASK_PRE;
     chd->tick = prt->tick;
     chd->curr = prt->curr;

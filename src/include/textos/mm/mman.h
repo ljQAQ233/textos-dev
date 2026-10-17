@@ -55,8 +55,9 @@ typedef struct
     hlist_node_t hlist;
 } vm_ppgrec_t;
 
-typedef struct
+typedef struct vm_ppg
 {
+    struct vm_ppg *parent;
     htable_t ht;
 } vm_ppg_t;
 
