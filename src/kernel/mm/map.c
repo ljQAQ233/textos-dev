@@ -27,6 +27,7 @@ static u64 cr3;
 
 /* Locate entry or others by virtual address */
 #define IDX(addr, level) (((u64)addr >> (level * 9 + 12)) & 0x1FF)
+#define ADR(idx, level)  (((u64)idx & 0x1FF) << (level * 9 + 12))
 #define PML4E_IDX(addr) IDX(addr, L_PML4)
 #define PDPTE_IDX(addr) IDX(addr, L_PDPT)
 #define PDE_IDX(addr) IDX(addr, L_PD)
@@ -243,4 +244,28 @@ void clear_pgt(addr_t ppgt)
     clear(ppgt, L_PML4);
     if (read_cr3() == ppgt)
         write_cr3(ppgt);
+}
+
+static void scan_dirty_walk(addr_t s, addr_t t, addr_t vrt, int lv,
+                            void (*cb)(addr_t, void *), void *cb_data)
+{
+    int sidx = IDX(s, lv);
+    int tidx = IDX(t, lv);
+    u64 *tab = entryget(vrt, lv);
+    if (tidx == 0) tidx = 511;
+    for (int idx = sidx; idx <= tidx; idx++) {
+        if (!(tab[idx] & PE_A)) continue;
+        if (!(tab[idx] & PE_P)) continue;
+        if (lv == L_PT) {
+            if (tab[idx] & PE_D) cb(vrt, cb_data);
+        } else {
+            scan_dirty_walk(s, t, vrt | ADR(idx, lv), lv - 1, cb, cb_data);
+        }
+    }
+}
+
+void vmap_scan_dirty(addr_t s, addr_t t, void (*cb)(addr_t, void *),
+                     void *cb_data)
+{
+    scan_dirty_walk(s, t, 0, L_PML4, cb, cb_data);
 }

@@ -24,9 +24,13 @@ vm_area_t *vmm_new_vma(vm_area_t *old)
         vma->ppgs = vmm_ppg_new(0);
     return vma;
 }
+    
+extern void __vmm_syncproc();
 
 void vmm_free_vma(vm_area_t *vma)
 {
+    // TODO: call it regularly
+    __vmm_syncproc();
     vmm_ppg_clear(vma);
     free(vma);
 }

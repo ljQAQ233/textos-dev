@@ -9,6 +9,7 @@ SRCS += mm/mman/ppg.c
 SRCS += mm/mman/fitter.c
 SRCS += mm/mman/anon.c
 SRCS += mm/mman/file.c
+SRCS += mm/mman/sync.c
 SRCS += mm/mman/mman.c
 SRCS += mm/mman/populate.c
 SRCS += mm/pvpage.c

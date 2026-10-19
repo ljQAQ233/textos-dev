@@ -31,8 +31,12 @@ void vmap_map(addr_t phy, addr_t vrt, size_t num, int flgs);
 void vmap_unmap(addr_t vrt, size_t num);
 addr_t vmap_query(addr_t vrt);
 
+void vmap_scan_dirty(addr_t s, addr_t t, void (*cb)(addr_t, void *),
+                     void *cb_data);
+
 addr_t get_kpgt();
 addr_t get_kppgt();
 addr_t new_pgt();
 addr_t copy_pgt(addr_t ppgt);
 void clear_pgt(addr_t ppgt);
+

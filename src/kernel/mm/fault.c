@@ -44,6 +44,7 @@ __INTR_HANDLER(pagefault_handler)
             vfs_read(vma->obj.node, (void *)pgbase, siz, foff, &ctx);
             vmap_map((addr_t)ppg, pgbase, 1, PE_P | PE_US | mapprot(vma->prot));
             vmm_ppg_regst(vma, ppg, 0);
+            if (vma->flgs & MAP_SHARED) vmm_sync_regst(vma);
             return;
         }
         if (vma->flgs & MAP_ANON) {

@@ -2,6 +2,8 @@
 
 #include <bits/mman.h>
 
+#define MAP_SYNCING (1 << 31)
+
 #define MAPL_USER 0
 #define MAPL_FILE 1
 #define MAPL_STACK 2
@@ -61,7 +63,7 @@ typedef struct vm_ppg
     htable_t ht;
 } vm_ppg_t;
 
-typedef struct
+typedef struct vm_area
 {
     addr_t s, t;
     int flgs;
@@ -86,6 +88,13 @@ typedef struct
     rbtree_t tree;
 } vm_space_t;
 
+struct vm_sync
+{
+    struct vm_area *vma;
+    addr_t pgt;
+    list_t list;
+};
+
 #define MRET(x) ((void *)(x))
 
 void *mmap_file(vm_region_t *vm);
@@ -107,6 +116,9 @@ vm_ppgrec_t *vmm_ppg_query(vm_area_t *vma, addr_t pa);
 void vmm_ppg_refer(vm_ppgrec_t *rec);
 void vmm_ppg_unref(vm_ppgrec_t *rec);
 void vmm_ppg_clear(vm_area_t *vma);
+
+int vmm_sync_regst(struct vm_area *vma);
+void vmm_sync_area(struct vm_sync *vms);
 
 void vmm_sp_regst(vm_space_t *sp, vm_area_t *vma);
 void vmm_sp_unreg(vm_space_t *sp, vm_area_t *vma);
