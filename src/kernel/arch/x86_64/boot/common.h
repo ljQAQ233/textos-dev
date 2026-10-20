@@ -17,3 +17,20 @@ typedef void *(getpage_t)();
 
 extern __bcode void __common64(long magic, long info, getpage_t *getpage,
                                addr_t offset);
+
+static inline __bcode void *memcpy(void *dest, const void *src, size_t n)
+{
+    char *p = dest;
+    while (n--)
+        *p++ = *(char *)src++;
+    return dest;
+}
+
+static inline __bcode size_t strlen(const char *str)
+{
+    size_t i = 0;
+
+    while (str && *str++)
+        i++;
+    return i;
+}
