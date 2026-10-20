@@ -7,11 +7,30 @@
 #define vbase fq(__vbase)
 #define lend  fq(__lend)
 
-static __bdata void *mmap;
+static __bdata multiboot_memory_map_t mmap[128];
 static __bdata size_t mmap_max;
+static __bdata multiboot_info_t info_copy;
+
+static __bcode void reskern(addr_t kern_start, addr_t kern_end);
+static __bcode void *getpage();
+
+static __bcode multiboot_memory_map_t *getexmap()
+{
+    for (int i = 0; i < sizeof(mmap) / sizeof(mmap[0]); i++) {
+        if (!mmap[i].addr) {
+            mmap_max = MAX(mmap_max, i);
+            return &mmap[i];
+        }
+    }
+    // logically correct!
+    __builtin_unreachable();
+}
 
 static __bcode void reskern(addr_t kern_start, addr_t kern_end)
 {
+    kern_start = align_dn(kern_start, PAGE_SIZE);
+    kern_end = align_up(kern_end, PAGE_SIZE);
+
     multiboot_memory_map_t *map = (void *)mmap;
     for (int i = 0; i < mmap_max; i++, map++)
     {
@@ -25,7 +44,7 @@ static __bcode void reskern(addr_t kern_start, addr_t kern_end)
             // map 跨过内核，分成两段
             // 先保留低地址段
             map->len = kern_start - map_start;
-            multiboot_memory_map_t *newmap = &((multiboot_memory_map_t *)mmap)[0];
+            multiboot_memory_map_t *newmap = getexmap();
             newmap->addr = kern_end;
             newmap->len  = map_end - kern_end;
             newmap->type = MULTIBOOT_MEMORY_AVAILABLE;
@@ -69,11 +88,20 @@ static __bcode void *getpage()
 
 __bcode void __multi64(long magic, long info)
 {
+    memcpy(&info_copy, (void *)info, sizeof(info_copy));
+    info = (long)&info_copy;
+
     multiboot_info_t *mi = (void *)info;
-    mmap = (void *)(long)mi->mmap_addr;
+    memcpy(mmap, (void *)(long)mi->mmap_addr, mi->mmap_length);
     mmap_max = mi->mmap_length / sizeof(multiboot_memory_map_t);
+
     addr_t kern_start = lbase;
     addr_t kern_end   = align_up(lend, PAGE_SIZE);
     reskern(kern_start, kern_end);
+    reskern(mi->cmdline, mi->cmdline + strlen((char *)(long)mi->cmdline));
+
+    mi->mmap_addr = (long)&mmap;
+    mi->mmap_length = (long)mmap_max * sizeof(multiboot_memory_map_t);
+
     __common64(magic, info, getpage, 0);
 }
