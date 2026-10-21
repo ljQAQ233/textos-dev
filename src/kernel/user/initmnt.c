@@ -5,6 +5,8 @@
 #include <textos/fs/internal.h>
 #include <textos/fs/mount.h>
 
+__CMDLINE_USED("root");
+
 extern bool __vfs_rootset(node_t *root);
 
 extern node_t *__fs_init_tmpfs();

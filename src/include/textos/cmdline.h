@@ -1,7 +1,11 @@
 #pragma once
 
+#define __CMDLINE_USED(key)
+
 void cmdline_get_raw(const char **raw, size_t *size);
 bool cmdline_search(const char *key, const char **v, const char **vend);
+
+void cmdline_free_str(char *str);
 
 int cmdline_get_buf(const char *key, char *buf, size_t *size);
 int cmdline_get_str(const char *key, char **str);
