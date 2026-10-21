@@ -276,23 +276,18 @@ static void pmcmd(char c);
 
 static void arg(char c)
 {
-    if (con.argc == ARG_RESET)
-    {
-        for (int i = 0 ; i < ARG_MAX ; i++)
+    if (con.argc == ARG_RESET) {
+        for (int i = 0; i < ARG_MAX; i++)
             con.argv[i] = 0;
         con.argc = 0;
     }
 
     if ('0' <= c && c <= '9')
         con.argv[con.argc] = con.argv[con.argc] * 10 + c - '0';
-    else if (c == ';')
-    {
+    else if (c == ';') {
         // drop
-        if (++con.argc > ARG_MAX)
-            --con.argc;
-    }
-    else
-    {
+        if (++con.argc > ARG_MAX) --con.argc;
+    } else {
         ++con.argc;
         if (con.pmcmd)
             pmcmd(c);
@@ -300,6 +295,8 @@ static void arg(char c)
             cmd(c);
     }
 }
+
+// clang-format off
 
 static void cmd(char c)
 {
@@ -384,13 +381,15 @@ static void cmd(char c)
     });
 
     case 'm': BRKOUT(sgr());
-    
     default:
+        DEBUGK(K_TRACE, "console gets invalid cmd - %c\n", c);
         break;
     }
     
     con.state = STATE_NOR;
 }
+
+// clang-format on
 
 enum
 {
@@ -405,6 +404,8 @@ static void pmcmd(char c)
 
     con.state = STATE_NOR;
 }
+
+// clang-format off
 
 // 投喂状态机
 static void cputc(char c)
@@ -422,6 +423,8 @@ static void cputc(char c)
     }
 }
 
+// clang-format on
+
 /*
  * 设备驱动
  */
@@ -433,7 +436,7 @@ ssize_t console_write(void *io, char *s, size_t len)
     char *p = s;
     curshow(false);
     UNINTR_AREA({
-        for ( ; len ; p++, len--)
+        for (; len; p++, len--)
             cputc(*p);
     });
     curshow(true);
@@ -446,21 +449,20 @@ ssize_t console_write(void *io, char *s, size_t len)
 
 int console_ioctl(void *io, int req, void *argp)
 {
-    switch (req)
-    {
-        case TIOCGWINSZ:
-            {
-                struct winsize *win = argp;
-                win->ws_row = con.col;
-                win->ws_col = con.row;
-                win->ws_xpixel = con.hor;
-                win->ws_ypixel = con.ver;
-                return 0;
-            }
-        case TIOCSWINSZ:
-            return -EPERM;
-        default:
-            return -EINVAL;
+    switch (req) {
+    case TIOCGWINSZ: {
+        struct winsize *win = argp;
+        win->ws_row = con.col;
+        win->ws_col = con.row;
+        win->ws_xpixel = con.hor;
+        win->ws_ypixel = con.ver;
+        return 0;
+    }
+    case TIOCSWINSZ:
+        return -EPERM;
+    default:
+        DEBUGK(K_TRACE, "console gets invalid ioctl req - %x\n", req);
+        return -EINVAL;
     }
 }
 
