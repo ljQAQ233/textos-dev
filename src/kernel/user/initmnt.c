@@ -1,4 +1,5 @@
 #include <textos/boot.h>
+#include <textos/cmdline.h>
 #include <textos/dev.h>
 #include <textos/fs.h>
 #include <textos/fs/internal.h>
@@ -25,11 +26,12 @@ void initproc_mnt()
         sysroot = __fs_init_tmpfs();
         if (!sysroot) PANIC("temporary rootfs cannot be initialized\n");
     } else {
-        char *name = BOOT_DEV_PATH_ROOT;
+        char *name = cmdline_getdef_str("root", BOOT_DEV_PATH_ROOT);
         devst_t *blkdev = lookup_fakepath(name);
         if (!blkdev) PANIC("root device (%s) not found\n", name);
         int ret = fs_extract_mount(blkdev, &sysroot);
         if (ret < 0) PANIC("no partition recognized on %s\n", name);
+        cmdline_free_str(name);
     }
     __vfs_rootset(sysroot);
 
