@@ -9,6 +9,7 @@ extern void __idmap_init();
 extern void __video_pre();
 extern void __mm_pre();
 extern void __acpi_pre();
+extern void __cmdline_pre();
 
 static void *binfo;
 static bmode_t bmode;
@@ -36,9 +37,10 @@ void kernel_init(long magic, long info)
     __video_pre();
     __mm_pre();
     __acpi_pre();
+    __cmdline_pre();
     kernel_main();
 die:
-    return ;
+    return;
 }
 
 void *binfo_get()

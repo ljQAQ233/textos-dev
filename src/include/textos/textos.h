@@ -26,6 +26,9 @@
 #define __kern_pvpg_base 0xffffc00000000000ull
 #define __kern_pvpg_max  0xffffc00000100000ull
 
+#define __kern_cmdline_base 0xffffc00000100000ull
+#define __kern_cmdline_max  0xffffc00000200000ull
+
 #define __uefi_misc      0xffff8c0000000000ull // 64 MiB
 #define __uefi_max       0xffff8c0004000000ull
 

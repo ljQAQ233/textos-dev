@@ -32,7 +32,7 @@ LDFLAGS := \
   -Map=$(BUILD)/system.map
 
 SRCS := \
-  init.c main.c debug.c acpi.c apic.c dev.c \
+  init.c main.c debug.c acpi.c apic.c dev.c cmdline.c \
   printk.c ktm.c ktimer.c time.c task.c task.S signal.c ptrace.c file.c \
   mycpu.c pwm.c lock.c noopt.c
 

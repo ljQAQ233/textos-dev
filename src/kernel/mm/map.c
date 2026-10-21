@@ -138,6 +138,7 @@ extern void __pmm_tovmm();
 extern void __acpi_tovmm();
 extern void __apic_tovmm();
 extern void __video_tovmm();
+extern void __cmdline_tovmm();
 
 void vmap_initvm()
 {
@@ -147,6 +148,7 @@ void vmap_initvm()
     __acpi_tovmm();
     __apic_tovmm();
     __video_tovmm();
+    __cmdline_tovmm();
 
     for (int i = 0; i < 256; i++)
         if (i != R_IDX)
