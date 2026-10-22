@@ -51,6 +51,7 @@ typedef struct task
     u64 tick; // default ticks it has
     u64 curr; // current ticks it has
     ktimer_t btmr;
+    ktimer_t alarm;
     list_t blist;
     int bretval; // block return value
     bool did_exec;

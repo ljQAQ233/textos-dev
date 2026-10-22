@@ -24,6 +24,7 @@
     _(dup2, 33)         \
     _(pause, 34)        \
     _(nanosleep, 35)    \
+    _(alarm, 37)        \
     _(getpid, 39)       \
     _(socket, 41)       \
     _(connect, 42)      \

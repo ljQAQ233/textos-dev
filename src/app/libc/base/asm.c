@@ -547,6 +547,11 @@ pid_t getppid()
     return syscall(SYS_getppid);
 }
 
+unsigned alarm(unsigned seconds)
+{
+    return syscall(SYS_alarm, seconds);
+}
+
 /* sys/time.h */
 int gettimeofday(struct timeval *tp, void *restrict tzp)
 {

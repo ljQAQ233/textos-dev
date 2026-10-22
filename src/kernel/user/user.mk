@@ -9,3 +9,4 @@ SRCS += user/syscall.S
 SRCS += user/test.c
 SRCS += user/exec.c
 SRCS += user/uname.c
+SRCS += user/alarm.c
