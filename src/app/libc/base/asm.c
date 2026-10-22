@@ -119,6 +119,11 @@ int sigprocmask(int how, const sigset_t *set, sigset_t *oset)
     return syscall(SYS_sigprocmask, how, set, oset);
 }
 
+int sigsuspend(const sigset_t *sigmask)
+{
+    return syscall(SYS_sigsuspend, sigmask);
+}
+
 int kill(int pid, int sig)
 {
     return syscall(SYS_kill, pid, sig);

@@ -74,6 +74,7 @@
     _(setgroups, 116)   \
     _(getpgid, 121)     \
     _(getsid, 124)      \
+    _(sigsuspend, 130)  \
     _(mknod, 133)       \
     _(mount, 165)       \
     _(umount2, 166)     \

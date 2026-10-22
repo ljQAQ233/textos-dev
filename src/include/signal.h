@@ -48,6 +48,7 @@ int sigaction(int __signum, const struct sigaction *__act, struct sigaction *__o
 #define SIG_SETMASK   2
 
 int sigprocmask(int __how, const sigset_t *__set, sigset_t *__oset);
+int sigsuspend(const sigset_t *__sigmask);
 
 int kill(pid_t __pid, int __sig);
 int raise(int __sig);

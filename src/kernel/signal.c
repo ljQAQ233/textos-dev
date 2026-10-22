@@ -384,6 +384,20 @@ __SYSCALL_DEFINE3(int, sigprocmask, int, how, const sigset_t *, set, sigset_t *,
     return 0;
 }
 
+#include <irq.h>
+
+__SYSCALL_DEFINE1(int, sigsuspend, const sigset_t *, sigmask)
+{
+    int ret;
+    task_t *tsk = task_current();
+    UNINTR_AREA({
+        sigset_t oldmask = tsk->sigmask;
+        ret = task_block(NULL, NULL, TASK_BLK, 0);
+        tsk->sigmask = oldmask;
+    });
+    return ret;
+}
+
 __SYSCALL_DEFINE2(int, kill, int, pid, int, sig)
 {
     return kill_safe(pid, sig, 0);
