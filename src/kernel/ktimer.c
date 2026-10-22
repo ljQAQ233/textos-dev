@@ -62,8 +62,15 @@ void ktimer_check()
 
 u64 ktimer_remain(ktimer_t *tmr)
 {
+    if (tmr->dead) return 0;
     u64 curtick = __ktick;
-    if (tmr->expires > curtick)
+    if (tmr->expires > curtick) {
         return tmr->expires - curtick;
+    }
     return 0;
+}
+
+u64 ktimer_remain_ms(ktimer_t *tmr)
+{
+    return ktimer_remain(tmr) * __ktick_ms;
 }
