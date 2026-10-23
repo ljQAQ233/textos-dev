@@ -432,6 +432,7 @@ static inline int dolkp(struct dl *dl)
         nrsym = hash[1];
     } else {
         // use GNU_HASH instead
+        assert(ghash != NULL);
         size_t nsym, i;
         uint32_t *buckets = ghash + 4 + (ghash[2] * sizeof(size_t) / 4);
         uint32_t *hashval;
@@ -704,6 +705,7 @@ static void *loadlib(const char *path, int flags)
     }
 
     dl = malloc(sizeof(struct dl));
+    memset(dl, 0, sizeof(struct dl));
     if (!dl) {
         dlerr("unable to malloc");
         goto err;
