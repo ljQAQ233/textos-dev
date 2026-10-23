@@ -431,8 +431,20 @@ static inline int dolkp(struct dl *dl)
          * u32 buckets[]; u32 chains[] */
         nrsym = hash[1];
     } else {
-        // TODO
-        assert(0);
+        // use GNU_HASH instead
+        size_t nsym, i;
+        uint32_t *buckets = ghash + 4 + (ghash[2] * sizeof(size_t) / 4);
+        uint32_t *hashval;
+        for (i = nsym = 0; i < ghash[0]; i++) {
+            if (buckets[i] > nsym) nsym = buckets[i];
+        }
+        if (nsym) {
+            hashval = buckets + ghash[0] + (nsym - ghash[1]);
+            do {
+                nsym++;
+            } while (!(*hashval++ & 1));
+        }
+        nrsym = nsym;
     }
     #else
     nrsym = strtab - (char *)dynsym;
