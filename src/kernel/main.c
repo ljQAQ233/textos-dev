@@ -74,6 +74,10 @@ extern void e1000_init();
 
 void initproc()
 {
+    // keep the original mode passed throughout
+    // the initproc in kernel phase
+    task_current()->umask = 0;
+
     fs_init();
     socket_init();
     e1000_init();

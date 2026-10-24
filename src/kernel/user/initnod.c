@@ -1,6 +1,32 @@
 #include <textos/dev.h>
 #include <textos/fs.h>
+#include <textos/klib/string.h>
 #include <textos/klib/vsprintf.h>
+
+const struct perm_ov
+{
+    char *name;
+    mode_t perm;
+} perm_ov[] = {
+    {"zero", 0666},
+    {"full", 0666},
+    {"null", 0666},
+    {"tty", 0666},
+    {
+        NULL,
+    },
+};
+
+static mode_t match(const char *name)
+{
+    const struct perm_ov *ov = perm_ov;
+    for (; ov->name; ov++) {
+        if (strcmp(name, ov->name) == 0) {
+            return ov->perm;
+        }
+    }
+    return (mode_t)-1;
+}
 
 static void initnod(devst_t *dev)
 {
@@ -28,7 +54,9 @@ static void initnod(devst_t *dev)
     default:
         break;
     }
-    vfs_mknod(path, makedev(dev->major, dev->minor), 0744 | mt);
+    mode_t mp = match(dev->name);
+    if (mp == (mode_t)-1) mp = 0644;
+    vfs_mknod(path, makedev(dev->major, dev->minor), mp | mt);
 
     DEBUGK(K_INFO, "init dev at %s\n", path);
 

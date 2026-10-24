@@ -32,6 +32,7 @@ void initproc2()
     initproc_mnt();
     initproc_nod();
     vfs_listnode(0);
+    task_current()->umask = 0022;
 
     close(0);
     close(1);
