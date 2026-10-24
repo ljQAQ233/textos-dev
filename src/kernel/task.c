@@ -1,5 +1,6 @@
 #include <cpu.h>
 #include <textos/assert.h>
+#include <textos/dev/tty/ctrltty.h>
 #include <textos/errno.h>
 #include <textos/klib/string.h>
 #include <textos/ktimer.h>
@@ -246,6 +247,12 @@ static int fork_id(task_t *prt, task_t *chd)
     return 0;
 }
 
+static int fork_tty(task_t *prt, task_t *chd)
+{
+    chd->ctrltty = ctrltty_refer(prt);
+    return 0;
+}
+
 #include <irq.h>
 #include <textos/syscall.h>
 
@@ -277,6 +284,7 @@ int task_fork()
     fork_fd(prt, chd);
     fork_pgt(prt, chd);
     fork_sig(prt, chd);
+    fork_tty(prt, chd);
 
     chd->ppid = prt->pid;
     chd->pwd = prt->pwd;
@@ -302,6 +310,7 @@ void task_exit(int val)
     tsk->stat = TASK_DIE; // TODO : ZOMBIE
     tsk->retval = val;
     task_report_wstat(tsk);
+    ctrltty_detach(tsk);
     DEBUGK(K_TRACE, "exit %d with %d\n", tsk->pid, val);
     if (tsk->pid == 1) PANIC("init exited with %d!!!\n", val);
 
@@ -785,6 +794,7 @@ __SYSCALL_DEFINE0(pid_t, setsid)
 {
     task_t *tsk = task_current();
     if (tsk->pgid == tsk->pid) return -EPERM;
+    ctrltty_detach(tsk);
     return tsk->sid = tsk->pgid = tsk->pid;
 }
 

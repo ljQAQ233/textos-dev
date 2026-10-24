@@ -36,7 +36,7 @@ enum task_state
 
 #define MAX_FILE 32
 
-typedef struct task
+struct task
 {
     // context - DO NOT EDIT THOSE FIELDS!!!
     addr_t istk; // tss
@@ -100,7 +100,7 @@ typedef struct task
     bool dbg_waiting; // wait for tracing
     int dbg_options;  // setoptions or internal flags
     struct task *dbg_tracer;
-} task_t;
+};
 
 void task_schedule();
 void task_yield();

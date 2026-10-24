@@ -6,11 +6,49 @@
 #include <textos/klib/string.h>
 #include <textos/task.h>
 
+void ctrltty_detach(task_t *tsk)
+{
+    if (!tsk->ctrltty) return;
+
+    struct tty *ctty = tsk->ctrltty->pdata;
+    assert(ctty->ses_id == tsk->sid);
+    assert(ctty->ses_holders > 0);
+
+    if (!--ctty->ses_holders) ctty->ses_id = 0;
+    if (tsk->pid == tsk->sid) {
+        kill(-ctty->pgrp, SIGHUP);
+        kill(-ctty->pgrp, SIGCONT);
+        task_t *p = NULL;
+        while ((p = task_foreach_next(p))) {
+            if (p->sid != tsk->pid) continue;
+            if (p == tsk) continue;
+            p->ctrltty = NULL;
+        }
+    }
+
+    tsk->ctrltty = NULL;
+}
+
+struct devst *ctrltty_refer(struct task *tsk)
+{
+    if (tsk->ctrltty) {
+        struct tty *ctty = tsk->ctrltty->pdata;
+        assert(ctty->ses_id == tsk->sid);
+        assert(ctty->ses_holders > 0);
+        ctty->ses_holders += 1;
+    }
+    return tsk->ctrltty;
+}
+
+//
+// /dev/tty operations
+//
+
 static int ctrltty_write(devst_t *dev, void *buf, size_t cnt, ...)
 {
     task_t *tsk = task_current();
     if (!tsk->ctrltty) return -ENXIO;
-    return tsk->ctrltty->write(dev, buf, cnt);
+    return tsk->ctrltty->write(tsk->ctrltty, buf, cnt);
 }
 
 static int ctrltty_read(devst_t *dev, void *buf, size_t cnt, ...)
