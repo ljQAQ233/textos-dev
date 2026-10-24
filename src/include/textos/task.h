@@ -75,6 +75,7 @@ typedef struct task
 
     node_t *pwd;
     file_t *files[MAX_FILE];
+    devst_t *ctrltty;
 
     addr_t pgt;
     addr_t mmap;

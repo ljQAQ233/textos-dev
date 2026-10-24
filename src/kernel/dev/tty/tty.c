@@ -332,6 +332,20 @@ void __tty_rx(tty_t *tty, keysym_t sym)
     int len = kstoa(sym, buf);
     tty_feed(tty, buf, len);
 }
+    
+static int tty__init_pctx(devst_t *dev, void **pctx)
+{
+    task_t *tsk = task_current();
+    struct tty *ctty = dev->pdata;
+    if (ctty->ses_holders == 0 && tsk->sid == tsk->pid &&
+        tsk->ctrltty == NULL) {
+        tsk->ctrltty = dev;
+        struct tty *ctty = dev->pdata;
+        ctty->ses_id = tsk->sid;
+        ctty->ses_holders = 1;
+    }
+    return 0;
+}
 
 static int tty_write(devst_t *dev, void *buf, size_t len, ...)
 {
@@ -375,6 +389,8 @@ tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl,
 
     tty->stop = 0;
     tty->pgrp = 0;
+    tty->ses_id = 0;
+    tty->ses_holders = 0;
     tty->iwaiter = NULL;
     tty->owaiter = NULL;
     tty_buf_init(&tty->ibuf);
@@ -407,6 +423,7 @@ tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl,
     dev->name = strdup(name);
     dev->type = DEV_CHAR;
     dev->subtype = DEV_TTY;
+    dev->_init_pctx = tty__init_pctx;
     dev->read = tty_read;
     dev->write = tty_write;
     dev->ioctl = tty_ioctl;

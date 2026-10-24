@@ -8,6 +8,7 @@ SRCS += dev/fbdev.c
 # tty or pts
 SRCS += dev/tty/tty.c
 SRCS += dev/tty/tty_buffer.c
+SRCS += dev/tty/ctrltty.c
 SRCS += dev/tty/kstoa.c
 SRCS += dev/tty/serial.c
 SRCS += dev/tty/console.c

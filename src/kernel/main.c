@@ -14,6 +14,7 @@ void mouse_init();
 void serial_init();
 void console_init();
 void tty_init();
+void ctrltty_init();
 void buffer_init();
 void pci_init();
 void ahci_init();
@@ -46,6 +47,7 @@ void kernel_main ()
     serial_init();
     console_init();
     tty_init();
+    ctrltty_init();
     buffer_init();
     pci_init();
     ahci_init();
