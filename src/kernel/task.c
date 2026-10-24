@@ -449,6 +449,15 @@ task_t *task_get(int pid)
     return table[pid];
 }
 
+// TODO: do not use vector table[*] and update foreach method
+task_t *task_foreach_next(task_t *curr)
+{
+    if (!curr) return table[1];
+    for (int i = curr->pid + 1; i < TASK_MAX; i++)
+        if (table[i]) return table[i];
+    return NULL;
+}
+
 extern void fpu_disable();
 extern void __tss_set(u64 rsp);
 extern void __task_switch(task_frame_t *next, task_frame_t **curr);

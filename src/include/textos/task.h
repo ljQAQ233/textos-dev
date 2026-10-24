@@ -107,6 +107,7 @@ void task_yield();
 
 task_t *task_current();
 task_t *task_get(int pid);
+task_t *task_foreach_next(task_t *curr);
 
 #define TC_USER     0
 #define TC_KERN     1
