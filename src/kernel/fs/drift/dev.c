@@ -127,15 +127,15 @@ fs_opts_t __vfs_dev_op = {
     dev_close,    /* close */
     dev_init_pctx,
     dev_fini_pctx,
-    NULL, /* mknod */
-    NULL, /* symlink */
-    NULL, /* readlink */
-    NULL, /* chown */
-    NULL, /* chmod */
-    NULL, /* remove */
-    NULL, /* readdir */
-    NULL, /* seekdir */
-    NULL, /* truncate */
+    noopt, /* mknod */
+    noopt, /* symlink */
+    noopt, /* readlink */
+    noopt, /* chown */
+    noopt, /* chmod */
+    noopt, /* remove */
+    noopt, /* readdir */
+    noopt, /* seekdir */
+    noopt, /* truncate */
     dev_read,
     dev_write,
     dev_mmap,
