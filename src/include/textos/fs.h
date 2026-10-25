@@ -42,6 +42,7 @@ struct fs_openctx
 #define FS_GAIN    (1ull << 32) // ignore checks, ignoring EISDIR / ENOTDIR
 #define FS_GAINMNT (1ull << 33) // open the dir mounted to
 #define FS_GAINLNK (1ull << 34) // open the symlink itself
+#define FS_NOPCTX  (1ull << 35) // pctx not needed / do not run _init_pctx
 
 typedef struct
 {

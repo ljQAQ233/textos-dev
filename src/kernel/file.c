@@ -459,8 +459,9 @@ __SYSCALL_DEFINE2(int, stat, char *, path, struct stat *, sb)
     int ret;
     node_t *node;
     struct fs_openctx ctx = {0};
-    
-    ret = vfs_open(task_current()->pwd, path, FS_GAIN, 0, &node, &ctx);
+
+    ret = vfs_open(task_current()->pwd, path, FS_GAIN | FS_NOPCTX, 0, &node,
+                   &ctx);
     if (ret < 0)
         return ret;
     fillsb(node, sb);

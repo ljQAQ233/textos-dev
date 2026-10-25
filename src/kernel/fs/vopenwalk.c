@@ -128,10 +128,12 @@ end:
     openctx->file_flgs = args;
     openctx->pctx = NULL;
     list_init(&openctx->r_pollers);
-    if (res->opts->_init_pctx) {
-        ret = res->opts->_init_pctx(res, args, &openctx->pctx);
-        if (ret < 0) *node = NULL;
-        list_insert(&res->r_ctx_all, &openctx->l_ctx_all);
+    if (!(args & FS_NOPCTX)) {
+        if (res->opts->_init_pctx) {
+            ret = res->opts->_init_pctx(res, args, &openctx->pctx);
+            if (ret < 0) *node = NULL;
+            list_insert(&res->r_ctx_all, &openctx->l_ctx_all);
+        }
     }
     return ret;
 }
