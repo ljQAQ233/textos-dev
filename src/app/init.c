@@ -1,4 +1,4 @@
-#include <stddef.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -8,37 +8,18 @@
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
 
-char *argv[] = {
-    "/bin/login",
-    NULL,
-};
-
-char *envp[] = {
-    NULL,
-};
-
-/*
- * run a shell on every tty
- *   - tty1
- *   - ttyS0
- */
 int exec(char *tty)
 {
-    int fd = open(tty, O_RDWR);
-    if (fd < 0)
-        return -1;
-
     pid_t pid = fork();
-    if (pid == 0)
-    {
-        dup2(fd, 1);
-        dup2(fd, 2);
-        execve(argv[0], argv, envp);
-        write(1, "execve failed!\n", 17);
-        while (1)
-            syscall(SYS_yield);
+    if (pid == 0) {
+        char *argv[] = {
+            "/bin/getty",
+            tty,
+            NULL,
+        };
+        execve(argv[0], argv, NULL);
+        exit(1);
     }
-    close(fd);
     return 0;
 }
 
