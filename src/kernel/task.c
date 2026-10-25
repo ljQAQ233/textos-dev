@@ -138,9 +138,9 @@ task_t *task_create(void *main, int flag)
     tsk->rgid = tsk->egid = tsk->sgid = 0;
     tsk->supgids = NULL;
     tsk->umask = 0022;
-    tsk->sid = 0;
+    tsk->sid = tsk->pid;
     tsk->ppid = 0;
-    tsk->pgid = 0;
+    tsk->pgid = tsk->pid;
 
     tsk->pwd = NULL; // root
     for (int i = 0; i < MAX_FILE; i++)
