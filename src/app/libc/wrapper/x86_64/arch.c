@@ -25,6 +25,8 @@ long __w_syscall(long num, ...)
 
 void *__sc_redir_x86_64[512] = {
     [SYS_sigaction] = w_sigaction,
+    [SYS_sigprocmask] = w_sigprocmask,
+    [SYS_sigsuspend] = w_sigsuspend,
     [SYS_stat] = w_stat,
     [SYS_fstat] = w_fstat,
     [SYS_readdir] = w_readdir,

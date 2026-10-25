@@ -37,4 +37,14 @@ static int w_sigaction(int signum, const struct sigaction *act,
     }
 }
 
+static int w_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
+{
+    return __w_syscall(14, how, set, oset, sizeof(sigset_t));
+}
+
+static int w_sigsuspend(const sigset_t *sigmask)
+{
+    return __w_syscall(130, sigmask, sizeof(sigset_t));
+}
+
 #endif
