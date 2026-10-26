@@ -362,9 +362,6 @@ void task_report_wstat(task_t *tsk)
 int task_wait(int pid, int *stat, int opt, struct rusage *ru)
 {
     task_t *tsk = task_current();
-    
-    // default behavior
-    if (opt == 0) opt = WEXITED;
 
     // do check
     if (pid > 0) {
@@ -627,7 +624,9 @@ __SYSCALL_DEFINE1(RETVAL(void), exit, int, stat)
 // uninterrupt
 __SYSCALL_DEFINE4(int, wait4, int, pid, int *, stat, int, opt, void *, rusage)
 {
-    return task_wait(pid, stat, opt, rusage);
+    // wait4 is a BSD-style syscall
+    // wait4 waits for termination by default.
+    return task_wait(pid, stat, opt | WEXITED, rusage);
 }
 
 __SYSCALL_DEFINE0(int, pause)
