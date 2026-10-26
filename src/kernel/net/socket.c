@@ -9,6 +9,7 @@
 socket_t *socket_get(int fd)
 {
     file_t *file = task_current()->files[fd];
+    if (!S_ISSOCK(file->node->mode)) return NULL;
     return (socket_t *)file->node->pdata;
 }
 
@@ -22,10 +23,12 @@ int socket_makefd(socket_t *socket)
     if (file_get(&fd, &file, 0) < 0)
         return fd;
     
+    // TODO: bind fs for fstat support
     sockn = malloc(sizeof(node_t));
     sockn->name = "socket";
     sockn->pdata = socket;
     sockn->opts = &__socket_opts;
+    sockn->mode = S_IFSOCK | 0777;
 
     file->node = sockn;
     file->flgs = O_RDWR;
@@ -90,54 +93,63 @@ __SYSCALL_DEFINE3(int, socket, int, domain, int, type, int, proto)
 __SYSCALL_DEFINE3(int, bind, int, fd, sockaddr_t *, addr, socklen_t, len)
 {
     socket_t *s = socket_get(fd);
+    if (!s) return -ENOTSOCK;
     return s->op->bind(s, addr, len);
 }
 
 __SYSCALL_DEFINE2(int, listen, int, fd, int, backlog)
 {
     socket_t *s = socket_get(fd);
+    if (!s) return -ENOTSOCK;
     return s->op->listen(s, backlog);
 }
 
 __SYSCALL_DEFINE3(int, accept, int, fd, sockaddr_t *, addr, socklen_t *, len)
 {
     socket_t *s = socket_get(fd);
+    if (!s) return -ENOTSOCK;
     return s->op->accept(s, addr, len);
 }
 
 __SYSCALL_DEFINE3(int, connect, int, fd, sockaddr_t *, addr, socklen_t, len)
 {
     socket_t *s = socket_get(fd);
+    if (!s) return -ENOTSOCK;
     return s->op->connect(s, addr, len);
 }
 
 __SYSCALL_DEFINE2(int, shutdown, int, fd, int, how)
 {
     socket_t *s = socket_get(fd);
+    if (!s) return -ENOTSOCK;
     return s->op->shutdown(s, how);
 }
 
 __SYSCALL_DEFINE3(int, getsockname, int, fd, sockaddr_t *, addr, socklen_t *, len)
 {
     socket_t *s = socket_get(fd);
+    if (!s) return -ENOTSOCK;
     return s->op->getsockname(s, addr, len);
 }
 
 __SYSCALL_DEFINE3(int, getpeername, int, fd, sockaddr_t *, addr, socklen_t *, len)
 {
     socket_t *s = socket_get(fd);
+    if (!s) return -ENOTSOCK;
     return s->op->getpeername(s, addr, len);
 }
 
 __SYSCALL_DEFINE3(ssize_t, sendmsg, int, fd, msghdr_t *, msg, int, flags)
 {
     socket_t *s = socket_get(fd);
+    if (!s) return -ENOTSOCK;
     return s->op->sendmsg(s, msg, flags);
 }
 
 __SYSCALL_DEFINE3(ssize_t, recvmsg, int, fd, msghdr_t *, msg, int, flags)
 {
     socket_t *s = socket_get(fd);
+    if (!s) return -ENOTSOCK;
     return s->op->recvmsg(s, msg, flags);
 }
 

@@ -29,6 +29,7 @@
 #define ENOTEMPTY    39  // Directory not empty
 #define ELOOP        40  // Symbolic link loop
 #define ETIME        62  // Timer expired
+#define ENOTSOCK     88  // Not a socket
 #define EDESTADDRREQ 89  // Destination address required
 #define EADDRINUSE   98  // Address in use
 #define ECONNRESET   104 // Connection reset by peer
