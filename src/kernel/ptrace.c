@@ -26,8 +26,8 @@ void ptrace_stop_self(int ev, task_t *tt)
 
 void (*ptrace_evmap[32][2])(int, task_t *) = {
     [PTRACE_EVENT_EXEC] = {ptrace_stop_self, 0},
-    [PTRACE_EVENT_SCENTRY] = {ptrace_stop_self, 0},
-    [PTRACE_EVENT_SCEXIT] = {ptrace_stop_self, 0},
+    [PTRACE_EVENT_SCENTRY] = {0, ptrace_stop_self},
+    [PTRACE_EVENT_SCEXIT] = {0, ptrace_stop_self},
 };
 
 void ptrace_event(int ev)
@@ -94,7 +94,7 @@ DEF(ptrace_syscall)
 
     task_t *ttsk = task_get(pid);
     if (ttsk->stat != TASK_BLK) return -ESRCH;
-    int newopt = PTRACE_EVENT_SCENTRY | PTRACE_EVENT_SCEXIT;
+    int newopt = PTRACE_F_SCENTRY | PTRACE_F_SCEXIT;
     ttsk->dbg_tracer = task_current();
     ttsk->dbg_options |= newopt;
     if (ttsk->stat == TASK_BLK && ttsk->dbg_waiting)
