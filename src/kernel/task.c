@@ -478,11 +478,11 @@ void task_schedule()
 
     if (curr->stat != TASK_RUN) // If it is not running now, then sched
         goto Sched;        // Because a running task may have some time ticks
-    if (curr->curr-- == 0) // Update time ticks, if it is zero after this time,
-                           // set it to origin ticks
-        curr->curr = curr->tick; // Recovery -> gain ticks again
-    else
-        return; // It hasn't ran out of all ticks yet, make it run again
+    // if (curr->curr-- == 0) // Update time ticks, if it is zero after this time,
+    //                        // set it to origin ticks
+    //     curr->curr = curr->tick; // Recovery -> gain ticks again
+    // else
+    //     return; // It hasn't ran out of all ticks yet, make it run again
 
 Sched:
     if (!(next = _getnext())) return;
