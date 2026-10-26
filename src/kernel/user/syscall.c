@@ -23,21 +23,23 @@ __INTR_HANDLER(syscall_handler)
     long ret;
     sys_func func;
     int nr = frame->rax;
+
+    task_current()->sframe = frame;
+    task_current()->syscallno = nr;
+    ptrace_event(PTRACE_EVENT_SCENTRY);
+
     if (nr < 0 || nr > SYS_maximum || !sys_handlers[nr]) {
         ret = -ENOSYS;
         goto out;
     }
 
-    task_current()->sframe = frame;
-    task_current()->syscallno = nr;
     func = sys_handlers[nr];
 
-    ptrace_event(PTRACE_EVENT_SCENTRY);
     ret = func(frame->rdi, frame->rsi, frame->rdx, //
                frame->r10, frame->r8, frame->r9);
-    ptrace_event(PTRACE_EVENT_SCEXIT);
 out:
     frame->rax = ret;
+    ptrace_event(PTRACE_EVENT_SCEXIT);
 }
 
 void sys_maximum()
