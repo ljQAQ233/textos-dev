@@ -332,6 +332,7 @@ static void *tmpfs_mmap(node_t *this, vm_region_t *vm, struct fs_openctx *openct
  */
 node_t *__fs_init_tmpfs()
 {
+    node_t *root;
     devst_t *anony = dev_new();
     dev_register_anony(anony);
     superblk_t *sb = malloc(sizeof(superblk_t));
@@ -342,7 +343,10 @@ node_t *__fs_init_tmpfs()
     sb->root = NULL;
     sb->op = &__tmpfs_op;
     sb->sbi = sbi;
-    return sb->root = tmpfs_nodenew(sb, "", S_IFDIR | 0777, NODEV);
+
+    root = sb->root = tmpfs_nodenew(sb, "", S_IFDIR | 0777, NODEV);
+    root->parent = root;
+    return root;
 }
 
 fs_opts_t __tmpfs_op = {

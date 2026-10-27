@@ -698,6 +698,7 @@ static proc_opts_t root_op = {
  */
 node_t *__fs_init_procfs()
 {
+    node_t *node;
     devst_t *anony = dev_new();
     dev_register_anony(anony);
     superblk_t *sb = &__procfs_super;
@@ -725,7 +726,9 @@ node_t *__fs_init_procfs()
     proc_create("self", IRALL | IXALL | S_IFLNK, NULL, &self_op);
     // clang-format on
 
-    return sb->root = procfs_nodeget(root);
+    node = sb->root = procfs_nodeget(root);
+    node->parent = node;
+    return node;
 }
 
 fs_opts_t __procfs_op = {

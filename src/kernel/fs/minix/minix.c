@@ -913,6 +913,7 @@ superblk_t *MINIX_INIT(devst_t *dev, buffer_t *blk)
 
     minix_inode_t *root = minix_iget(sb, 1);
     sb->root = minix_nodeget(sb, root, 1, "/");
+    sb->root->parent = sb->root;
     return sb;
 
 fail:

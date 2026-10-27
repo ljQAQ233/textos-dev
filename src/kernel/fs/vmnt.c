@@ -70,5 +70,5 @@ bool vfs_ismount(node_t *n)
 
 bool vfs_isaroot(node_t *n)
 {
-    return vfs_ismount(n->parent);
+    return n->parent == n || vfs_ismount(n->parent);
 }
