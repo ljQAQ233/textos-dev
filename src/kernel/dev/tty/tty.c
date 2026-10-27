@@ -317,9 +317,13 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
             // reset timer
             if (cc[VTIME] && cc[VMIN])
                 ktimer(&tty->timer, tty_nc_timeout, tty, cc[VTIME] * 100);
-            if (tty_buf_chrs(&tty->ibuf) == tty->reqlen // live up to request
+            if (tty_buf_chrs(&tty->ibuf) >= tty->reqlen // live up to request
+                || tty_buf_chrs(&tty->ibuf) >= cc[VMIN] // minimum chars
                 || tty_buf_full(&tty->ibuf))            // no space to rx chars
-                task_unblock(tty->iwaiter, 0);
+            {
+                if (!fs_poll_deliver(&tty->pollee, POLLIN))
+                    task_unblock(tty->iwaiter, 0);
+            }
         }
         if (FC_LFLAG(tty, ECHO)) opost(tty, *p);
     }
@@ -395,9 +399,10 @@ static int tty_ioctl(devst_t *dev, int req, void *argp)
 int tty_poll_setup(devst_t *this, struct fs_poller *poller)
 {
     tty_t *tty = this->pdata;
-    if (tty_buf_rems(&tty->ibuf) > 0)
+    if (tty_buf_chrs(&tty->ibuf) > 0)
         if (fs_poll_deliver_to(&tty->pollee, POLLIN, poller, false)) //
             return 1;
+    tty->reqlen = -1; // inf
     fs_poll_setup(&tty->pollee, poller);
     if (FC_IFLAG(tty, ICANON)) {
         // setup timer
@@ -444,6 +449,7 @@ tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl,
                 [VSUSP] = 0x1A,  /* Ctrl+Z */
             },
     };
+    fs_pollee_init(&tty->pollee);
     tty->data = data;
     tty->ctl = ctl;
     tty->in = in;
