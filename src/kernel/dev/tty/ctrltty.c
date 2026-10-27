@@ -44,6 +44,14 @@ struct devst *ctrltty_refer(struct task *tsk)
 // /dev/tty operations
 //
 
+static int ctrltty__init_pctx(devst_t *dev, void **pctx)
+{
+    // just do check
+    task_t *tsk = task_current();
+    if (!tsk->ctrltty) return -ENXIO;
+    return 0;
+}
+
 static int ctrltty_write(devst_t *dev, void *buf, size_t cnt, ...)
 {
     task_t *tsk = task_current();
@@ -65,13 +73,19 @@ static int ctrltty_ioctl(devst_t *dev, int req, void *argp)
     if (!tsk->ctrltty) return -ENXIO;
     return tsk->ctrltty->ioctl(dev, req, argp);
 }
-    
-static int ctrltty__init_pctx(devst_t *dev, void **pctx)
+
+int ctrltty_poll_setup(devst_t *dev, struct fs_poller *poller)
 {
-    // just do check
     task_t *tsk = task_current();
     if (!tsk->ctrltty) return -ENXIO;
-    return 0;
+    return tsk->ctrltty->poll_setup(dev, poller);
+}
+
+int ctrltty_poll_teardown(devst_t *dev, struct fs_poller *poller)
+{
+    task_t *tsk = task_current();
+    if (!tsk->ctrltty) return -ENXIO;
+    return tsk->ctrltty->poll_teardown(dev, poller);
 }
 
 void ctrltty_init()
@@ -84,6 +98,8 @@ void ctrltty_init()
     dev->read = ctrltty_read;
     dev->write = ctrltty_write;
     dev->ioctl = ctrltty_ioctl;
+    dev->poll_setup = ctrltty_poll_setup;
+    dev->poll_teardown = ctrltty_poll_teardown;
     dev->pdata = 0;
     dev_register(NULL, dev);
 }
