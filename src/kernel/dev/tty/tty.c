@@ -8,6 +8,7 @@
  */
 #define _GNU_SOURCE
 #include <textos/dev.h>
+#include <textos/dev/tty/cap.h>
 #include <textos/dev/tty/kstoa.h>
 #include <textos/dev/tty/tty.h>
 #include <textos/errno.h>
@@ -369,11 +370,15 @@ static int tty_ioctl(devst_t *dev, int req, void *argp)
     case TCGETS:
         memcpy(argp, &tty->tio, sizeof(struct termios));
         break;
-    case TCSETS + TCSANOW:
-        memcpy(&tty->tio, argp, sizeof(struct termios));
-        break;
     case TCSETS + TCSADRAIN:
     case TCSETS + TCSAFLUSH:
+    case TCSETS + TCSANOW:
+        tty_cap_check_attr(argp);;
+        memcpy(&tty->tio, argp, sizeof(struct termios));
+        DEBUGK(K_TRACE, "tty attr iflag=%o,oflag=%o,cflag=%o,lflag=%o\n",
+               tty->tio.c_iflag, tty->tio.c_oflag, tty->tio.c_cflag,
+               tty->tio.c_lflag);
+        break;
         return -EINVAL;
     case TIOCGPGRP:
         *(pid_t *)argp = tty->pgrp;
