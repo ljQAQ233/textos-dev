@@ -1,9 +1,10 @@
 #pragma once
 
 #include <termios.h>
-#include <textos/task.h>
-#include <textos/ktimer.h>
 #include <textos/dev/tty/tty_buffer.h>
+#include <textos/fs/poll.h>
+#include <textos/ktimer.h>
+#include <textos/task.h>
 
 typedef int (*tty_ioctl_t)(void *io, int req, void *argp);
 typedef ssize_t (*tty_iosop_t)(void *io, char *s, size_t len);
@@ -23,6 +24,7 @@ typedef struct tty
     bool timeout;
     ktimer_t timer;
     struct termios tio;
+    struct fs_pollee pollee;
     
     void *data;
     tty_ioctl_t ctl;

@@ -11,6 +11,7 @@
 #include <textos/dev/tty/kstoa.h>
 #include <textos/dev/tty/tty.h>
 #include <textos/errno.h>
+#include <textos/fs/poll.h>
 #include <textos/ioctl.h>
 #include <textos/klib/string.h>
 #include <textos/mm/heap.h>
@@ -29,6 +30,7 @@ static void tty_nc_timeout(void *arg)
 {
     tty_t *tty = (tty_t *)arg;
     tty_buf_mark(&tty->ibuf, TTY_BF_END);
+    if (fs_poll_deliver(&tty->pollee, POLLIN)) return;
     tty->timeout = true;
     if (tty->iwaiter) {
         task_unblock(tty->iwaiter, 0);
@@ -90,6 +92,7 @@ repeat:
     /*
      * is it not timeout? `tty_nc_timeout` has occured?
      */
+    // TODO: make it volatile
     while (!tty->timeout && tty->reqlen) {
         flag = tty_buf_getc(&tty->ibuf, &c);
         if (flag < 0) {
@@ -195,13 +198,15 @@ static inline void opost(tty_t *tty, char c)
     tputc(tty, c);
 }
 
-static void tdeliver(tty_t *tty)
+// c means canonical
+static void tty_c_deliver(tty_t *tty)
 {
     tty_buf_mark(&tty->ibuf, TTY_BF_END);
     if (tty->iwaiter >= 0) {
         task_unblock(tty->iwaiter, 0);
         tty->iwaiter = NULL;
     }
+    fs_poll_deliver(&tty->pollee, POLLIN);
 }
 
 static void tstop(tty_t *tty, int st)
@@ -250,14 +255,14 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
                  * EOL. So pressing Ctrl-D repeatedly “flushes” input little by
                  * little.
                  */
-                tdeliver(tty);
+                tty_c_deliver(tty);
                 continue;
             }
             if ('\n' == *p || cc[VEOL] == *p || cc[VEOL2] == *p) {
                 if (FC_LFLAG(tty, ECHO) || FC_LFLAG(tty, ECHONL))
                     opost(tty, '\n');
                 iputc(tty, '\n');
-                tdeliver(tty);
+                tty_c_deliver(tty);
                 continue;
             }
             if (cc[VERASE] == *p) {
@@ -382,6 +387,26 @@ static int tty_ioctl(devst_t *dev, int req, void *argp)
     return 0;
 }
 
+int tty_poll_setup(devst_t *this, struct fs_poller *poller)
+{
+    tty_t *tty = this->pdata;
+    if (tty_buf_rems(&tty->ibuf) > 0)
+        if (fs_poll_deliver_to(&tty->pollee, POLLIN, poller, false)) //
+            return 1;
+    fs_poll_setup(&tty->pollee, poller);
+    if (FC_IFLAG(tty, ICANON)) {
+        // setup timer
+    }
+    return 0;
+}
+
+int tty_poll_teardown(devst_t *this, struct fs_poller *poller)
+{
+    tty_t *tty = this->pdata;
+    fs_poll_teardown(&tty->pollee, poller);
+    return 0;
+}
+
 tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl,
                     tty_iosop_t in, tty_iosop_t out)
 {
@@ -427,6 +452,8 @@ tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl,
     dev->read = tty_read;
     dev->write = tty_write;
     dev->ioctl = tty_ioctl;
+    dev->poll_setup = tty_poll_setup;
+    dev->poll_teardown = tty_poll_teardown;
     dev->pdata = tty;
     dev_register(NULL, dev);
     return tty;
