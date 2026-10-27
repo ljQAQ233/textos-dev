@@ -759,7 +759,9 @@ __SYSCALL_DEFINE2(int, rename, const char *, oldpath, const char *, newpath)
 #include <textos/errno.h>
 #include <textos/fs/poll.h>
 
-__SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
+// if inf_timeout is set, timeout is ignored
+__SYSCALL_DEFINE4(int, poll64, struct pollfd *, fds, nfds_t, nfds, int,
+                  inf_timeout, u64, timeout)
 {
 #define PREFACE(i)                          \
     struct pollfd *pfd = fds + i;           \
@@ -794,10 +796,8 @@ __SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
         pollers_been_setup[built] = true;
     }
     if (!already_prepared) {
-        // If  timeout is 0, poll() shall return immediately. If timeout is -1,
-        // poll() shall block until a requested event occurs or is interrupted.
-        if (timeout > 0 || timeout == -1) {
-            ret = task_block(NULL, NULL, TASK_BLK, timeout == -1 ? 0 : timeout);
+        if (inf_timeout || timeout > 0) {
+            ret = task_block(NULL, NULL, TASK_BLK, inf_timeout ? 0 : timeout);
             if (ret == -ETIME) ret = 0;
         }
     }
@@ -816,6 +816,15 @@ err:
     if (pollers) free(pollers);
     if (pollers_been_setup) free(pollers_been_setup);
     return ret < 0 ? ret : polled;
+}
+
+__SYSCALL_DEFINE3(int, poll, struct pollfd *, fds, nfds_t, nfds, int, timeout)
+{
+    // If  timeout is 0, poll() shall return immediately. If timeout is -1,
+    // poll() shall block until a requested event occurs or is interrupted.
+    // though (u64)-1 is a mark gently written as a legal value standing for
+    // eternity, a moment we know will never arrive. But it overloads timer.
+    return poll64(fds, nfds, timeout < 0, timeout);
 }
 
 // follow the behaviors of linux kernel
@@ -857,12 +866,18 @@ __SYSCALL_DEFINE5(int, select, int, nfds, fd_set *, readfds, fd_set *, writefds,
         }
     }
 
+    int inf = 0;
     u64 ms = 0;
     if (timeout) {
         ms = (timeout->tv_sec * 1000) + //
              (timeout->tv_usec + 500) / 1000;
+    } else {
+        // POSIX: If the timeout argument points to an object of type struct
+        // timeval whose members are 0, select() does not block.
+        // TODO: tty cannot end send poll
+        inf = 1;
     }
-    ret = poll(pfds, pfds_nfds, ms);
+    ret = poll64(pfds, pfds_nfds, inf, ms);
     if (ret < 0) goto exit;
 
 #define COLLECT(fds, ev_expect)            \
