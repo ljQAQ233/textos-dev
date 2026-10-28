@@ -20,6 +20,7 @@ MYCPU_DEFINE(addr_t, current_oldsp);
 #define TASK_TICKS 1
 
 task_t *table[TASK_MAX];
+static bool dbg_byemu;
 
 #define TASK_FREE NULL
 
@@ -294,7 +295,7 @@ int task_fork()
     chd->_ustart = 0;
     chd->_sstart = arch_us_ran();
 
-    chd->dbg_byemu = false;
+    chd->dbg_byemu = dbg_byemu;
     chd->dbg_traced = false;
     chd->dbg_waiting = false;
     chd->dbg_options = 0;
@@ -912,8 +913,16 @@ __SYSCALL_DEFINE1(clock_t, times, struct tms *, buf)
     return arch_us_ran() / CLK_TCK;
 }
 
+#include <textos/cmdline.h>
+
+static bool dbg_byemu = false;
+__CMDLINE_USED("task.dbg_byemu");
+
 void task_init()
 {
+    dbg_byemu = cmdline_get_bool_or("task.dbg_byemu", false);
+    if (dbg_byemu) DEBUGK(K_INFO, "cmdline: task.dbg_byemu is enabled\n");
+
     for (int i = 0; i < TASK_MAX; i++) {
         table[i] = TASK_FREE;
     }
