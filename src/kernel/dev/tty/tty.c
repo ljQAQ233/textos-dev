@@ -27,16 +27,20 @@ tty_t *fgtty;
 #define FC_CFLAG(t, y) FC((t)->tio.c_cflag, y)
 #define FC_LFLAG(t, y) FC((t)->tio.c_lflag, y)
 
+static void unblock_and_clean(task_t **tsk)
+{
+    if (!*tsk) return;
+    task_unblock(*tsk, 0);
+    *tsk = NULL;
+}
+
 static void tty_nc_timeout(void *arg)
 {
     tty_t *tty = (tty_t *)arg;
     tty_buf_mark(&tty->ibuf, TTY_BF_END);
     if (fs_poll_deliver(&tty->pollee, POLLIN)) return;
     tty->timeout = true;
-    if (tty->iwaiter) {
-        task_unblock(tty->iwaiter, 0);
-        tty->iwaiter = NULL;
-    }
+    unblock_and_clean(&tty->iwaiter);
 }
 
 static inline void tflow(tty_t *tty, int stop)
@@ -203,10 +207,7 @@ static inline void opost(tty_t *tty, char c)
 static void tty_c_deliver(tty_t *tty)
 {
     tty_buf_mark(&tty->ibuf, TTY_BF_END);
-    if (tty->iwaiter >= 0) {
-        task_unblock(tty->iwaiter, 0);
-        tty->iwaiter = NULL;
-    }
+    unblock_and_clean(&tty->iwaiter);
     fs_poll_deliver(&tty->pollee, POLLIN);
 }
 
@@ -220,10 +221,7 @@ static void tstop(tty_t *tty, int st)
     if (!st) {
         tty->out(tty->data, tty->obuf.buf, tty->obuf.tail);
         tty_buf_kill(&tty->obuf);
-        if (tty->owaiter >= 0) {
-            task_unblock(tty->owaiter, 0);
-            tty->owaiter = NULL;
-        }
+        unblock_and_clean(&tty->owaiter);
     }
 }
 
@@ -322,7 +320,7 @@ static int tty_feed(tty_t *tty, void *buf, size_t len)
                 || tty_buf_full(&tty->ibuf))            // no space to rx chars
             {
                 if (!fs_poll_deliver(&tty->pollee, POLLIN))
-                    task_unblock(tty->iwaiter, 0);
+                    unblock_and_clean(&tty->iwaiter);
             }
         }
         if (FC_LFLAG(tty, ECHO)) opost(tty, *p);
