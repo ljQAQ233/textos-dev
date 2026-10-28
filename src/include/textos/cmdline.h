@@ -12,6 +12,6 @@ int cmdline_get_str(const char *key, char **str);
 int cmdline_get_u64(const char *key, uint64_t *val);
 int cmdline_get_bool(const char *key, bool *val);
 
-char *cmdline_getdef_str(const char *key, char *def);
-uint64_t cmdline_getdef_u64(const char *key, uint64_t def);
-bool cmdline_getdef_bool(const char *key, bool def);
+char *cmdline_get_str_or(const char *key, char *def);
+uint64_t cmdline_get_u64_or(const char *key, uint64_t def);
+bool cmdline_get_bool_or(const char *key, bool def);

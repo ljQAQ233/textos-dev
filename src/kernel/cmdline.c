@@ -165,23 +165,23 @@ int cmdline_get_bool(const char *key, bool *val)
     return 0;
 }
 
-char *cmdline_getdef_str(const char *key, char *def)
+char *cmdline_get_str_or(const char *key, char *def)
 {
     char *str;
     if (cmdline_get_str(key, &str) < 0) return def;
     return str;
 }
 
-uint64_t cmdline_getdef_u64(const char *key, uint64_t def)
+uint64_t cmdline_get_u64_or(const char *key, uint64_t def)
 {
     uint64_t val;
     if (cmdline_get_u64(key, &val) < 0) return def;
-    return def;
+    return val;
 }
 
-bool cmdline_getdef_bool(const char *key, bool def)
+bool cmdline_get_bool_or(const char *key, bool def)
 {
     bool val;
     if (cmdline_get_bool(key, &val) < 0) return def;
-    return def;
+    return val;
 }
