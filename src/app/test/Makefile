@@ -21,12 +21,14 @@ SOLIBS := $(wildcard solib/*.c)
 
 CFLAGS += -g
 
-all: $(GTARS) $(BTARS) $(SOTARS)
+all: $(GTARS)
 
 include ../all.mk
 
 BTARS := $(BINS:%.c=${BUILD}/%)
 SOTARS := $(SOLIBS:%.c=${BUILD}/%.so)
+
+all: $(BTARS) $(SOTARS)
 
 $(OBJS): CFLAGS += -I$(CURDIR)/unity
 $(OBJS): CFLAGS += -DUNITY_INCLUDE_CONFIG_H
