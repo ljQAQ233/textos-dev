@@ -1,5 +1,6 @@
-#include <textos/video.h>
+// clang-format off
 #include <textos/dev/tty/console.h>
+#include <textos/video.h>
 
 static struct con con;
 struct con *__kcon = &con;
@@ -21,13 +22,12 @@ static void scrln(bool up)
 // 屏幕满了怎么办? 滚! 或者 直接干掉 ૮(˶ᵔ ᵕ ᵔ˶)ა
 static void full()
 {
-    if (con.scroll)
-    {
+    if (con.scroll) {
         if (!con.vpm_bot && !con.vpm_top) scrln(true);
         con.cur_y = con.cur_y - 1;
-    }
-    else
+    } else {
         clrcon();
+    }
 }
 
 // TODO : optimize
@@ -116,6 +116,7 @@ static void si()
 #define COMMIT(x) { x; return; }
 #define BRKOUT(x) { x; break; }
 #define NOEXAM // not tested yet
+#define INVALID(c) DEBUGK(K_TRACE, "console gets invalid cmd - %c\n", c);
 
 static void nor(char c)
 {
@@ -168,11 +169,9 @@ static void sgr()
     bool underl = con.underl;
     bool strike = con.strike;
 
-    for (int i = 0 ; i < con.argc ; i++)
-    {
+    for (int i = 0; i < con.argc; i++) {
         int v = con.argv[i];
-        switch (v)
-        {
+        switch (v) {
         case RESET:
             fg = con.fgdef;
             bg = con.bgdef;
@@ -190,15 +189,15 @@ static void sgr()
             bg = fg ^ bg;
             fg = fg ^ bg;
             break;
-        
+
         case HIDDEN:
             hidden = true;
             break;
-        
+
         case STRIKE:
             strike = true;
             break;
-        
+
         default:
             i += con.op->sgr0(&con.argv[i], &bg, &fg) - 1;
             break;
@@ -214,16 +213,12 @@ static void sgr()
 
 static void move(int x, int y)
 {
-    if (x < 0)
-        x = 0;
-    if (x >= con.row)
-        x = con.row - 1;
+    if (x < 0) x = 0;
+    if (x >= con.row) x = con.row - 1;
     con.cur_x = x;
-    
-    if (y < 0)
-        con.cur_y = 0;
-    if (y >= con.col)
-        y = con.col - 1;
+
+    if (y < 0) con.cur_y = 0;
+    if (y >= con.col) y = con.col - 1;
     con.cur_y = y;
 }
 
@@ -240,8 +235,7 @@ static void moved(int dx, int dy)
  */
 static void curshow(bool show)
 {
-    if (con.cursor != show)
-    {
+    if (con.cursor != show) {
         con.cursor = show;
         con.op->curtoggle();
     }
@@ -250,13 +244,10 @@ static void curshow(bool show)
 static void curstat(bool save)
 {
     static u16 x = 0, y = 0;
-    if (save)
-    {
+    if (save) {
         x = con.cur_x;
         y = con.cur_y;
-    }
-    else
-    {
+    } else {
         con.cur_x = x;
         con.cur_y = y;
     }
@@ -270,8 +261,7 @@ static void curstat(bool save)
 
 static void esc(char c)
 {
-    switch (c)
-    {
+    switch (c) {
     case '[': COMMIT(con.state = STATE_CSI);
     default:  COMMIT(con.state = STATE_NOR);
     }
@@ -311,8 +301,6 @@ static void arg(char c)
             cmd(c);
     }
 }
-
-// clang-format off
 
 static void cmd(char c)
 {
@@ -366,20 +354,15 @@ static void cmd(char c)
         int mode = con.argv[0];
         int start;
         int end = con.col;
-        if (mode == 0)
-        {
+        if (mode == 0) {
             // 从光标处到行末端
             start = con.cur_x;
             end = con.col;
-        }
-        else if (mode == 1)
-        {
+        } else if (mode == 1) {
             // 从行开始到光标处
             start = 0;
             end = con.cur_x;
-        }
-        else if (mode == 2)
-        {
+        } else /* (mode == 2) */ {
             // 整行
             start = 0;
             end = con.col;
@@ -409,14 +392,12 @@ static void cmd(char c)
     // CSI Pm l - Reset mode
     // CSI ? Pm l - DEC private reset mode
     default:
-        DEBUGK(K_TRACE, "console gets invalid cmd - %c\n", c);
+        INVALID(c);
         break;
     }
     
     con.state = STATE_NOR;
 }
-
-// clang-format on
 
 enum
 {
@@ -431,8 +412,6 @@ static void pmcmd(char c)
 
     con.state = STATE_NOR;
 }
-
-// clang-format off
 
 // 投喂状态机
 static void cputc(char c)
@@ -450,7 +429,6 @@ static void cputc(char c)
     }
 }
 
-// clang-format on
 
 /*
  * 设备驱动
