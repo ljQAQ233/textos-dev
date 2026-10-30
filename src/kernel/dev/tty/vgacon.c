@@ -171,9 +171,10 @@ static void pullup()
 
 static void pulldn()
 {
-    u16 *dst = base + con.row * (con.col - 0) - 1;
-    u16 *src = base + con.row * (con.col - 1) - 1;
-    for (int i = 0; i < con.row * (con.col - 1); i++)
+    u16 *dst = base + con.row * (con.col - con.vpm_bot - 0) - 1;
+    u16 *src = base + con.row * (con.col - con.vpm_bot - 1) - 1;
+    for (int i = 0; i < con.row * (con.col - con.vpm_bot - con.vpm_top - 1);
+         i++)
         *dst-- = *src--;
     for (int i = 0; i < con.row; i++)
         *dst-- = empty;
