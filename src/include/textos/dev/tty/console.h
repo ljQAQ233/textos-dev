@@ -51,6 +51,7 @@ struct con
     int argv[ARG_MAX];
     int state;
     bool pmcmd;
+    bool acs;
     // set by specific driver
     u32 hor;
     u32 ver;

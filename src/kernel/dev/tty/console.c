@@ -101,6 +101,18 @@ static void bs()
     con.op->clrch(con.cur_x, con.cur_y);
 }
 
+// Shift Out - Switch to an alternative character set.
+static void so()
+{
+    con.acs = true;
+}
+
+// Shift In - Return to regular character set after Shift Out.
+static void si()
+{
+    con.acs = false;
+}
+
 #define COMMIT(x) { x; return; }
 #define BRKOUT(x) { x; break; }
 #define NOEXAM // not tested yet
@@ -117,6 +129,8 @@ static void nor(char c)
         case '\f': COMMIT(ff());
         case '\r': COMMIT(cr());
         case '\b': COMMIT(bs());
+        case '\x0e': COMMIT(so());
+        case '\x0f': COMMIT(si());
         case '\033':
             con.state = STATE_ESC;
             return;
