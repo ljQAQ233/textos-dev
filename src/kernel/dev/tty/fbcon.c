@@ -161,12 +161,14 @@ static void curtoggle()
 
 static void pullup()
 {
-    screen_pullup(con.cur_y * con.font->h, con.font->h, con.bg);
+    screen_pullup(con.font->h, con.bg, con.vpm_top * con.font->h,
+                  con.vpm_bot * con.font->h);
 }
 
 static void pulldn()
 {
-    screen_pulldown(0, con.font->h, con.bg);
+    screen_pulldown(con.font->h, con.bg, con.vpm_top * con.font->h,
+                    con.vpm_bot * con.font->h);
 }
 
 static void clrch(int xc, int yc)

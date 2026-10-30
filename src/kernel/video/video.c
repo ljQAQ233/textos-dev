@@ -9,19 +9,14 @@ static addr_t fb_pa;
 
 void pixel_put(u32 x, u32 y, u32 color)
 {
-    // BUG: this shouldn't happend, panic here!!!
-    if (x >= hor || y >= ver) return;
-
-    ASSERTK(x + hor * y < fb_siz);
+    assert(x < hor && y < ver);
     u32 *pixel = fb + x + hor * y;
     *pixel = color;
 }
 
 u32 pixel_get(u32 x, u32 y)
 {
-    if (x >= hor || y >= ver) return 0;
-
-    ASSERTK(x + hor * y < fb_siz);
+    assert(x < hor && y < ver);
     u32 *pixel = fb + x + hor * y;
     return *pixel;
 }
@@ -74,29 +69,31 @@ void screen_clear()
         *p++ = 0;
 }
 
-// end 以上 (不包括 end) 的行上拉
-void screen_pullup(u32 end, u32 cnt, u32 bg)
-{
-    if (cnt == 0 || end > ver) return;
-
-    u32 *d = fb;
-    u32 *s = fb + cnt * hor;
-    for (u32 i = 0; i < (end - cnt) * hor; i++)
-        *d++ = *s++;
-    for (u32 i = 0; i < cnt * hor; i++)
-        *d++ = bg;
-}
-
-// start 行以下 (包括了 start) 的下拉
-void screen_pulldown(u32 start, u32 cnt, u32 bg)
+void screen_pullup(u32 cnt, u32 bg, u32 vpm_top, u32 vpm_bot)
 {
     if (cnt == 0) return;
-    u32 *d = fb + ver * hor - 1;
-    u32 *s = d - cnt * hor;
-    for (u32 i = 0; i < hor * (ver - start - cnt); i++)
-        *d-- = *s--;
+    if (vpm_top >= hor) return;
+    if (vpm_bot >= hor) return;
+
+    u32 *dst = fb + vpm_top * hor;
+    u32 *src = dst + cnt * hor;
+    for (u32 i = 0; i < (ver - vpm_top - vpm_bot - cnt) * hor; i++)
+        *dst++ = *src++;
+    for (u32 i = 0; i < cnt * hor; i++)
+        *dst++ = bg;
+}
+
+void screen_pulldown(u32 cnt, u32 bg, u32 vpm_top, u32 vpm_bot)
+{
+    if (cnt == 0) return;
+    if (vpm_top >= hor) return;
+    if (vpm_bot >= hor) return;
+    u32 *dst = fb + hor + (ver - vpm_bot) * hor - 1;
+    u32 *src = dst - cnt * hor;
+    for (u32 i = 0; i < hor * (ver - vpm_top - vpm_bot - cnt); i++)
+        *dst-- = *src--;
     for (u32 i = 0; i < hor * cnt; i++)
-        *d-- = bg;
+        *dst-- = bg;
 }
 
 bool screen_istxt()

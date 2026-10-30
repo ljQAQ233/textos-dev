@@ -25,8 +25,8 @@ void block_transform(u32 x,u32 y, u32 xe,u32 ye, gfx_transformer_t handler, void
 
 bool screen_istxt();
 void screen_clear();
-void screen_pullup(u32 end, u32 cnt, u32 bg);
-void screen_pulldown(u32 start, u32 cnt, u32 bg);
+void screen_pullup(u32 cnt, u32 bg, u32 vpm_top, u32 vpm_bot);
+void screen_pulldown(u32 cnt, u32 bg, u32 vpm_top, u32 vpm_bot);
 void screen_info(u32 *i_hor, u32 *i_ver);
 void screen_info5(void **i_buf, addr_t *i_pa, size_t *i_sz, u32 *i_hor, u32 *i_ver);
 
