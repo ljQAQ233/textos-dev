@@ -15,6 +15,7 @@ int exec(char *tty)
         char *argv[] = {
             "/bin/getty",
             tty,
+            "linux",
             NULL,
         };
         execve(argv[0], argv, NULL);
@@ -35,20 +36,6 @@ void sigchld(int sig)
 
 int main()
 {
-    // test code
-    mkdir("/mnt", 0777);
-    mount("/dev/hda1", "/mnt");
-    mkdir("/mnt/dev", 0777);
-    mknod("/mnt/dev/null", S_IFCHR | 0666, makedev(1, 3));
-    mknod("/mnt/dev/zero", S_IFCHR | 0666, makedev(1, 5));
-    mknod("/mnt/dev/full", S_IFCHR | 0666, makedev(1, 7));
-
-    chown("/mnt/dev/null", 0, 0);
-    chmod("/mnt/dev/null", 0000);
-
-    // // invoke page fault
-    // *((volatile int *)NULL);
-    
     signal(SIGCHLD, sigchld);
 
     exec("/dev/tty1");

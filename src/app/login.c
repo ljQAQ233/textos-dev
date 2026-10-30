@@ -9,7 +9,6 @@
 #define TRYMAX 3
 #define BUFMAX 128
 
-char name[BUFMAX];
 char user[BUFMAX];
 char pass[BUFMAX];
 
@@ -27,7 +26,7 @@ void set_echo(int yes)
 struct passwd *login()
 {
     setbuf(stdout, NULL);
-    printf("%s login: ", name);
+    printf("login: ");
 
     fgets(user, sizeof(user), stdin);
     user[strlen(user) - 1] = '\0';
@@ -55,7 +54,6 @@ struct passwd *login()
 int main()
 {
     setvbuf(stdout, NULL, _IONBF, 0);
-    if (gethostname(name, sizeof(name)) < 0) strcpy(name, "localhost");
 
     setsid();
     struct passwd *pwd;

@@ -1,13 +1,17 @@
-#include <assert.h>
 #include <fcntl.h>
+#include <string.h>
+#include <stdlib.h>
 #include <sys/syscall.h>
+#include <sys/utsname.h>
 #include <unistd.h>
 
 #include "util.h"
 
 PROG_NAME("getty");
+#define BUFMAX 128
+char nodename[BUFMAX];
 
-int getty(const char *path)
+int getty(const char *path, const char *term)
 {
     char *argv[] = {
         "/bin/login",
@@ -25,7 +29,8 @@ int getty(const char *path)
 
     dup2(fd, 1);
     dup2(fd, 2);
-    execve(argv[0], argv, NULL);
+    printf("%s login: ", nodename);
+    execv(argv[0], argv);
     write(1, "execve failed!\n", 17);
     while (1)
         pause();
@@ -36,6 +41,17 @@ err:
 
 int main(int argc, char *argv[])
 {
-    assert(argc >= 2);
-    return getty(argv[1]);
+    setvbuf(stdout, NULL, _IONBF, 0);
+    if (argc != 2 && argc != 3) {
+        pusage("port [term]");
+        return 1;
+    }
+
+    const char *path = argv[1];
+    const char *term = argc >= 3 ? argv[2] : "linux";
+    
+    if (gethostname(nodename, sizeof(nodename)) < 0)
+        strcpy(nodename, "localhost");
+    setenv("TERM", term, 1);
+    return getty(path, term);
 }
