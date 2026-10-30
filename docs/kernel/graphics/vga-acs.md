@@ -1,4 +1,4 @@
-# vga
+# VGA ACS 字符集
 
 vga 文字模式下, 常用的标准字体是 IBM PC Code Page 437 (CP437).
 
