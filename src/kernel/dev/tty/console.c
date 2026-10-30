@@ -227,6 +227,8 @@ static void move(int x, int y)
     con.cur_y = y;
 }
 
+#define clampd(d) ((d) ? (d) : 1)
+
 static void moved(int dx, int dy)
 {
     move(con.cur_x + dx, con.cur_y + dy);
@@ -318,20 +320,22 @@ static void cmd(char c)
     {
     case 'F': NOEXAM
         move(0, con.cur_y);
-    case 'A': NOEXAM BRKOUT(moved(0, -con.argv[0]));
+    case 'A': NOEXAM BRKOUT(moved(0, -clampd(con.argv[0])));
     case 'E': NOEXAM
         move(0, con.cur_y);
     case 'e': NOEXAM
-    case 'B': NOEXAM BRKOUT(moved(0,  con.argv[0]));
+    case 'B': NOEXAM BRKOUT(moved(0, +clampd(con.argv[0])));
     case 'a': NOEXAM
-    case 'C': NOEXAM BRKOUT(moved( con.argv[0], 0));
-    case 'D': NOEXAM BRKOUT(moved(-con.argv[0], 0));
+    case 'C': NOEXAM BRKOUT(moved(+clampd(con.argv[0]), 0));
+    case 'D': NOEXAM BRKOUT(moved(-clampd(con.argv[0]), 0));
 
-    case '`': NOEXAM BRKOUT(move(con.argv[0], con.cur_y));
     case 'd': NOEXAM BRKOUT(move(con.cur_x, con.argv[0]));
     
     case 'H': NOEXAM
-    case 'f': NOEXAM BRKOUT(move(con.argv[0], con.argv[1]));
+    case 'f': NOEXAM BRKOUT(move(con.argv[1],con.argv[0]));
+
+    case '`':
+    case 'G': BRKOUT(move(con.argv[0], con.cur_y));
     
     case 'Z': NOEXAM BRKOUT(); // tab
 
