@@ -46,6 +46,8 @@ struct con
     u16 cur_x;  /* Cursor address X */
     u16 cur_y;  /* Cursor address Y */
     u32 fg, bg;
+    u16 vpm_top; /* viewport top margin */
+    u16 vpm_bot; /* viewport bottom margin */
     // csi
     int argc;
     int argv[ARG_MAX];

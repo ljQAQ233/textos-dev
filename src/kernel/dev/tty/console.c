@@ -23,7 +23,7 @@ static void full()
 {
     if (con.scroll)
     {
-        scrln(true);
+        if (!con.vpm_bot && !con.vpm_top) scrln(true);
         con.cur_y = con.cur_y - 1;
     }
     else
@@ -395,6 +395,15 @@ static void cmd(char c)
     });
 
     case 'm': BRKOUT(sgr());
+
+    // set viewport margin
+    case 'r': BRKOUT({
+        con.vpm_top = con.argv[0];
+        con.vpm_bot = con.argv[1];
+        con.cur_x = con.cur_y = 0;
+    });
+    // CSI Pm l - Reset mode
+    // CSI ? Pm l - DEC private reset mode
     default:
         DEBUGK(K_TRACE, "console gets invalid cmd - %c\n", c);
         break;
@@ -500,6 +509,8 @@ void console_init()
     con.cur_y = 0;
     con.bg = con.bgdef;
     con.fg = con.fgdef;
+    con.vpm_top = 0;
+    con.vpm_bot = 0;
     con.argc = ARG_RESET;
     con.state = STATE_NOR;
     con.pmcmd = false;

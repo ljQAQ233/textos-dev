@@ -160,9 +160,10 @@ static void curtoggle()
 
 static void pullup()
 {
-    u16 *dst = base;
-    u16 *src = base + con.row;
-    for (int i = 0; i < con.row * (con.col - 1); i++)
+    u16 *dst = base + con.vpm_top * con.row;
+    u16 *src = dst + con.row;
+    for (int i = 0; i < con.row * (con.col - con.vpm_bot - con.vpm_top - 1);
+         i++)
         *dst++ = *src++;
     for (int i = 0; i < con.row; i++)
         *dst++ = empty;
