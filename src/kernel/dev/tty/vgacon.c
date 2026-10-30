@@ -223,10 +223,12 @@ static void __init_impl()
 
     // 禁用 blink
     inb(0x3da);
-    outb(0x3c0, 0x10 | 0x20);
+    u8 saved = inb(0x3c0);
+    outb(0x3c0, 0x10);
     u8 val = inb(0x3c1);
     val &= ~0x08;
-    outb(0x3c1, val);
+    outb(0x3c0, val);
+    outb(0x3c0, saved | 0x20);
 
     vga_movcur(0, 0);
     curtoggle();
@@ -234,7 +236,7 @@ static void __init_impl()
 }
 
 struct conop __conop_vga = {
-    sgr0,
+    .sgr0 = sgr0,
     xyputc,
     curtoggle,
     pullup,
