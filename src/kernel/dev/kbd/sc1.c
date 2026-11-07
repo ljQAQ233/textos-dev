@@ -64,7 +64,6 @@ static keysym_t map[] = {
     KEY_SPACE,
     KEY_S_CAPSLK,
     KEY_F1,
-    KEY_F1,
     KEY_F2,
     KEY_F3,
     KEY_F4,
