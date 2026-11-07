@@ -139,7 +139,7 @@ static void nor(char c)
     }
 
     if (!con.hidden)
-        con.op->xyputc(c, con.cur_x, con.cur_y);
+        conbuf_xyputc(&con, c, con.cur_x, con.cur_y);
     
     if (++con.cur_x >= con.row) {
         if (++con.cur_y >= con.col) {
@@ -496,4 +496,5 @@ void console_init()
     con.argc = ARG_RESET;
     con.state = STATE_NOR;
     con.pmcmd = false;
+    conbuf_init(&con);
 }

@@ -13,6 +13,7 @@ SRCS += dev/tty/cap.c
 SRCS += dev/tty/kstoa.c
 SRCS += dev/tty/serial.c
 SRCS += dev/tty/console.c
+SRCS += dev/tty/conbuf.c
 SRCS += dev/tty/fbcon.c
 SRCS += dev/tty/vgacon.c
 

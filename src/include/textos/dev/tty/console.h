@@ -12,7 +12,7 @@ enum
     STATE_CMD,
 };
 
-#define ARG_MAX 16
+#define ARG_MAX   16
 #define ARG_RESET -1
 
 #define TABWID 8
@@ -28,11 +28,17 @@ struct conop
     void (*curtoggle)();
     void (*pullup)();
     void (*pulldn)();
-    void (*clrch)(int xc, int yc);     // clear character at (xc, yc)
-    void (*clrrg)(int start, int end); // clear a range of chars in the current line
-    void (*clrln)(int line);           // clear the whole line
-    void (*scrclr)();                  // clear screen
+    void (*clrch)(int xc, int yc); // clear character at (xc, yc)
+    void (*clrrg)(int start,
+                  int end);  // clear a range of chars in the current line
+    void (*clrln)(int line); // clear the whole line
+    void (*scrclr)();        // clear screen
     void (*__init)();
+};
+
+struct conbuf
+{
+    u64 *buf;
 };
 
 struct con
@@ -43,11 +49,12 @@ struct con
     bool hidden;
     bool underl;
     bool strike;
-    u16 cur_x;  /* Cursor address X */
-    u16 cur_y;  /* Cursor address Y */
+    u16 cur_x; /* Cursor address X */
+    u16 cur_y; /* Cursor address Y */
     u32 fg, bg;
     u16 vpm_top; /* viewport top margin */
     u16 vpm_bot; /* viewport bottom margin */
+    struct conbuf conbuf;
     // csi
     int argc;
     int argv[ARG_MAX];
@@ -65,3 +72,8 @@ struct con
 };
 
 extern struct con *__kcon;
+
+void conbuf_xyputc(struct con *con, char c, u32 x, u32 y);
+void conbuf_init(struct con *con);
+void conbuf_activate(struct con *con);
+
