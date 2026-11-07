@@ -2,8 +2,10 @@
 #include <textos/dev/tty/console.h>
 #include <textos/video.h>
 
-static struct con con;
-struct con *__kcon = &con;
+STATIC_ASSERT(MIN_NR_CONSOLES == 1, "");
+
+struct con __cons[MAX_NR_CONSOLES + 1];
+struct con *__kcon = &__cons[0];
 
 static inline void clrcon(struct con *con)
 {
@@ -427,6 +429,7 @@ static inline void cputc(struct con *con, char c)
     }
 }
 
+// clang-format on
 
 /*
  * 设备驱动
@@ -436,7 +439,7 @@ static inline void cputc(struct con *con, char c)
 
 ssize_t console_write(void *io, char *s, size_t len)
 {
-    struct con *con = __kcon;
+    struct con *con = io;
     char *p = s;
     curshow(con, false);
     UNINTR_AREA({
@@ -453,7 +456,7 @@ ssize_t console_write(void *io, char *s, size_t len)
 
 int console_ioctl(void *io, int req, void *argp)
 {
-    struct con *con = __kcon;
+    struct con *con = io;
     switch (req) {
     case TIOCGWINSZ: {
         struct winsize *win = argp;
@@ -474,9 +477,15 @@ int console_ioctl(void *io, int req, void *argp)
 extern struct conop __conop_fb;
 extern struct conop __conop_vga;
 
-void console_init()
+struct con *console_get(int idx)
 {
-    struct con *con = __kcon;
+    if (MIN_NR_CONSOLES <= idx && idx <= MAX_NR_CONSOLES)
+        return &__cons[idx - 1];
+    return NULL;
+}
+
+void console_init(struct con *con)
+{
     struct conop *ops[] = {
         &__conop_fb,
         &__conop_vga,

@@ -126,19 +126,15 @@ static void init(int idx)
     inb(srl->base + R_MCR);
     outb(srl->base + R_MCR, 0b11110);      // start to check
     outb(srl->base + R_DATA, 0xae);
-    if (inb(srl->base + R_DATA) != 0xae)
-    {
+    if (inb(srl->base + R_DATA) != 0xae) {
         return;
     }
     outb(srl->base + R_MCR, 0b100);
 
     char ttyname[16];
     sprintf(ttyname, "ttyS%d", idx);
-    srl->tty = tty_register(
-        NULL, ttyname, srl,
-        (void *)serial_ioctl,
-        (void *)NULL,
-        (void *)serial_write);
+    srl->tty = tty_register(NULL, ttyname, srl, (void *)serial_ioctl,
+                            (void *)NULL, (void *)serial_write);
 }
 
 #include <lai/helpers/resource.h>

@@ -9,17 +9,20 @@
 #define _GNU_SOURCE
 #include <textos/dev.h>
 #include <textos/dev/tty/cap.h>
+#include <textos/dev/tty/console.h>
 #include <textos/dev/tty/kstoa.h>
 #include <textos/dev/tty/tty.h>
 #include <textos/errno.h>
 #include <textos/fs/poll.h>
 #include <textos/ioctl.h>
 #include <textos/klib/string.h>
+#include <textos/klib/vsprintf.h>
 #include <textos/mm/heap.h>
 #include <textos/task.h>
 
-tty_t ttys[8];
+tty_t *ttys[MAX_NR_CONSOLES + 1];
 tty_t *fgtty;
+tty_t ls;
 
 #define FC(x, y)       (((x) & (y)) == (y))
 #define FC_IFLAG(t, y) FC((t)->tio.c_iflag, y)
@@ -340,15 +343,18 @@ void __tty_rx(tty_t *tty, keysym_t sym)
     int len = kstoa(sym, buf);
     tty_feed(tty, buf, len);
 }
-    
+
 static int tty__init_pctx(devst_t *dev, void **pctx)
 {
     task_t *tsk = task_current();
-    struct tty *ctty = dev->pdata;
+    tty_t *ctty = dev->pdata;
+    if ((addr_t)ctty <= MAX_NR_CONSOLES) {
+        dev->pdata = ctty = tty_init_struct_on_console((addr_t)ctty);
+    }
     if (ctty->ses_holders == 0 && tsk->sid == tsk->pid &&
         tsk->ctrltty == NULL) {
         tsk->ctrltty = dev;
-        struct tty *ctty = dev->pdata;
+        tty_t *ctty = dev->pdata;
         ctty->ses_id = tsk->sid;
         ctty->ses_holders = 1;
     }
@@ -375,7 +381,7 @@ static int tty_ioctl(devst_t *dev, int req, void *argp)
     case TCSETS + TCSADRAIN:
     case TCSETS + TCSAFLUSH:
     case TCSETS + TCSANOW:
-        tty_cap_check_attr(argp);;
+        tty_cap_check_attr(argp);
         memcpy(&tty->tio, argp, sizeof(struct termios));
         DEBUGK(K_TRACE, "tty attr iflag=%o,oflag=%o,cflag=%o,lflag=%o\n",
                tty->tio.c_iflag, tty->tio.c_oflag, tty->tio.c_cflag,
@@ -415,8 +421,8 @@ int tty_poll_teardown(devst_t *this, struct fs_poller *poller)
     return 0;
 }
 
-tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl,
-                    tty_iosop_t in, tty_iosop_t out)
+tty_t *tty_init_struct(tty_t *tty, void *data, tty_ioctl_t ctl, tty_iosop_t in,
+                       tty_iosop_t out)
 {
     if (!tty && !(tty = malloc(sizeof(tty_t)))) return NULL;
 
@@ -452,7 +458,11 @@ tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl,
     tty->ctl = ctl;
     tty->in = in;
     tty->out = out;
+    return tty;
+}
 
+devst_t *tty_init_device(const char *name, void *tty)
+{
     devst_t *dev = dev_new();
     dev->name = strdup(name);
     dev->type = DEV_CHAR;
@@ -465,6 +475,15 @@ tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl,
     dev->poll_teardown = tty_poll_teardown;
     dev->pdata = tty;
     dev_register(NULL, dev);
+    return dev;
+}
+
+tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl,
+                    tty_iosop_t in, tty_iosop_t out)
+{
+    tty = tty_init_struct(tty, data, ctl, in, out);
+    if (!tty) return NULL;
+    if (!tty_init_device(name, tty)) return NULL;
     return tty;
 }
 
@@ -479,8 +498,26 @@ void __printkcon(char *buf)
     tty_write(&d, buf, i);
 }
 
+tty_t *tty_init_struct_on_console(int idx)
+{
+    tty_t *tty = tty_init_struct(NULL, console_get(idx), console_ioctl, NULL,
+                                 console_write);
+    if (!tty) return NULL;
+    ttys[idx - 1] = tty;
+    console_init(tty->data);
+    return tty;
+}
+
 void tty_init()
 {
-    fgtty = tty_register(NULL, "tty1", NULL, (void *)console_ioctl,
-                         (void *)NULL, (void *)console_write);
+    for (int i = MIN_NR_CONSOLES; i <= MAX_NR_CONSOLES; i++) {
+        char name[16];
+        devst_t *dev;
+        sprintf(name, "tty%d", i);
+        dev = tty_init_device(name, (void *)(addr_t)i);
+        if (!dev) DEBUGK(K_ERROR, "%s cannot be initialized\n", name);
+        if (i == DEF_FG_CONSOLE)
+            dev->pdata = fgtty = tty_init_struct_on_console(1);
+    }
+    if (!fgtty) PANIC("fgtty cannot be initialized\n");
 }

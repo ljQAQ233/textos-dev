@@ -12,6 +12,10 @@ enum
     STATE_CMD,
 };
 
+#define MAX_NR_CONSOLES 7
+#define MIN_NR_CONSOLES 1
+#define DEF_FG_CONSOLE  MIN_NR_CONSOLES
+
 #define ARG_MAX   16
 #define ARG_RESET -1
 
@@ -74,6 +78,9 @@ struct con
 };
 
 extern struct con *__kcon;
+
+struct con *console_get(int idx);
+void console_init(struct con *con);
 
 void conbuf_xyputc(struct con *con, char c, u32 x, u32 y);
 void conbuf_init(struct con *con);
