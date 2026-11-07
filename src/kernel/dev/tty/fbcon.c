@@ -3,7 +3,6 @@
 #include <textos/video/acs-cp437.h>
 #include <textos/video/font.h>
 
-#define con (*__kcon)
 struct conop __conop_fb;
 
 static u32 color[2][8] = {
@@ -92,8 +91,9 @@ static int sgr8(int *argv, u32 *fg, u32 *bg)
     return ret;
 }
 
-static int sgr0(int *argv, u32 *bg, u32 *fg)
+static int sgr0(struct con *con, int *argv, u32 *bg, u32 *fg)
 {
+    (void)con;
     int v = argv[0];
     if (30 <= v && v <= 37)
         *fg = color[0][v % 10];
@@ -110,26 +110,26 @@ static int sgr0(int *argv, u32 *bg, u32 *fg)
     return 1;
 }
 
-static void xyputc(char c, u32 x, u32 y)
+static void xyputc(struct con *con, char c, u32 x, u32 y)
 {
-    if (con.acs) c = cp437_acsget(c);
-    x *= con.font->w;
-    y *= con.font->h;
-    font_show(c, con.font, x, y, con.fg, con.bg);
+    if (con->acs) c = cp437_acsget(c);
+    x *= con->font->w;
+    y *= con->font->h;
+    font_show(c, con->font, x, y, con->fg, con->bg);
 
-    if (con.strike) {
+    if (con->strike) {
         u32 xl = x;
-        u32 yl = y + con.font->h / 2 - 1;
-        u32 xe = x + con.font->w;
-        u32 ye = y + con.font->h / 2;
-        block_put(xl, yl, xe, ye, con.fg);
+        u32 yl = y + con->font->h / 2 - 1;
+        u32 xe = x + con->font->w;
+        u32 ye = y + con->font->h / 2;
+        block_put(xl, yl, xe, ye, con->fg);
     }
-    if (con.underl) {
+    if (con->underl) {
         u32 xl = x;
-        u32 yl = y + con.font->h - 1;
-        u32 xe = x + con.font->w;
-        u32 ye = y + con.font->h;
-        block_put(xl, yl, xe, ye, con.fg);
+        u32 yl = y + con->font->h - 1;
+        u32 xe = x + con->font->w;
+        u32 ye = y + con->font->h;
+        block_put(xl, yl, xe, ye, con->fg);
     }
 }
 
@@ -138,65 +138,66 @@ static u32 _cb_currender(u32 x, u32 y, u32 color, void *private)
     return color ^= 0x00ffffff;
 }
 
-static void curtoggle()
+static void curtoggle(struct con *con)
 {
-    u16 x = con.cur_x * con.font->w;
-    u16 y = con.cur_y * con.font->h;
-    block_transform(x, y, x + con.font->w, y + con.font->h, _cb_currender,
+    u16 x = con->cur_x * con->font->w;
+    u16 y = con->cur_y * con->font->h;
+    block_transform(x, y, x + con->font->w, y + con->font->h, _cb_currender,
                     NULL);
 }
 
-static void pullup()
+static void pullup(struct con *con)
 {
-    screen_pullup(con.font->h, con.bg, con.vpm_top * con.font->h,
-                  con.vpm_bot * con.font->h);
+    screen_pullup(con->font->h, con->bg, con->vpm_top * con->font->h,
+                  con->vpm_bot * con->font->h);
 }
 
-static void pulldn()
+static void pulldn(struct con *con)
 {
-    screen_pulldown(con.font->h, con.bg, con.vpm_top * con.font->h,
-                    con.vpm_bot * con.font->h);
+    screen_pulldown(con->font->h, con->bg, con->vpm_top * con->font->h,
+                    con->vpm_bot * con->font->h);
 }
 
-static void clrch(int xc, int yc)
+static void clrch(struct con *con, int xc, int yc)
 {
-    if (xc >= con.row || yc >= con.col) return;
-    int x = xc * con.font->w, y = yc * con.font->h;
-    int xe = x + con.font->w, ye = y + con.font->h;
-    block_put(x, y, xe, ye, con.bg);
+    if (xc >= con->row || yc >= con->col) return;
+    int x = xc * con->font->w, y = yc * con->font->h;
+    int xe = x + con->font->w, ye = y + con->font->h;
+    block_put(x, y, xe, ye, con->bg);
 }
 
 // erase in line - range [start, end)
-static void clrrg(int start, int end)
+static void clrrg(struct con *con, int start, int end)
 {
-    int x = start * con.font->w, y = con.cur_y * con.font->h;
-    int xe = MIN(con.col, end) * con.font->w, ye = y + con.font->h;
-    block_put(x, y, xe, ye, con.bg);
+    int x = start * con->font->w, y = con->cur_y * con->font->h;
+    int xe = MIN(con->col, end) * con->font->w, ye = y + con->font->h;
+    block_put(x, y, xe, ye, con->bg);
 }
 
-static void clrln(int line)
+static void clrln(struct con *con, int line)
 {
-    if (line >= con.col) return;
-    int x = 0, y = line * con.font->h;
-    int xe = con.hor, ye = y + con.font->h;
-    block_put(x, y, xe, ye, con.bg);
+    if (line >= con->col) return;
+    int x = 0, y = line * con->font->h;
+    int xe = con->hor, ye = y + con->font->h;
+    block_put(x, y, xe, ye, con->bg);
 }
 
-static void scrclr()
+static void scrclr(struct con *con)
 {
+    (void)con;
     screen_clear();
 }
 
-static void __init_impl()
+static void __init_impl(struct con *con)
 {
-    screen_info(&con.hor, &con.ver);
+    screen_info(&con->hor, &con->ver);
     font_t *font = font_get(0);
-    con.row = con.hor / font->w;
-    con.col = con.ver / font->h;
-    con.font = font;
-    con.fg = con.fgdef = 0x00ffffff;
-    con.bg = con.bgdef = 0x00000000;
-    con.op = &__conop_fb;
+    con->row = con->hor / font->w;
+    con->col = con->ver / font->h;
+    con->font = font;
+    con->fg = con->fgdef = 0x00ffffff;
+    con->bg = con->bgdef = 0x00000000;
+    con->op = &__conop_fb;
 }
 
 struct conop __conop_fb = {

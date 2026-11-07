@@ -17,23 +17,25 @@ enum
 
 #define TABWID 8
 
+struct con;
+
 struct conop
 {
-    int (*sgr0)(int *argv, u32 *bg, u32 *fg);
-    void (*xyputc)(char c, u32 x, u32 y);
+    int (*sgr0)(struct con *con, int *argv, u32 *bg, u32 *fg);
+    void (*xyputc)(struct con *con, char c, u32 x, u32 y);
     /*
      * operations to handle pixels and characters but not
      * increase any console fileds. (only graphics operations)
      */
-    void (*curtoggle)();
-    void (*pullup)();
-    void (*pulldn)();
-    void (*clrch)(int xc, int yc); // clear character at (xc, yc)
-    void (*clrrg)(int start,
+    void (*curtoggle)(struct con *con);
+    void (*pullup)(struct con *con);
+    void (*pulldn)(struct con *con);
+    void (*clrch)(struct con *con, int xc, int yc); // clear character at (xc, yc)
+    void (*clrrg)(struct con *con, int start,
                   int end);  // clear a range of chars in the current line
-    void (*clrln)(int line); // clear the whole line
-    void (*scrclr)();        // clear screen
-    void (*__init)();
+    void (*clrln)(struct con *con, int line); // clear the whole line
+    void (*scrclr)(struct con *con);        // clear screen
+    void (*__init)(struct con *con);
 };
 
 struct conbuf

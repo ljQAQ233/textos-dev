@@ -5,112 +5,110 @@
 static struct con con;
 struct con *__kcon = &con;
 
-void clrcon()
+static inline void clrcon(struct con *con)
 {
-    con.cur_y = 0;
-    con.op->scrclr();
+    con->cur_y = 0;
+    con->op->scrclr(con);
 }
 
-static void scrln(bool up)
+static inline void scrln(struct con *con, bool up)
 {
     if (up)
-        con.op->pullup();
+        con->op->pullup(con);
     else
-        con.op->pulldn();
+        con->op->pulldn(con);
 }
 
 // 屏幕满了怎么办? 滚! 或者 直接干掉 ૮(˶ᵔ ᵕ ᵔ˶)ა
-static void full()
+static inline void full(struct con *con)
 {
-    if (con.scroll) {
-        if (!con.vpm_bot && !con.vpm_top) scrln(true);
-        con.cur_y = con.cur_y - 1;
+    if (con->scroll) {
+        if (!con->vpm_bot && !con->vpm_top)
+            scrln(con, true);
+        con->cur_y = con->cur_y - 1;
     } else {
-        clrcon();
+        clrcon(con);
     }
 }
 
 // TODO : optimize
-static void clrscr(int m)
+static inline void clrscr(struct con *con, int m)
 {
-    if (m == 0)
-    {
-        for (u16 x = con.cur_x ; x < con.row ; x++)
-            con.op->clrch(x, con.cur_y);
-        for (u16 y = con.cur_y + 1 ; y < con.col ; y++)
-            con.op->clrln(y);
-    }
-    else if (m == 1)
-    {
-        for (u16 x = 0 ; x < con.cur_x ; x++)
-            con.op->clrch(x, con.cur_y);
-        for (u16 y = 0 ; y < con.cur_y ; y++)
-            con.op->clrln(y);
-    }
-    else if (m == 2)
-        con.op->scrclr();
+    if (m == 0) {
+        for (u16 x = con->cur_x ; x < con->row ; x++)
+            con->op->clrch(con, x, con->cur_y);
+        for (u16 y = con->cur_y + 1 ; y < con->col ; y++)
+            con->op->clrln(con, y);
+    } else if (m == 1) {
+        for (u16 x = 0 ; x < con->cur_x ; x++)
+            con->op->clrch(con, x, con->cur_y);
+        for (u16 y = 0 ; y < con->cur_y ; y++)
+            con->op->clrln(con, y);
+    } else if (m == 2)
+        con->op->scrclr(con);
 }
 
-static void insln()
+static inline void insln(struct con *con)
 {
-    con.op->pullup();
+    con->op->pullup(con);
 }
 
 // TODO
-static void insch()
+static inline void insch(struct con *con)
 {
+    (void)con;
     return ;
 }
 
 // 将光标移动到当前行的开头
-static void cr()
+static inline void cr(struct con *con)
 {
-    con.cur_x = 0;
+    con->cur_x = 0;
 }
 
 #define round_up(x, n) (((x) + (n) - 1) / (n) * (n))
 
 // 水平制表符 tab
-static void ht()
+static inline void ht(struct con *con)
 {
-    con.cur_x = round_up(con.cur_x, TABWID);
-    if (con.cur_x >= con.row)
-        if (con.cur_y++ >= con.col)
-            full();
+    con->cur_x = round_up(con->cur_x, TABWID);
+    if (con->cur_x >= con->row)
+        if (con->cur_y++ >= con->col)
+            full(con);
 }
 
 // 回车
-static void lf()
+static inline void lf(struct con *con)
 {
-    if (++con.cur_y >= con.col)
-        full();
+    if (++con->cur_y >= con->col)
+        full(con);
 }
 
 // 翻页
 // 这里在终端中实验是将光标移动到下一行, 而不改变横坐标
-static void ff()
+static inline void ff(struct con *con)
 {
-    if (++con.cur_y >= con.col)
-        full();
+    if (++con->cur_y >= con->col)
+        full(con);
 }
 
 // 退格, NOTE: 记得处理是不是自动换行的情况!!!
-static void bs()
+static inline void bs(struct con *con)
 {
-    con.cur_x = MAX(con.cur_x - 1, 0);
-    con.op->clrch(con.cur_x, con.cur_y);
+    con->cur_x = MAX(con->cur_x - 1, 0);
+    con->op->clrch(con, con->cur_x, con->cur_y);
 }
 
 // Shift Out - Switch to an alternative character set.
-static void so()
+static inline void so(struct con *con)
 {
-    con.acs = true;
+    con->acs = true;
 }
 
 // Shift In - Return to regular character set after Shift Out.
-static void si()
+static inline void si(struct con *con)
 {
-    con.acs = false;
+    con->acs = false;
 }
 
 #define COMMIT(x) { x; return; }
@@ -118,34 +116,34 @@ static void si()
 #define NOEXAM // not tested yet
 #define INVALID(c) DEBUGK(K_TRACE, "console gets invalid cmd - %c\n", c);
 
-static void nor(char c)
+static inline void nor(struct con *con, char c)
 {
     switch (c)
     {
         case '\0': COMMIT();
         case '\a': COMMIT();
-        case '\t': COMMIT(ht());
-        case '\n': COMMIT(lf());
-        case '\v': COMMIT(lf());
-        case '\f': COMMIT(ff());
-        case '\r': COMMIT(cr());
-        case '\b': COMMIT(bs());
-        case '\x0e': COMMIT(so());
-        case '\x0f': COMMIT(si());
+        case '\t': COMMIT(ht(con));
+        case '\n': COMMIT(lf(con));
+        case '\v': COMMIT(lf(con));
+        case '\f': COMMIT(ff(con));
+        case '\r': COMMIT(cr(con));
+        case '\b': COMMIT(bs(con));
+        case '\x0e': COMMIT(so(con));
+        case '\x0f': COMMIT(si(con));
         case '\033':
-            con.state = STATE_ESC;
+            con->state = STATE_ESC;
             return;
         default: break;
     }
 
-    if (!con.hidden)
-        conbuf_xyputc(&con, c, con.cur_x, con.cur_y);
+    if (!con->hidden)
+        conbuf_xyputc(con, c, con->cur_x, con->cur_y);
     
-    if (++con.cur_x >= con.row) {
-        if (++con.cur_y >= con.col) {
-            full();
+    if (++con->cur_x >= con->row) {
+        if (++con->cur_y >= con->col) {
+            full(con);
         }
-        con.cur_x = 0;
+        con->cur_x = 0;
     }
 }
 
@@ -162,19 +160,19 @@ enum
     /* X */ STRIKE = 9,
 };
 
-static void sgr()
+static inline void sgr(struct con *con)
 {
     u32 fg = 0, bg = 0;
-    bool hidden = con.hidden;
-    bool underl = con.underl;
-    bool strike = con.strike;
+    bool hidden = con->hidden;
+    bool underl = con->underl;
+    bool strike = con->strike;
 
-    for (int i = 0; i < con.argc; i++) {
-        int v = con.argv[i];
+    for (int i = 0; i < con->argc; i++) {
+        int v = con->argv[i];
         switch (v) {
         case RESET:
-            fg = con.fgdef;
-            bg = con.bgdef;
+            fg = con->fgdef;
+            bg = con->bgdef;
             hidden = false;
             underl = false;
             strike = false;
@@ -199,57 +197,57 @@ static void sgr()
             break;
 
         default:
-            i += con.op->sgr0(&con.argv[i], &bg, &fg) - 1;
+            i += con->op->sgr0(con, &con->argv[i], &bg, &fg) - 1;
             break;
         }
     }
 
-    con.fg = fg;
-    con.bg = bg;
-    con.hidden = hidden;
-    con.underl = underl;
-    con.strike = strike;
+    con->fg = fg;
+    con->bg = bg;
+    con->hidden = hidden;
+    con->underl = underl;
+    con->strike = strike;
 }
 
-static void move(int x, int y)
+static inline void move(struct con *con, int x, int y)
 {
     if (x < 0) x = 0;
-    if (x >= con.row) x = con.row - 1;
-    con.cur_x = x;
+    if (x >= con->row) x = con->row - 1;
+    con->cur_x = x;
 
-    if (y < 0) con.cur_y = 0;
-    if (y >= con.col) y = con.col - 1;
-    con.cur_y = y;
+    if (y < 0) con->cur_y = 0;
+    if (y >= con->col) y = con->col - 1;
+    con->cur_y = y;
 }
 
 #define clampd(d) ((d) ? (d) : 1)
 
-static void moved(int dx, int dy)
+static inline void moved(struct con *con, int dx, int dy)
 {
-    move(con.cur_x + dx, con.cur_y + dy);
+    move(con, con->cur_x + dx, con->cur_y + dy);
 }
 
 /*
  * many opementations use REVERSE to make a cursor.
  * here I use color reverse to achieve it!!!
  */
-static void curshow(bool show)
+static inline void curshow(struct con *con, bool show)
 {
-    if (con.cursor != show) {
-        con.cursor = show;
-        con.op->curtoggle();
+    if (con->cursor != show) {
+        con->cursor = show;
+        con->op->curtoggle(con);
     }
 }
 
-static void curstat(bool save)
+static inline void curstat(struct con *con, bool save)
 {
     static u16 x = 0, y = 0;
     if (save) {
-        x = con.cur_x;
-        y = con.cur_y;
+        x = con->cur_x;
+        y = con->cur_y;
     } else {
-        con.cur_x = x;
-        con.cur_y = y;
+        con->cur_x = x;
+        con->cur_y = y;
     }
 }
 
@@ -259,135 +257,135 @@ static void curstat(bool save)
  * 设计参考: https://xtermjs.org/docs/api/vtfeatures/
  */
 
-static void esc(char c)
+static inline void esc(struct con *con, char c)
 {
     switch (c) {
-    case '[': COMMIT(con.state = STATE_CSI);
-    default:  COMMIT(con.state = STATE_NOR);
+    case '[': COMMIT(con->state = STATE_CSI);
+    default:  COMMIT(con->state = STATE_NOR);
     }
 }
 
 // 是否是 private mode modifier '?' / 直接开始接受参数
-static bool csi(char c)
+static inline bool csi(struct con *con, char c)
 {
-    con.state = STATE_ARG;
-    con.argc = ARG_RESET;
+    con->state = STATE_ARG;
+    con->argc = ARG_RESET;
 
-    con.pmcmd = c == '?';
-    return con.pmcmd;
+    con->pmcmd = c == '?';
+    return con->pmcmd;
 }
 
-static void cmd(char c);
-static void pmcmd(char c);
+static inline void cmd(struct con *con, char c);
+static inline void pmcmd(struct con *con, char c);
 
-static void arg(char c)
+static inline void arg(struct con *con, char c)
 {
-    if (con.argc == ARG_RESET) {
+    if (con->argc == ARG_RESET) {
         for (int i = 0; i < ARG_MAX; i++)
-            con.argv[i] = 0;
-        con.argc = 0;
+            con->argv[i] = 0;
+        con->argc = 0;
     }
 
     if ('0' <= c && c <= '9')
-        con.argv[con.argc] = con.argv[con.argc] * 10 + c - '0';
+        con->argv[con->argc] = con->argv[con->argc] * 10 + c - '0';
     else if (c == ';') {
         // drop
-        if (++con.argc > ARG_MAX) --con.argc;
+        if (++con->argc > ARG_MAX) --con->argc;
     } else {
-        ++con.argc;
-        if (con.pmcmd)
-            pmcmd(c);
+        ++con->argc;
+        if (con->pmcmd)
+            pmcmd(con, c);
         else
-            cmd(c);
+            cmd(con, c);
     }
 }
 
-static void cmd(char c)
+static inline void cmd(struct con *con, char c)
 {
     switch (c)
     {
     case 'F': NOEXAM
-        move(0, con.cur_y);
-    case 'A': NOEXAM BRKOUT(moved(0, -clampd(con.argv[0])));
+        move(con, 0, con->cur_y);
+    case 'A': NOEXAM BRKOUT(moved(con, 0, -clampd(con->argv[0])));
     case 'E': NOEXAM
-        move(0, con.cur_y);
+        move(con, 0, con->cur_y);
     case 'e': NOEXAM
-    case 'B': NOEXAM BRKOUT(moved(0, +clampd(con.argv[0])));
+    case 'B': NOEXAM BRKOUT(moved(con, 0, +clampd(con->argv[0])));
     case 'a': NOEXAM
-    case 'C': NOEXAM BRKOUT(moved(+clampd(con.argv[0]), 0));
-    case 'D': NOEXAM BRKOUT(moved(-clampd(con.argv[0]), 0));
+    case 'C': NOEXAM BRKOUT(moved(con, +clampd(con->argv[0]), 0));
+    case 'D': NOEXAM BRKOUT(moved(con, -clampd(con->argv[0]), 0));
 
-    case 'd': NOEXAM BRKOUT(move(con.cur_x, con.argv[0]));
+    case 'd': NOEXAM BRKOUT(move(con, con->cur_x, con->argv[0]));
     
     case 'H': NOEXAM
-    case 'f': NOEXAM BRKOUT(move(con.argv[1],con.argv[0]));
+    case 'f': NOEXAM BRKOUT(move(con, con->argv[1], con->argv[0]));
 
     case '`':
-    case 'G': BRKOUT(move(con.argv[0], con.cur_y));
+    case 'G': BRKOUT(move(con, con->argv[0], con->cur_y));
     
     case 'Z': NOEXAM BRKOUT(); // tab
 
     case 'L': NOEXAM BRKOUT({
-        while (con.argv[0]--)
-            insln();
+        while (con->argv[0]--)
+            insln(con);
     });
 
     case '@': NOEXAM BRKOUT({
-        while (con.argv[0]--)
-            insch();
+        while (con->argv[0]--)
+            insch(con);
     })
 
     case 'M': NOEXAM BRKOUT({
-        for (int i = 0 ; i < MAX(con.argv[0], 1) ; i++)
-            con.op->clrln(con.cur_y + i);
+        for (int i = 0 ; i < MAX(con->argv[0], 1) ; i++)
+            con->op->clrln(con, con->cur_y + i);
     });
 
     case 'P': NOEXAM BRKOUT({
-        for (int i = 0 ; i < MAX(con.argv[0], 1) ; i++)
-            con.op->clrch(con.cur_x + i, con.cur_y);
+        for (int i = 0 ; i < MAX(con->argv[0], 1) ; i++)
+            con->op->clrch(con, con->cur_x + i, con->cur_y);
     });
 
-    case 'J': NOEXAM BRKOUT(clrscr(con.argv[0]));
-    case 's': NOEXAM BRKOUT(curstat(true));
-    case 'u': NOEXAM BRKOUT(curstat(false));
+    case 'J': NOEXAM BRKOUT(clrscr(con, con->argv[0]));
+    case 's': NOEXAM BRKOUT(curstat(con, true));
+    case 'u': NOEXAM BRKOUT(curstat(con, false));
     case 'K': NOEXAM BRKOUT({
-        int mode = con.argv[0];
+        int mode = con->argv[0];
         int start;
-        int end = con.col;
+        int end = con->col;
         if (mode == 0) {
             // 从光标处到行末端
-            start = con.cur_x;
-            end = con.col;
+            start = con->cur_x;
+            end = con->col;
         } else if (mode == 1) {
             // 从行开始到光标处
             start = 0;
-            end = con.cur_x;
+            end = con->cur_x;
         } else /* (mode == 2) */ {
             // 整行
             start = 0;
-            end = con.col;
+            end = con->col;
         }
-        con.op->clrrg(start, end);
+        con->op->clrrg(con, start, end);
     });
     case 'X': NOEXAM BRKOUT({
-        con.op->clrrg(con.cur_x, MAX(con.argv[0], 1));
+        con->op->clrrg(con, con->cur_x, MAX(con->argv[0], 1));
     });
     case 'S': NOEXAM BRKOUT({
-        for (int i = 0 ; i < MAX(con.argv[0], 1) ; i++)
-            scrln(true);
+        for (int i = 0 ; i < MAX(con->argv[0], 1) ; i++)
+            scrln(con, true);
     });
     case 'T': NOEXAM BRKOUT({
-        for (int i = 0 ; i < MAX(con.argv[0], 1) ; i++)
-            scrln(false);
+        for (int i = 0 ; i < MAX(con->argv[0], 1) ; i++)
+            scrln(con, false);
     });
 
-    case 'm': BRKOUT(sgr());
+    case 'm': BRKOUT(sgr(con));
 
     // set viewport margin
     case 'r': BRKOUT({
-        con.vpm_top = con.argv[0];
-        con.vpm_bot = con.argv[1];
-        con.cur_x = con.cur_y = 0;
+        con->vpm_top = con->argv[0];
+        con->vpm_bot = con->argv[1];
+        con->cur_x = con->cur_y = 0;
     });
     // CSI Pm l - Reset mode
     // CSI ? Pm l - DEC private reset mode
@@ -396,7 +394,7 @@ static void cmd(char c)
         break;
     }
     
-    con.state = STATE_NOR;
+    con->state = STATE_NOR;
 }
 
 enum
@@ -404,25 +402,25 @@ enum
     PM_CURSOR = 25,
 };
 
-static void pmcmd(char c)
+static inline void pmcmd(struct con *con, char c)
 {
     bool h = c == 'h';
-    if (con.argv[0] == PM_CURSOR)
-        curshow(h);
+    if (con->argv[0] == PM_CURSOR)
+        curshow(con, h);
 
-    con.state = STATE_NOR;
+    con->state = STATE_NOR;
 }
 
 // 投喂状态机
-static void cputc(char c)
+static inline void cputc(struct con *con, char c)
 {
-    switch (con.state)
+    switch (con->state)
     {
-    case STATE_NOR: COMMIT(nor(c));
-    case STATE_ESC: COMMIT(esc(c));
+    case STATE_NOR: COMMIT(nor(con, c));
+    case STATE_ESC: COMMIT(esc(con, c));
     case STATE_CSI:
-        if (csi(c)) COMMIT();
-    case STATE_ARG: COMMIT(arg(c));
+        if (csi(con, c)) COMMIT();
+    case STATE_ARG: COMMIT(arg(con, c));
     
     default:
         break;
@@ -438,13 +436,14 @@ static void cputc(char c)
 
 ssize_t console_write(void *io, char *s, size_t len)
 {
+    struct con *con = __kcon;
     char *p = s;
-    curshow(false);
+    curshow(con, false);
     UNINTR_AREA({
         for (; len; p++, len--)
-            cputc(*p);
+            cputc(con, *p);
     });
-    curshow(true);
+    curshow(con, true);
 
     return (ssize_t)(p - s);
 }
@@ -454,13 +453,14 @@ ssize_t console_write(void *io, char *s, size_t len)
 
 int console_ioctl(void *io, int req, void *argp)
 {
+    struct con *con = __kcon;
     switch (req) {
     case TIOCGWINSZ: {
         struct winsize *win = argp;
-        win->ws_row = con.col;
-        win->ws_col = con.row;
-        win->ws_xpixel = con.hor;
-        win->ws_ypixel = con.ver;
+        win->ws_row = con->col;
+        win->ws_col = con->row;
+        win->ws_xpixel = con->hor;
+        win->ws_ypixel = con->ver;
         return 0;
     }
     case TIOCSWINSZ:
@@ -476,25 +476,26 @@ extern struct conop __conop_vga;
 
 void console_init()
 {
+    struct con *con = __kcon;
     struct conop *ops[] = {
         &__conop_fb,
         &__conop_vga,
     };
-    ops[screen_istxt()]->__init();
+    ops[screen_istxt()]->__init(con);
 
-    con.scroll = true;  // 屏满滚屏
-    con.cursor = false; // 开始光标
-    con.hidden = false; // 显示字符
-    con.underl = false; // 关下划线
-    con.strike = false; // 关删除线
-    con.cur_x = 0;
-    con.cur_y = 0;
-    con.bg = con.bgdef;
-    con.fg = con.fgdef;
-    con.vpm_top = 0;
-    con.vpm_bot = 0;
-    con.argc = ARG_RESET;
-    con.state = STATE_NOR;
-    con.pmcmd = false;
-    conbuf_init(&con);
+    con->scroll = true;  // 屏满滚屏
+    con->cursor = false; // 开始光标
+    con->hidden = false; // 显示字符
+    con->underl = false; // 关下划线
+    con->strike = false; // 关删除线
+    con->cur_x = 0;
+    con->cur_y = 0;
+    con->bg = con->bgdef;
+    con->fg = con->fgdef;
+    con->vpm_top = 0;
+    con->vpm_bot = 0;
+    con->argc = ARG_RESET;
+    con->state = STATE_NOR;
+    con->pmcmd = false;
+    conbuf_init(con);
 }

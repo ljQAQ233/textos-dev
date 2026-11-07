@@ -4,16 +4,16 @@
 #include <textos/video/acs-cp437.h>
 #include <textos/video/font.h>
 
-#define con (*__kcon)
-#define empty (' ' | (con.fg << 8) | (con.bg << 12))
 struct conop __conop_vga;
 static u16 *base;
 
 #include <io.h>
 
-static void vga_movcur(int x, int y)
+#define empty(con) (' ' | ((con)->fg << 8) | ((con)->bg << 12))
+
+static void vga_movcur(struct con *con, int x, int y)
 {
-    u16 pos = y * con.row + x;
+    u16 pos = y * con->row + x;
     outb(0x3d4, 0x0f);
     outb(0x3d5, pos & 0xff);
     outb(0x3d4, 0x0e);
@@ -83,8 +83,9 @@ static int sgr8(int *argv, u32 *fg, u32 *bg)
     return ret;
 }
 
-static int sgr0(int *argv, u32 *bg, u32 *fg)
+static int sgr0(struct con *con, int *argv, u32 *bg, u32 *fg)
 {
+    (void)con;
     int v = argv[0];
     if (30 <= v && v <= 37)
         *fg = color[0][v % 10];
@@ -101,81 +102,81 @@ static int sgr0(int *argv, u32 *bg, u32 *fg)
     return 1;
 }
 
-static void xyputc(char c, u32 x, u32 y)
+static void xyputc(struct con *con, char c, u32 x, u32 y)
 {
-    if (con.acs) c = cp437_acsget(c);
-    u16 chr = (unsigned char)c | (con.fg << 8) | (con.bg << 12);
-    base[y * con.row + x] = chr;
+    if (con->acs) c = cp437_acsget(c);
+    u16 chr = (unsigned char)c | (con->fg << 8) | (con->bg << 12);
+    base[y * con->row + x] = chr;
 }
 
-static void curtoggle()
+static void curtoggle(struct con *con)
 {
     outb(0x3d4, 0x0a);
     u8 state = inb(0x3d5);
     outb(0x3d5, state ^ 0x20);
-    vga_movcur(con.cur_x, con.cur_y);
+    vga_movcur(con, con->cur_x, con->cur_y);
 }
 
-static void pullup()
+static void pullup(struct con *con)
 {
-    u16 *dst = base + con.vpm_top * con.row;
-    u16 *src = dst + con.row;
-    for (int i = 0; i < con.row * (con.col - con.vpm_bot - con.vpm_top - 1);
+    u16 *dst = base + con->vpm_top * con->row;
+    u16 *src = dst + con->row;
+    for (int i = 0; i < con->row * (con->col - con->vpm_bot - con->vpm_top - 1);
          i++)
         *dst++ = *src++;
-    for (int i = 0; i < con.row; i++)
-        *dst++ = empty;
+    for (int i = 0; i < con->row; i++)
+        *dst++ = empty(con);
 }
 
-static void pulldn()
+static void pulldn(struct con *con)
 {
-    u16 *dst = base + con.row * (con.col - con.vpm_bot - 0) - 1;
-    u16 *src = base + con.row * (con.col - con.vpm_bot - 1) - 1;
-    for (int i = 0; i < con.row * (con.col - con.vpm_bot - con.vpm_top - 1);
+    u16 *dst = base + con->row * (con->col - con->vpm_bot - 0) - 1;
+    u16 *src = base + con->row * (con->col - con->vpm_bot - 1) - 1;
+    for (int i = 0; i < con->row * (con->col - con->vpm_bot - con->vpm_top - 1);
          i++)
         *dst-- = *src--;
-    for (int i = 0; i < con.row; i++)
-        *dst-- = empty;
+    for (int i = 0; i < con->row; i++)
+        *dst-- = empty(con);
 }
 
-static void clrch(int xc, int yc)
+static void clrch(struct con *con, int xc, int yc)
 {
-    if (xc >= con.row || yc >= con.col) return;
-    base[yc * con.row + xc] = empty;
+    if (xc >= con->row || yc >= con->col) return;
+    base[yc * con->row + xc] = empty(con);
 }
 
-static void clrrg(int start, int end)
+static void clrrg(struct con *con, int start, int end)
 {
-    for (int j = start; j < MIN(con.row, end); j++)
-        base[con.cur_y * con.row + j] = empty;
+    for (int j = start; j < MIN(con->row, end); j++)
+        base[con->cur_y * con->row + j] = empty(con);
 }
 
-static void clrln(int line)
+static void clrln(struct con *con, int line)
 {
-    if (line >= con.col) return;
-    for (int j = 0; j < con.row; j++)
-        base[line * con.row + j] = empty;
+    if (line >= con->col) return;
+    for (int j = 0; j < con->row; j++)
+        base[line * con->row + j] = empty(con);
 }
 
-static void scrclr()
+static void scrclr(struct con *con)
 {
-    for (int i = 0; i < con.col; i++)
-        for (int j = 0; j < con.row; j++)
-            base[i * con.row + j] = empty;
+    for (int i = 0; i < con->col; i++)
+        for (int j = 0; j < con->row; j++)
+            base[i * con->row + j] = empty(con);
 }
 
-static void __init_impl()
+static void __init_impl(struct con *con)
 {
-    con.hor = 0;
-    con.ver = 0;
-    con.row = 80;
-    con.col = 25;
-    con.font = 0;
-    con.fg = con.fgdef = 0x7;
-    con.bg = con.bgdef = 0x0;
-    con.op = &__conop_vga;
+    con->hor = 0;
+    con->ver = 0;
+    con->row = 80;
+    con->col = 25;
+    con->font = 0;
+    con->fg = con->fgdef = 0x7;
+    con->bg = con->bgdef = 0x0;
+    con->op = &__conop_vga;
     {
-        size_t pages = DIV_ROUND_UP(con.row * con.col * 2, PAGE_SIZ);
+        size_t pages = DIV_ROUND_UP(con->row * con->col * 2, PAGE_SIZ);
         vmap_map(0xb8000, __kern_gfx_base, pages, PE_RW | PE_P | PTE_G);
         base = (u16 *)__kern_gfx_base;
     }
@@ -189,9 +190,9 @@ static void __init_impl()
     outb(0x3c0, val);
     outb(0x3c0, saved | 0x20);
 
-    vga_movcur(0, 0);
-    curtoggle();
-    scrclr();
+    vga_movcur(con, 0, 0);
+    curtoggle(con);
+    scrclr(con);
 }
 
 struct conop __conop_vga = {
