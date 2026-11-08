@@ -10,15 +10,15 @@ struct con *__kcon = &__cons[0];
 static inline void clrcon(struct con *con)
 {
     con->cur_y = 0;
-    con->op->scrclr(con);
+    conbuf_scrclr(con);
 }
 
 static inline void scrln(struct con *con, bool up)
 {
     if (up)
-        con->op->pullup(con);
+        conbuf_pullup(con);
     else
-        con->op->pulldn(con);
+        conbuf_pulldn(con);
 }
 
 // 屏幕满了怎么办? 滚! 或者 直接干掉 ૮(˶ᵔ ᵕ ᵔ˶)ა
@@ -38,21 +38,21 @@ static inline void clrscr(struct con *con, int m)
 {
     if (m == 0) {
         for (u16 x = con->cur_x ; x < con->row ; x++)
-            con->op->clrch(con, x, con->cur_y);
+            conbuf_clrch(con, x, con->cur_y);
         for (u16 y = con->cur_y + 1 ; y < con->col ; y++)
-            con->op->clrln(con, y);
+            conbuf_clrln(con, y);
     } else if (m == 1) {
         for (u16 x = 0 ; x < con->cur_x ; x++)
-            con->op->clrch(con, x, con->cur_y);
+            conbuf_clrch(con, x, con->cur_y);
         for (u16 y = 0 ; y < con->cur_y ; y++)
-            con->op->clrln(con, y);
+            conbuf_clrln(con, y);
     } else if (m == 2)
-        con->op->scrclr(con);
+        conbuf_scrclr(con);
 }
 
 static inline void insln(struct con *con)
 {
-    con->op->pullup(con);
+    conbuf_pullup(con);
 }
 
 // TODO
@@ -98,7 +98,7 @@ static inline void ff(struct con *con)
 static inline void bs(struct con *con)
 {
     con->cur_x = MAX(con->cur_x - 1, 0);
-    con->op->clrch(con, con->cur_x, con->cur_y);
+    conbuf_clrch(con, con->cur_x, con->cur_y);
 }
 
 // Shift Out - Switch to an alternative character set.
@@ -339,12 +339,12 @@ static inline void cmd(struct con *con, char c)
 
     case 'M': NOEXAM BRKOUT({
         for (int i = 0 ; i < MAX(con->argv[0], 1) ; i++)
-            con->op->clrln(con, con->cur_y + i);
+            conbuf_clrln(con, con->cur_y + i);
     });
 
     case 'P': NOEXAM BRKOUT({
         for (int i = 0 ; i < MAX(con->argv[0], 1) ; i++)
-            con->op->clrch(con, con->cur_x + i, con->cur_y);
+            conbuf_clrch(con, con->cur_x + i, con->cur_y);
     });
 
     case 'J': NOEXAM BRKOUT(clrscr(con, con->argv[0]));
@@ -367,10 +367,10 @@ static inline void cmd(struct con *con, char c)
             start = 0;
             end = con->col;
         }
-        con->op->clrrg(con, start, end);
+        conbuf_clrrg(con, start, end);
     });
     case 'X': NOEXAM BRKOUT({
-        con->op->clrrg(con, con->cur_x, MAX(con->argv[0], 1));
+        conbuf_clrrg(con, con->cur_x, MAX(con->argv[0], 1));
     });
     case 'S': NOEXAM BRKOUT({
         for (int i = 0 ; i < MAX(con->argv[0], 1) ; i++)

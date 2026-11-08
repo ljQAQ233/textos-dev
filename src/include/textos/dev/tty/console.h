@@ -34,11 +34,12 @@ struct conop
     void (*curtoggle)(struct con *con);
     void (*pullup)(struct con *con);
     void (*pulldn)(struct con *con);
-    void (*clrch)(struct con *con, int xc, int yc); // clear character at (xc, yc)
+    void (*clrch)(struct con *con, int xc,
+                  int yc); // clear character at (xc, yc)
     void (*clrrg)(struct con *con, int start,
-                  int end);  // clear a range of chars in the current line
+                  int end); // clear a range of chars in the current line
     void (*clrln)(struct con *con, int line); // clear the whole line
-    void (*scrclr)(struct con *con);        // clear screen
+    void (*scrclr)(struct con *con);          // clear screen
     void (*__init)(struct con *con);
 };
 
@@ -85,6 +86,11 @@ void console_init(struct con *con);
 void console_switch(int idx);
 
 void conbuf_xyputc(struct con *con, char c, u32 x, u32 y);
+void conbuf_pullup(struct con *con);
+void conbuf_pulldn(struct con *con);
+void conbuf_clrch(struct con *con, int xc, int yc);
+void conbuf_clrrg(struct con *con, int start, int end);
+void conbuf_clrln(struct con *con, int line);
+void conbuf_scrclr(struct con *con);
 void conbuf_init(struct con *con);
 void conbuf_activate(struct con *con);
-
