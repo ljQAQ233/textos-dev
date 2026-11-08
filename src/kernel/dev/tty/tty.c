@@ -21,9 +21,8 @@
 #include <textos/mm/heap.h>
 #include <textos/task.h>
 
-tty_t *ttys[MAX_NR_CONSOLES + 1];
-tty_t *fgtty;
-tty_t ls;
+tty_t *__ttys[MAX_NR_CONSOLES + 1];
+tty_t *__fgtty;
 
 #define FC(x, y)       (((x) & (y)) == (y))
 #define FC_IFLAG(t, y) FC((t)->tio.c_iflag, y)
@@ -340,10 +339,10 @@ void __tty_rxb(tty_t *tty, char *buf, size_t len)
 void __tty_rx(tty_t *tty, keysym_t sym)
 {
     char buf[16];
-    if (!tty) tty = fgtty;
+    if (!tty) tty = __fgtty;
     int idx = ksspec_chtty(sym);
     if (idx) {
-        console_switch(idx);
+        tty_switch(idx);
         return;
     }
     int len = kstoa(sym, buf);
@@ -360,7 +359,6 @@ static int tty__init_pctx(devst_t *dev, void **pctx)
     if (ctty->ses_holders == 0 && tsk->sid == tsk->pid &&
         tsk->ctrltty == NULL) {
         tsk->ctrltty = dev;
-        tty_t *ctty = dev->pdata;
         ctty->ses_id = tsk->sid;
         ctty->ses_holders = 1;
     }
@@ -498,20 +496,37 @@ extern ssize_t console_write(void *io, char *s, size_t len);
 
 void __printkcon(char *buf)
 {
-    if (!fgtty) return;
+    if (!__fgtty) return;
     size_t i = strlen(buf);
-    devst_t d = {.pdata = fgtty};
+    devst_t d = {.pdata = __fgtty};
     tty_write(&d, buf, i);
 }
 
 tty_t *tty_init_struct_on_console(int idx)
 {
+    if (__ttys[idx - 1]) return __ttys[idx - 1];
     tty_t *tty = tty_init_struct(NULL, console_get(idx), console_ioctl, NULL,
                                  console_write);
     if (!tty) return NULL;
-    ttys[idx - 1] = tty;
+    __ttys[idx - 1] = tty;
     console_init(tty->data);
     return tty;
+}
+
+tty_t *tty_switch(int idx)
+{
+    tty_t *to;
+    if (MIN_NR_CONSOLES <= idx && idx <= MAX_NR_CONSOLES) {
+        if (__ttys[idx - 1])
+            to = __ttys[idx - 1];
+        else
+            to = __ttys[idx - 1] = tty_init_struct_on_console(idx);
+    } else {
+        to = NULL;
+    }
+    if (!to) return NULL;
+    console_switch(idx);
+    return __fgtty = to;
 }
 
 void tty_init()
@@ -523,7 +538,7 @@ void tty_init()
         dev = tty_init_device(name, (void *)(addr_t)i);
         if (!dev) DEBUGK(K_ERROR, "%s cannot be initialized\n", name);
         if (i == DEF_FG_CONSOLE)
-            dev->pdata = fgtty = tty_init_struct_on_console(1);
+            dev->pdata = __fgtty = tty_init_struct_on_console(1);
     }
-    if (!fgtty) PANIC("fgtty cannot be initialized\n");
+    if (!__fgtty) PANIC("fgtty cannot be initialized\n");
 }

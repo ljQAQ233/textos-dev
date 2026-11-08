@@ -38,3 +38,5 @@ tty_t *tty_init_struct_on_console(int idx);
 devst_t *tty_init_device(const char *name, void *tty);
 tty_t *tty_register(tty_t *tty, char *name, void *data, tty_ioctl_t ctl,
                     tty_iosop_t in, tty_iosop_t out);
+
+tty_t *tty_switch(int idx);
