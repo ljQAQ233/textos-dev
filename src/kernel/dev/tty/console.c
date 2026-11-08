@@ -6,6 +6,7 @@ STATIC_ASSERT(MIN_NR_CONSOLES == 1, "");
 
 struct con __cons[MAX_NR_CONSOLES + 1];
 struct con *__kcon = &__cons[0];
+struct con *__fgcon = &__cons[0];
 
 static inline void clrcon(struct con *con)
 {
@@ -515,8 +516,9 @@ void console_init(struct con *con)
 void console_switch(int idx)
 {
     struct con *con = console_get(idx);
-    if (!con) return;
+    if (!con || con == __fgcon) return;
     if (!con->init) console_init(con);
+    __fgcon = con;
     curshow(con, false);
     conbuf_activate(con);
     curshow(con, true);

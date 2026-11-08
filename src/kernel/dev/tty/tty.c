@@ -541,4 +541,7 @@ void tty_init()
             dev->pdata = __fgtty = tty_init_struct_on_console(1);
     }
     if (!__fgtty) PANIC("fgtty cannot be initialized\n");
+
+    // make sure __fgcon to be set
+    console_switch(DEF_FG_CONSOLE);
 }

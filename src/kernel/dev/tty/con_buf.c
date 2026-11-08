@@ -2,6 +2,8 @@
 #include <textos/klib/string.h>
 #include <textos/mm/vmm.h>
 
+extern struct con *__fgcon;
+
 /*
  * 0  ~ 23 - fg color
  * 24 ~ 31 - char
@@ -12,6 +14,12 @@
 #define BUF_BG(elem)  COLOR((u64)elem >> 32)
 #define BUF_CHR(elem) ((char)((u64)(elem) >> 24))
 #define ELEM_SIZE     sizeof(u64)
+
+//
+#define apply(op)               \
+    do                          \
+        if (con == __fgcon) op; \
+    while (0);
 
 static inline u64 pack_char(const struct con *con, char c)
 {
@@ -30,7 +38,7 @@ static inline u64 pack_empty(const struct con *con)
 void conbuf_xyputc(struct con *con, char c, u32 x, u32 y)
 {
     con->conbuf.buf[y * con->row + x] = pack_char(con, c);
-    con->op->xyputc(con, c, x, y);
+    apply(con->op->xyputc(con, c, x, y));
 }
 
 void conbuf_pullup(struct con *con)
@@ -40,7 +48,7 @@ void conbuf_pullup(struct con *con)
     u64 empty = pack_empty(con);
     for (int j = 0; j < con->row; j++)
         con->conbuf.buf[con->row * (con->col - 1) + j] = empty;
-    con->op->pullup(con);
+    apply(con->op->pullup(con));
 }
 
 void conbuf_pulldn(struct con *con)
@@ -50,13 +58,13 @@ void conbuf_pulldn(struct con *con)
     u64 empty = pack_empty(con);
     for (int j = 0; j < con->row; j++)
         con->conbuf.buf[con->row * 0 + j] = empty;
-    con->op->pulldn(con);
+    apply(con->op->pulldn(con));
 }
 
 void conbuf_clrch(struct con *con, int xc, int yc)
 {
     con->conbuf.buf[yc * con->row + xc] = pack_empty(con);
-    con->op->clrch(con, xc, yc);
+    apply(con->op->clrch(con, xc, yc));
 }
 
 void conbuf_clrrg(struct con *con, int start, int end)
@@ -64,7 +72,7 @@ void conbuf_clrrg(struct con *con, int start, int end)
     u64 empty = pack_empty(con);
     for (int j = start; j < MIN(con->row, end); j++)
         con->conbuf.buf[con->cur_y * con->row + j] = empty;
-    con->op->clrrg(con, start, end);
+    apply(con->op->clrrg(con, start, end));
 }
 
 void conbuf_clrln(struct con *con, int line)
@@ -72,7 +80,7 @@ void conbuf_clrln(struct con *con, int line)
     u64 empty = pack_empty(con);
     for (int j = 0; j < con->row; j++)
         con->conbuf.buf[con->cur_y * con->row + j] = empty;
-    con->op->clrln(con, line);
+    apply(con->op->clrln(con, line));
 }
 
 void conbuf_scrclr(struct con *con)
@@ -81,7 +89,7 @@ void conbuf_scrclr(struct con *con)
     for (int i = 0; i < con->col; i++)
         for (int j = 0; j < con->row; j++)
             con->conbuf.buf[i * con->row + j] = empty;
-    con->op->scrclr(con);
+    apply(con->op->scrclr(con));
 }
 
 void conbuf_init(struct con *con)
@@ -93,6 +101,8 @@ void conbuf_init(struct con *con)
 
 void conbuf_activate(struct con *con)
 {
+    assert(con == __fgcon);
+
     if (!con->conbuf.buf) {
         con->op->scrclr(con);
         return;
