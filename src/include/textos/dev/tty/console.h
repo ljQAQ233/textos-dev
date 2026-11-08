@@ -25,21 +25,15 @@ struct con;
 
 struct conop
 {
-    int (*sgr0)(struct con *con, int *argv, u32 *bg, u32 *fg);
-    void (*xyputc)(struct con *con, char c, u32 x, u32 y);
-    /*
-     * operations to handle pixels and characters but not
-     * increase any console fileds. (only graphics operations)
-     */
-    void (*curtoggle)(struct con *con);
-    void (*pullup)(struct con *con);
-    void (*pulldn)(struct con *con);
-    void (*clrch)(struct con *con, int xc,
-                  int yc); // clear character at (xc, yc)
-    void (*clrrg)(struct con *con, int start,
-                  int end); // clear a range of chars in the current line
-    void (*clrln)(struct con *con, int line); // clear the whole line
-    void (*scrclr)(struct con *con);          // clear screen
+    int (*sgr0)(const struct con *, int *argv, u32 *bg, u32 *fg);
+    void (*xyputc)(const struct con *, char c, u32 x, u32 y);
+    void (*curtoggle)(const struct con *);
+    void (*pullup)(const struct con *);
+    void (*pulldn)(const struct con *);
+    void (*clrch)(const struct con *, int xc, int yc); // clear char at (xc, yc)
+    void (*clrrg)(const struct con *, int start, int end); // range
+    void (*clrln)(const struct con *, int line); // clear the whole line
+    void (*scrclr)(const struct con *);          // clear screen
     void (*__init)(struct con *con);
 };
 

@@ -11,7 +11,7 @@ static u16 *base;
 
 #define empty(con) (' ' | ((con)->fg << 8) | ((con)->bg << 12))
 
-static void vga_movcur(struct con *con, int x, int y)
+static void vga_movcur(const struct con *con, int x, int y)
 {
     u16 pos = y * con->row + x;
     outb(0x3d4, 0x0f);
@@ -21,7 +21,7 @@ static void vga_movcur(struct con *con, int x, int y)
 }
 
 /* ANSI colors to VGA colors */
-static u16 color[2][8] = {
+static const u16 color[2][8] = {
     {
         0,  // 黑色
         4,  // 红色
@@ -44,7 +44,7 @@ static u16 color[2][8] = {
     },
 };
 
-static int sgr8(int *argv, u32 *fg, u32 *bg)
+static int sgr8(const int *argv, u32 *fg, u32 *bg)
 {
     bool modfg;
     u8 color = 0;
@@ -83,7 +83,7 @@ static int sgr8(int *argv, u32 *fg, u32 *bg)
     return ret;
 }
 
-static int sgr0(struct con *con, int *argv, u32 *bg, u32 *fg)
+static int sgr0(const struct con *con, int *argv, u32 *bg, u32 *fg)
 {
     (void)con;
     int v = argv[0];
@@ -102,14 +102,14 @@ static int sgr0(struct con *con, int *argv, u32 *bg, u32 *fg)
     return 1;
 }
 
-static void xyputc(struct con *con, char c, u32 x, u32 y)
+static void xyputc(const struct con *con, char c, u32 x, u32 y)
 {
     if (con->acs) c = cp437_acsget(c);
     u16 chr = (unsigned char)c | (con->fg << 8) | (con->bg << 12);
     base[y * con->row + x] = chr;
 }
 
-static void curtoggle(struct con *con)
+static void curtoggle(const struct con *con)
 {
     outb(0x3d4, 0x0a);
     u8 state = inb(0x3d5);
@@ -117,7 +117,7 @@ static void curtoggle(struct con *con)
     vga_movcur(con, con->cur_x, con->cur_y);
 }
 
-static void pullup(struct con *con)
+static void pullup(const struct con *con)
 {
     u16 *dst = base + con->vpm_top * con->row;
     u16 *src = dst + con->row;
@@ -128,7 +128,7 @@ static void pullup(struct con *con)
         *dst++ = empty(con);
 }
 
-static void pulldn(struct con *con)
+static void pulldn(const struct con *con)
 {
     u16 *dst = base + con->row * (con->col - con->vpm_bot - 0) - 1;
     u16 *src = base + con->row * (con->col - con->vpm_bot - 1) - 1;
@@ -139,26 +139,26 @@ static void pulldn(struct con *con)
         *dst-- = empty(con);
 }
 
-static void clrch(struct con *con, int xc, int yc)
+static void clrch(const struct con *con, int xc, int yc)
 {
     if (xc >= con->row || yc >= con->col) return;
     base[yc * con->row + xc] = empty(con);
 }
 
-static void clrrg(struct con *con, int start, int end)
+static void clrrg(const struct con *con, int start, int end)
 {
     for (int j = start; j < MIN(con->row, end); j++)
         base[con->cur_y * con->row + j] = empty(con);
 }
 
-static void clrln(struct con *con, int line)
+static void clrln(const struct con *con, int line)
 {
     if (line >= con->col) return;
     for (int j = 0; j < con->row; j++)
         base[line * con->row + j] = empty(con);
 }
 
-static void scrclr(struct con *con)
+static void scrclr(const struct con *con)
 {
     for (int i = 0; i < con->col; i++)
         for (int j = 0; j < con->row; j++)

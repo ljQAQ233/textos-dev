@@ -57,7 +57,7 @@ static u32 rgb256(int x)
 /*
  * 处理 m 模式的第 8 中情况, 并返回处理过了的参数个数
  */
-static int sgr8(int *argv, u32 *fg, u32 *bg)
+static int sgr8(const int *argv, u32 *fg, u32 *bg)
 {
     bool modfg;
     u32 color;
@@ -91,7 +91,7 @@ static int sgr8(int *argv, u32 *fg, u32 *bg)
     return ret;
 }
 
-static int sgr0(struct con *con, int *argv, u32 *bg, u32 *fg)
+static int sgr0(const struct con *con, int *argv, u32 *bg, u32 *fg)
 {
     (void)con;
     int v = argv[0];
@@ -110,7 +110,7 @@ static int sgr0(struct con *con, int *argv, u32 *bg, u32 *fg)
     return 1;
 }
 
-static void xyputc(struct con *con, char c, u32 x, u32 y)
+static void xyputc(const struct con *con, char c, u32 x, u32 y)
 {
     if (con->acs) c = cp437_acsget(c);
     x *= con->font->w;
@@ -138,7 +138,7 @@ static u32 _cb_currender(u32 x, u32 y, u32 color, void *private)
     return color ^= 0x00ffffff;
 }
 
-static void curtoggle(struct con *con)
+static void curtoggle(const struct con *con)
 {
     u16 x = con->cur_x * con->font->w;
     u16 y = con->cur_y * con->font->h;
@@ -146,19 +146,19 @@ static void curtoggle(struct con *con)
                     NULL);
 }
 
-static void pullup(struct con *con)
+static void pullup(const struct con *con)
 {
     screen_pullup(con->font->h, con->bg, con->vpm_top * con->font->h,
                   con->vpm_bot * con->font->h);
 }
 
-static void pulldn(struct con *con)
+static void pulldn(const struct con *con)
 {
     screen_pulldown(con->font->h, con->bg, con->vpm_top * con->font->h,
                     con->vpm_bot * con->font->h);
 }
 
-static void clrch(struct con *con, int xc, int yc)
+static void clrch(const struct con *con, int xc, int yc)
 {
     if (xc >= con->row || yc >= con->col) return;
     int x = xc * con->font->w, y = yc * con->font->h;
@@ -167,14 +167,14 @@ static void clrch(struct con *con, int xc, int yc)
 }
 
 // erase in line - range [start, end)
-static void clrrg(struct con *con, int start, int end)
+static void clrrg(const struct con *con, int start, int end)
 {
     int x = start * con->font->w, y = con->cur_y * con->font->h;
     int xe = MIN(con->col, end) * con->font->w, ye = y + con->font->h;
     block_put(x, y, xe, ye, con->bg);
 }
 
-static void clrln(struct con *con, int line)
+static void clrln(const struct con *con, int line)
 {
     if (line >= con->col) return;
     int x = 0, y = line * con->font->h;
@@ -182,7 +182,7 @@ static void clrln(struct con *con, int line)
     block_put(x, y, xe, ye, con->bg);
 }
 
-static void scrclr(struct con *con)
+static void scrclr(const struct con *con)
 {
     (void)con;
     screen_clear();
