@@ -49,6 +49,7 @@ struct conbuf
 
 struct con
 {
+    bool init;
     // generic
     bool scroll;
     bool cursor;
@@ -81,6 +82,7 @@ extern struct con *__kcon;
 
 struct con *console_get(int idx);
 void console_init(struct con *con);
+void console_switch(int idx);
 
 void conbuf_xyputc(struct con *con, char c, u32 x, u32 y);
 void conbuf_init(struct con *con);

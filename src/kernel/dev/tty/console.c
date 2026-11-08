@@ -486,12 +486,15 @@ struct con *console_get(int idx)
 
 void console_init(struct con *con)
 {
+    if (con->init) return;
+
     struct conop *ops[] = {
         &__conop_fb,
         &__conop_vga,
     };
     ops[screen_istxt()]->__init(con);
 
+    con->init = true;
     con->scroll = true;  // 屏满滚屏
     con->cursor = false; // 开始光标
     con->hidden = false; // 显示字符
@@ -507,4 +510,14 @@ void console_init(struct con *con)
     con->state = STATE_NOR;
     con->pmcmd = false;
     conbuf_init(con);
+}
+
+void console_switch(int idx)
+{
+    struct con *con = console_get(idx);
+    if (!con) return;
+    if (!con->init) console_init(con);
+    curshow(con, false);
+    conbuf_activate(con);
+    curshow(con, true);
 }

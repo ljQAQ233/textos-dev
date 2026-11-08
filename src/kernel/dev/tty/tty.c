@@ -10,6 +10,7 @@
 #include <textos/dev.h>
 #include <textos/dev/tty/cap.h>
 #include <textos/dev/tty/console.h>
+#include <textos/dev/tty/ksspec.h>
 #include <textos/dev/tty/kstoa.h>
 #include <textos/dev/tty/tty.h>
 #include <textos/errno.h>
@@ -340,6 +341,11 @@ void __tty_rx(tty_t *tty, keysym_t sym)
 {
     char buf[16];
     if (!tty) tty = fgtty;
+    int idx = ksspec_chtty(sym);
+    if (idx) {
+        console_switch(idx);
+        return;
+    }
     int len = kstoa(sym, buf);
     tty_feed(tty, buf, len);
 }

@@ -10,6 +10,7 @@ SRCS += dev/tty/tty.c
 SRCS += dev/tty/tty_buffer.c
 SRCS += dev/tty/ctrltty.c
 SRCS += dev/tty/cap.c
+SRCS += dev/tty/ksspec.c
 SRCS += dev/tty/kstoa.c
 SRCS += dev/tty/serial.c
 SRCS += dev/tty/console.c
