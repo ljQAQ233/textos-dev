@@ -16,12 +16,9 @@ extern struct {
     char code[0];
 } __apboot;
 
-extern char __gdtr[];
-
 void ap_init()
 {
-    if (cpu_count() == 1)
-        return;
+    if (cpu_count() == 1) return;
     addr_t pa = __apboot.lma;
     size_t sz = __apboot.size;
     vmap_map(pa, pa, DIV_ROUND_UP(sz, PAGE_SIZE), PE_P | PE_RW);
@@ -37,12 +34,8 @@ void ap_init()
     lapic_smp_sipi_all(vv);
 }
 
-extern char __gdtr[];
-
 void ap_main()
 {
-    load_gdt(__gdtr);
-    reload_segs(KERN_DATA_SEG << 3, KERN_CODE_SEG << 3);
     printk("this is from ap!!!!!!\n");
     intr_cli();
     halt();

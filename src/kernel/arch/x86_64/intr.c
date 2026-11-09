@@ -30,7 +30,7 @@ STATIC_ASSERT (sizeof(idt_t) == 16, "");
 #define HANDLER_MAX 256
 
 static idt_t idts[HANDLER_MAX];
-static idtr_t idtr;
+idtr_t __idtr;
 
 static void _idt_set_entry (size_t i,u64 offset, u16 selector, u8 type, u8 dpl, u8 present)
 {
@@ -122,10 +122,10 @@ void idt_init ()
         intr_handlers[i] = (ihandler_t)intr_common;
     }
 
-    idtr.base = (u64)&idts;
-    idtr.limit = HANDLER_MAX * sizeof(idt_t) - 1;
+    __idtr.base = (u64)&idts;
+    __idtr.limit = HANDLER_MAX * sizeof(idt_t) - 1;
 
-    load_idt (&idtr);
+    load_idt (&__idtr);
 }
 
 void intr_register (u8 vector, ihandler_t handler)

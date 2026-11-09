@@ -22,6 +22,9 @@ __apboot:
 ppgt: .long 0x1234        /* pagetable phyaddr */
 idlk: .long 0             /* __cpu_started lock */
 
+/*
+ * real mode
+ */
 ap16:
     cli
     mov %cs, %ax
@@ -34,6 +37,9 @@ ap16:
 
     ljmpl $0x8, $rel(ap32)
 
+/*
+ * protected mode
+ */
 .code32
 ap32:
     movw $0x10, %ax
@@ -61,13 +67,42 @@ ap32:
 
     ljmpl $0x18, $rel(ap64)
 
+gdt:
+    .quad 0x0 /* null */
+    .quad 0x00cf9a000000ffff /* code32 */
+    .quad 0x00cf92000000ffff /* data32 */
+    .quad 0x0020980000000000 /* code64 */
+    .quad 0x0000920000000000 /* data64 */
+gdt_end:
+
+gdtr:
+    .word gdt_end - gdt - 1
+    .long rel(gdt)
+
+/*
+ * long mode
+ */
 .extern cpu_kstk
 .extern __cpu_started
 .extern __mycpu_ptrs
 .extern __mycpu_start
+.extern __gdtr
+.extern __idtr
 
 .code64
 ap64:
+    /* load bsp gdt */
+    movabs $__gdtr, %rax
+    lgdt (%rax)
+    movw $0x0, %ax
+    movw %ax, %ds
+    movw %ax, %es
+    movw %ax, %fs
+    movw %ax, %gs
+    movabs $rel(fakeif), %rsp
+    iretq
+
+gdt_reloaded:
     movw $0x20, %ax
     movw %ax, %ds
     /* acquire id */
@@ -94,27 +129,36 @@ ap64:
     shrq $32, %rdx
     movl $0xc0000101, %ecx
     wrmsr
+    
+    /* setup idt */
+    movabs $__idtr, %rax
+    lidt (%rax)
 
     /* setup stack */
     movabs $cpu_kstk, %rax
     movq %gs:(%rax), %rsp
     movq %rsp, %rbp
-
+    
+    /* enable SSE */
+    movq %cr0, %rax
+    andq $~(1 << 2), %rax
+    orq $(1 << 1), %rax
+    movq %rax, %cr0
+    movq %cr4, %rax
+    orq $(3 << 9), %rax
+    movq %rax, %cr4
+    
     movabs $ap_main, %rax
     push %rax
     ret
 
-gdt:
-    .quad 0x0 /* null */
-    .quad 0x00cf9a000000ffff /* code32 */
-    .quad 0x00cf92000000ffff /* data32 */
-    .quad 0x0020980000000000 /* code64 */
-    .quad 0x0000920000000000 /* data64 */
-gdt_end:
-
-gdtr:
-    .word gdt_end - gdt - 1
-    .long rel(gdt)
+.balign 8 
+fakeif:
+    .quad rel(gdt_reloaded) /* rip */
+    .quad 1 << 3 /* cs */
+    .quad 1 << 1 /* rflags */
+    .quad 0      /* rsp */
+    .quad 2 << 3 /* ss */
 
 apboot_end:
 
