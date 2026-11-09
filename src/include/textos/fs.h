@@ -44,7 +44,7 @@ struct fs_openctx
 #define FS_GAINLNK (1ull << 34) // open the symlink itself
 #define FS_NOPCTX  (1ull << 35) // pctx not needed / do not run _init_pctx
 
-typedef struct
+struct fs_opts
 {
     /* node operations */
     int (*open)(node_t *parent, const char *path, u64 args, int mode,
@@ -88,7 +88,7 @@ typedef struct
     int (*ioctl)(node_t *this, int req, void *argp, struct fs_openctx *openctx);
     int (*poll_setup)(node_t *this, struct fs_poller *poller);
     int (*poll_teardown)(node_t *this, struct fs_poller *poller);
-} fs_opts_t;
+};
 
 struct node
 {

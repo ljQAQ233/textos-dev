@@ -90,6 +90,7 @@ aka(devst);
 aka(dev_opts);
 aka(task);
 aka(node);
+aka(fs_opts);
 aka(dirctx);
 aka(superblk);
 aka(buffer);
