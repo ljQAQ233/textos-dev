@@ -435,6 +435,11 @@ static dev_opts_t tty_op = {
     .driver_name = "tty",
 };
 
+void tty_getops(dev_opts_t **op)
+{
+    *op = &tty_op;
+}
+
 tty_t *tty_init_struct(tty_t *tty, void *data, tty_ioctl_t ctl, tty_iosop_t in,
                        tty_iosop_t out)
 {

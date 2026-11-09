@@ -32,6 +32,8 @@ typedef struct tty
     tty_iosop_t out;
 } tty_t;
 
+void tty_getops(dev_opts_t **op);
+
 tty_t *tty_init_struct(tty_t *tty, void *data, tty_ioctl_t ctl, tty_iosop_t in,
                        tty_iosop_t out);
 tty_t *tty_init_struct_on_console(int idx);
