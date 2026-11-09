@@ -6,14 +6,18 @@
 static int dbgcon_write(devst_t *dev, void *buf, size_t cnt, ...)
 {
     char *s = (char *)buf;
-    for (int i = 0 ; i < cnt ; i++)
+    for (int i = 0; i < cnt; i++)
         outb(R_CON, s[i]);
     return cnt;
 }
 
+static dev_opts_t dbgcon_op = {
+    .write = dbgcon_write,
+};
+
 static devst_t dbgcon = {
     .name = "dbgcon",
-    .write = dbgcon_write,
+    .op = &dbgcon_op,
     .type = DEV_CHAR,
     .subtype = DEV_DBGCON,
 };

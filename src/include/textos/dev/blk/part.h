@@ -22,6 +22,7 @@ struct blk_part_info
     struct blk_part record;
 };
 
+void blk_part_getops(dev_opts_t **pp);
 int blk_part_scan(devst_t *blkdev);
 int blk_part_register(devst_t *blkdev, struct blk_part_info *info,
                       int scan_idx);

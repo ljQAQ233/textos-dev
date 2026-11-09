@@ -114,9 +114,9 @@ buffer_t *bread(devst_t *dev, blksize_t siz, blkno_t idx)
 
         /* siz >= bsiz */
         int bsiz;
-        dev->ioctl(dev, BLKSSZGET, &bsiz);
+        dev->op->ioctl(dev, BLKSSZGET, &bsiz);
         int scale = siz / bsiz;
-        dev->bread(dev, idx * scale, b, siz / bsiz);
+        dev->op->bread(dev, idx * scale, b, siz / bsiz);
 
         htkey_t key = hash(dev, idx);
         htable_add(&all, &b->node, key);
@@ -140,9 +140,9 @@ void bwrite(buffer_t *b)
 
     devst_t *dev = b->dev;
     int bsiz;
-    dev->ioctl(dev, BLKSSZGET, &bsiz);
+    dev->op->ioctl(dev, BLKSSZGET, &bsiz);
     int scale = b->siz / bsiz;
-    dev->bwrite(dev, b->idx * scale, b, b->siz / bsiz);
+    dev->op->bwrite(dev, b->idx * scale, b, b->siz / bsiz);
 }
 
 // allow others to access the block

@@ -4,10 +4,6 @@
 #include <textos/dev/buffer.h>
 #include <textos/klib/string.h>
 
-extern int part_read(devst_t *, blkno_t, buffer_t *, blkcnt_t, ...);
-extern int part_write(devst_t *, blkno_t, buffer_t *, blkcnt_t, ...);
-extern int part_ioctl(devst_t *, int, void *);
-
 static int blk_part_fillinfo(struct blk_part *part, struct blk_part_info *info)
 {
     info->ptoff = part->relative;
@@ -53,7 +49,7 @@ int blk_part_register(devst_t *blkdev, struct blk_part_info *info, int scan_idx)
 {
     scan_idx += 1;
     char name[32];
-    blkdev->mkname(blkdev, name, scan_idx);
+    blkdev->op->mkname(blkdev, name, scan_idx);
 
     devst_t *part = dev_new();
     if (!part) {
@@ -64,9 +60,7 @@ int blk_part_register(devst_t *blkdev, struct blk_part_info *info, int scan_idx)
     part->name = strdup(name);
     part->type = DEV_BLK;
     part->subtype = DEV_PART;
-    part->bread = part_read;
-    part->bwrite = part_write;
-    part->ioctl = part_ioctl;
+    blk_part_getops(&part->op);
     part->pdata = info;
     dev_register(blkdev, part);
     DEBUGK(K_INFO | K_CONT, "[#%d] %s fs=%x\n", scan_idx, name, info->sysid);

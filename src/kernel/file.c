@@ -508,7 +508,7 @@ __SYSCALL_DEFINE3(int, ioctl, int, fd, int, req, void *, argp)
         devst_t *dev = dev_lookup_nr(ma, mi);
         if (!dev)
             return -ENODEV;
-        return dev->ioctl(dev, req, argp);
+        return dev->op->ioctl(dev, req, argp);
     }
     return -EINVAL;
 }

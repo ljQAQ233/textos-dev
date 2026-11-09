@@ -22,6 +22,19 @@ static int dev_poll_teardown_stub(devst_t *dev, struct fs_poller *poller)
     return 1;
 }
 
+static dev_opts_t stub_op = {
+    ._init_pctx = NULL,
+    ._fini_pctx = NULL,
+    .read = noopt,  // bread
+    .write = noopt, // bwrite
+    .mmap = dev_mmap_stub,
+    .ioctl = noopt,
+    .mkname = dev_mkname_stub,
+    .poll_setup = dev_poll_setup_stub,
+    .poll_teardown = dev_poll_teardown_stub,
+    .driver_name = "stub",
+};
+
 /*
   The flow to register:
     1. dev_new() to create new buffer
@@ -44,15 +57,30 @@ void dev_init()
     dev_debug_list();
 }
 
+void dev_stub_padops(dev_opts_t *op)
+{
+    // _init_pctx keeps NULL
+    // _fini_pctx keeps NULL
+    if (op->read == NULL) op->read = noopt;
+    if (op->write == NULL) op->write = noopt;
+    if (op->mmap == NULL) op->mmap = dev_mmap_stub;
+    if (op->ioctl == NULL) op->ioctl = noopt;
+    if (op->mkname == NULL) op->mkname = dev_mkname_stub;
+    if (op->driver_name == NULL) op->driver_name = "stub";
+}
+
+void dev_stub_getops(dev_opts_t **op)
+{
+    *op = &stub_op;
+}
+
 void __dev_register(devstp_t *pri)
 {
-    if (pri->dev->read == NULL) pri->dev->read = noopt;
-    if (pri->dev->write == NULL) pri->dev->write = noopt;
-    if (pri->dev->mmap == NULL) pri->dev->mmap = dev_mmap_stub;
-    if (pri->dev->ioctl == NULL) pri->dev->ioctl = noopt;
-    if (pri->dev->mkname == NULL) pri->dev->mkname = dev_mkname_stub;
+    if (pri->dev->op)
+        dev_stub_padops(pri->dev->op);
+    else
+        pri->dev->op = &stub_op;
     list_init(&pri->dev->subdev);
-
     list_insert_after(&root, &pri->list);
 }
 
@@ -85,19 +113,9 @@ void dev_register(devst_t *prt, devst_t *dev)
 devst_t *dev_new()
 {
     devst_t *d = malloc(sizeof(devst_t));
-
-    d->_init_pctx = NULL;
-    d->_fini_pctx = NULL;
-    d->read = noopt;  // bread
-    d->write = noopt; // bwrite
-    d->mmap = dev_mmap_stub;
-    d->ioctl = noopt;
-    d->mkname = dev_mkname_stub;
-    d->poll_setup = dev_poll_setup_stub;
-    d->poll_teardown = dev_poll_teardown_stub;
+    d->op = &stub_op;
     d->major = 0;
     d->minor = 0;
-
     return d;
 }
 
@@ -176,9 +194,9 @@ static char *dev_typestr(int type)
 static void dev_info_dump(devst_t *dev)
 {
     DEBUGK(K_DEBUG | K_CONT, "%- 4s type=%s opts=%c%c%c%c%c\n", dev->name,
-           dev_typestr(dev->type), statof(dev->read, 'r'),
-           statof(dev->write, 'w'), statof(dev->ioctl, 'i'),
-           statof(dev->mmap, 'm'), statof(dev->poll_setup, 'p'));
+           dev_typestr(dev->type), statof(dev->op->read, 'r'),
+           statof(dev->op->write, 'w'), statof(dev->op->ioctl, 'i'),
+           statof(dev->op->mmap, 'm'), statof(dev->op->poll_setup, 'p'));
 }
 
 void dev_debug_list()

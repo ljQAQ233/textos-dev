@@ -145,6 +145,16 @@ static int event_poll_teardown(devst_t *dev, struct fs_poller *poller)
     return 0;
 }
 
+static dev_opts_t event_op = {
+    ._init_pctx = event__init_pctx,
+    ._fini_pctx = event__fini_pctx,
+    .read = event_read,
+    .write = noopt_perm,
+    .ioctl = event_ioctl,
+    .poll_setup = event_poll_setup,
+    .poll_teardown = event_poll_teardown,
+};
+
 #include <textos/klib/vsprintf.h>
 
 struct event_registry *event_register(enum event_type type)
@@ -162,13 +172,7 @@ struct event_registry *event_register(enum event_type type)
     evdev->name = strdup(tmp);
     evdev->type = DEV_CHAR;
     evdev->subtype = DEV_EVENT;
-    evdev->_init_pctx = event__init_pctx;
-    evdev->_fini_pctx = event__fini_pctx;
-    evdev->read = event_read;
-    evdev->write = noopt_perm;
-    evdev->ioctl = event_ioctl;
-    evdev->poll_setup = event_poll_setup,
-    evdev->poll_teardown = event_poll_teardown,
+    evdev->op = &event_op;
     evdev->pdata = evreg;
     dev_register(NULL, evdev);
 

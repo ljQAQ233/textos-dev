@@ -56,14 +56,14 @@ static int ctrltty_write(devst_t *dev, void *buf, size_t cnt, ...)
 {
     task_t *tsk = task_current();
     if (!tsk->ctrltty) return -ENXIO;
-    return tsk->ctrltty->write(tsk->ctrltty, buf, cnt);
+    return tsk->ctrltty->op->write(tsk->ctrltty, buf, cnt);
 }
 
 static int ctrltty_read(devst_t *dev, void *buf, size_t cnt, ...)
 {
     task_t *tsk = task_current();
     if (!tsk->ctrltty) return -ENXIO;
-    return tsk->ctrltty->read(dev, buf, cnt);
+    return tsk->ctrltty->op->read(dev, buf, cnt);
 }
 
 static int ctrltty_ioctl(devst_t *dev, int req, void *argp)
@@ -71,22 +71,31 @@ static int ctrltty_ioctl(devst_t *dev, int req, void *argp)
     task_t *tsk = task_current();
     // TODO: handle TIOCNOTTY
     if (!tsk->ctrltty) return -ENXIO;
-    return tsk->ctrltty->ioctl(dev, req, argp);
+    return tsk->ctrltty->op->ioctl(dev, req, argp);
 }
 
-int ctrltty_poll_setup(devst_t *dev, struct fs_poller *poller)
+static int ctrltty_poll_setup(devst_t *dev, struct fs_poller *poller)
 {
     task_t *tsk = task_current();
     if (!tsk->ctrltty) return -ENXIO;
-    return tsk->ctrltty->poll_setup(dev, poller);
+    return tsk->ctrltty->op->poll_setup(dev, poller);
 }
 
-int ctrltty_poll_teardown(devst_t *dev, struct fs_poller *poller)
+static int ctrltty_poll_teardown(devst_t *dev, struct fs_poller *poller)
 {
     task_t *tsk = task_current();
     if (!tsk->ctrltty) return -ENXIO;
-    return tsk->ctrltty->poll_teardown(dev, poller);
+    return tsk->ctrltty->op->poll_teardown(dev, poller);
 }
+
+static dev_opts_t ctrltty_op = {
+    ._init_pctx = ctrltty__init_pctx,
+    .read = ctrltty_read,
+    .write = ctrltty_write,
+    .ioctl = ctrltty_ioctl,
+    .poll_setup = ctrltty_poll_setup,
+    .poll_teardown = ctrltty_poll_teardown,
+};
 
 void ctrltty_init()
 {
@@ -94,12 +103,7 @@ void ctrltty_init()
     dev->name = strdup("tty");
     dev->type = DEV_CHAR;
     dev->subtype = DEV_TTY;
-    dev->_init_pctx = ctrltty__init_pctx;
-    dev->read = ctrltty_read;
-    dev->write = ctrltty_write;
-    dev->ioctl = ctrltty_ioctl;
-    dev->poll_setup = ctrltty_poll_setup;
-    dev->poll_teardown = ctrltty_poll_teardown;
+    dev->op = &ctrltty_op;
     dev->pdata = 0;
     dev_register(NULL, dev);
 }

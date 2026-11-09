@@ -498,6 +498,13 @@ int e1000_ioctl(devst_t *dev, int req, void *argp)
     return nif_ioctl(&e->nif, req, argp);
 }
 
+static dev_opts_t e1000_op = {
+    .read = NULL,
+    .write = NULL,
+    .mkname = NULL,
+    .ioctl = e1000_ioctl,
+};
+
 #include <textos/klib/vsprintf.h>
 
 /*
@@ -580,12 +587,9 @@ void e1000_init()
 
     devst_t *dev = dev_new();
     dev->name = strdup(nif->name);
-    dev->read = NULL;
-    dev->write = NULL;
-    dev->mkname = NULL;
     dev->type = DEV_NET;
     dev->subtype = DEV_NETIF;
-    dev->ioctl = e1000_ioctl;
+    dev->op = &e1000_op;
     dev->pdata = e;
     dev_register(NULL, dev);
 }

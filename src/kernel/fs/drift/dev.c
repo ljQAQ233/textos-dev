@@ -18,7 +18,7 @@ static int dev_ioctl(node_t *this, int req, void *argp, struct fs_openctx *openc
 {
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
-    return dev->ioctl(dev, req, argp);
+    return dev->op->ioctl(dev, req, argp);
 }
 
 static int dev_read(node_t *this, void *buf, size_t siz, size_t offset,
@@ -27,10 +27,10 @@ static int dev_read(node_t *this, void *buf, size_t siz, size_t offset,
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
     if (dev->type == DEV_CHAR) // chardev
-        return dev->read(dev, buf, siz, openctx);
+        return dev->op->read(dev, buf, siz, openctx);
 
     int blksiz;
-    dev->ioctl(dev, BLKSSZGET, &blksiz);
+    dev->op->ioctl(dev, BLKSSZGET, &blksiz);
     int blk = offset / blksiz;
     int off = offset % blksiz;
 
@@ -58,10 +58,10 @@ static int dev_write(node_t *this, void *buf, size_t siz, size_t offset,
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
     if (dev->type == DEV_CHAR) // chardev
-        return dev->write(dev, buf, siz, openctx);
+        return dev->op->write(dev, buf, siz, openctx);
 
     int blksiz;
-    dev->ioctl(dev, BLKSSZGET, &blksiz);
+    dev->op->ioctl(dev, BLKSSZGET, &blksiz);
     int blk = offset / blksiz;
     int off = offset % blksiz;
 
@@ -89,37 +89,37 @@ static int dev_init_pctx(node_t *this, u64 file_flgs, void **pctx)
 {
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
-    if (!dev->_init_pctx) return 0;
-    return dev->_init_pctx(dev, pctx);
+    if (!dev->op->_init_pctx) return 0;
+    return dev->op->_init_pctx(dev, pctx);
 }
 
 static int dev_fini_pctx(node_t *this, u64 file_flgs, void **pctx)
 {
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
-    if (!dev->_fini_pctx) return 0;
-    return dev->_fini_pctx(dev, pctx);
+    if (!dev->op->_fini_pctx) return 0;
+    return dev->op->_fini_pctx(dev, pctx);
 }
 
 static void *dev_mmap(node_t *this, vm_region_t *vm, struct fs_openctx *openctx)
 {
     devst_t *dev = dev_extract(this);
     if (!dev) return MRET(-EINVAL);
-    return dev->mmap(dev, vm);
+    return dev->op->mmap(dev, vm);
 }
 
 static int dev_poll_setup(node_t *this, struct fs_poller *poller)
 {
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
-    return dev->poll_setup(dev, poller);
+    return dev->op->poll_setup(dev, poller);
 }
 
 static int dev_poll_teardown(node_t *this, struct fs_poller *poller)
 {
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
-    return dev->poll_teardown(dev, poller);
+    return dev->op->poll_teardown(dev, poller);
 }
 
 fs_opts_t __vfs_dev_op = {

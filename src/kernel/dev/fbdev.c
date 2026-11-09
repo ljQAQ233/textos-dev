@@ -2,11 +2,11 @@
  * frame buffer device
  */
 #include <textos/dev.h>
-#include <textos/task.h>
 #include <textos/errno.h>
-#include <textos/video.h>
 #include <textos/mm/map.h>
 #include <textos/mm/mman.h>
+#include <textos/task.h>
+#include <textos/video.h>
 
 static void *fbdev_mmap(devst_t *fb, vm_region_t *vm, ...)
 {
@@ -38,11 +38,16 @@ static void *fbdev_mmap(devst_t *fb, vm_region_t *vm, ...)
     return MRET(vaddr);
 }
 
+static dev_opts_t fb_op = {
+    .mmap = fbdev_mmap,
+    .driver_name = "fb",
+};
+
 void fbdev_init()
 {
     devst_t *fb = dev_new();
     fb->name = "fb0";
-    fb->mmap = fbdev_mmap;
+    fb->op = &fb_op;
     fb->type = DEV_CHAR;
     fb->subtype = DEV_FBDEV;
     dev_register(NULL, fb);

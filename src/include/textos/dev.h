@@ -31,16 +31,8 @@ enum sub_type
     DEV_EVENT,
 };
 
-// dev structure 名字略微生草
-struct devst
+struct dev_opts
 {
-    char *name;
-    int type;
-    int subtype;
-    uint major;
-    uint minor;
-    list_t subdev;
-
     int (*_init_pctx)(devst_t *dev, void **pctx);
     int (*_fini_pctx)(devst_t *dev, void **pctx);
     union
@@ -63,8 +55,20 @@ struct devst
     void (*mkname)(devst_t *dev, char res[32], int nr);
     int (*poll_setup)(devst_t *this, struct fs_poller *poller);
     int (*poll_teardown)(devst_t *this, struct fs_poller *poller);
+    const char *driver_name;
+};
 
-    void *pdata;  // to support multiple devs
+// dev structure 名字略微生草
+struct devst
+{
+    char *name;
+    int type;
+    int subtype;
+    uint major;
+    uint minor;
+    list_t subdev;
+    dev_opts_t *op;
+    void *pdata; // to support multiple devs
 };
 
 // dev structure private
@@ -108,6 +112,8 @@ static inline dev_t makedev_for(devst_t *d)
 #define NODEV 0
 
 devst_t *dev_new();
+void dev_stub_padops(dev_opts_t *op);
+void dev_stub_getops(dev_opts_t **op);
 void __dev_register(devstp_t *pri);
 void dev_register(devst_t *prt, devst_t *dev);
 void dev_register_anony(devst_t *dev);

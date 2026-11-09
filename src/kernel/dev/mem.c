@@ -14,6 +14,12 @@ static int null_write(devst_t *dev, void *buf, size_t cnt, ...)
     return 0;
 }
 
+static dev_opts_t null_op = {
+    .read = null_read,
+    .write = null_write,
+    .driver_name = "mem-null",
+};
+
 // 0
 static int zero_read(devst_t *dev, void *buf, size_t cnt, ...)
 {
@@ -27,30 +33,37 @@ static int zero_write(devst_t *dev, void *buf, size_t cnt, ...)
     return 0;
 }
 
+static dev_opts_t zero_op = {
+    .read = zero_read,
+    .write = zero_write,
+    .driver_name = "mem-zero"
+};
+
+static dev_opts_t mem_op = {};
+
 // todo : full
 
 static devst_t null = {
     .name = "null",
-    .read = null_read,
-    .write = null_write,
     .type = DEV_CHAR,
     .subtype = DEV_NULL,
     .minor = 3,
+    .op = &null_op,
 };
 
 static devst_t zero = {
     .name = "zero",
-    .read = zero_read,
-    .write = zero_write,
     .type = DEV_CHAR,
     .subtype = DEV_ZERO,
-    .minor = 5
+    .minor = 5,
+    .op = &zero_op,
 };
 
 static devst_t mem = {
     .name = "mem",
     .type = DEV_CHAR,
     .subtype = DEV_MEMORY,
+    .op = &mem_op,
 };
 
 void __dev_initmem()

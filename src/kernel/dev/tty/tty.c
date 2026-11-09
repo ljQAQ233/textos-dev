@@ -404,7 +404,7 @@ static int tty_ioctl(devst_t *dev, int req, void *argp)
     return 0;
 }
 
-int tty_poll_setup(devst_t *this, struct fs_poller *poller)
+static int tty_poll_setup(devst_t *this, struct fs_poller *poller)
 {
     tty_t *tty = this->pdata;
     if (tty_buf_chrs(&tty->ibuf) > 0)
@@ -418,12 +418,22 @@ int tty_poll_setup(devst_t *this, struct fs_poller *poller)
     return 0;
 }
 
-int tty_poll_teardown(devst_t *this, struct fs_poller *poller)
+static int tty_poll_teardown(devst_t *this, struct fs_poller *poller)
 {
     tty_t *tty = this->pdata;
     fs_poll_teardown(&tty->pollee, poller);
     return 0;
 }
+
+static dev_opts_t tty_op = {
+    ._init_pctx = tty__init_pctx,
+    .read = tty_read,
+    .write = tty_write,
+    .ioctl = tty_ioctl,
+    .poll_setup = tty_poll_setup,
+    .poll_teardown = tty_poll_teardown,
+    .driver_name = "tty",
+};
 
 tty_t *tty_init_struct(tty_t *tty, void *data, tty_ioctl_t ctl, tty_iosop_t in,
                        tty_iosop_t out)
@@ -471,12 +481,7 @@ devst_t *tty_init_device(const char *name, void *tty)
     dev->name = strdup(name);
     dev->type = DEV_CHAR;
     dev->subtype = DEV_TTY;
-    dev->_init_pctx = tty__init_pctx;
-    dev->read = tty_read;
-    dev->write = tty_write;
-    dev->ioctl = tty_ioctl;
-    dev->poll_setup = tty_poll_setup;
-    dev->poll_teardown = tty_poll_teardown;
+    dev->op = &tty_op;
     dev->pdata = tty;
     dev_register(NULL, dev);
     return dev;

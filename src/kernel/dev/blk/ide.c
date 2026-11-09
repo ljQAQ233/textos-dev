@@ -233,7 +233,7 @@ static void ide_runpio(ide_t *pri, u8 rw)
 
 #define MAXCNT 255
 
-static void ide_dma_read(devst_t *dev, blkno_t no, buffer_t *b, blkcnt_t cnt)
+static void ide_dma_read(devst_t *dev, blkno_t no, buffer_t *b, blkcnt_t cnt, ...)
 {
     UNINTR_AREA_START();
 
@@ -341,6 +341,22 @@ static void ide_mkname(devst_t *dev, char res[32], int nr)
     sprintf(res, "%s%d", dev->name, nr);
 }
 
+static dev_opts_t ide_dma_op = {
+    .bread = (void *)ide_dma_read,
+    .bwrite = (void *)ide_dma_write,
+    .ioctl = ide_ioctl,
+    .mkname = ide_mkname,
+    .driver_name = "ide-dma",
+};
+
+static dev_opts_t ide_pio_op = {
+    .bread = (void *)ide_pio_read,
+    .bwrite = (void *)ide_pio_write,
+    .ioctl = ide_ioctl,
+    .mkname = ide_mkname,
+    .driver_name = "ide-pio",
+};
+
 #define ID_CONFIG   0   // Bit flags                  1  (word)
 #define ID_SN       10  // Serial number              10 (word)
 #define ID_FWVER    23  // Firmware version           8  (word)
@@ -414,18 +430,7 @@ static void init(int x, u16 bmbase)
     dev->name = ideid[x];
     dev->type = DEV_BLK;
     dev->subtype = DEV_IDE;
-    if (dma)
-    {
-        dev->bread = (void *)ide_dma_read;
-        dev->bwrite = (void *)ide_dma_write;
-    }
-    else
-    {
-        dev->bread = (void *)ide_pio_read;
-        dev->bwrite = (void *)ide_pio_write;
-    }
-    dev->ioctl = (void *)ide_ioctl;
-    dev->mkname = (void *)ide_mkname;
+    dev->op = dma ? &ide_dma_op : &ide_pio_op;
     dev->pdata = pri;
     dev_register(NULL, dev);
     blk_part_scan(dev);

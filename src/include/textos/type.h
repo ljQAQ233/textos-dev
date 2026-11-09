@@ -87,6 +87,7 @@ typedef signed int keysym_t;
     typedef struct x x##_t
 
 aka(devst);
+aka(dev_opts);
 aka(task);
 aka(node);
 aka(dirctx);
