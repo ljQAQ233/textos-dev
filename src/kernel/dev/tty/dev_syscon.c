@@ -3,24 +3,28 @@
 #include <textos/cmdline.h>
 #include <textos/dev.h>
 #include <textos/dev/tty/tty.h>
+#include <textos/errno.h>
 #include <textos/klib/arraylen.h>
 
 __CMDLINE_USED("console");
 static dev_opts_t *op;
 static struct tty *out;
-extern struct tty *__fgtty;
+
+static int syscon__init_pctx(devst_t *dev, void **pctx)
+{
+    if (!out) return -ENODEV;
+    return 0;
+}
 
 static int syscon_write(devst_t *dev, void *buf, size_t cnt, ...)
 {
-    struct tty *tty = out ? out : __fgtty;
-    devst_t d = {.pdata = tty};
+    devst_t d = {.pdata = out};
     return op->write(&d, buf, cnt);
 }
 
 static int syscon_read(devst_t *dev, void *buf, size_t cnt, ...)
 {
-    struct tty *tty = out ? out : __fgtty;
-    devst_t d = {.pdata = tty};
+    devst_t d = {.pdata = out};
     return op->read(&d, buf, cnt);
 }
 
@@ -31,6 +35,7 @@ static int syscon_ioctl(devst_t *dev, int req, void *argp, ...)
 }
 
 static dev_opts_t syscon_op = {
+    ._init_pctx = syscon__init_pctx,
     .write = syscon_write,
     .read = syscon_read,
     .ioctl = syscon_ioctl,
