@@ -15,6 +15,7 @@ void serial_init();
 void tty_init();
 void ctrltty_init();
 void syscon_init();
+void tty0_init();
 void buffer_init();
 void pci_init();
 void ahci_init();
@@ -48,6 +49,7 @@ void kernel_main ()
     tty_init();
     ctrltty_init();
     syscon_init();
+    tty0_init();
     buffer_init();
     pci_init();
     ahci_init();
