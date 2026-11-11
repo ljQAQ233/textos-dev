@@ -12,6 +12,8 @@ const struct perm_ov
     {"full", 0666},
     {"null", 0666},
     {"tty", 0666},
+    {"tty0", 0666},
+    {"console", 0600},
     {
         NULL,
     },
