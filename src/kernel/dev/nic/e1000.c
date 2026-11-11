@@ -492,7 +492,7 @@ void e1000_send(nif_t *n, mbuf_t *m)
 
 #include <textos/dev.h>
 
-int e1000_ioctl(devst_t *dev, int req, void *argp)
+int e1000_ioctl(devst_t *dev, int req, void *argp, ...)
 {
     e1000_t *e = dev->pdata;
     return nif_ioctl(&e->nif, req, argp);

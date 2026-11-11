@@ -375,7 +375,7 @@ static int tty_write(devst_t *dev, void *buf, size_t len, ...)
     return cnt;
 }
 
-static int tty_ioctl(devst_t *dev, int req, void *argp)
+static int tty_ioctl(devst_t *dev, int req, void *argp, ...)
 {
     tty_t *tty = dev->pdata;
     switch (req) {

@@ -123,7 +123,7 @@ static int event_read(devst_t *dev, void *buf, size_t cnt, ...)
     return i;
 }
 
-static int event_ioctl(devst_t *dev, int req, void *argp)
+static int event_ioctl(devst_t *dev, int req, void *argp, ...)
 {
     return -EINVAL;
 }

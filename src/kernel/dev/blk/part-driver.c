@@ -25,7 +25,7 @@ static int blk_part_write(devst_t *dev, blkno_t addr, buffer_t *buf,
 
 #include <textos/ioctl.h>
 
-static int blk_part_ioctl(devst_t *dev, int req, void *argp)
+static int blk_part_ioctl(devst_t *dev, int req, void *argp, ...)
 {
     devst_t *prt = dev_lookup_nr(dev->major, 1);
     switch (req) {

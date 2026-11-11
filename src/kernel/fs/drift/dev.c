@@ -18,7 +18,7 @@ static int dev_ioctl(node_t *this, int req, void *argp, struct fs_openctx *openc
 {
     devst_t *dev = dev_extract(this);
     if (!dev) return -EINVAL;
-    return dev->op->ioctl(dev, req, argp);
+    return dev->op->ioctl(dev, req, argp, openctx);
 }
 
 static int dev_read(node_t *this, void *buf, size_t siz, size_t offset,

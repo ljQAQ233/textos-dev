@@ -321,7 +321,7 @@ static void ide_pio_write(devst_t *dev, blkno_t no, buffer_t *b, blkcnt_t cnt)
 #include <textos/errno.h>
 #include <textos/klib/vsprintf.h>
 
-static int ide_ioctl(devst_t *dev, int req, void *argp)
+static int ide_ioctl(devst_t *dev, int req, void *argp, ...)
 {
     ide_t *pri = dev->pdata;
     switch (req)

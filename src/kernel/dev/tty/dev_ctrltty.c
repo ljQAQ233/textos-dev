@@ -66,7 +66,7 @@ static int ctrltty_read(devst_t *dev, void *buf, size_t cnt, ...)
     return tsk->ctrltty->op->read(dev, buf, cnt);
 }
 
-static int ctrltty_ioctl(devst_t *dev, int req, void *argp)
+static int ctrltty_ioctl(devst_t *dev, int req, void *argp, ...)
 {
     task_t *tsk = task_current();
     // TODO: handle TIOCNOTTY
