@@ -174,6 +174,11 @@ int open(const char *path, int flgs, ...)
     return syscall(SYS_open, path, flgs, mode);
 }
 
+int creat(const char *path, mode_t mode)
+{
+    return open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+}
+
 int fcntl(int fd, int cmd, ...)
 {
     va_list ap;

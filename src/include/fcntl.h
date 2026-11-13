@@ -12,7 +12,7 @@ __BEGIN_DECLS
 #include <bits/alltypes.h>
 
 int open(const char *__path, int __flgs, ...);
-
+int creat(const char *__path, mode_t __mode);
 int fcntl(int __fd, int __cmd, ...);
 
 #include <bits/fcntl.h>
