@@ -5,6 +5,7 @@
     _(close, 3)         \
     _(stat, 4)          \
     _(fstat, 5)         \
+    _(lstat, 6)         \
     _(poll, 7)          \
     _(lseek, 8)         \
     _(mmap, 9)          \

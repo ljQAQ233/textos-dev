@@ -454,7 +454,7 @@ static void fillsb(node_t *node, struct stat *sb)
     sb->st_ctime = node->ctime;
 }
 
-__SYSCALL_DEFINE2(int, stat, char *, path, struct stat *, sb) 
+__SYSCALL_DEFINE2(int, stat, const char *, path, struct stat *, sb)
 {
     int ret;
     node_t *node;
@@ -462,8 +462,20 @@ __SYSCALL_DEFINE2(int, stat, char *, path, struct stat *, sb)
 
     ret = vfs_open(task_current()->pwd, path, FS_GAIN | FS_NOPCTX, 0, &node,
                    &ctx);
-    if (ret < 0)
-        return ret;
+    if (ret < 0) return ret;
+    fillsb(node, sb);
+    return 0;
+}
+
+__SYSCALL_DEFINE2(int, lstat, const char *, path, struct stat *, sb)
+{
+    int ret;
+    node_t *node;
+    struct fs_openctx ctx = {0};
+
+    ret = vfs_open(task_current()->pwd, path, FS_GAIN | FS_NOPCTX | FS_GAINLNK,
+                   0, &node, &ctx);
+    if (ret < 0) return ret;
     fillsb(node, sb);
     return 0;
 }

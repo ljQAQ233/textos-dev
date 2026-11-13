@@ -223,10 +223,6 @@ int close(int fd)
     return syscall(SYS_close, fd);
 }
 
-extern int __libc_linux_stat(const char *path, struct stat *sb);
-extern int __libc_linux_fstat(int fd, struct stat *sb);
-extern int __libc_linux_lstat(const char *path, struct stat *sb);
-
 int stat(const char *path, struct stat *sb)
 {
     return syscall(SYS_stat, path, sb);
@@ -234,7 +230,7 @@ int stat(const char *path, struct stat *sb)
 
 int lstat(const char *path, struct stat *sb)
 {
-    return -ENOSYS;
+    return syscall(SYS_lstat, path, sb);
 }
 
 int fstat(int fd, struct stat *sb)

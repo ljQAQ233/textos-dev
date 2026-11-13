@@ -28,6 +28,7 @@ void *__sc_redir_x86_64[512] = {
     [SYS_sigprocmask] = w_sigprocmask,
     [SYS_sigsuspend] = w_sigsuspend,
     [SYS_stat] = w_stat,
+    [SYS_lstat] = w_lstat,
     [SYS_fstat] = w_fstat,
     [SYS_readdir] = w_readdir,
     [SYS_close] = w_close,
