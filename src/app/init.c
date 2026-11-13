@@ -12,6 +12,9 @@ int exec(char *tty)
 {
     pid_t pid = fork();
     if (pid == 0) {
+        close(0);
+        close(1);
+        close(2);
         char *argv[] = {
             "/bin/getty",
             tty,
