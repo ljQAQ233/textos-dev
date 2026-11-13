@@ -55,6 +55,8 @@ _Noreturn void abort();
 
 int system(const char *__cmd);
 
+char *realpath(const char *__restrict path, char *restrict __resolved_path);
+
 // random
 
 /* Reentrant versions of the `random' family of functions.
