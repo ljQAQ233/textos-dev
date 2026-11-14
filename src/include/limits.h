@@ -30,6 +30,7 @@ __BEGIN_DECLS
 #define ULLONG_MAX (2ULL * LLONG_MAX + 1)
 
 #include <bits/arch.h>
+#include <bits/posix-limits.h>
 
 // for compact - some programs use those in compile-time
 // preprocessing statement. here with a generic fallback
@@ -41,8 +42,7 @@ __BEGIN_DECLS
 
 #define MB_LEN_MAX 4
 
-#define PATH_MAX 4096
-#define NAME_MAX 255
+#include <sys/syslimits.h>
 
 __END_DECLS
 
