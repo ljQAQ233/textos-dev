@@ -16,8 +16,8 @@ enum
 #define MIN_NR_CONSOLES 1
 #define DEF_FG_CONSOLE  MIN_NR_CONSOLES
 
-#define ARG_MAX   16
-#define ARG_RESET -1
+#define CON_ARG_MAX   16
+#define CON_ARG_RESET -1
 
 #define TABWID 8
 
@@ -59,7 +59,7 @@ struct con
     struct conbuf conbuf;
     // csi
     int argc;
-    int argv[ARG_MAX];
+    int argv[CON_ARG_MAX];
     int state;
     bool pmcmd;
     bool acs;

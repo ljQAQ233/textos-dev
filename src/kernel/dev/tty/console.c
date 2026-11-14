@@ -272,7 +272,7 @@ static inline void esc(struct con *con, char c)
 static inline bool csi(struct con *con, char c)
 {
     con->state = STATE_ARG;
-    con->argc = ARG_RESET;
+    con->argc = CON_ARG_RESET;
 
     con->pmcmd = c == '?';
     return con->pmcmd;
@@ -283,8 +283,8 @@ static inline void pmcmd(struct con *con, char c);
 
 static inline void arg(struct con *con, char c)
 {
-    if (con->argc == ARG_RESET) {
-        for (int i = 0; i < ARG_MAX; i++)
+    if (con->argc == CON_ARG_RESET) {
+        for (int i = 0; i < CON_ARG_MAX; i++)
             con->argv[i] = 0;
         con->argc = 0;
     }
@@ -293,7 +293,7 @@ static inline void arg(struct con *con, char c)
         con->argv[con->argc] = con->argv[con->argc] * 10 + c - '0';
     else if (c == ';') {
         // drop
-        if (++con->argc > ARG_MAX) --con->argc;
+        if (++con->argc > CON_ARG_MAX) --con->argc;
     } else {
         ++con->argc;
         if (con->pmcmd)
@@ -507,7 +507,7 @@ void console_init(struct con *con)
     con->fg = con->fgdef;
     con->vpm_top = 0;
     con->vpm_bot = 0;
-    con->argc = ARG_RESET;
+    con->argc = CON_ARG_RESET;
     con->state = STATE_NOR;
     con->pmcmd = false;
     conbuf_init(con);
