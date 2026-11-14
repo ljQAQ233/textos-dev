@@ -14,8 +14,6 @@
 
 #define mempad(chrptr, chr) (*(char *)(chrptr) = (chr))
 
-#define MAXSYMLINKS 40
-
 // resolved_path is a ptr to a buffer with a size of at least PATH_MAX
 char *realpath(const char *restrict path, char *restrict res)
 {
@@ -78,7 +76,7 @@ char *realpath(const char *restrict path, char *restrict res)
         log("check %s\n", res);
         if (lstat(res, &sb) < 0) goto fail;
         if (S_ISLNK(sb.st_mode)) {
-            if (++symlinks > MAXSYMLINKS) {
+            if (++symlinks > SYMLOOP_MAX) {
                 errno = ELOOP;
                 goto fail;
             }
