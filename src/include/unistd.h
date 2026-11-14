@@ -117,9 +117,11 @@ int isatty(int __fd);
 // TODO
 unsigned alarm(unsigned __seconds);
 
-#define _SC_PAGE_SIZE 30
-#define _SC_PAGESIZE  30
-#define _SC_CLK_TCK 2
+// those specific value are dependent on impl
+#define _SC_PAGE_SIZE   1
+#define _SC_PAGESIZE    1
+#define _SC_CLK_TCK     2
+#define _SC_SYMLOOP_MAX 3
 
 long sysconf(int name);
 

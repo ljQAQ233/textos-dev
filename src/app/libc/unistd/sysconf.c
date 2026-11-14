@@ -1,10 +1,12 @@
 #include <errno.h>
 #include <sys/user.h> // PAGESIZE
 #include <unistd.h>
+#include <limits.h>
 
 long __sysconfs[] = {
     [_SC_PAGESIZE] = PAGESIZE,
     [_SC_CLK_TCK] = 1000,
+    [_SC_SYMLOOP_MAX] = SYMLOOP_MAX,
 };
 
 long sysconf(int name)
