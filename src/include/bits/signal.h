@@ -1,4 +1,4 @@
-#define _NSIG     64
+#define _NSIG 64
 
 #define SIGHUP    1
 #define SIGINT    2
@@ -34,3 +34,27 @@
 #define SIGPWR    30
 #define SIGSYS    31
 #define SIGUNUSED SIGSYS
+
+#define SA_NOCLDSTOP 1          // TODO 只关心子进程结束
+#define SA_NOCLDWAIT 2          // TODO 不产生僵尸进程, 内核直接回收
+#define SA_SIGINFO   4          // TODO 用拓展信号处理函数
+#define SA_ONSTACK   0x08000000 // TODO 使用备用栈
+#define SA_RESTART   0x10000000 // 被打断的系统调用自动恢复执行
+#define SA_NODEFER   0x40000000 // 不阻塞自身
+#define SA_RESETHAND 0x80000000 // 一次性调用, 恢复 handler
+#define SA_RESTORER  0x04000000 // TODO 使用用户提供的 restorer
+
+struct sigaction
+{
+    union
+    {
+        void (*sa_handler)(int);
+    };
+    unsigned long sa_flags;
+    void (*sa_restorer)(void);
+    sigset_t sa_mask;
+};
+
+#define SIG_ERR ((void (*)(int)) - 1) // 注册失败
+#define SIG_DFL ((void (*)(int))0)    // 默认处理
+#define SIG_IGN ((void (*)(int))1)    // 忽略信号
