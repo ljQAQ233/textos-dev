@@ -11,6 +11,13 @@ CC      := $(CROSS_COMPILE)gcc
 LD      := $(CROSS_COMPILE)ld
 OBJCOPY := $(CROSS_COMPILE)objcopy
 
+# Pin the portable x86-64 baseline instead of trusting the host compiler's
+# default ISA. Newer distro GCC builds (e.g. Ubuntu 26.04) default to
+# x86-64-v3 and emit AVX2 such as `vpxor`, which breaks older CPUs.
+ifeq ($(ARCH),x86_64)
+ARCH_CFLAGS ?= -march=x86-64 -mtune=generic
+endif
+
 INSTALL_SUDO =
 INSTALL = $(INSTALL_SUDO) install
 
@@ -28,6 +35,7 @@ BUILD := $(TOPBUILD)
 export ARCH CROSS_COMPILE
 export HOSTCC HOSTLD HOSTOC
 export CC LD OBJCOPY
+export ARCH_CFLAGS
 export INSTALL
 export BOOT_MODE
 export TOPBUILD BUILD

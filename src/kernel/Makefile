@@ -12,6 +12,7 @@ INCLUDE := \
   $(abspath arch/$(ARCH))
 
 CFLAGS := \
+  $(ARCH_CFLAGS) \
   -static -nostdlib -nostdinc -g -Wall \
   -std=c11 -O0 -fshort-wchar -ffreestanding \
   -fno-builtin -fno-stack-check -fno-stack-protector \

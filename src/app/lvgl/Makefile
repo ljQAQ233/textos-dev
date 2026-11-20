@@ -14,9 +14,9 @@ OBJS := $(addprefix ${BUILD}/,${OBJS})
 
 LVGL_PATH := $(realpath ${LVGL_SHORT_PATH})
 
-AFLAGS   := -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CONF_PATH="\"$(LVGL_CONF)\""
-CFLAGS   := -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CONF_PATH="\"$(LVGL_CONF)\""
-CXXFLAGS := -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CONF_PATH="\"$(LVGL_CONF)\""
+AFLAGS   := $(ARCH_CFLAGS) -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CONF_PATH="\"$(LVGL_CONF)\""
+CFLAGS   := $(ARCH_CFLAGS) -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CONF_PATH="\"$(LVGL_CONF)\""
+CXXFLAGS := $(ARCH_CFLAGS) -static -fno-stack-check -fno-stack-protector -I$(LVGL_PATH) -DLV_CONF_PATH="\"$(LVGL_CONF)\""
 
 all: $(BUILD)/liblvgl.a
 
